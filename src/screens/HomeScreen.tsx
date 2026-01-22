@@ -362,14 +362,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               iconColor={colors.seaweedGreen}
             />
 
-            <MenuItem
-              icon="cloud"
-              label="Weather & Tides"
-              onPress={() => navigateToScreen("Weather")}
-              iconBgColor="#E0EBF5"
-              iconColor="#4A7EB0"
-            />
-
             <View style={styles.menuDivider} />
 
             <Text style={styles.menuSectionTitle}>External Links</Text>

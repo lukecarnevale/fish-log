@@ -25,7 +25,6 @@ export type RootStackParamList = {
   SpeciesInfo: undefined;
   LicenseDetails: undefined;
   Leaderboard: undefined;
-  Weather: undefined;
   Profile: undefined;
 };
 

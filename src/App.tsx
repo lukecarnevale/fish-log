@@ -33,7 +33,6 @@ import PastReportsScreen from "./screens/PastReportsScreen";
 import SpeciesInfoScreen from "./screens/SpeciesInfoScreen";
 import FishingLicenseScreen from "./screens/FishingLicenseScreen";
 import LeaderboardScreen from "./screens/LeaderboardScreen";
-import WeatherScreen from "./screens/WeatherScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 
 // Import styles
@@ -103,7 +102,6 @@ const AppContent: React.FC = () => {
           SpeciesInfo: 'species',
           LicenseDetails: 'license',
           Leaderboard: 'leaderboard',
-          Weather: 'weather',
           Profile: 'profile',
           Confirmation: 'confirmation',
         },
@@ -181,14 +179,6 @@ const AppContent: React.FC = () => {
             component={LeaderboardScreen}
             options={{
               headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="Weather"
-            component={WeatherScreen}
-            options={{ 
-              title: "Weather",
-              ...navigationStyles.modernHeaderOptions,
             }}
           />
           <Stack.Screen
