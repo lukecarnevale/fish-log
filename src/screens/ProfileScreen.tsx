@@ -1,0 +1,1387 @@
+// screens/ProfileScreen.tsx
+
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Image,
+  Alert,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Keyboard,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { isValidPhoneNumber } from 'libphonenumber-js';
+import MaskInput from 'react-native-mask-input';
+import * as yup from 'yup';
+import * as ImagePicker from 'expo-image-picker';
+
+// Instead of using GooglePlacesAutocomplete which causes UUID issues
+import { RootStackParamList, UserProfile } from "../types";
+import { colors, spacing, borderRadius, shadows, typography } from "../styles/common";
+
+type ProfileScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "Profile"
+>;
+
+// Create validation schema with Yup
+// Validation is conditional based on hasLicense status
+const profileSchema = yup.object().shape({
+  hasLicense: yup.boolean(),
+  // WRC ID required when hasLicense = true
+  wrcId: yup.string().when('hasLicense', {
+    is: true,
+    then: (schema) => schema.required('WRC ID or Customer ID is required'),
+    otherwise: (schema) => schema,
+  }),
+  // Name required when hasLicense = false
+  firstName: yup.string().when('hasLicense', {
+    is: false,
+    then: (schema) => schema.required('First name is required'),
+    otherwise: (schema) => schema,
+  }),
+  lastName: yup.string().when('hasLicense', {
+    is: false,
+    then: (schema) => schema.required('Last name is required'),
+    otherwise: (schema) => schema,
+  }),
+  // ZIP required when hasLicense = false
+  zipCode: yup.string().when('hasLicense', {
+    is: false,
+    then: (schema) => schema
+      .required('ZIP code is required')
+      .matches(/^\d{5}$/, 'ZIP code must be exactly 5 digits'),
+    otherwise: (schema) => schema,
+  }),
+  dateOfBirth: yup.string(),
+  email: yup.string().email('Please enter a valid email'),
+  phone: yup.string().test('is-valid-phone', 'Please enter a valid phone number', function(value) {
+    if (!value) return true; // Optional field
+    try {
+      return isValidPhoneNumber(value, 'US');
+    } catch (e) {
+      return false;
+    }
+  }),
+  address: yup.string(),
+  profileImage: yup.string(),
+});
+
+// Phone number mask for US numbers (123) 456-7890
+const PHONE_MASK = [
+  '(',
+  /\d/,
+  /\d/,
+  /\d/,
+  ')',
+  ' ',
+  /\d/,
+  /\d/,
+  /\d/,
+  '-',
+  /\d/,
+  /\d/,
+  /\d/,
+  /\d/,
+];
+
+interface ProfileScreenProps {
+  navigation: ProfileScreenNavigationProp;
+}
+
+const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  const [profile, setProfile] = useState<UserProfile>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [formData, setFormData] = useState<UserProfile>({});
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+
+  // Refs for inputs to enable keyboard navigation
+  const wrcIdInputRef = useRef<TextInput>(null);
+  const lastNameInputRef = useRef<TextInput>(null);
+  const zipCodeInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInput>(null);
+  const phoneInputRef = useRef<MaskInput>(null);
+  const addressInputRef = useRef<TextInput>(null);
+
+  // Request permission for image picker
+  useEffect(() => {
+    (async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to set profile pictures!');
+      }
+    })();
+  }, []);
+
+  // Load profile data from AsyncStorage (merge with fishingLicense data)
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const [savedProfile, savedLicense] = await Promise.all([
+          AsyncStorage.getItem("userProfile"),
+          AsyncStorage.getItem("fishingLicense"),
+        ]);
+
+        let profileData: UserProfile = savedProfile ? JSON.parse(savedProfile) : {};
+        const licenseData = savedLicense ? JSON.parse(savedLicense) : null;
+
+        // If we have license data but profile doesn't have hasLicense/wrcId set, sync them
+        if (licenseData && licenseData.licenseNumber) {
+          if (profileData.hasLicense === undefined) {
+            profileData.hasLicense = true;
+          }
+          if (!profileData.wrcId && licenseData.licenseNumber) {
+            profileData.wrcId = licenseData.licenseNumber;
+          }
+          // Sync names if not set in profile
+          if (!profileData.firstName && licenseData.firstName) {
+            profileData.firstName = licenseData.firstName;
+          }
+          if (!profileData.lastName && licenseData.lastName) {
+            profileData.lastName = licenseData.lastName;
+          }
+        }
+
+        setProfile(profileData);
+        setFormData(profileData);
+      } catch (error) {
+        Alert.alert("Error", "Failed to load your profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  // Function to pick an image from gallery
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const newFormData = { ...formData, profileImage: result.assets[0].uri };
+        setFormData(newFormData);
+
+        if (!isEditing) {
+          // If not in edit mode, directly save the profile picture
+          try {
+            await AsyncStorage.setItem("userProfile", JSON.stringify(newFormData));
+            setProfile(newFormData);
+            Alert.alert("Success", "Profile picture updated");
+          } catch (error) {
+            Alert.alert("Error", "Failed to save profile picture");
+          }
+        }
+      }
+    } catch (error) {
+      Alert.alert("Error", "Something went wrong selecting an image");
+    }
+  };
+
+  // Validate field on change
+  // Uses validateAt with full form context so conditional .when() rules work correctly
+  const validateField = async (field: string, value: any, currentFormData: UserProfile) => {
+    try {
+      // Create updated form data with the new value
+      const updatedFormData = { ...currentFormData, [field]: value };
+      // Validate the specific field with full form context
+      await profileSchema.validateAt(field, updatedFormData);
+      // If validation passes, remove any existing error for this field
+      setValidationErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors[field];
+        return newErrors;
+      });
+      return true;
+    } catch (error) {
+      if (error instanceof yup.ValidationError) {
+        // Set the validation error for this field
+        setValidationErrors(prev => ({
+          ...prev,
+          [field]: error.message
+        }));
+      }
+      return false;
+    }
+  };
+
+  // Handle form field change with validation
+  const handleFieldChange = async (field: string, value: any) => {
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+
+    // When license status changes, clear errors for conditionally-required fields
+    // since their required status changes based on hasLicense
+    if (field === 'hasLicense') {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        // Clear errors for fields whose required status depends on hasLicense
+        delete newErrors.wrcId;
+        delete newErrors.firstName;
+        delete newErrors.lastName;
+        delete newErrors.zipCode;
+        return newErrors;
+      });
+    } else {
+      // Validate the changed field with full form context for conditional rules
+      await validateField(field, value, formData);
+    }
+  };
+
+  // Save profile data to AsyncStorage
+  const saveProfile = async () => {
+    try {
+      // Validate all fields
+      try {
+        await profileSchema.validate(formData, { abortEarly: false });
+      } catch (error) {
+        if (error instanceof yup.ValidationError) {
+          // Transform validation errors into object
+          const errors: {[key: string]: string} = {};
+          error.inner.forEach(err => {
+            if (err.path) {
+              errors[err.path] = err.message;
+            }
+          });
+
+          setValidationErrors(errors);
+
+          // Show alert for the first error
+          if (error.inner.length > 0 && error.inner[0].message) {
+            Alert.alert("Validation Error", error.inner[0].message);
+          }
+          return;
+        }
+      }
+
+      await AsyncStorage.setItem("userProfile", JSON.stringify(formData));
+
+      // Also sync license info to fishingLicense storage if user has a license
+      if (formData.hasLicense === true && formData.wrcId) {
+        const existingLicense = await AsyncStorage.getItem("fishingLicense");
+        const license = existingLicense ? JSON.parse(existingLicense) : {};
+        const updatedLicense = {
+          ...license,
+          licenseNumber: formData.wrcId,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+        };
+        await AsyncStorage.setItem("fishingLicense", JSON.stringify(updatedLicense));
+      }
+
+      setProfile(formData);
+      setIsEditing(false);
+      setValidationErrors({});
+      Alert.alert("Success", "Your profile information has been saved.");
+    } catch (error) {
+      Alert.alert("Error", "Failed to save your profile");
+    }
+  };
+
+  // Format date for display
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Handle date change from date picker
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+
+    if (selectedDate) {
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      setFormData({
+        ...formData,
+        dateOfBirth: formattedDate
+      });
+    }
+  };
+
+  // Render profile form
+  const renderProfileForm = () => (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        style={styles.formContainer}
+        contentContainerStyle={styles.formContentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.profilePhotoSection}>
+          <TouchableOpacity
+            style={styles.profileImageContainer}
+            onPress={pickImage}
+            activeOpacity={0.8}
+          >
+            {formData.profileImage ? (
+              <Image
+                source={{ uri: formData.profileImage }}
+                style={styles.profileImage}
+              />
+            ) : (
+              <Feather name="user" size={50} color={colors.primary} />
+            )}
+            <View style={styles.cameraIconContainer}>
+              <Feather name="camera" size={18} color={colors.white} />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.photoHelpText}>Tap to change profile photo</Text>
+        </View>
+
+        {/* License Information Section */}
+        <View style={styles.formSection}>
+          <Text style={styles.formSectionTitle}>License Information</Text>
+          <Text style={styles.sectionDescription}>
+            This information is used for NC DMF harvest reporting requirements.
+          </Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Do you have a NC Fishing License? *</Text>
+            <View style={styles.toggleRow}>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  formData.hasLicense === true && styles.toggleButtonActive,
+                ]}
+                onPress={() => handleFieldChange('hasLicense', true)}
+              >
+                <Text style={[
+                  styles.toggleButtonText,
+                  formData.hasLicense === true && styles.toggleButtonTextActive,
+                ]}>Yes</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  formData.hasLicense === false && styles.toggleButtonActive,
+                ]}
+                onPress={() => handleFieldChange('hasLicense', false)}
+              >
+                <Text style={[
+                  styles.toggleButtonText,
+                  formData.hasLicense === false && styles.toggleButtonTextActive,
+                ]}>No</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* WRC ID - shown when hasLicense = true */}
+          {formData.hasLicense === true && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>WRC ID / Customer ID *</Text>
+              <TextInput
+                ref={wrcIdInputRef}
+                style={[
+                  styles.input,
+                  validationErrors.wrcId ? styles.inputError : null
+                ]}
+                value={formData.wrcId}
+                onChangeText={(text) => handleFieldChange('wrcId', text)}
+                placeholder="Enter your WRC ID or Customer ID"
+                placeholderTextColor={colors.textTertiary}
+                autoCapitalize="characters"
+                returnKeyType="next"
+                onSubmitEditing={() => emailInputRef.current?.focus()}
+              />
+              <Text style={styles.helpText}>
+                Found on your NC fishing license
+              </Text>
+              {validationErrors.wrcId && (
+                <Text style={styles.errorText}>{validationErrors.wrcId}</Text>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Personal Information Section */}
+        <View style={styles.formSection}>
+          <Text style={styles.formSectionTitle}>Personal Information</Text>
+
+          {/* Name fields - required when hasLicense = false, optional when true */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>
+              Name {formData.hasLicense === false ? '*' : ''}
+            </Text>
+            <View style={styles.nameInputRow}>
+              <View style={styles.nameInput}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    validationErrors.firstName ? styles.inputError : null
+                  ]}
+                  value={formData.firstName}
+                  onChangeText={(text) => handleFieldChange('firstName', text)}
+                  placeholder="First name"
+                  placeholderTextColor={colors.textTertiary}
+                  returnKeyType="next"
+                  onSubmitEditing={() => lastNameInputRef.current?.focus()}
+                  blurOnSubmit={false}
+                />
+                {validationErrors.firstName && (
+                  <Text style={styles.errorText}>{validationErrors.firstName}</Text>
+                )}
+              </View>
+              <View style={styles.nameInputSpacer} />
+              <View style={styles.nameInput}>
+                <TextInput
+                  ref={lastNameInputRef}
+                  style={[
+                    styles.input,
+                    validationErrors.lastName ? styles.inputError : null
+                  ]}
+                  value={formData.lastName}
+                  onChangeText={(text) => handleFieldChange('lastName', text)}
+                  placeholder="Last name"
+                  placeholderTextColor={colors.textTertiary}
+                  returnKeyType="next"
+                  onSubmitEditing={() => {
+                    if (formData.hasLicense === false) {
+                      zipCodeInputRef.current?.focus();
+                    } else {
+                      emailInputRef.current?.focus();
+                    }
+                  }}
+                  blurOnSubmit={false}
+                />
+                {validationErrors.lastName && (
+                  <Text style={styles.errorText}>{validationErrors.lastName}</Text>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {/* ZIP Code - required when hasLicense = false */}
+          {formData.hasLicense === false && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>ZIP Code *</Text>
+              <TextInput
+                ref={zipCodeInputRef}
+                style={[
+                  styles.input,
+                  validationErrors.zipCode ? styles.inputError : null,
+                  { maxWidth: 120 }
+                ]}
+                value={formData.zipCode}
+                onChangeText={(text) => {
+                  // Only allow digits, max 5
+                  const digits = text.replace(/\D/g, '').slice(0, 5);
+                  handleFieldChange('zipCode', digits);
+                }}
+                placeholder="12345"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="number-pad"
+                maxLength={5}
+                returnKeyType="next"
+                onSubmitEditing={() => emailInputRef.current?.focus()}
+              />
+              {validationErrors.zipCode && (
+                <Text style={styles.errorText}>{validationErrors.zipCode}</Text>
+              )}
+            </View>
+          )}
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Date of Birth</Text>
+            <TouchableOpacity
+              style={[
+                styles.input,
+                validationErrors.dateOfBirth ? styles.inputError : null
+              ]}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowDatePicker(true);
+              }}
+            >
+              <Text style={formData.dateOfBirth ? styles.inputText : styles.inputPlaceholder}>
+                {formData.dateOfBirth ? formatDate(formData.dateOfBirth) : "Select date"}
+              </Text>
+              <Feather name="calendar" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+            {validationErrors.dateOfBirth && (
+              <Text style={styles.errorText}>{validationErrors.dateOfBirth}</Text>
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput
+              ref={emailInputRef}
+              style={[
+                styles.input,
+                validationErrors.email ? styles.inputError : null
+              ]}
+              value={formData.email}
+              onChangeText={(text) => handleFieldChange('email', text)}
+              placeholder="Enter your email"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="next"
+              onSubmitEditing={() => phoneInputRef.current?.focus()}
+              blurOnSubmit={false}
+            />
+            {validationErrors.email && (
+              <Text style={styles.errorText}>{validationErrors.email}</Text>
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Phone</Text>
+            <MaskInput
+              ref={phoneInputRef}
+              style={[
+                styles.input,
+                validationErrors.phone ? styles.inputError : null
+              ]}
+              value={formData.phone || ''}
+              onChangeText={(masked, unmasked) => {
+                handleFieldChange('phone', masked);
+              }}
+              placeholder="(555) 123-4567"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="phone-pad"
+              mask={PHONE_MASK}
+              returnKeyType="next"
+              onSubmitEditing={() => addressInputRef.current?.focus()}
+            />
+            {validationErrors.phone && (
+              <Text style={styles.errorText}>{validationErrors.phone}</Text>
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Address</Text>
+            <View>
+              <TextInput
+                ref={addressInputRef}
+                style={[
+                  styles.input,
+                  styles.textArea,
+                  validationErrors.address ? styles.inputError : null
+                ]}
+                value={formData.address}
+                onChangeText={(text) => {
+                  handleFieldChange('address', text);
+
+                  // More responsive address suggestion logic
+                  // Show suggestions for any text of sufficient length
+                  if (text.length >= 3) {
+                    // Common street patterns to match against
+                    const suggestions = [];
+
+                    // Always provide some suggestions based on input
+                    if (text.toLowerCase().includes('st') || text.toLowerCase().includes('street')) {
+                      suggestions.push('123 Main Street, Anytown, NC', '456 Ocean Street, Beachville, NC');
+                    }
+
+                    if (text.toLowerCase().includes('ave') || text.toLowerCase().includes('avenue')) {
+                      suggestions.push('789 Oak Avenue, Forestville, NC', '101 Park Avenue, Citytown, NC');
+                    }
+
+                    if (text.toLowerCase().includes('rd') || text.toLowerCase().includes('road')) {
+                      suggestions.push('222 Country Road, Ruralville, NC', '333 Mountain Road, Highland, NC');
+                    }
+
+                    if (text.toLowerCase().includes('ln') || text.toLowerCase().includes('lane')) {
+                      suggestions.push('444 Maple Lane, Shadygrove, NC', '555 Cedar Lane, Woodville, NC');
+                    }
+
+                    // Fallback if no specific street type matches but text length is sufficient
+                    if (suggestions.length === 0) {
+                      suggestions.push(
+                        `${text} Street, Anytown, NC`,
+                        `${text} Avenue, Cityville, NC`,
+                        `${text} Road, Countryside, NC`
+                      );
+                    }
+
+                    setAddressSuggestions(suggestions);
+                  } else {
+                    setAddressSuggestions([]);
+                  }
+                }}
+                placeholder="Enter your address"
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                numberOfLines={3}
+                textContentType="fullStreetAddress"
+                autoComplete="street-address"
+              />
+
+              {/* Address suggestions */}
+              {addressSuggestions.length > 0 && (
+                <View style={styles.suggestionsContainer}>
+                  <ScrollView style={styles.suggestionsScroll} keyboardShouldPersistTaps="handled">
+                    {addressSuggestions.map((suggestion, index) => (
+                      <TouchableOpacity
+                        key={`suggestion-${index}`}
+                        style={styles.suggestionItem}
+                        onPress={() => {
+                          handleFieldChange('address', suggestion);
+                          setAddressSuggestions([]);
+                          Keyboard.dismiss();
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Feather name="map-pin" size={16} color={colors.primary} style={styles.suggestionIcon} />
+                        <Text style={styles.suggestionText} numberOfLines={1} ellipsizeMode="tail">
+                          {suggestion}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
+            {validationErrors.address && (
+              <Text style={styles.errorText}>{validationErrors.address}</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.formButtonRow}>
+          <TouchableOpacity
+            style={[styles.formButton, styles.formCancelButton]}
+            onPress={() => {
+              setFormData(profile || {});
+              setIsEditing(false);
+            }}
+          >
+            <Text style={styles.formCancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.formButton, styles.formSaveButton]}
+            onPress={saveProfile}
+          >
+            <Text style={styles.formSaveButtonText}>Save Profile</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Date picker for iOS */}
+        {Platform.OS === 'ios' && showDatePicker && (
+          <View style={styles.datePickerContainer}>
+            <View style={styles.datePickerHeader}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.datePickerCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.datePickerTitle}>Select Date of Birth</Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.datePickerDone}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
+              mode="date"
+              display="spinner"
+              onChange={onDateChange}
+              style={styles.datePicker}
+            />
+          </View>
+        )}
+
+        {/* For Android, DateTimePicker is rendered directly */}
+        {Platform.OS === 'android' && showDatePicker && (
+          <DateTimePicker
+            value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
+            mode="date"
+            display="default"
+            onChange={onDateChange}
+          />
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+
+  // Render profile display
+  const renderProfile = () => (
+    <View style={styles.container}>
+      {/* Fixed Back Button */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.7}
+      >
+        <Feather name="arrow-left" size={24} color={colors.white} />
+      </TouchableOpacity>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Top spacer for pull-down bounce - shows dark blue */}
+        <View style={styles.topBounceArea} />
+
+        {/* Header content - scrolls */}
+        <View style={styles.profileHeader}>
+          <Text style={styles.headerTitle}>My Profile</Text>
+
+          <TouchableOpacity
+            style={styles.profileImageContainer}
+            onPress={pickImage}
+            activeOpacity={0.8}
+          >
+            {profile.profileImage ? (
+              <Image
+                source={{ uri: profile.profileImage }}
+                style={styles.profileImage}
+              />
+            ) : (
+              <Feather name="user" size={50} color={colors.primary} />
+            )}
+            <View style={styles.cameraIconContainer}>
+              <Feather name="camera" size={18} color={colors.white} />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.profileName}>
+            {profile.firstName && profile.lastName
+              ? `${profile.firstName} ${profile.lastName}`
+              : profile.firstName || profile.lastName || "Add Your Name"}
+          </Text>
+        </View>
+
+      {/* Content area with light background */}
+      <View style={styles.contentArea}>
+      <View style={styles.infoContainer}>
+        {/* License Status Section */}
+        <View style={styles.infoSection}>
+          <Text style={styles.infoSectionTitle}>License Status</Text>
+
+          <View style={styles.infoItem}>
+            <View style={styles.infoIconContainer}>
+              <Feather
+                name={profile.hasLicense ? "check-circle" : "x-circle"}
+                size={18}
+                color={profile.hasLicense ? colors.success || colors.primary : colors.darkGray}
+              />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>NC Fishing License</Text>
+              <Text style={styles.infoValue}>
+                {profile.hasLicense === true ? "Yes" :
+                 profile.hasLicense === false ? "No" : "Not specified"}
+              </Text>
+            </View>
+          </View>
+
+          {profile.hasLicense === true && profile.wrcId && (
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconContainer}>
+                <Feather name="credit-card" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>WRC ID / Customer ID</Text>
+                <Text style={styles.infoValue}>{profile.wrcId}</Text>
+              </View>
+            </View>
+          )}
+
+          {profile.hasLicense === false && profile.zipCode && (
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconContainer}>
+                <Feather name="map-pin" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>ZIP Code</Text>
+                <Text style={styles.infoValue}>{profile.zipCode}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Personal Information Section */}
+        <View style={styles.infoSection}>
+          <Text style={styles.infoSectionTitle}>Personal Information</Text>
+
+          <View style={styles.infoItem}>
+            <View style={styles.infoIconContainer}>
+              <Feather name="user" size={18} color={colors.primary} />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Name</Text>
+              <View style={styles.nameRow}>
+                <Text style={styles.infoValue}>{profile.firstName || "Not provided"} </Text>
+                <Text style={styles.infoValue}>{profile.lastName || ""}</Text>
+              </View>
+            </View>
+          </View>
+
+          {profile.dateOfBirth && (
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconContainer}>
+                <Feather name="calendar" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Date of Birth</Text>
+                <Text style={styles.infoValue}>{formatDate(profile.dateOfBirth)}</Text>
+              </View>
+            </View>
+          )}
+
+          {profile.phone && (
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconContainer}>
+                <Feather name="phone" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Phone</Text>
+                <Text style={styles.infoValue}>{profile.phone}</Text>
+              </View>
+            </View>
+          )}
+
+          {profile.email && (
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconContainer}>
+                <Feather name="mail" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Email</Text>
+                <Text style={styles.infoValue}>{profile.email}</Text>
+              </View>
+            </View>
+          )}
+
+          {profile.address && (
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconContainer}>
+                <Feather name="map-pin" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Address</Text>
+                <Text style={styles.infoValue}>{profile.address}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => setIsEditing(true)}
+        >
+          <Feather name="edit-2" size={18} color={colors.white} />
+          <Text style={styles.editButtonText}>Edit Profile</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.licenseSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Fishing License</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("LicenseDetails")}
+            style={styles.viewLicenseButton}
+          >
+            <Text style={styles.viewLicenseText}>View License</Text>
+            <Feather name="chevron-right" size={16} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.licenseDescription}>
+          Manage your fishing license information in the License Details section
+        </Text>
+      </View>
+
+      <View style={styles.statsSection}>
+        <Text style={styles.sectionTitle}>Fishing Statistics</Text>
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statLabel}>Catches</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statLabel}>Species</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>0 lbs</Text>
+            <Text style={styles.statLabel}>Biggest Catch</Text>
+          </View>
+        </View>
+      </View>
+      </View>
+      </ScrollView>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
+      {isEditing ? renderProfileForm() : renderProfile()}
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  contentContainer: {
+    flexGrow: 1,
+  },
+  // Invisible spacer that shows primary color when pulling down at top
+  topBounceArea: {
+    backgroundColor: colors.primary,
+    height: 500,
+    marginTop: -500,
+  },
+  // Content area with light background
+  contentArea: {
+    backgroundColor: colors.background,
+    flexGrow: 1,
+    paddingBottom: spacing.xl * 2,
+  },
+  // Fixed Back Button
+  backButton: {
+    position: 'absolute',
+    top: 60,
+    left: spacing.lg,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  // Profile Header
+  profileHeader: {
+    backgroundColor: colors.primary,
+    paddingTop: 80,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    ...typography.h1,
+    color: colors.white,
+    fontSize: 22,
+    marginBottom: spacing.lg,
+  },
+  profileImageContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+    overflow: 'visible',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  cameraIconContainer: {
+    position: 'absolute',
+    bottom: -5,
+    right: -5,
+    backgroundColor: colors.primary,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.white,
+    ...shadows.medium,
+  },
+  profileName: {
+    ...typography.h1,
+    color: colors.white,
+    marginBottom: spacing.xxs,
+  },
+  profileSubtitle: {
+    ...typography.body,
+    color: colors.white,
+    opacity: 0.9,
+  },
+  // Info Section
+  infoContainer: {
+    backgroundColor: colors.white,
+    marginHorizontal: spacing.lg,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginTop: -spacing.xl,
+    ...shadows.medium,
+  },
+  infoSection: {
+    marginBottom: spacing.lg,
+  },
+  infoSectionTitle: {
+    ...typography.heading,
+    color: colors.primary,
+    marginBottom: spacing.md,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+  },
+  infoIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  infoContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  infoLabel: {
+    ...typography.bodySmall,
+    color: colors.darkGray,
+    marginBottom: spacing.xxs,
+  },
+  infoValue: {
+    ...typography.body,
+    color: colors.black,
+  },
+  editButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.small,
+  },
+  editButtonText: {
+    ...typography.button,
+    color: colors.white,
+    marginLeft: spacing.xs,
+  },
+  // License Section
+  licenseSection: {
+    backgroundColor: colors.white,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    ...shadows.medium,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  sectionTitle: {
+    ...typography.heading,
+    color: colors.primary,
+  },
+  viewLicenseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewLicenseText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: '600',
+    marginRight: spacing.xxs,
+  },
+  licenseDescription: {
+    ...typography.body,
+    color: colors.darkGray,
+    marginTop: spacing.xs,
+  },
+  // Stats Section
+  statsSection: {
+    backgroundColor: colors.white,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    ...shadows.medium,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
+  statCard: {
+    width: '30%',
+    backgroundColor: colors.lightGray,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+  },
+  statValue: {
+    ...typography.heading,
+    color: colors.primary,
+    marginBottom: spacing.xxs,
+  },
+  statLabel: {
+    ...typography.bodySmall,
+    color: colors.darkGray,
+  },
+  // Form styles
+  formContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  formContentContainer: {
+    padding: spacing.lg,
+  },
+  formSection: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.small,
+  },
+  formSectionTitle: {
+    ...typography.heading,
+    color: colors.primary,
+    marginBottom: spacing.md,
+  },
+  sectionDescription: {
+    ...typography.body,
+    color: colors.darkGray,
+    marginBottom: spacing.md,
+    marginTop: -spacing.xs,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  toggleButtonText: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.darkGray,
+  },
+  toggleButtonTextActive: {
+    color: colors.primary,
+  },
+  helpText: {
+    ...typography.bodySmall,
+    color: colors.darkGray,
+    marginTop: spacing.xxs,
+    fontStyle: 'italic',
+  },
+  profilePhotoSection: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  photoHelpText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    marginTop: spacing.sm,
+  },
+  inputGroup: {
+    marginBottom: spacing.md,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nameInputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  nameInput: {
+    flex: 1,
+  },
+  nameInputSpacer: {
+    width: 12,
+  },
+  inputLabel: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+    color: colors.darkGray,
+    marginBottom: spacing.xs,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.sm,
+    fontSize: 16,
+    color: colors.black,
+    backgroundColor: colors.white,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  inputError: {
+    borderColor: colors.error || '#FF3B30',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: colors.error || '#FF3B30',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+    paddingTop: spacing.sm,
+  },
+  inputText: {
+    fontSize: 16,
+    color: colors.black,
+    flex: 1,
+  },
+  inputPlaceholder: {
+    fontSize: 16,
+    color: colors.textTertiary,
+    flex: 1,
+  },
+  suggestionsContainer: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    marginTop: 4,
+    height: 150,
+    overflow: 'hidden',
+    ...shadows.medium,
+    zIndex: 999,
+    position: 'absolute',
+    top: 104, // Position below the text input (adjusted for your layout)
+    left: 0,
+    right: 0,
+  },
+  suggestionsScroll: {
+    flex: 1,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  suggestionIcon: {
+    marginRight: 8,
+  },
+  suggestionText: {
+    fontSize: 14,
+    color: colors.black,
+    flex: 1,
+  },
+  formButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xl,
+  },
+  formButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formCancelButton: {
+    backgroundColor: colors.lightGray,
+    marginRight: spacing.sm,
+  },
+  formSaveButton: {
+    backgroundColor: colors.primary,
+    marginLeft: spacing.sm,
+  },
+  formCancelButtonText: {
+    ...typography.button,
+    color: colors.darkGray,
+  },
+  formSaveButtonText: {
+    ...typography.button,
+    color: colors.white,
+  },
+  // Date picker
+  datePickerContainer: {
+    backgroundColor: colors.white,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    ...shadows.large,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  datePickerTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+  },
+  datePickerCancel: {
+    ...typography.bodySmall,
+    color: colors.darkGray,
+  },
+  datePickerDone: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  datePicker: {
+    backgroundColor: colors.white,
+  },
+});
+
+export default ProfileScreen;
