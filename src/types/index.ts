@@ -16,6 +16,44 @@ export {
   createEmptyHarvestReportInput,
 } from './harvestReport';
 
+// User Types (Supabase)
+export {
+  type User,
+  type UserInput,
+  type UserStats,
+  type SpeciesStat,
+  type Achievement,
+  type UserAchievement,
+  type DeviceMergeRequest,
+  transformUser,
+  transformSpeciesStat,
+  transformAchievement,
+  transformUserAchievement,
+} from './user';
+
+// Stored Report Types (Supabase)
+export {
+  type StoredReport,
+  type StoredFishEntry,
+  type ReportInput,
+  type DMFStatusUpdate,
+  transformReport,
+  transformFishEntry,
+  getTotalFishCount,
+  getSpeciesBreakdown,
+} from './report';
+
+// Rewards Types (Supabase)
+export {
+  type Prize,
+  type RewardsDrawing,
+  type RewardsConfig,
+  type UserRewardsEntry,
+  type Quarter,
+  type RewardsState,
+  type RewardsCalculated,
+} from './rewards';
+
 // Navigation Types
 export type RootStackParamList = {
   Home: undefined;

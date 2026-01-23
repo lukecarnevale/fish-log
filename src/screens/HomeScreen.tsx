@@ -27,6 +27,8 @@ import { colors } from "../styles/common";
 import PrizesComponent from "../components/PrizesComponent";
 import Footer from "../components/Footer";
 import AdvertisementBanner from "../components/AdvertisementBanner";
+import FeedbackModal from "../components/FeedbackModal";
+import { FeedbackType } from "../types/feedback";
 import { devConfig } from "../config/devConfig";
 import {
   isTestMode,
@@ -54,6 +56,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   const [hasLicenseInfo, setHasLicenseInfo] = useState<boolean>(false);
   // Track current DMF mode to force re-render when it changes
   const [currentMode, setCurrentMode] = useState<AppMode>(isTestMode() ? "mock" : "production");
+  // Feedback modal state
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState<boolean>(false);
+  const [feedbackType, setFeedbackType] = useState<FeedbackType>('feedback');
   const slideAnim = useRef<Animated.Value>(new Animated.Value(width)).current;
   const overlayOpacity = useRef<Animated.Value>(new Animated.Value(0)).current;
 
@@ -407,7 +412,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               label="Send Feedback"
               onPress={() => {
                 closeMenu();
-                Linking.openURL("mailto:feedback@fishreport.app?subject=Fish%20Report%20App%20Feedback");
+                setFeedbackType('feedback');
+                setFeedbackModalVisible(true);
               }}
               iconBgColor={colors.primaryLight}
               iconColor={colors.primary}
@@ -442,7 +448,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               label="Report a Problem"
               onPress={() => {
                 closeMenu();
-                Linking.openURL("mailto:support@fishreport.app?subject=Fish%20Report%20App%20-%20Problem%20Report");
+                setFeedbackType('bug_report');
+                setFeedbackModalVisible(true);
               }}
             />
 
@@ -870,6 +877,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         </View>
         </View>
       </Animated.ScrollView>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={feedbackModalVisible}
+        onClose={() => setFeedbackModalVisible(false)}
+        type={feedbackType}
+      />
     </SafeAreaView>
     </View>
   );

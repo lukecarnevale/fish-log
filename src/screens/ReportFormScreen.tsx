@@ -31,6 +31,9 @@ import { AREA_LABELS, getAreaCodeFromLabel } from "../constants/areaOptions";
 import { NON_HOOK_GEAR_LABELS, getGearCodeFromLabel } from "../constants/gearOptions";
 import { isTestMode } from "../config/appConfig";
 
+// Rewards context
+import { useRewards } from "../contexts/RewardsContext";
+
 type ReportFormScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
   "ReportForm"
@@ -368,13 +371,20 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     zipCode: "",
   });
 
-  // State for raffle entry
+  // State for rewards entry (local UI state)
   const [enterRaffle, setEnterRaffle] = useState<boolean>(false);
   const [showRaffleModal, setShowRaffleModal] = useState<boolean>(false);
-  const [hasEnteredCurrentRaffle, setHasEnteredCurrentRaffle] = useState<boolean>(false);
-  const [enteredRaffles, setEnteredRaffles] = useState<string[]>([]);
 
-  // State for photo capture (required for raffle entry)
+  // Get rewards data from centralized context
+  const {
+    currentDrawing,
+    config: rewardsConfig,
+    calculated: rewardsCalculated,
+    hasEnteredCurrentRaffle,
+    enterDrawing,
+  } = useRewards();
+
+  // State for photo capture (required for rewards entry)
   const [catchPhoto, setCatchPhoto] = useState<string | null>(null);
 
   // State for inline validation errors
@@ -392,56 +402,22 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // State for abandonment modal
   const [showAbandonModal, setShowAbandonModal] = useState<boolean>(false);
 
-  // Get current raffle info (could be fetched from API in production)
-  const getCurrentRaffle = () => {
-    const now = new Date();
-    const month = now.toLocaleString('default', { month: 'long' });
-    const year = now.getFullYear();
-    const raffleId = `${year}-${now.getMonth() + 1}`; // e.g., "2026-1" for January 2026
-    const raffleName = `${month} ${year} Raffle`;
-    const endDate = new Date(year, now.getMonth() + 1, 0); // Last day of current month
-
-    return {
-      id: raffleId,
-      name: raffleName,
-      endDate: endDate,
-      daysRemaining: Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
-    };
+  // Derived rewards info from context (with fallback for backward compatibility)
+  const currentRewards = {
+    id: currentDrawing?.id || '',
+    name: currentDrawing?.name || 'Quarterly Rewards',
+    endDate: currentDrawing ? new Date(currentDrawing.drawingDate) : new Date(),
+    daysRemaining: rewardsCalculated.daysRemaining,
   };
 
-  const currentRaffle = getCurrentRaffle();
-
-  // Load entered raffles from storage
-  useEffect(() => {
-    const loadEnteredRaffles = async () => {
-      try {
-        const storedRaffles = await AsyncStorage.getItem("enteredRaffles");
-        if (storedRaffles) {
-          const raffles = JSON.parse(storedRaffles) as string[];
-          setEnteredRaffles(raffles);
-          // Check if user has already entered current raffle
-          if (raffles.includes(currentRaffle.id)) {
-            setHasEnteredCurrentRaffle(true);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading entered raffles:", error);
-      }
-    };
-    loadEnteredRaffles();
-  }, [currentRaffle.id]);
-
-  // Save raffle entry
+  // Save rewards entry using context
   const saveRaffleEntry = async () => {
     try {
-      const updatedRaffles = [...enteredRaffles, currentRaffle.id];
-      await AsyncStorage.setItem("enteredRaffles", JSON.stringify(updatedRaffles));
-      setEnteredRaffles(updatedRaffles);
-      setHasEnteredCurrentRaffle(true);
+      await enterDrawing();
       setEnterRaffle(true);
       setShowRaffleModal(false);
     } catch (error) {
-      console.error("Error saving raffle entry:", error);
+      console.error("Error saving rewards entry:", error);
     }
   };
 
@@ -943,7 +919,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       fishEntries: allFish,
       fishCount: totalFishCount,
       // Include raffle entry status and photo
-      enteredRaffle: enterRaffle && !hasEnteredCurrentRaffle ? currentRaffle.id : undefined,
+      enteredRaffle: enterRaffle && !hasEnteredCurrentRaffle ? currentRewards.id : undefined,
       photo: catchPhoto || undefined,
       // DMF-specific fields for harvest report submission
       hasLicense: formData.hasLicense,
@@ -1788,11 +1764,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             />
           </View>
           <View style={localStyles.raffleTitleContainer}>
-            <Text style={localStyles.raffleTitle}>{currentRaffle.name}</Text>
+            <Text style={localStyles.raffleTitle}>{currentRewards.name}</Text>
             <Text style={localStyles.raffleSubtitle}>
               {hasEnteredCurrentRaffle
                 ? "You're entered! Good luck!"
-                : `${currentRaffle.daysRemaining} days left to enter`}
+                : "Eligible contributors entered automatically"}
             </Text>
           </View>
         </View>
@@ -1801,13 +1777,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           <View style={localStyles.raffleEnteredMessage}>
             <Feather name="award" size={18} color={colors.success} />
             <Text style={localStyles.raffleEnteredText}>
-              You've already entered the current raffle. Winners will be announced at the end of {currentRaffle.name.split(' ')[0]}.
+              You're entered in this quarter's drawing. Selected contributors will be notified at the end of {currentRewards.name.split(' ')[0]}.
             </Text>
           </View>
         ) : (
           <>
             <Text style={localStyles.raffleDescription}>
-              Enter to win prizes! By joining, you agree to share your catch data on the public leaderboard.
+              Report your catch to be entered into our quarterly drawing.{'\n'}Or enter free at fishlog.app/enter
             </Text>
 
             {enterRaffle ? (
@@ -1815,17 +1791,23 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 <View style={[localStyles.raffleButton, localStyles.raffleButtonSelected]}>
                   <Feather name="check-circle" size={20} color={colors.white} />
                   <Text style={[localStyles.raffleButtonText, localStyles.raffleButtonTextSelected]}>
-                    Entered in Raffle
+                    Joined Rewards Program
+                  </Text>
+                </View>
+                <View style={localStyles.privacyAssurance}>
+                  <Feather name="lock" size={14} color={colors.success} style={{ marginRight: 6 }} />
+                  <Text style={localStyles.privacyAssuranceText}>
+                    Your info, photos & location stay private—never shared or sold. No BS.
                   </Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => {
                     setEnterRaffle(false);
-                    showToast("Raffle Entry Removed", "You can re-enter anytime before submitting.");
+                    showToast("Rewards Entry Removed", "You can re-join anytime before submitting.");
                   }}
                   style={localStyles.raffleRemoveButton}
                 >
-                  <Text style={localStyles.raffleRemoveButtonText}>Remove from raffle</Text>
+                  <Text style={localStyles.raffleRemoveButtonText}>Remove from rewards</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -1835,7 +1817,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 activeOpacity={0.7}
               >
                 <Feather name="circle" size={20} color={colors.primary} />
-                <Text style={localStyles.raffleButtonText}>Enter Raffle</Text>
+                <Text style={localStyles.raffleButtonText}>Learn More</Text>
               </TouchableOpacity>
             )}
           </>
@@ -1893,9 +1875,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 <View style={localStyles.raffleModalIconContainer}>
                   <Feather name="gift" size={32} color={colors.primary} />
                 </View>
-                <Text style={localStyles.raffleModalTitle}>{currentRaffle.name}</Text>
+                <Text style={localStyles.raffleModalTitle}>{currentRewards.name} Program</Text>
                 <Text style={localStyles.raffleModalSubtitle}>
-                  {currentRaffle.daysRemaining} days remaining
+                  Drawing {currentRewards.endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
                 </Text>
               </View>
 
@@ -1905,7 +1887,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   <Feather name="camera" size={16} color={colors.primary} /> Photo Required
                 </Text>
                 <Text style={localStyles.raffleModalSectionDesc}>
-                  Take a photo of your catch to verify your entry.
+                  A photo of your catch required to submit a valid harvest report.
                 </Text>
 
                 {catchPhoto ? (
@@ -1949,7 +1931,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   <Feather name="user" size={16} color={colors.primary} /> Your Information
                 </Text>
                 <Text style={localStyles.raffleModalSectionDesc}>
-                  We need your contact info to notify you if you win.
+                  We'll contact you if you're selected for a reward.
                 </Text>
 
                 <Text style={localStyles.raffleInputLabel}>Name *</Text>
@@ -1990,7 +1972,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   autoCapitalize="none"
                 />
 
-                <Text style={localStyles.raffleInputLabel}>Phone *</Text>
+                <Text style={localStyles.raffleInputLabel}>Phone (optional)</Text>
                 <TextInput
                   style={localStyles.raffleInput}
                   value={formData.angler.phone}
@@ -2008,25 +1990,25 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               {/* Terms */}
               <View style={localStyles.raffleModalSection}>
                 <Text style={localStyles.raffleModalSectionTitle}>
-                  <Feather name="info" size={16} color={colors.primary} /> By Entering
+                  <Feather name="info" size={16} color={colors.primary} /> By Participating
                 </Text>
                 <View style={localStyles.raffleModalList}>
                   <View style={localStyles.raffleModalListItem}>
                     <Feather name="check" size={14} color={colors.success} />
                     <Text style={localStyles.raffleModalListText}>
-                      Your catch appears on the public leaderboard
+                      Your catch may appear on the public leaderboard
                     </Text>
                   </View>
                   <View style={localStyles.raffleModalListItem}>
                     <Feather name="check" size={14} color={colors.success} />
                     <Text style={localStyles.raffleModalListText}>
-                      Your name may appear in rankings
+                      You're automatically entered in quarterly drawings
                     </Text>
                   </View>
                   <View style={localStyles.raffleModalListItem}>
                     <Feather name="check" size={14} color={colors.success} />
                     <Text style={localStyles.raffleModalListText}>
-                      You're eligible for monthly prizes
+                      No purchase or report necessary to enter—see official rules
                     </Text>
                   </View>
                 </View>
@@ -2038,7 +2020,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   style={[localStyles.raffleModalButton, localStyles.raffleModalSecondaryButton]}
                   onPress={() => setShowRaffleModal(false)}
                 >
-                  <Text style={localStyles.raffleModalSecondaryButtonText}>Cancel</Text>
+                  <Text style={localStyles.raffleModalSecondaryButtonText}>Skip</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -2046,35 +2028,31 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                     localStyles.raffleModalButton,
                     localStyles.raffleModalPrimaryButton,
                     (!catchPhoto || !formData.angler.firstName?.trim() || !formData.angler.lastName?.trim() ||
-                     !formData.angler.email?.trim() || !formData.angler.phone?.trim()) && localStyles.raffleModalButtonDisabled,
+                     !formData.angler.email?.trim()) && localStyles.raffleModalButtonDisabled,
                   ]}
                   onPress={() => {
-                    // Validate raffle requirements
+                    // Validate rewards requirements (phone is now optional)
                     if (!catchPhoto) {
-                      Alert.alert("Photo Required", "Please take a photo of your catch to enter the raffle.");
+                      Alert.alert("Photo Required", "Please take a photo of your catch to submit a valid harvest report.");
                       return;
                     }
                     if (!formData.angler.firstName?.trim() || !formData.angler.lastName?.trim()) {
-                      Alert.alert("Name Required", "Please enter your name to enter the raffle.");
+                      Alert.alert("Name Required", "Please enter your name to join the rewards program.");
                       return;
                     }
                     if (!formData.angler.email?.trim()) {
-                      Alert.alert("Email Required", "Please enter your email address to enter the raffle.");
-                      return;
-                    }
-                    if (!formData.angler.phone?.trim()) {
-                      Alert.alert("Phone Required", "Please enter your phone number to enter the raffle.");
+                      Alert.alert("Email Required", "Please enter your email address to join the rewards program.");
                       return;
                     }
                     setEnterRaffle(true);
                     setShowRaffleModal(false);
-                    showToast("Raffle Entry Added", "Your raffle entry will be submitted with this report.");
+                    showToast("Rewards Entry Added", "You'll be entered in this quarter's drawing.");
                   }}
                   disabled={!catchPhoto || !formData.angler.firstName?.trim() || !formData.angler.lastName?.trim() ||
-                           !formData.angler.email?.trim() || !formData.angler.phone?.trim()}
+                           !formData.angler.email?.trim()}
                 >
-                  <Feather name="gift" size={18} color={colors.white} />
-                  <Text style={localStyles.raffleModalPrimaryButtonText}>Enter Raffle</Text>
+                  <Feather name="check" size={18} color={colors.white} />
+                  <Text style={localStyles.raffleModalPrimaryButtonText}>Submit & Enter</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -2528,6 +2506,23 @@ const localStyles = StyleSheet.create({
     fontSize: 14,
     color: colors.darkGray,
     textDecorationLine: "underline",
+  },
+  privacyAssurance: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+  },
+  privacyAssuranceText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#166534",
+    lineHeight: 18,
   },
   // Raffle modal styles
   raffleModalOverlay: {

@@ -19,6 +19,9 @@ import { fetchFishReports } from './store/slices/fishReportsSlice';
 // Import React Query client
 import { queryClient } from './api/queryClient';
 
+// Import Rewards context
+import { RewardsProvider } from './contexts/RewardsContext';
+
 // Import connectivity listener for auto-sync of queued reports
 import { startConnectivityListener } from './hooks';
 
@@ -197,9 +200,11 @@ const App: React.FC = () => {
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <AppContent />
-        </SafeAreaProvider>
+        <RewardsProvider>
+          <SafeAreaProvider>
+            <AppContent />
+          </SafeAreaProvider>
+        </RewardsProvider>
       </QueryClientProvider>
     </Provider>
   );

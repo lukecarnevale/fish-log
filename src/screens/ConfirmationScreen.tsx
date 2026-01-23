@@ -389,15 +389,15 @@ This report was submitted to the NC Division of Marine Fisheries.`;
             )}
           </View>
 
-          {/* Raffle Status */}
+          {/* Rewards Status */}
           {reportData.enteredRaffle && (
             <View style={localStyles.raffleBox}>
               <View style={localStyles.raffleHeader}>
                 <Feather name="gift" size={20} color={colors.primary} />
-                <Text style={localStyles.raffleTitle}>Raffle Entry</Text>
+                <Text style={localStyles.raffleTitle}>Rewards Entry</Text>
               </View>
               <Text style={localStyles.raffleText}>
-                You've been entered into the monthly raffle! Winners will be contacted via the email/phone provided.
+                You've been entered into the quarterly rewards drawing! Selected contributors will be contacted via email.
               </Text>
             </View>
           )}
