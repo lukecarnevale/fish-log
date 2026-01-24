@@ -7,9 +7,12 @@ import { RootState } from '..';
 // Time constants for caching
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
+// Type for FishReport with required id
+type FishReportWithId = FishReport & { id: string };
+
 // Setup entity adapter for normalized state management
-const fishReportsAdapter = createEntityAdapter<FishReport>({
-  selectId: (report) => report.id || uuid(),
+const fishReportsAdapter = createEntityAdapter<FishReportWithId, string>({
+  selectId: (report) => report.id,
   sortComparer: (a, b) => {
     // Sort by date created (most recent first)
     const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -19,7 +22,7 @@ const fishReportsAdapter = createEntityAdapter<FishReport>({
 });
 
 // Define the initial state with the entity adapter
-interface FishReportsState extends EntityState<FishReport> {
+interface FishReportsState extends EntityState<FishReportWithId, string> {
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
   lastFetched: number | null;
@@ -37,7 +40,7 @@ export const fetchFishReports = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       // We don't use secureStorage here since these aren't sensitive
-      const reports = await persistedStorage.getItem<FishReport[]>('fishReports');
+      const reports = await persistedStorage.getItem<FishReportWithId[]>('fishReports');
       return reports || [];
     } catch (error) {
       return rejectWithValue('Failed to load fish reports');
@@ -52,19 +55,19 @@ export const addFishReport = createAsyncThunk(
     try {
       const state = getState() as RootState;
       const allReports = selectAllFishReports(state);
-      
+
       // Create new report with ID and timestamps
-      const newReport: FishReport = {
+      const newReport: FishReportWithId = {
         ...report,
         id: uuid(),
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      
+
       // Add to local storage
       const updatedReports = [newReport, ...allReports];
       await persistedStorage.setItem('fishReports', updatedReports, { ttl: ONE_DAY * 90 }); // Cache for 90 days
-      
+
       return newReport;
     } catch (error) {
       return rejectWithValue('Failed to save fish report');
@@ -75,29 +78,25 @@ export const addFishReport = createAsyncThunk(
 // Update an existing report
 export const updateFishReport = createAsyncThunk(
   'fishReports/update',
-  async (report: FishReport, { getState, rejectWithValue }) => {
+  async (report: FishReportWithId, { getState, rejectWithValue }) => {
     try {
-      if (!report.id) {
-        return rejectWithValue('Report ID is required for updates');
-      }
-      
       const state = getState() as RootState;
       const allReports = selectAllFishReports(state);
-      
+
       // Update the report with new timestamp
-      const updatedReport: FishReport = {
+      const updatedReport: FishReportWithId = {
         ...report,
         updatedAt: new Date(),
       };
-      
+
       // Find and replace the report in our array
-      const updatedReports = allReports.map(r => 
+      const updatedReports = allReports.map(r =>
         r.id === report.id ? updatedReport : r
       );
-      
+
       // Save back to storage
       await persistedStorage.setItem('fishReports', updatedReports, { ttl: ONE_DAY * 90 });
-      
+
       return updatedReport;
     } catch (error) {
       return rejectWithValue('Failed to update fish report');
@@ -157,7 +156,7 @@ const fishReportsSlice = createSlice({
       .addCase(updateFishReport.fulfilled, (state, action) => {
         // Update one entity
         fishReportsAdapter.updateOne(state, {
-          id: action.payload.id!,
+          id: action.payload.id,
           changes: action.payload
         });
       })

@@ -17,6 +17,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors } from '../styles/common';
 import styles from '../styles/prizeComponentStyles';
@@ -216,7 +217,9 @@ const PrizesComponent: React.FC<PrizesComponentProps> = ({ onReportPress }) => {
         <View style={styles.headerContent}>
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>{currentDrawing.name}</Text>
-            <Text style={styles.headerSubtitle}>Active contributors can win gear & prizes!</Text>
+            <View style={styles.headerSubtitleContainer}>
+              <Text style={styles.headerSubtitle}>Active contributors can win gear & prizes!</Text>
+            </View>
           </View>
           <View style={styles.badgeContainer}>
             <Text style={styles.badgeText}>
@@ -227,16 +230,24 @@ const PrizesComponent: React.FC<PrizesComponentProps> = ({ onReportPress }) => {
       </ImageBackground>
 
       {/* Progress bar showing time elapsed in rewards period */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBarContainer}>
-          <View
-            style={[
-              styles.progressBar,
-              { width: `${calculated.periodProgress}%` },
-            ]}
-          />
+      <LinearGradient
+        colors={['rgba(0,0,0,0.45)', 'rgba(255,255,255,0)']}
+        style={styles.progressGradient}
+      >
+        <View style={styles.progressRow}>
+          <View style={styles.progressBarContainer}>
+            <View
+              style={[
+                styles.progressBar,
+                { width: `${calculated.periodProgress}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.daysLeftText}>
+            {calculated.daysRemaining} {calculated.daysRemaining === 1 ? 'day' : 'days'} left!
+          </Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Info section */}
       <View style={styles.infoContainer}>

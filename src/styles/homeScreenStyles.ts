@@ -8,11 +8,21 @@ export const menuWidth = width * 0.85; // Increased menu width for better text f
 interface HomeScreenStyles {
   container: ViewStyle;
   header: ViewStyle;
+  headerContent: ViewStyle;
+  headerLeftSection: ViewStyle;
+  headerRightSection: ViewStyle;
+  headerTextSection: ViewStyle;
   menuButton: ViewStyle;
+  logoContainer: ViewStyle;
   logo: ImageStyle;
   title: TextStyle;
   subtitle: TextStyle;
   content: ViewStyle;
+  greetingContainer: ViewStyle;
+  greetingIcon: ViewStyle;
+  greetingTextContainer: ViewStyle;
+  greetingText: TextStyle;
+  userNameText: TextStyle;
   licenseCardContainer: ViewStyle;
   licenseCard: ViewStyle;
   licenseHeader: ViewStyle;
@@ -33,6 +43,8 @@ interface HomeScreenStyles {
   checkIcon: ViewStyle;
   checkImage: ImageStyle;
   checkText: TextStyle;
+  learnMoreButton: ViewStyle;
+  learnMoreButtonText: TextStyle;
   gotItButton: ViewStyle;
   gotItButtonText: TextStyle;
   menu: ViewStyle;

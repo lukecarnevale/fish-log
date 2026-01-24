@@ -94,27 +94,27 @@ class PersistedStorage {
         
         // Fetch fresh data
         const data = await fetchFn();
-        await this.setItem(key, data, { ttl: options.ttl });
+        await this.setItem(key, data, { ttl: options?.ttl });
         return data;
       }
-      
+
       // Check for cached data
       const cachedData = await this.getItem<T>(key);
-      
+
       // Return cache if it exists
       if (cachedData !== null) {
         return cachedData;
       }
-      
+
       // No cache, check network if needed
       if (options?.onlyFetchWhenOnline) {
         const isOnline = await this.isNetworkAvailable();
         if (!isOnline) return null;
       }
-      
+
       // Fetch and store fresh data
       const data = await fetchFn();
-      await this.setItem(key, data, { ttl: options.ttl });
+      await this.setItem(key, data, { ttl: options?.ttl });
       return data;
     } catch (error) {
       console.error('Error in getWithBackup:', error);

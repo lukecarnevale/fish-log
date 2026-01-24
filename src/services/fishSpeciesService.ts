@@ -82,6 +82,7 @@ export function transformFishSpecies(row: SupabaseFishSpeciesRow): EnhancedFishS
     name: row.name,
     commonNames: row.common_names || [],
     scientificName: row.scientific_name,
+    image: row.image_primary, // Required by FishSpecies base interface
     images: {
       primary: row.image_primary,
       additional: row.image_additional || [],

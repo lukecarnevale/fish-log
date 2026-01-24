@@ -45,7 +45,7 @@ const TYPE_CONFIG: Record<FeedbackType, { title: string; placeholder: string; ic
   feature_request: {
     title: 'Request a Feature',
     placeholder: 'What feature would you like to see?',
-    icon: 'lightbulb',
+    icon: 'zap',
   },
 };
 

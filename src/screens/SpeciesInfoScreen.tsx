@@ -284,7 +284,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
   };
   
   // Format compact regulations for list view
-  const formatCompactRegulations = (regulations: any): JSX.Element => {
+  const formatCompactRegulations = (regulations: any): React.ReactElement => {
     return (
       <View style={styles.cardRegulationsContainer}>
         {/* Bag limit */}

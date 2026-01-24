@@ -250,13 +250,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   const navigateToScreen = (screenName: keyof RootStackParamList): void => {
     // Close the menu first if it's open
     closeMenu();
-    
+
     console.log(`Navigating to: ${screenName}`);
-    
+
     // To prevent any possible interference, use setTimeout to separate
     // the navigation action from the touch event handling
     setTimeout(() => {
-      navigation.navigate(screenName);
+      // Type assertion needed for dynamic screen names in React Navigation v7
+      (navigation.navigate as (screen: keyof RootStackParamList) => void)(screenName);
     }, 0);
   };
 
