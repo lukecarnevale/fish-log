@@ -254,6 +254,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               `Your ${loadedItems.join(", ")} ${loadedItems.length === 1 ? "has" : "have"} been added to the report.`
             );
           }
+
+          // Auto-expand contact section if email or phone is pre-filled
+          if (profile?.email || profile?.phone) {
+            setShowContactSection(true);
+          }
         }
       } catch (error) {
         console.error("Error loading user data:", error);
@@ -406,11 +411,59 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // State for WRC ID info modal
   const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
 
+  // State for Area of Harvest info modal
+  const [showAreaInfoModal, setShowAreaInfoModal] = useState<boolean>(false);
+
+  // State for collapsible contact section in Angler Information
+  const [showContactSection, setShowContactSection] = useState<boolean>(false);
+  const contactSectionAnim = useRef(new Animated.Value(0)).current;
+
+  // Toggle contact section with animation
+  const toggleContactSection = () => {
+    const toValue = showContactSection ? 0 : 1;
+    setShowContactSection(!showContactSection);
+    Animated.timing(contactSectionAnim, {
+      toValue,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
   // State for raffle modal inline validation
   const [raffleValidationErrors, setRaffleValidationErrors] = useState<{
     email?: string;
     phone?: string;
   }>({});
+
+  // Animation refs for auto-toggle checkboxes
+  const emailCheckboxAnim = useRef(new Animated.Value(1)).current;
+  const phoneCheckboxAnim = useRef(new Animated.Value(1)).current;
+  const licenseCheckboxAnim = useRef(new Animated.Value(1)).current;
+  const profileSaveAnim = useRef(new Animated.Value(1)).current;
+  const primaryAreaCheckboxAnim = useRef(new Animated.Value(1)).current;
+
+  // Track if email/phone checkboxes were just auto-toggled to prevent re-animating
+  const emailAutoToggled = useRef(false);
+  const phoneAutoToggled = useRef(false);
+
+  // Pulse animation for auto-toggled checkboxes
+  const pulseCheckbox = (animValue: Animated.Value) => {
+    // Brief delay so user sees the toggle happen
+    setTimeout(() => {
+      Animated.sequence([
+        Animated.timing(animValue, {
+          toValue: 1.15,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animValue, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 100);
+  };
 
   // Email validation helper
   const validateEmail = (email: string): string | undefined => {
@@ -516,6 +569,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   const handleSelection = (item: string): void => {
     setFormData({ ...formData, [currentPicker]: item });
     closePicker();
+
+    // Auto-toggle "Save as primary area" when selecting a new waterbody
+    if (currentPicker === "waterbody" && item !== initialLoadedValues.waterbody && !saveAsPrimaryArea && !hasSavedPrimaryArea) {
+      setSaveAsPrimaryArea(true);
+      pulseCheckbox(primaryAreaCheckboxAnim);
+    }
   };
 
   const handleDateChange = (event: any, selectedDate?: Date): void => {
@@ -1103,7 +1162,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   ): React.ReactNode => (
     <View>
       <Text style={styles.label}>
-        {label} {required && "*"}
+        {label} {required && <Text style={localStyles.requiredAsterisk}>*</Text>}
       </Text>
       <TouchableOpacity
         style={styles.selectorButton}
@@ -1155,6 +1214,57 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       {renderAbandonModal()}
       <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
 
+      {/* Area of Harvest Info Modal */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showAreaInfoModal}
+        onRequestClose={() => setShowAreaInfoModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowAreaInfoModal(false)}>
+          <View style={localStyles.areaInfoModalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={localStyles.areaInfoModalContent}>
+                <View style={localStyles.areaInfoModalHeader}>
+                  <Feather name="info" size={24} color={colors.primary} />
+                  <Text style={localStyles.areaInfoModalTitle}>Area of Harvest</Text>
+                </View>
+                <Text style={localStyles.areaInfoModalText}>
+                  Select the waterbody where you harvested the majority of your fish.
+                </Text>
+                <Text style={localStyles.areaInfoModalText}>
+                  Use the interactive map to help identify your harvest area.
+                </Text>
+                <View style={localStyles.areaInfoModalTip}>
+                  <Feather name="info" size={16} color={colors.primary} />
+                  <Text style={localStyles.areaInfoModalTipText}>
+                    Once the map opens, tap the blue icon at the bottom to view the color legend for Harvest Areas.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={localStyles.areaInfoModalButton}
+                  onPress={() => {
+                    setShowAreaInfoModal(false);
+                    Linking.openURL("https://experience.arcgis.com/experience/dc745a4de8344e40b5855b9e9130d0c1");
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="map" size={18} color={colors.white} style={{ marginRight: 8 }} />
+                  <Text style={localStyles.areaInfoModalButtonText}>View Interactive Map</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={localStyles.areaInfoModalCloseButton}
+                  onPress={() => setShowAreaInfoModal(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={localStyles.areaInfoModalCloseText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
       {/* Reporting Type Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Who Are You Reporting For?</Text>
@@ -1190,7 +1300,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         {/* Show people count picker when reporting for minors */}
         {formData.reportingType === "myself_and_minors" && (
           <View style={localStyles.peopleCountSection}>
-            <Text style={styles.label}>How many total people are you reporting for? *</Text>
+            <Text style={styles.label}>How many total people are you reporting for? <Text style={localStyles.requiredAsterisk}>*</Text></Text>
             <View style={localStyles.countContainer}>
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1231,7 +1341,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         {/* Show count field only after species is selected */}
         {formData.species && (
           <>
-            <Text style={styles.label}>Number Harvested *</Text>
+            <Text style={styles.label}>Number Harvested <Text style={localStyles.requiredAsterisk}>*</Text></Text>
             <View style={localStyles.countContainer}>
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1371,22 +1481,32 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       {/* Only show Harvest Details after fish info is complete (species selected or fish entries exist) */}
       {formData.reportingType && (formData.species || fishEntries.length > 0) && (
       <View style={styles.section}>
-        <View style={localStyles.sectionHeaderWithIcon}>
-          <Text style={styles.sectionTitle}>Harvest Details</Text>
+        <Text style={styles.sectionTitle}>Harvest Details</Text>
+
+        <View style={localStyles.labelRow}>
+          <Text style={styles.label}>Area of Harvest <Text style={localStyles.requiredAsterisk}>*</Text></Text>
           <TouchableOpacity
-            onPress={() => Linking.openURL("https://experience.arcgis.com/experience/dc745a4de8344e40b5855b9e9130d0c1")}
-            style={localStyles.mapIconButton}
-            activeOpacity={0.7}
+            onPress={() => setShowAreaInfoModal(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Feather name="map" size={24} color={colors.primary} />
+            <Feather name="info" size={18} color={colors.primary} />
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.label}>Area of Harvest *</Text>
-        <Text style={localStyles.helperText}>
-          Select the waterbody where you harvested the majority of your fish.
-        </Text>
-        {renderPickerField("Area of Harvest", "waterbody", false)}
+        <TouchableOpacity
+          style={styles.selectorButton}
+          onPress={() => openPicker("waterbody", "Area of Harvest")}
+        >
+          <Text
+            style={
+              formData.waterbody
+                ? styles.selectorText
+                : styles.selectorPlaceholder
+            }
+          >
+            {String(formData.waterbody || "Select area of harvest")}
+          </Text>
+          <Text style={styles.selectorArrow}>▼</Text>
+        </TouchableOpacity>
 
         {/* Save as primary area checkbox - only show after area is selected */}
         {formData.waterbody && (
@@ -1395,14 +1515,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             onPress={() => handlePrimaryAreaToggle(!saveAsPrimaryArea)}
             activeOpacity={0.7}
           >
-            <View style={[
+            <Animated.View style={[
               localStyles.checkbox,
-              saveAsPrimaryArea && localStyles.checkboxChecked
+              saveAsPrimaryArea && localStyles.checkboxChecked,
+              { transform: [{ scale: primaryAreaCheckboxAnim }] }
             ]}>
               {saveAsPrimaryArea && (
                 <Feather name="check" size={14} color={colors.white} />
               )}
-            </View>
+            </Animated.View>
             <Text style={localStyles.checkboxLabel}>
               {hasSavedPrimaryArea && saveAsPrimaryArea
                 ? "Saved as my primary area"
@@ -1411,7 +1532,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.label}>Date of Harvest *</Text>
+        <Text style={styles.label}>Date of Harvest <Text style={localStyles.requiredAsterisk}>*</Text></Text>
         <TouchableOpacity
           style={styles.datePickerButton}
           onPress={() => setShowDatePicker(true)}
@@ -1465,7 +1586,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         </Modal>
 
         {/* Hook & Line Selection */}
-        <Text style={styles.label}>Did you use Hook & Line? *</Text>
+        <Text style={styles.label}>Did you use Hook & Line? <Text style={localStyles.requiredAsterisk}>*</Text></Text>
         <View style={localStyles.licenseToggleContainer}>
           <TouchableOpacity
             style={[
@@ -1517,7 +1638,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         <Text style={styles.sectionTitle}>Angler Information</Text>
 
         {/* License Question - Required for DMF submission */}
-        <Text style={styles.label}>Do you have a NC Fishing License? *</Text>
+        <Text style={styles.label}>Do you have a NC Fishing License? <Text style={localStyles.requiredAsterisk}>*</Text></Text>
         <View style={localStyles.licenseToggleContainer}>
           <TouchableOpacity
             style={[
@@ -1566,7 +1687,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         {formData.hasLicense === true && (
           <>
             <View style={localStyles.labelRow}>
-              <Text style={styles.label}>WRC ID / Customer ID *</Text>
+              <Text style={styles.label}>WRC ID / Customer ID <Text style={localStyles.requiredAsterisk}>*</Text></Text>
               <TouchableOpacity
                 onPress={() => setShowWrcIdInfoModal(true)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1582,14 +1703,30 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               value={formData.wrcId}
               onChangeText={(text) => {
                 clearValidationError("wrcId");
+                const wasEmpty = !formData.wrcId?.trim();
+                const isNew = text.trim() !== "" && text !== initialLoadedValues.wrcId;
+                const shouldAutoToggle = isNew && wasEmpty && !saveLicenseNumber && !hasSavedLicenseNumber;
+
                 setFormData({
                   ...formData,
                   wrcId: text,
                 });
-                // Reset the save toggle if user changes the value
+
+                // Auto-toggle save checkbox when entering new WRC ID
+                if (shouldAutoToggle) {
+                  setSaveLicenseNumber(true);
+                  pulseCheckbox(licenseCheckboxAnim);
+                }
+
+                // Reset the save toggle if user changes the value after saving
                 if (hasSavedLicenseNumber && text !== initialLoadedValues.wrcId) {
                   setHasSavedLicenseNumber(false);
                   setSaveLicenseNumber(false);
+                }
+
+                // Auto-expand contact section when required field (WRC ID) is filled
+                if (text.trim() && !showContactSection) {
+                  setShowContactSection(true);
                 }
               }}
               placeholder="Enter your WRC ID or Customer ID"
@@ -1606,14 +1743,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 onPress={() => handleSaveLicenseNumber(!saveLicenseNumber)}
                 activeOpacity={0.7}
               >
-                <View style={[
+                <Animated.View style={[
                   localStyles.checkbox,
-                  saveLicenseNumber && localStyles.checkboxChecked
+                  saveLicenseNumber && localStyles.checkboxChecked,
+                  { transform: [{ scale: licenseCheckboxAnim }] }
                 ]}>
                   {saveLicenseNumber && (
                     <Feather name="check" size={14} color={colors.white} />
                   )}
-                </View>
+                </Animated.View>
                 <Text style={localStyles.checkboxLabel}>
                   {hasSavedLicenseNumber && saveLicenseNumber
                     ? "Saved to My License"
@@ -1621,12 +1759,72 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
             )}
+
+            {/* Name and ZIP for licensed anglers (same as DMF form) */}
+            <Text style={[styles.label, { marginTop: 16 }]}>Name</Text>
+            <View style={localStyles.nameRow}>
+              <TextInput
+                style={[styles.input, localStyles.nameInput]}
+                value={formData.angler.firstName}
+                onChangeText={(text) => {
+                  const wasEmpty = !formData.angler.firstName?.trim();
+                  const isNew = text.trim() !== "" && text !== initialLoadedValues.firstName;
+                  const shouldAutoToggleSave = isNew && wasEmpty && !saveAnglerInfo;
+
+                  setFormData({
+                    ...formData,
+                    angler: { ...formData.angler, firstName: text },
+                  });
+
+                  if (shouldAutoToggleSave) {
+                    setSaveAnglerInfo(true);
+                    pulseCheckbox(profileSaveAnim);
+                  }
+                }}
+                placeholder="First"
+              />
+              <TextInput
+                style={[styles.input, localStyles.nameInput]}
+                value={formData.angler.lastName}
+                onChangeText={(text) => {
+                  const wasEmpty = !formData.angler.lastName?.trim();
+                  const isNew = text.trim() !== "" && text !== initialLoadedValues.lastName;
+                  const shouldAutoToggleSave = isNew && wasEmpty && !saveAnglerInfo;
+
+                  setFormData({
+                    ...formData,
+                    angler: { ...formData.angler, lastName: text },
+                  });
+
+                  if (shouldAutoToggleSave) {
+                    setSaveAnglerInfo(true);
+                    pulseCheckbox(profileSaveAnim);
+                  }
+                }}
+                placeholder="Last"
+              />
+            </View>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>ZIP Code</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.zipCode}
+              onChangeText={(text) => {
+                setFormData({
+                  ...formData,
+                  zipCode: text.replace(/\D/g, '').slice(0, 5),
+                });
+              }}
+              placeholder="Enter your 5-digit ZIP code"
+              keyboardType="number-pad"
+              maxLength={5}
+            />
           </>
         )}
 
         {formData.hasLicense === false && (
           <>
-            <Text style={styles.label}>Name *</Text>
+            <Text style={styles.label}>Name <Text style={localStyles.requiredAsterisk}>*</Text></Text>
             <View style={localStyles.nameRow}>
               <TextInput
                 style={[
@@ -1637,10 +1835,27 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 value={formData.angler.firstName}
                 onChangeText={(text) => {
                   clearValidationError("firstName");
+                  const wasEmpty = !formData.angler.firstName?.trim();
+                  const isNew = text.trim() !== "" && text !== initialLoadedValues.firstName;
+                  const shouldAutoToggleSave = isNew && wasEmpty && !saveAnglerInfo;
+
                   setFormData({
                     ...formData,
                     angler: { ...formData.angler, firstName: text },
                   });
+
+                  if (shouldAutoToggleSave) {
+                    setSaveAnglerInfo(true);
+                    pulseCheckbox(profileSaveAnim);
+                  }
+
+                  // Auto-expand contact section when all required fields are filled (unlicensed)
+                  const hasRequiredFields = text.trim() &&
+                                            formData.angler.lastName?.trim() &&
+                                            formData.zipCode?.length === 5;
+                  if (hasRequiredFields && !showContactSection) {
+                    setShowContactSection(true);
+                  }
                 }}
                 placeholder="First"
               />
@@ -1653,10 +1868,27 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 value={formData.angler.lastName}
                 onChangeText={(text) => {
                   clearValidationError("lastName");
+                  const wasEmpty = !formData.angler.lastName?.trim();
+                  const isNew = text.trim() !== "" && text !== initialLoadedValues.lastName;
+                  const shouldAutoToggleSave = isNew && wasEmpty && !saveAnglerInfo;
+
                   setFormData({
                     ...formData,
                     angler: { ...formData.angler, lastName: text },
                   });
+
+                  if (shouldAutoToggleSave) {
+                    setSaveAnglerInfo(true);
+                    pulseCheckbox(profileSaveAnim);
+                  }
+
+                  // Auto-expand contact section when all required fields are filled (unlicensed)
+                  const hasRequiredFields = formData.angler.firstName?.trim() &&
+                                            text.trim() &&
+                                            formData.zipCode?.length === 5;
+                  if (hasRequiredFields && !showContactSection) {
+                    setShowContactSection(true);
+                  }
                 }}
                 placeholder="Last"
               />
@@ -1667,7 +1899,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               </Text>
             )}
 
-            <Text style={styles.label}>ZIP Code *</Text>
+            <Text style={styles.label}>ZIP Code <Text style={localStyles.requiredAsterisk}>*</Text></Text>
             <TextInput
               style={[
                 styles.input,
@@ -1676,10 +1908,19 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               value={formData.zipCode}
               onChangeText={(text) => {
                 clearValidationError("zipCode");
+                const cleanedZip = text.replace(/\D/g, '').slice(0, 5);
                 setFormData({
                   ...formData,
-                  zipCode: text.replace(/\D/g, '').slice(0, 5),
+                  zipCode: cleanedZip,
                 });
+
+                // Auto-expand contact section when all required fields are filled (unlicensed)
+                const hasRequiredFields = formData.angler.firstName?.trim() &&
+                                          formData.angler.lastName?.trim() &&
+                                          cleanedZip.length === 5;
+                if (hasRequiredFields && !showContactSection) {
+                  setShowContactSection(true);
+                }
               }}
               placeholder="Enter your 5-digit ZIP code"
               keyboardType="number-pad"
@@ -1691,88 +1932,149 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </>
         )}
 
-        {/* Optional contact fields for DMF confirmations */}
-        <Text style={[styles.label, { marginTop: 16 }]}>Email (optional)</Text>
-        <TextInput
-          style={[styles.input, validationErrors.email && localStyles.inputError]}
-          value={formData.angler.email}
-          onChangeText={(text) => {
-            clearValidationError("email");
-            // Auto-select email confirmation when user enters email
-            const hasEmail = text.trim().length > 0;
-            setFormData({
-              ...formData,
-              angler: { ...formData.angler, email: text },
-              wantEmailConfirmation: hasEmail ? true : formData.wantEmailConfirmation,
-            });
-          }}
-          placeholder="Your email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        {validationErrors.email && (
-          <Text style={localStyles.errorText}>{validationErrors.email}</Text>
-        )}
+        {/* Collapsible contact section for DMF confirmations */}
+        <TouchableOpacity
+          style={localStyles.contactSectionToggle}
+          onPress={toggleContactSection}
+          activeOpacity={0.7}
+        >
+          <View style={localStyles.contactSectionToggleLeft}>
+            <Feather name="mail" size={18} color={colors.primary} />
+            <Text style={localStyles.contactSectionToggleText}>
+              Get Confirmation
+            </Text>
+          </View>
+          <Feather
+            name={showContactSection ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
 
-        {/* Email confirmation checkbox - DMF will send email confirmation */}
-        {formData.angler.email && (
-          <TouchableOpacity
-            style={localStyles.checkboxRow}
-            onPress={() => setFormData({ ...formData, wantEmailConfirmation: !formData.wantEmailConfirmation })}
-            activeOpacity={0.7}
-          >
-            <View style={[
-              localStyles.checkbox,
-              formData.wantEmailConfirmation && localStyles.checkboxChecked
-            ]}>
-              {formData.wantEmailConfirmation && (
-                <Feather name="check" size={14} color={colors.white} />
-              )}
-            </View>
-            <Text style={localStyles.checkboxLabel}>Send email confirmation from NC DMF</Text>
-          </TouchableOpacity>
-        )}
+        {/* Expandable contact fields */}
+        {showContactSection && (
+          <View style={localStyles.contactSectionContent}>
+            <Text style={localStyles.contactSectionHint}>
+              Receive confirmation from NC DMF via email or text (optional)
+            </Text>
 
-        <Text style={styles.label}>Phone (optional)</Text>
-        <TextInput
-          style={[styles.input, validationErrors.phone && localStyles.inputError]}
-          value={formData.angler.phone}
-          onChangeText={(text) => {
-            clearValidationError("phone");
-            const formattedPhone = formatPhoneNumber(text);
-            // Auto-select text confirmation when user enters phone
-            const hasPhone = formattedPhone.trim().length > 0;
-            setFormData({
-              ...formData,
-              angler: { ...formData.angler, phone: formattedPhone },
-              wantTextConfirmation: hasPhone ? true : formData.wantTextConfirmation,
-            });
-          }}
-          placeholder="555-555-5555"
-          keyboardType="phone-pad"
-          maxLength={12}
-        />
-        {validationErrors.phone && (
-          <Text style={localStyles.errorText}>{validationErrors.phone}</Text>
-        )}
+            <Text style={[styles.label, { marginTop: 12 }]}>Email</Text>
+            <TextInput
+              style={[styles.input, validationErrors.email && localStyles.inputError]}
+              value={formData.angler.email}
+              onChangeText={(text) => {
+                clearValidationError("email");
+                // Auto-select email confirmation when user enters email
+                const hasEmail = text.trim().length > 0;
+                const wasEmpty = !formData.angler.email?.trim();
+                const shouldAutoToggleEmail = hasEmail && wasEmpty && !formData.wantEmailConfirmation;
+                const isNewEmail = text.trim() !== "" && text !== initialLoadedValues.email;
+                const shouldAutoToggleSave = isNewEmail && !saveAnglerInfo;
 
-        {/* Text confirmation checkbox - DMF will send text confirmation */}
-        {formData.angler.phone && (
-          <TouchableOpacity
-            style={localStyles.checkboxRow}
-            onPress={() => setFormData({ ...formData, wantTextConfirmation: !formData.wantTextConfirmation })}
-            activeOpacity={0.7}
-          >
-            <View style={[
-              localStyles.checkbox,
-              formData.wantTextConfirmation && localStyles.checkboxChecked
-            ]}>
-              {formData.wantTextConfirmation && (
-                <Feather name="check" size={14} color={colors.white} />
-              )}
-            </View>
-            <Text style={localStyles.checkboxLabel}>Send text confirmation from NC DMF</Text>
-          </TouchableOpacity>
+                setFormData({
+                  ...formData,
+                  angler: { ...formData.angler, email: text },
+                  wantEmailConfirmation: hasEmail ? true : formData.wantEmailConfirmation,
+                });
+
+                // Trigger animation when auto-toggling email confirmation
+                if (shouldAutoToggleEmail) {
+                  pulseCheckbox(emailCheckboxAnim);
+                }
+
+                // Auto-toggle Save to Profile when entering new email
+                if (shouldAutoToggleSave) {
+                  setSaveAnglerInfo(true);
+                  pulseCheckbox(profileSaveAnim);
+                }
+              }}
+              placeholder="Your email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            {validationErrors.email && (
+              <Text style={localStyles.errorText}>{validationErrors.email}</Text>
+            )}
+
+            {/* Email confirmation checkbox - DMF will send email confirmation */}
+            {formData.angler.email && (
+              <TouchableOpacity
+                style={localStyles.checkboxRow}
+                onPress={() => setFormData({ ...formData, wantEmailConfirmation: !formData.wantEmailConfirmation })}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={[
+                  localStyles.checkbox,
+                  formData.wantEmailConfirmation && localStyles.checkboxChecked,
+                  { transform: [{ scale: emailCheckboxAnim }] }
+                ]}>
+                  {formData.wantEmailConfirmation && (
+                    <Feather name="check" size={14} color={colors.white} />
+                  )}
+                </Animated.View>
+                <Text style={localStyles.checkboxLabel}>Send email confirmation from NC DMF</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Phone</Text>
+            <TextInput
+              style={[styles.input, validationErrors.phone && localStyles.inputError]}
+              value={formData.angler.phone}
+              onChangeText={(text) => {
+                clearValidationError("phone");
+                const formattedPhone = formatPhoneNumber(text);
+                // Auto-select text confirmation when user enters phone
+                const hasPhone = formattedPhone.trim().length > 0;
+                const wasEmpty = !formData.angler.phone?.trim();
+                const shouldAutoTogglePhone = hasPhone && wasEmpty && !formData.wantTextConfirmation;
+                const isNewPhone = formattedPhone.trim() !== "" && formattedPhone !== initialLoadedValues.phone;
+                const shouldAutoToggleSave = isNewPhone && !saveAnglerInfo;
+
+                setFormData({
+                  ...formData,
+                  angler: { ...formData.angler, phone: formattedPhone },
+                  wantTextConfirmation: hasPhone ? true : formData.wantTextConfirmation,
+                });
+
+                // Trigger animation when auto-toggling phone confirmation
+                if (shouldAutoTogglePhone) {
+                  pulseCheckbox(phoneCheckboxAnim);
+                }
+
+                // Auto-toggle Save to Profile when entering new phone
+                if (shouldAutoToggleSave) {
+                  setSaveAnglerInfo(true);
+                  pulseCheckbox(profileSaveAnim);
+                }
+              }}
+              placeholder="555-555-5555"
+              keyboardType="phone-pad"
+              maxLength={12}
+            />
+            {validationErrors.phone && (
+              <Text style={localStyles.errorText}>{validationErrors.phone}</Text>
+            )}
+
+            {/* Text confirmation checkbox - DMF will send text confirmation */}
+            {formData.angler.phone && (
+              <TouchableOpacity
+                style={localStyles.checkboxRow}
+                onPress={() => setFormData({ ...formData, wantTextConfirmation: !formData.wantTextConfirmation })}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={[
+                  localStyles.checkbox,
+                  formData.wantTextConfirmation && localStyles.checkboxChecked,
+                  { transform: [{ scale: phoneCheckboxAnim }] }
+                ]}>
+                  {formData.wantTextConfirmation && (
+                    <Feather name="check" size={14} color={colors.white} />
+                  )}
+                </Animated.View>
+                <Text style={localStyles.checkboxLabel}>Send text confirmation from NC DMF</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* Save angler info toggle - only show if user entered NEW info (different from pre-loaded) */}
@@ -1780,27 +2082,29 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           (formData.angler.lastName && formData.angler.lastName !== initialLoadedValues.lastName) ||
           (formData.angler.email && formData.angler.email !== initialLoadedValues.email) ||
           (formData.angler.phone && formData.angler.phone !== initialLoadedValues.phone)) && (
-          <TouchableOpacity
-            style={[
-              localStyles.saveButton,
-              saveAnglerInfo && localStyles.saveButtonSaved
-            ]}
-            onPress={() => handleSaveAnglerInfo(!saveAnglerInfo)}
-            activeOpacity={0.7}
-            disabled={saveAnglerInfo}
-          >
-            <Feather
-              name={saveAnglerInfo ? "check" : "save"}
-              size={14}
-              color={saveAnglerInfo ? colors.success : colors.primary}
-            />
-            <Text style={[
-              localStyles.saveButtonText,
-              saveAnglerInfo && localStyles.saveButtonTextSaved
-            ]}>
-              {saveAnglerInfo ? "Saved to profile" : "Save to profile"}
-            </Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: profileSaveAnim }] }}>
+            <TouchableOpacity
+              style={[
+                localStyles.saveButton,
+                saveAnglerInfo && localStyles.saveButtonSaved
+              ]}
+              onPress={() => handleSaveAnglerInfo(!saveAnglerInfo)}
+              activeOpacity={0.7}
+              disabled={saveAnglerInfo}
+            >
+              <Feather
+                name={saveAnglerInfo ? "check" : "save"}
+                size={14}
+                color={saveAnglerInfo ? colors.success : colors.primary}
+              />
+              <Text style={[
+                localStyles.saveButtonText,
+                saveAnglerInfo && localStyles.saveButtonTextSaved
+              ]}>
+                {saveAnglerInfo ? "Saved to profile" : "Save to profile"}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
       </View>
       )}
@@ -1894,7 +2198,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         <Text style={styles.submitButtonText}>Submit Report</Text>
       </TouchableOpacity>
 
-      <Text style={styles.requiredFields}>* Required fields</Text>
+      <Text style={styles.requiredFields}><Text style={localStyles.requiredAsterisk}>*</Text> Required fields</Text>
       </>
       )}
     </ScrollView>
@@ -1998,7 +2302,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   We'll contact you if you're selected for a reward.
                 </Text>
 
-                <Text style={localStyles.raffleInputLabel}>Name *</Text>
+                <Text style={localStyles.raffleInputLabel}>Name <Text style={localStyles.requiredAsterisk}>*</Text></Text>
                 <View style={localStyles.nameRow}>
                   <TextInput
                     style={[localStyles.raffleInput, localStyles.nameInput]}
@@ -2022,7 +2326,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   />
                 </View>
 
-                <Text style={localStyles.raffleInputLabel}>Email *</Text>
+                <Text style={localStyles.raffleInputLabel}>Email <Text style={localStyles.requiredAsterisk}>*</Text></Text>
                 <TextInput
                   style={[
                     localStyles.raffleInput,
@@ -2376,9 +2680,10 @@ const localStyles = StyleSheet.create({
     marginBottom: 8,
   },
   optionalToggleText: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: "500",
     color: colors.primary,
-    marginRight: 4,
+    marginRight: 6,
   },
   optionalSection: {
     backgroundColor: colors.lightGray,
@@ -2531,6 +2836,7 @@ const localStyles = StyleSheet.create({
   raffleSection: {
     backgroundColor: "#fff9e6",
     marginHorizontal: 16,
+    marginTop: 16,
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
@@ -3133,6 +3439,118 @@ const localStyles = StyleSheet.create({
     padding: 10,
     borderRadius: 22,
     backgroundColor: "#e8f4fc",
+  },
+  // Collapsible contact section styles
+  contactSectionToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.primaryLight,
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "rgba(0, 102, 153, 0.1)",
+  },
+  contactSectionToggleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  contactSectionToggleText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  contactSectionContent: {
+    backgroundColor: "#fafbfc",
+    borderRadius: 10,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    padding: 16,
+    marginTop: -2,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: "rgba(0, 102, 153, 0.1)",
+  },
+  contactSectionHint: {
+    fontSize: 13,
+    color: colors.darkGray,
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  // Area of Harvest Info Modal styles
+  areaInfoModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  areaInfoModalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 340,
+  },
+  areaInfoModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  areaInfoModalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginLeft: 12,
+  },
+  areaInfoModalText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  areaInfoModalButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  areaInfoModalButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  areaInfoModalTip: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: colors.primaryLight,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    gap: 10,
+  },
+  areaInfoModalTipText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.primary,
+    lineHeight: 20,
+  },
+  areaInfoModalCloseButton: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  areaInfoModalCloseText: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    fontWeight: "500",
   },
 });
 

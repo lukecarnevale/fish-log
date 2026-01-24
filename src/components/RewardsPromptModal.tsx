@@ -218,12 +218,14 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Feather name="gift" size={32} color={colors.primary} />
+          <Feather name={requiresSignup ? "check-circle" : "gift"} size={32} color={colors.primary} />
         </View>
-        <Text style={styles.title}>Join the Rewards Program</Text>
+        <Text style={styles.title}>
+          {requiresSignup ? "Complete Your Rewards Setup" : "Join the Rewards Program"}
+        </Text>
         <Text style={styles.subtitle}>
           {requiresSignup
-            ? "Complete your profile to enter the quarterly drawing!"
+            ? "Verify your email to create your profile and enter the quarterly drawing!"
             : "You've successfully submitted your harvest report!"}
         </Text>
       </View>
@@ -263,10 +265,12 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       {/* Form Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
-          <Feather name="user" size={16} color={colors.primary} /> Create Your Profile
+          <Feather name="user" size={16} color={colors.primary} /> {requiresSignup ? "Verify Your Information" : "Create Your Profile"}
         </Text>
         <Text style={styles.sectionDesc}>
-          We'll send a sign-in link to your email - no password needed!
+          {requiresSignup
+            ? "Confirm your details and we'll send a verification link to your email."
+            : "We'll send a sign-in link to your email - no password needed!"}
         </Text>
 
         <Text style={styles.inputLabel}>Name *</Text>
@@ -336,7 +340,9 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           ) : (
             <>
               <Feather name="mail" size={18} color={colors.white} />
-              <Text style={styles.joinButtonText}>Send Sign-In Link</Text>
+              <Text style={styles.joinButtonText}>
+                {requiresSignup ? "Send Verification Link" : "Send Sign-In Link"}
+              </Text>
             </>
           )}
         </TouchableOpacity>
