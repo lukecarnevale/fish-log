@@ -14,6 +14,8 @@ import {
   Platform,
   ActivityIndicator,
   Keyboard,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -28,6 +30,9 @@ import * as ImagePicker from 'expo-image-picker';
 // Instead of using GooglePlacesAutocomplete which causes UUID issues
 import { RootStackParamList, UserProfile } from "../types";
 import { colors, spacing, borderRadius, shadows, typography } from "../styles/common";
+import { getReports, getFishEntries } from "../services/reportsService";
+import WrcIdInfoModal from "../components/WrcIdInfoModal";
+import { StoredReport } from "../types/report";
 
 type ProfileScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -99,6 +104,13 @@ interface ProfileScreenProps {
   navigation: ProfileScreenNavigationProp;
 }
 
+// Fishing statistics type
+interface FishingStats {
+  totalCatches: number;
+  uniqueSpecies: number;
+  largestFish: number | null; // in inches
+}
+
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [profile, setProfile] = useState<UserProfile>({});
   const [loading, setLoading] = useState<boolean>(true);
@@ -107,6 +119,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+  const [fishingStats, setFishingStats] = useState<FishingStats>({
+    totalCatches: 0,
+    uniqueSpecies: 0,
+    largestFish: null,
+  });
+
+  // State for WRC ID info modal
+  const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
 
   // Refs for inputs to enable keyboard navigation
   const wrcIdInputRef = useRef<TextInput>(null);
@@ -116,6 +136,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const phoneInputRef = useRef<MaskInput>(null);
   const addressInputRef = useRef<TextInput>(null);
 
+  // Animation for transitioning between view/edit modes
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const screenHeight = Dimensions.get('window').height;
+
   // Request permission for image picker
   useEffect(() => {
     (async () => {
@@ -124,6 +148,66 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to set profile pictures!');
       }
     })();
+  }, []);
+
+  // Load fishing statistics from reports
+  useEffect(() => {
+    const loadFishingStats = async () => {
+      try {
+        const reports = await getReports();
+
+        if (reports.length === 0) {
+          setFishingStats({ totalCatches: 0, uniqueSpecies: 0, largestFish: null });
+          return;
+        }
+
+        // Calculate total catches (sum of all species counts)
+        const totalCatches = reports.reduce((sum, report) =>
+          sum +
+          report.redDrumCount +
+          report.flounderCount +
+          report.spottedSeatroutCount +
+          report.weakfishCount +
+          report.stripedBassCount,
+          0
+        );
+
+        // Calculate unique species (count species with at least one catch)
+        const speciesCaught = new Set<string>();
+        reports.forEach((report) => {
+          if (report.redDrumCount > 0) speciesCaught.add('Red Drum');
+          if (report.flounderCount > 0) speciesCaught.add('Southern Flounder');
+          if (report.spottedSeatroutCount > 0) speciesCaught.add('Spotted Seatrout');
+          if (report.weakfishCount > 0) speciesCaught.add('Weakfish');
+          if (report.stripedBassCount > 0) speciesCaught.add('Striped Bass');
+        });
+        const uniqueSpecies = speciesCaught.size;
+
+        // Find largest fish from fish entries
+        let largestFish: number | null = null;
+        for (const report of reports) {
+          if (!report.id.startsWith('local_')) {
+            const entries = await getFishEntries(report.id);
+            for (const entry of entries) {
+              if (entry.lengths && entry.lengths.length > 0) {
+                for (const lengthStr of entry.lengths) {
+                  const length = parseFloat(lengthStr);
+                  if (!isNaN(length) && (largestFish === null || length > largestFish)) {
+                    largestFish = length;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        setFishingStats({ totalCatches, uniqueSpecies, largestFish });
+      } catch (error) {
+        console.error('Failed to load fishing stats:', error);
+      }
+    };
+
+    loadFishingStats();
   }, []);
 
   // Load profile data from AsyncStorage (merge with fishingLicense data)
@@ -289,9 +373,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       }
 
       setProfile(formData);
-      setIsEditing(false);
       setValidationErrors({});
       Alert.alert("Success", "Your profile information has been saved.");
+      // Animate back to profile view - slide down
+      Animated.timing(slideAnim, {
+        toValue: screenHeight,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsEditing(false);
+      });
     } catch (error) {
       Alert.alert("Error", "Failed to save your profile");
     }
@@ -306,6 +397,31 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Animate transition between view/edit modes
+  const animateTransition = (toEditing: boolean) => {
+    if (toEditing) {
+      // Entering edit mode - slide up from bottom
+      setFormData(profile || {});
+      setIsEditing(true);
+      slideAnim.setValue(screenHeight);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      // Exiting edit mode - slide down
+      Animated.timing(slideAnim, {
+        toValue: screenHeight,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsEditing(false);
+      });
+    }
   };
 
   // Handle date change from date picker
@@ -327,6 +443,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
+      {/* Close button header */}
+      <View style={styles.formHeader}>
+        <TouchableOpacity
+          style={styles.formCloseButton}
+          onPress={() => animateTransition(false)}
+          activeOpacity={0.7}
+        >
+          <Feather name="x" size={24} color={colors.white} />
+        </TouchableOpacity>
+        <Text style={styles.formHeaderTitle}>Edit Profile</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <ScrollView
         style={styles.formContainer}
         contentContainerStyle={styles.formContentContainer}
@@ -393,7 +522,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {/* WRC ID - shown when hasLicense = true */}
           {formData.hasLicense === true && (
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>WRC ID / Customer ID *</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.inputLabel}>WRC ID / Customer ID *</Text>
+                <TouchableOpacity
+                  onPress={() => setShowWrcIdInfoModal(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Feather name="info" size={18} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
               <TextInput
                 ref={wrcIdInputRef}
                 style={[
@@ -670,10 +807,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.formButtonRow}>
           <TouchableOpacity
             style={[styles.formButton, styles.formCancelButton]}
-            onPress={() => {
-              setFormData(profile || {});
-              setIsEditing(false);
-            }}
+            onPress={() => animateTransition(false)}
           >
             <Text style={styles.formCancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -717,6 +851,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             onChange={onDateChange}
           />
         )}
+
+        {/* WRC ID Info Modal */}
+        <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -724,15 +861,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // Render profile display
   const renderProfile = () => (
     <View style={styles.container}>
-      {/* Fixed Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.7}
-      >
-        <Feather name="arrow-left" size={24} color={colors.white} />
-      </TouchableOpacity>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
@@ -741,9 +869,20 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         {/* Top spacer for pull-down bounce - shows dark blue */}
         <View style={styles.topBounceArea} />
 
-        {/* Header content - scrolls */}
+        {/* Header content - scrolls with back button inside */}
         <View style={styles.profileHeader}>
-          <Text style={styles.headerTitle}>My Profile</Text>
+          {/* Header row with back button */}
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Feather name="arrow-left" size={24} color={colors.white} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>My Profile</Text>
+            <View style={styles.headerSpacer} />
+          </View>
 
           <TouchableOpacity
             style={styles.profileImageContainer}
@@ -886,7 +1025,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => setIsEditing(true)}
+          onPress={() => animateTransition(true)}
         >
           <Feather name="edit-2" size={18} color={colors.white} />
           <Text style={styles.editButtonText}>Edit Profile</Text>
@@ -913,16 +1052,18 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <Text style={styles.sectionTitle}>Fishing Statistics</Text>
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statValue}>{fishingStats.totalCatches}</Text>
             <Text style={styles.statLabel}>Catches</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statValue}>{fishingStats.uniqueSpecies}</Text>
             <Text style={styles.statLabel}>Species</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>0 lbs</Text>
-            <Text style={styles.statLabel}>Biggest Catch</Text>
+            <Text style={styles.statValue}>
+              {fishingStats.largestFish !== null ? `${fishingStats.largestFish}"` : '--'}
+            </Text>
+            <Text style={styles.statLabel}>Largest Fish</Text>
           </View>
         </View>
       </View>
@@ -933,7 +1074,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
-      {isEditing ? renderProfileForm() : renderProfile()}
+      {isEditing ? (
+        <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }}>
+          {renderProfileForm()}
+        </Animated.View>
+      ) : (
+        renderProfile()
+      )}
     </SafeAreaView>
   );
 };
@@ -966,23 +1113,32 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: spacing.xl * 2,
   },
-  // Fixed Back Button
+  // Header row containing back button and title
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: spacing.lg,
+  },
+  // Back Button inside header
   backButton: {
-    position: 'absolute',
-    top: 60,
-    left: spacing.lg,
     width: 40,
     height: 40,
     borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
+  },
+  // Spacer to balance the back button on the right
+  headerSpacer: {
+    width: 40,
+    height: 40,
   },
   // Profile Header
   profileHeader: {
     backgroundColor: colors.primary,
-    paddingTop: 80,
+    paddingTop: 60,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
@@ -990,8 +1146,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...typography.h1,
     color: colors.white,
-    fontSize: 22,
-    marginBottom: spacing.lg,
+    fontSize: 20,
+    textAlign: 'center',
+    flex: 1,
   },
   profileImageContainer: {
     width: 100,
@@ -1148,15 +1305,19 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     padding: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   statValue: {
     ...typography.heading,
     color: colors.primary,
     marginBottom: spacing.xxs,
+    textAlign: 'center',
   },
   statLabel: {
     ...typography.bodySmall,
     color: colors.darkGray,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   // Form styles
   formContainer: {
@@ -1216,8 +1377,33 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxs,
     fontStyle: 'italic',
   },
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: 60,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.primary,
+    borderBottomLeftRadius: borderRadius.md,
+    borderBottomRightRadius: borderRadius.md,
+  },
+  formCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formHeaderTitle: {
+    ...typography.h1,
+    color: colors.white,
+    fontSize: 20,
+  },
   profilePhotoSection: {
     alignItems: 'center',
+    marginTop: spacing.md,
     marginBottom: spacing.lg,
   },
   photoHelpText: {
@@ -1242,11 +1428,17 @@ const styles = StyleSheet.create({
   nameInputSpacer: {
     width: 12,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: spacing.xs,
+  },
   inputLabel: {
     ...typography.bodySmall,
     fontWeight: '600',
     color: colors.darkGray,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
   input: {
     borderWidth: 1,
@@ -1334,8 +1526,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   formCancelButton: {
-    backgroundColor: colors.lightGray,
+    backgroundColor: colors.white,
     marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   formSaveButton: {
     backgroundColor: colors.primary,

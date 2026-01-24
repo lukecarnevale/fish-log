@@ -42,7 +42,6 @@ const enhancedSpeciesStyles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     fontSize: 16,
     ...shadows.medium,
-    marginBottom: spacing.sm,
   },
   filterRow: {
     flexDirection: 'row',
