@@ -302,6 +302,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           lastName: formData.angler.lastName || profile.lastName,
           email: formData.angler.email || profile.email,
           phone: formData.angler.phone || profile.phone,
+          zipCode: formData.zipCode || profile.zipCode,
         };
 
         await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
@@ -1003,6 +1004,62 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     if (enterRaffle && !hasEnteredCurrentRaffle) {
       saveRaffleEntry();
     }
+
+    // Auto-save user preferences if toggles are enabled
+    // This ensures data persists even if user didn't explicitly tap save buttons
+    const saveUserPreferences = async () => {
+      try {
+        // Save primary area of harvest
+        if (saveAsPrimaryArea && formData.waterbody) {
+          await AsyncStorage.setItem("primaryHarvestArea", formData.waterbody);
+        }
+
+        // Save angler info to profile
+        if (saveAnglerInfo) {
+          const existingData = await AsyncStorage.getItem("userProfile");
+          const profile = existingData ? JSON.parse(existingData) : {};
+          const updatedProfile = {
+            ...profile,
+            firstName: formData.angler.firstName || profile.firstName,
+            lastName: formData.angler.lastName || profile.lastName,
+            email: formData.angler.email || profile.email,
+            phone: formData.angler.phone || profile.phone,
+            zipCode: formData.zipCode || profile.zipCode,
+          };
+          await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+        }
+
+        // Save WRC ID to license and profile
+        if (saveLicenseNumber && formData.wrcId) {
+          // Save to license
+          const licenseData = await AsyncStorage.getItem("fishingLicense");
+          const license: FishingLicense = licenseData ? JSON.parse(licenseData) : {};
+          const updatedLicense: FishingLicense = {
+            ...license,
+            licenseNumber: formData.wrcId,
+            firstName: license.firstName || formData.angler.firstName,
+            lastName: license.lastName || formData.angler.lastName,
+          };
+          await AsyncStorage.setItem("fishingLicense", JSON.stringify(updatedLicense));
+
+          // Also save WRC ID to profile
+          const profileData = await AsyncStorage.getItem("userProfile");
+          const profile = profileData ? JSON.parse(profileData) : {};
+          const updatedProfile = {
+            ...profile,
+            wrcId: formData.wrcId,
+            hasLicense: true,
+          };
+          await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+        }
+      } catch (error) {
+        console.error("Error saving user preferences:", error);
+        // Don't block form submission on save failure
+      }
+    };
+
+    // Save preferences before navigating (fire and forget)
+    saveUserPreferences();
 
     // Build report data (includes both legacy fields and DMF-specific fields)
     const reportData: FishReportData = {
@@ -1991,6 +2048,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               placeholder="Your email"
               keyboardType="email-address"
               autoCapitalize="none"
+              onBlur={() => {
+                const error = validateEmail(formData.angler.email || "");
+                if (error) {
+                  setValidationErrors(prev => ({ ...prev, email: error }));
+                }
+              }}
             />
             {validationErrors.email && (
               <Text style={localStyles.errorText}>{validationErrors.email}</Text>
@@ -2016,7 +2079,10 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               </TouchableOpacity>
             )}
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Phone</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>Mobile Phone</Text>
+            <Text style={localStyles.phoneDisclaimer}>
+              Entering your number indicates that you agree to receiving a confirmation SMS text from NC Department of Environmental Quality. Data rates may apply.
+            </Text>
             <TextInput
               style={[styles.input, validationErrors.phone && localStyles.inputError]}
               value={formData.angler.phone}
@@ -2050,6 +2116,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               placeholder="555-555-5555"
               keyboardType="phone-pad"
               maxLength={12}
+              onBlur={() => {
+                const error = validatePhone(formData.angler.phone || "");
+                if (error) {
+                  setValidationErrors(prev => ({ ...prev, phone: error }));
+                }
+              }}
             />
             {validationErrors.phone && (
               <Text style={localStyles.errorText}>{validationErrors.phone}</Text>
@@ -3479,6 +3551,13 @@ const localStyles = StyleSheet.create({
     color: colors.darkGray,
     marginBottom: 4,
     lineHeight: 18,
+  },
+  phoneDisclaimer: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 8,
+    lineHeight: 15,
+    fontStyle: 'italic',
   },
   // Area of Harvest Info Modal styles
   areaInfoModalOverlay: {

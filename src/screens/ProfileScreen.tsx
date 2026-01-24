@@ -62,13 +62,10 @@ const profileSchema = yup.object().shape({
     then: (schema) => schema.required('Last name is required'),
     otherwise: (schema) => schema,
   }),
-  // ZIP required when hasLicense = false
-  zipCode: yup.string().when('hasLicense', {
-    is: false,
-    then: (schema) => schema
-      .required('ZIP code is required')
-      .matches(/^\d{5}$/, 'ZIP code must be exactly 5 digits'),
-    otherwise: (schema) => schema,
+  // ZIP code is optional but must be 5 digits if provided
+  zipCode: yup.string().test('is-valid-zip', 'ZIP code must be exactly 5 digits', function(value) {
+    if (!value) return true; // Optional field
+    return /^\d{5}$/.test(value);
   }),
   dateOfBirth: yup.string(),
   email: yup.string().email('Please enter a valid email'),
@@ -80,7 +77,6 @@ const profileSchema = yup.object().shape({
       return false;
     }
   }),
-  address: yup.string(),
   profileImage: yup.string(),
 });
 
@@ -120,8 +116,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [formData, setFormData] = useState<UserProfile>({});
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
-  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
-  const [fishingStats, setFishingStats] = useState<FishingStats>({
+    const [fishingStats, setFishingStats] = useState<FishingStats>({
     totalCatches: 0,
     uniqueSpecies: 0,
     largestFish: null,
@@ -136,8 +131,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const zipCodeInputRef = useRef<TextInput>(null);
   const emailInputRef = useRef<TextInput>(null);
   const phoneInputRef = useRef<TextInput>(null);
-  const addressInputRef = useRef<TextInput>(null);
-
+  
   // Animation for transitioning between view/edit modes
   const slideAnim = useRef(new Animated.Value(0)).current;
   const screenHeight = Dimensions.get('window').height;
@@ -614,36 +608,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          {/* ZIP Code - required when hasLicense = false */}
-          {formData.hasLicense === false && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>ZIP Code *</Text>
-              <TextInput
-                ref={zipCodeInputRef}
-                style={[
-                  styles.input,
-                  validationErrors.zipCode ? styles.inputError : null,
-                  { maxWidth: 120 }
-                ]}
-                value={formData.zipCode}
-                onChangeText={(text) => {
-                  // Only allow digits, max 5
-                  const digits = text.replace(/\D/g, '').slice(0, 5);
-                  handleFieldChange('zipCode', digits);
-                }}
-                placeholder="12345"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="number-pad"
-                maxLength={5}
-                returnKeyType="next"
-                onSubmitEditing={() => emailInputRef.current?.focus()}
-              />
-              {validationErrors.zipCode && (
-                <Text style={styles.errorText}>{validationErrors.zipCode}</Text>
-              )}
-            </View>
-          )}
-
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Date of Birth</Text>
             <TouchableOpacity
@@ -708,7 +672,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               keyboardType="phone-pad"
               mask={PHONE_MASK}
               returnKeyType="next"
-              onSubmitEditing={() => addressInputRef.current?.focus()}
+              onSubmitEditing={() => zipCodeInputRef.current?.focus()}
             />
             {validationErrors.phone && (
               <Text style={styles.errorText}>{validationErrors.phone}</Text>
@@ -716,92 +680,28 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Address</Text>
-            <View>
-              <TextInput
-                ref={addressInputRef}
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  validationErrors.address ? styles.inputError : null
-                ]}
-                value={formData.address}
-                onChangeText={(text) => {
-                  handleFieldChange('address', text);
-
-                  // More responsive address suggestion logic
-                  // Show suggestions for any text of sufficient length
-                  if (text.length >= 3) {
-                    // Common street patterns to match against
-                    const suggestions = [];
-
-                    // Always provide some suggestions based on input
-                    if (text.toLowerCase().includes('st') || text.toLowerCase().includes('street')) {
-                      suggestions.push('123 Main Street, Anytown, NC', '456 Ocean Street, Beachville, NC');
-                    }
-
-                    if (text.toLowerCase().includes('ave') || text.toLowerCase().includes('avenue')) {
-                      suggestions.push('789 Oak Avenue, Forestville, NC', '101 Park Avenue, Citytown, NC');
-                    }
-
-                    if (text.toLowerCase().includes('rd') || text.toLowerCase().includes('road')) {
-                      suggestions.push('222 Country Road, Ruralville, NC', '333 Mountain Road, Highland, NC');
-                    }
-
-                    if (text.toLowerCase().includes('ln') || text.toLowerCase().includes('lane')) {
-                      suggestions.push('444 Maple Lane, Shadygrove, NC', '555 Cedar Lane, Woodville, NC');
-                    }
-
-                    // Fallback if no specific street type matches but text length is sufficient
-                    if (suggestions.length === 0) {
-                      suggestions.push(
-                        `${text} Street, Anytown, NC`,
-                        `${text} Avenue, Cityville, NC`,
-                        `${text} Road, Countryside, NC`
-                      );
-                    }
-
-                    setAddressSuggestions(suggestions);
-                  } else {
-                    setAddressSuggestions([]);
-                  }
-                }}
-                placeholder="Enter your address"
-                placeholderTextColor={colors.textTertiary}
-                multiline
-                numberOfLines={3}
-                textContentType="fullStreetAddress"
-                autoComplete="street-address"
-              />
-
-              {/* Address suggestions */}
-              {addressSuggestions.length > 0 && (
-                <View style={styles.suggestionsContainer}>
-                  <ScrollView style={styles.suggestionsScroll} keyboardShouldPersistTaps="handled">
-                    {addressSuggestions.map((suggestion, index) => (
-                      <TouchableOpacity
-                        key={`suggestion-${index}`}
-                        style={styles.suggestionItem}
-                        onPress={() => {
-                          handleFieldChange('address', suggestion);
-                          setAddressSuggestions([]);
-                          Keyboard.dismiss();
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Feather name="map-pin" size={16} color={colors.primary} style={styles.suggestionIcon} />
-                        <Text style={styles.suggestionText} numberOfLines={1} ellipsizeMode="tail">
-                          {suggestion}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-            </View>
-
-            {validationErrors.address && (
-              <Text style={styles.errorText}>{validationErrors.address}</Text>
+            <Text style={styles.inputLabel}>ZIP Code</Text>
+            <TextInput
+              ref={zipCodeInputRef}
+              style={[
+                styles.input,
+                validationErrors.zipCode ? styles.inputError : null,
+                { maxWidth: 120 }
+              ]}
+              value={formData.zipCode}
+              onChangeText={(text) => {
+                // Only allow digits, max 5
+                const digits = text.replace(/\D/g, '').slice(0, 5);
+                handleFieldChange('zipCode', digits);
+              }}
+              placeholder="12345"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="number-pad"
+              maxLength={5}
+              returnKeyType="done"
+            />
+            {validationErrors.zipCode && (
+              <Text style={styles.errorText}>{validationErrors.zipCode}</Text>
             )}
           </View>
         </View>
@@ -960,18 +860,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               </View>
             </View>
           )}
-
-          {profile.hasLicense === false && profile.zipCode && (
-            <View style={styles.infoItem}>
-              <View style={styles.infoIconContainer}>
-                <Feather name="map-pin" size={18} color={colors.primary} />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>ZIP Code</Text>
-                <Text style={styles.infoValue}>{profile.zipCode}</Text>
-              </View>
-            </View>
-          )}
         </View>
 
         {/* Personal Information Section */}
@@ -1027,14 +915,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
           )}
 
-          {profile.address && (
+          {profile.zipCode && (
             <View style={styles.infoItem}>
               <View style={styles.infoIconContainer}>
                 <Feather name="map-pin" size={18} color={colors.primary} />
               </View>
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Address</Text>
-                <Text style={styles.infoValue}>{profile.address}</Text>
+                <Text style={styles.infoLabel}>ZIP Code</Text>
+                <Text style={styles.infoValue}>{profile.zipCode}</Text>
               </View>
             </View>
           )}
