@@ -29,6 +29,10 @@ import { submitWithQueueFallback, SubmitWithQueueResult } from "../services/offl
 import { aggregateFishEntries } from "../constants/species";
 import { isTestMode } from "../config/appConfig";
 
+// Rewards prompt
+import RewardsPromptModal from "../components/RewardsPromptModal";
+import { shouldShowRewardsPrompt } from "../services/anonymousUserService";
+
 type ConfirmationScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
   "Confirmation"
@@ -52,10 +56,40 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
   const [submitResult, setSubmitResult] = useState<SubmitWithQueueResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Rewards prompt state
+  const [showRewardsPrompt, setShowRewardsPrompt] = useState(false);
+  const [rewardsPromptChecked, setRewardsPromptChecked] = useState(false);
+
   // Submit to DMF on mount
   useEffect(() => {
     submitToDMF();
   }, []);
+
+  // Check if rewards prompt should be shown after successful submission
+  useEffect(() => {
+    const checkRewardsPrompt = async () => {
+      // Only check once, and only after submission completes successfully
+      if (rewardsPromptChecked || isSubmitting || submitError) return;
+      if (!submitResult?.success && !submitResult?.queued) return;
+
+      setRewardsPromptChecked(true);
+
+      try {
+        const shouldShow = await shouldShowRewardsPrompt();
+        console.log('🎁 shouldShowRewardsPrompt result:', shouldShow);
+        if (shouldShow) {
+          console.log('🎁 Showing rewards prompt');
+          setShowRewardsPrompt(true);
+        } else {
+          console.log('🎁 Not showing rewards prompt (user already a member or dismissed)');
+        }
+      } catch (error) {
+        console.error('Error checking rewards prompt:', error);
+      }
+    };
+
+    checkRewardsPrompt();
+  }, [isSubmitting, submitResult, submitError, rewardsPromptChecked]);
 
   const submitToDMF = async () => {
     setIsSubmitting(true);
@@ -490,6 +524,27 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           </View>
         </View>
       </ScrollView>
+
+      {/* Rewards Prompt Modal */}
+      <RewardsPromptModal
+        visible={showRewardsPrompt}
+        onClose={() => setShowRewardsPrompt(false)}
+        onJoinSuccess={() => {
+          setShowRewardsPrompt(false);
+          Alert.alert(
+            "Welcome to Rewards!",
+            "You're now a member of the Quarterly Rewards Program. Good luck in the drawing!",
+            [{ text: "Awesome!", style: "default" }]
+          );
+        }}
+        // Pre-fill from report data
+        initialFirstName={reportData.angler?.firstName || ''}
+        initialLastName={reportData.angler?.lastName || ''}
+        initialEmail={reportData.angler?.email || ''}
+        initialPhone={reportData.angler?.phone || ''}
+        // If user opted into rewards during form, they must complete signup
+        requiresSignup={!!reportData.enteredRaffle}
+      />
     </View>
   );
 };

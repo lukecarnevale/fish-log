@@ -28,6 +28,8 @@ import {
   refreshRewardsData,
 } from '../services/rewardsService';
 import { FALLBACK_CONFIG, FALLBACK_DRAWING } from '../data/rewardsFallbackData';
+import { getCurrentUserState } from '../services/anonymousUserService';
+import { getRewardsMemberForAnonymousUser } from '../services/userService';
 
 // =============================================================================
 // Context Types
@@ -247,29 +249,46 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
 
   /**
    * Enter the current drawing.
+   * Automatically determines user ID from rewards member or uses local entry.
    */
   const enterDrawing = useCallback(
     async (reportId?: string): Promise<boolean> => {
-      if (!currentDrawing || !userId) {
-        // If no userId, just record locally
-        if (currentDrawing) {
-          await recordDrawingEntry(currentDrawing.id);
-          setEnteredDrawingIds((prev) => [...prev, currentDrawing.id]);
-          setUserEntry({
-            userId: 'local',
-            drawingId: currentDrawing.id,
-            isEntered: true,
-            entryMethod: 'app',
-            enteredAt: new Date().toISOString(),
-            associatedReportIds: reportId ? [reportId] : [],
-          });
-          return true;
-        }
+      if (!currentDrawing) {
         return false;
       }
 
+      // First, try to get the current user state
+      let effectiveUserId = userId;
+
+      if (!effectiveUserId) {
+        // Try to get rewards member ID
+        try {
+          const rewardsMember = await getRewardsMemberForAnonymousUser();
+          if (rewardsMember) {
+            effectiveUserId = rewardsMember.id;
+          }
+        } catch (err) {
+          console.warn('Could not get rewards member:', err);
+        }
+      }
+
+      if (!effectiveUserId) {
+        // No rewards member - just record locally for anonymous user
+        await recordDrawingEntry(currentDrawing.id);
+        setEnteredDrawingIds((prev) => [...prev, currentDrawing.id]);
+        setUserEntry({
+          userId: 'local',
+          drawingId: currentDrawing.id,
+          isEntered: true,
+          entryMethod: 'app',
+          enteredAt: new Date().toISOString(),
+          associatedReportIds: reportId ? [reportId] : [],
+        });
+        return true;
+      }
+
       try {
-        const entry = await enterRewardsDrawing(userId, currentDrawing.id, reportId);
+        const entry = await enterRewardsDrawing(effectiveUserId, currentDrawing.id, reportId);
         setUserEntry(entry);
         await recordDrawingEntry(currentDrawing.id);
         setEnteredDrawingIds((prev) => [...prev, currentDrawing.id]);

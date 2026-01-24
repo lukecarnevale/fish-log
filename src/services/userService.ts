@@ -13,17 +13,21 @@ import {
   SpeciesStat,
   Achievement,
   UserAchievement,
+  ConvertToMemberInput,
   transformUser,
   transformSpeciesStat,
   transformAchievement,
   transformUserAchievement,
 } from '../types/user';
+import { getOrCreateAnonymousUser, getAnonymousUser } from './anonymousUserService';
+import { getPendingAuth, clearPendingAuth, getCurrentAuthUser } from './authService';
 
 // Storage keys
 const STORAGE_KEYS = {
   currentUser: '@current_user',
   deviceId: '@device_id',
   userStats: '@user_stats',
+  userProfile: 'userProfile', // Used by ProfileScreen
 } as const;
 
 // =============================================================================
@@ -109,6 +113,35 @@ async function cacheStats(stats: UserStats): Promise<void> {
     await AsyncStorage.setItem(STORAGE_KEYS.userStats, JSON.stringify(stats));
   } catch (error) {
     console.error('Failed to cache stats:', error);
+  }
+}
+
+/**
+ * Sync user data to the userProfile storage key (used by ProfileScreen).
+ * This merges the Supabase user data with any existing profile data.
+ */
+async function syncToUserProfile(user: User): Promise<void> {
+  try {
+    // Get existing profile data
+    const existingProfile = await AsyncStorage.getItem(STORAGE_KEYS.userProfile);
+    const profileData = existingProfile ? JSON.parse(existingProfile) : {};
+
+    // Merge with user data from Supabase (user data takes precedence for matching fields)
+    const updatedProfile = {
+      ...profileData,
+      firstName: user.firstName || profileData.firstName,
+      lastName: user.lastName || profileData.lastName,
+      email: user.email || profileData.email,
+      phone: user.phone || profileData.phone,
+      zipCode: user.zipCode || profileData.zipCode,
+      hasLicense: user.hasLicense ?? profileData.hasLicense,
+      wrcId: user.wrcId || profileData.wrcId,
+    };
+
+    await AsyncStorage.setItem(STORAGE_KEYS.userProfile, JSON.stringify(updatedProfile));
+    console.log('✅ User profile synced to AsyncStorage');
+  } catch (error) {
+    console.error('Failed to sync user profile:', error);
   }
 }
 
@@ -322,6 +355,7 @@ export async function getCurrentUser(): Promise<User | null> {
     id: deviceId,
     deviceId,
     email: null,
+    anonymousUserId: null,
     firstName: null,
     lastName: null,
     zipCode: null,
@@ -336,6 +370,7 @@ export async function getCurrentUser(): Promise<User | null> {
     currentStreak: 0,
     longestStreak: 0,
     lastReportDate: null,
+    rewardsOptedInAt: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -417,6 +452,127 @@ export async function getUserStats(): Promise<UserStats> {
     speciesStats: [],
     achievements: [],
   };
+}
+
+/**
+ * Convert an anonymous user to a rewards member.
+ * Creates a new user record linked to the anonymous user's history.
+ */
+export async function convertToRewardsMember(
+  input: ConvertToMemberInput
+): Promise<{ success: boolean; user?: User; error?: string }> {
+  const connected = await isSupabaseConnected();
+  if (!connected) {
+    return { success: false, error: 'No connection to server' };
+  }
+
+  try {
+    // Get the current anonymous user
+    const anonymousUser = await getAnonymousUser();
+    if (!anonymousUser) {
+      return { success: false, error: 'No anonymous user found' };
+    }
+
+    const deviceId = await getDeviceId();
+
+    // Check if user already exists with this anonymous_user_id
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('anonymous_user_id', anonymousUser.id)
+      .limit(1)
+      .single();
+
+    if (existingUser) {
+      // User already converted - return existing user
+      const user = transformUser(existingUser);
+      await cacheUser(user);
+      return { success: true, user };
+    }
+
+    // Check if email already exists
+    const existingEmailUser = await findUserByEmail(input.email);
+    if (existingEmailUser) {
+      return { success: false, error: 'Email is already registered' };
+    }
+
+    // Create new rewards member
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        device_id: deviceId,
+        anonymous_user_id: anonymousUser.id,
+        email: input.email.toLowerCase(),
+        first_name: input.firstName,
+        last_name: input.lastName,
+        phone: input.phone || null,
+        zip_code: input.zipCode || null,
+        rewards_opted_in_at: new Date().toISOString(),
+        has_license: true,
+        want_text_confirmation: false,
+        want_email_confirmation: true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create rewards member: ${error.message}`);
+    }
+
+    const user = transformUser(data);
+    await cacheUser(user);
+
+    console.log('✅ Converted anonymous user to rewards member');
+    return { success: true, user };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Failed to convert to rewards member:', error);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Check if current user is a rewards member.
+ */
+export async function isRewardsMember(): Promise<boolean> {
+  const user = await getCurrentUser();
+  return user?.rewardsOptedInAt !== null && user?.rewardsOptedInAt !== undefined;
+}
+
+/**
+ * Get the rewards member for the current anonymous user (if exists).
+ */
+export async function getRewardsMemberForAnonymousUser(): Promise<User | null> {
+  const connected = await isSupabaseConnected();
+  if (!connected) {
+    return null;
+  }
+
+  try {
+    const anonymousUser = await getAnonymousUser();
+    if (!anonymousUser) {
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('anonymous_user_id', anonymousUser.id)
+      .limit(1)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // No user found
+      }
+      throw error;
+    }
+
+    return data ? transformUser(data) : null;
+  } catch (error) {
+    console.warn('Failed to get rewards member:', error);
+    return null;
+  }
 }
 
 /**
@@ -516,6 +672,109 @@ export async function clearUserCache(): Promise<void> {
   } catch (error) {
     console.error('Failed to clear user cache:', error);
   }
+}
+
+/**
+ * Create a rewards member from an authenticated Supabase user.
+ * Call this after the user completes magic link authentication.
+ * Uses pending auth data (name, phone) stored during signup.
+ */
+export async function createRewardsMemberFromAuthUser(): Promise<{
+  success: boolean;
+  user?: User;
+  error?: string;
+}> {
+  const connected = await isSupabaseConnected();
+  if (!connected) {
+    return { success: false, error: 'No connection to server' };
+  }
+
+  try {
+    // Get the authenticated user from Supabase Auth
+    const authUser = await getCurrentAuthUser();
+    if (!authUser || !authUser.email) {
+      return { success: false, error: 'No authenticated user found' };
+    }
+
+    // Check if user already exists with this email
+    const existingUser = await findUserByEmail(authUser.email);
+    if (existingUser) {
+      // User already exists - just return them
+      await cacheUser(existingUser);
+      await syncToUserProfile(existingUser); // Sync to ProfileScreen's storage
+      await clearPendingAuth();
+      return { success: true, user: existingUser };
+    }
+
+    // Get pending auth data (name, phone from signup form)
+    const pendingAuth = await getPendingAuth();
+
+    // Get current anonymous user to link
+    const anonymousUser = await getAnonymousUser();
+    const deviceId = await getDeviceId();
+
+    // Create the rewards member
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        device_id: deviceId,
+        anonymous_user_id: anonymousUser?.id || null,
+        email: authUser.email.toLowerCase(),
+        first_name: pendingAuth?.firstName || authUser.user_metadata?.firstName || null,
+        last_name: pendingAuth?.lastName || authUser.user_metadata?.lastName || null,
+        phone: pendingAuth?.phone || authUser.user_metadata?.phone || null,
+        rewards_opted_in_at: new Date().toISOString(),
+        has_license: true,
+        want_text_confirmation: false,
+        want_email_confirmation: true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      // If unique constraint error, try to find existing user
+      if (error.code === '23505') {
+        const existingEmailUser = await findUserByEmail(authUser.email);
+        if (existingEmailUser) {
+          await cacheUser(existingEmailUser);
+          await syncToUserProfile(existingEmailUser); // Sync to ProfileScreen's storage
+          await clearPendingAuth();
+          return { success: true, user: existingEmailUser };
+        }
+      }
+      throw new Error(`Failed to create rewards member: ${error.message}`);
+    }
+
+    const user = transformUser(data);
+    await cacheUser(user);
+    await syncToUserProfile(user); // Sync to ProfileScreen's storage
+    await clearPendingAuth();
+
+    console.log('✅ Created rewards member from authenticated user:', authUser.email);
+    return { success: true, user };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Failed to create rewards member from auth user:', error);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Find a rewards member by their Supabase Auth user ID.
+ */
+export async function findRewardsMemberByAuthId(authUserId: string): Promise<User | null> {
+  const connected = await isSupabaseConnected();
+  if (!connected) {
+    return null;
+  }
+
+  // For now, we find by email since Supabase Auth user email matches users table email
+  const authUser = await getCurrentAuthUser();
+  if (!authUser?.email) {
+    return null;
+  }
+
+  return findUserByEmail(authUser.email);
 }
 
 /**

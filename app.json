@@ -3,6 +3,7 @@
     "name": "fish-log",
     "slug": "fish-log",
     "version": "1.0.0",
+    "scheme": "fishlog",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "light",
