@@ -135,7 +135,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const lastNameInputRef = useRef<TextInput>(null);
   const zipCodeInputRef = useRef<TextInput>(null);
   const emailInputRef = useRef<TextInput>(null);
-  const phoneInputRef = useRef<MaskInput>(null);
+  const phoneInputRef = useRef<TextInput>(null);
   const addressInputRef = useRef<TextInput>(null);
 
   // Animation for transitioning between view/edit modes

@@ -52,8 +52,8 @@ const AppTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: navigationStyles.screenOptions.headerStyle.backgroundColor,
-    background: navigationStyles.screenOptions.cardStyle.backgroundColor,
+    primary: (navigationStyles.screenOptions.headerStyle as { backgroundColor: string })?.backgroundColor ?? '#0B548B',
+    background: (navigationStyles.screenOptions.cardStyle as { backgroundColor: string })?.backgroundColor ?? '#E5F4FF',
     card: '#FFFFFF',
     text: '#263238',
     border: '#BBDEFB',
@@ -197,14 +197,13 @@ const AppContent: React.FC = () => {
         initialRouteName="Home"
         screenOptions={{
           ...navigationStyles.screenOptions,
-          headerBackTitle: '', // Empty string to hide the text
-          headerBackTitleVisible: false, // This explicitly hides the back title
+          headerBackButtonDisplayMode: 'minimal', // Hide back button title in v7
           headerLeftContainerStyle: { paddingLeft: 16 }, // Give the back button more padding
           headerBackImage: ({ tintColor }) => (
-            <Feather 
-              name="chevron-left" 
-              size={30} 
-              color={tintColor || colors.white} 
+            <Feather
+              name="chevron-left"
+              size={30}
+              color={tintColor || colors.white}
               style={{ marginLeft: 4 }}
             />
           ),
@@ -212,7 +211,6 @@ const AppContent: React.FC = () => {
           ...TransitionPresets.SlideFromRightIOS,
           gestureEnabled: true,
           gestureDirection: 'horizontal',
-          animationEnabled: true,
         }}
       >
           <Stack.Screen

@@ -21,9 +21,11 @@ const prizeComponentStyles = StyleSheet.create({
   
   // Header section with background image
   headerContainer: {
-    height: 120,
+    height: 140,
     justifyContent: 'flex-end',
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
   },
   headerBackground: {
     position: 'absolute',
@@ -57,12 +59,18 @@ const prizeComponentStyles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
+  headerSubtitleContainer: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
+    borderRadius: borderRadius.sm,
+    alignSelf: 'flex-start',
+    marginTop: spacing.xxs,
+  },
   headerSubtitle: {
     ...typography.bodySmall,
     color: colors.white,
-    textShadowColor: 'rgba(0,0,0,0.75)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    fontWeight: '500',
   },
   badgeContainer: {
     backgroundColor: colors.accent,
@@ -185,10 +193,15 @@ const prizeComponentStyles = StyleSheet.create({
   },
   
   // Progress bar
+  progressGradient: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+  },
   progressContainer: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-    marginTop: -spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -205,16 +218,38 @@ const prizeComponentStyles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   progressBarContainer: {
-    height: 6,
+    flex: 1,
+    height: 10,
     backgroundColor: colors.lightGray,
-    borderRadius: 3,
+    borderRadius: 5,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 3,
+    backgroundColor: colors.accent,
+    borderRadius: 5,
+  },
+  daysLeftText: {
+    ...typography.caption,
+    fontWeight: '700',
+    color: colors.accent,
+    marginLeft: spacing.sm,
+    minWidth: 80,
+    textAlign: 'right',
   },
   progressSubtext: {
     ...typography.caption,

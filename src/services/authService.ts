@@ -202,9 +202,16 @@ export async function handleMagicLinkCallback(
   try {
     // Parse the URL to extract tokens
     // The URL format is: fishlog://auth/callback#access_token=...&refresh_token=...
-    const hashParams = new URLSearchParams(url.split('#')[1] || '');
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
+    const hashString = url.split('#')[1] || '';
+    const params: Record<string, string> = {};
+    hashString.split('&').forEach(param => {
+      const [key, value] = param.split('=');
+      if (key) {
+        params[key] = decodeURIComponent(value || '');
+      }
+    });
+    const accessToken = params['access_token'] || null;
+    const refreshToken = params['refresh_token'] || null;
 
     if (!accessToken || !refreshToken) {
       return { success: false, error: 'Invalid callback URL - missing tokens' };

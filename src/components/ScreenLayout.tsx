@@ -52,7 +52,7 @@ interface ScreenLayoutProps {
   loadingComponent?: ReactNode;
 
   // ScrollView ref for programmatic scrolling
-  scrollViewRef?: React.RefObject<ScrollView>;
+  scrollViewRef?: React.RefObject<ScrollView | null>;
 
   // Additional ScrollView props
   scrollViewProps?: ScrollViewProps;

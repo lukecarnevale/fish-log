@@ -58,7 +58,7 @@ const enhancedSpeciesStyles = StyleSheet.create({
     marginRight: spacing.xs,
     borderWidth: 1,
     borderColor: colors.border,
-    ...shadows.light,
+    ...shadows.small,
   },
   filterButtonText: {
     ...typography.bodySmall,
@@ -547,7 +547,7 @@ const enhancedSpeciesStyles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.lg,
     borderTopRightRadius: borderRadius.lg,
     padding: spacing.lg,
-    ...shadows.strong,
+    ...shadows.large,
   },
   modalHeader: {
     flexDirection: 'row',
