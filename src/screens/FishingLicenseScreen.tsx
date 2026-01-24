@@ -1,6 +1,6 @@
 // screens/FishingLicenseScreen.tsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Text,
   View,
@@ -15,6 +15,9 @@ import {
   Modal,
   Linking,
   StyleSheet,
+  TouchableWithoutFeedback,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { LinearGradient } from "expo-linear-gradient";
@@ -56,7 +59,36 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   ]);
   const [showLicenseTypeModal, setShowLicenseTypeModal] = useState<boolean>(false);
   const [infoModalVisible, setInfoModalVisible] = useState<boolean>(false);
-  
+
+  // Animation for transitioning between view/edit modes
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const screenHeight = Dimensions.get('window').height;
+
+  // Toggle edit mode with animation
+  const toggleEditMode = (editing: boolean) => {
+    if (editing) {
+      // Entering edit mode - slide up from bottom
+      setFormData(license || {});
+      setIsEditing(true);
+      slideAnim.setValue(screenHeight);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      // Exiting edit mode - slide down
+      Animated.timing(slideAnim, {
+        toValue: screenHeight,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsEditing(false);
+      });
+    }
+  };
+
   // Load license data from AsyncStorage
   useEffect(() => {
     const loadLicense = async () => {
@@ -105,8 +137,15 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
 
       setLicense(formData);
-      setIsEditing(false);
-      Alert.alert("Success", "Your fishing license information has been saved.");
+      // Animate back to license view - slide down
+      Animated.timing(slideAnim, {
+        toValue: screenHeight,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsEditing(false);
+        Alert.alert("Success", "Your fishing license information has been saved.");
+      });
     } catch (error) {
       Alert.alert("Error", "Failed to save your fishing license");
     }
@@ -182,9 +221,22 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   const renderLicenseForm = () => (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
-      <ScrollView 
+      {/* Close button header - matching ProfileScreen pattern */}
+      <View style={styles.formHeader}>
+        <TouchableOpacity
+          style={styles.formCloseButton}
+          onPress={() => toggleEditMode(false)}
+          activeOpacity={0.7}
+        >
+          <Feather name="x" size={24} color={colors.white} />
+        </TouchableOpacity>
+        <Text style={styles.formHeaderTitle}>Edit License</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView
         style={styles.formContainer}
         contentContainerStyle={styles.formContentContainer}
         showsVerticalScrollIndicator={false}
@@ -302,10 +354,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
         <View style={styles.formButtonRow}>
           <TouchableOpacity
             style={[styles.formButton, styles.formCancelButton]}
-            onPress={() => {
-              setFormData(license || {});
-              setIsEditing(false);
-            }}
+            onPress={() => toggleEditMode(false)}
           >
             <Text style={styles.formCancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -318,47 +367,52 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           </TouchableOpacity>
         </View>
         
-        {/* Date picker for iOS */}
-        {Platform.OS === 'ios' && showDatePicker && (
-          <Modal
-            visible={showDatePicker}
-            transparent
-            animationType="slide"
-          >
-            <View style={styles.datePickerModal}>
-              <View style={styles.datePickerContainer}>
-                <View style={styles.datePickerHeader}>
-                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                    <Text style={styles.datePickerCancel}>Cancel</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.datePickerTitle}>
-                    Select {currentDateField === 'issueDate' ? 'Issue Date' : 'Expiry Date'}
-                  </Text>
-                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                    <Text style={styles.datePickerDone}>Done</Text>
+        {/* Date Picker Modal - matching ReportFormScreen and ProfileScreen pattern */}
+        <Modal
+          visible={showDatePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+            <View style={styles.dateModalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.dateModalContent}>
+                  <View style={styles.dateModalHeader}>
+                    <Text style={styles.dateModalTitle}>
+                      Select {currentDateField === 'issueDate' ? 'Issue Date' : 'Expiry Date'}
+                    </Text>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Feather name="x" size={24} color={colors.darkGray} />
+                    </TouchableOpacity>
+                  </View>
+                  {Platform.OS === 'ios' ? (
+                    <DateTimePicker
+                      value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
+                      mode="date"
+                      display="inline"
+                      onChange={onDateChange}
+                      style={styles.datePickerInline}
+                    />
+                  ) : (
+                    <DateTimePicker
+                      value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={onDateChange}
+                    />
+                  )}
+                  <TouchableOpacity
+                    style={styles.dateModalConfirmButton}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={styles.dateModalConfirmText}>Done</Text>
                   </TouchableOpacity>
                 </View>
-                <DateTimePicker
-                  value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
-                  mode="date"
-                  display="spinner"
-                  onChange={onDateChange}
-                  style={styles.datePicker}
-                />
-              </View>
+              </TouchableWithoutFeedback>
             </View>
-          </Modal>
-        )}
-        
-        {/* For Android, DateTimePicker is rendered directly */}
-        {Platform.OS === 'android' && showDatePicker && (
-          <DateTimePicker
-            value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
-            mode="date"
-            display="default"
-            onChange={onDateChange}
-          />
-        )}
+          </TouchableWithoutFeedback>
+        </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -443,7 +497,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       <View style={styles.actionsContainer}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => setIsEditing(true)}
+          onPress={() => toggleEditMode(true)}
         >
           <Feather name="edit-2" size={18} color={colors.white} />
           <Text style={styles.actionButtonText}>Edit License</Text>
@@ -592,7 +646,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       
       <TouchableOpacity
         style={styles.actionButton}
-        onPress={() => setIsEditing(true)}
+        onPress={() => toggleEditMode(true)}
       >
         <Feather name="plus" size={18} color={colors.white} />
         <Text style={styles.actionButtonText}>Add My License</Text>
@@ -660,20 +714,24 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   }
 
   return (
-    <ScreenLayout
-      navigation={navigation}
-      title="My Fishing License"
-      subtitle="Manage your fishing license"
-      noScroll
-    >
-      {isEditing ? (
-        renderLicenseForm()
-      ) : license ? (
-        renderLicenseCard()
-      ) : (
-        renderEmptyState()
+    <View style={styles.safeArea}>
+      {/* Always render the license view underneath */}
+      <ScreenLayout
+        navigation={navigation}
+        title="My Fishing License"
+        subtitle="Manage your fishing license"
+        noScroll
+      >
+        {license ? renderLicenseCard() : renderEmptyState()}
+      </ScreenLayout>
+
+      {/* Overlay the form when editing */}
+      {isEditing && (
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: slideAnim }] }]}>
+          {renderLicenseForm()}
+        </Animated.View>
       )}
-    </ScreenLayout>
+    </View>
   );
 };
 

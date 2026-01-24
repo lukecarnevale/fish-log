@@ -16,6 +16,8 @@ import {
   Keyboard,
   Animated,
   Dimensions,
+  Modal,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -441,7 +443,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const renderProfileForm = () => (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
       {/* Close button header */}
       <View style={styles.formHeader}>
@@ -820,37 +822,52 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Date picker for iOS */}
-        {Platform.OS === 'ios' && showDatePicker && (
-          <View style={styles.datePickerContainer}>
-            <View style={styles.datePickerHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.datePickerCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={styles.datePickerTitle}>Select Date of Birth</Text>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.datePickerDone}>Done</Text>
-              </TouchableOpacity>
+        {/* Date Picker Modal - matching ReportFormScreen pattern */}
+        <Modal
+          visible={showDatePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+            <View style={styles.dateModalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.dateModalContent}>
+                  <View style={styles.dateModalHeader}>
+                    <Text style={styles.dateModalTitle}>Select Date of Birth</Text>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Feather name="x" size={24} color={colors.darkGray} />
+                    </TouchableOpacity>
+                  </View>
+                  {Platform.OS === 'ios' ? (
+                    <DateTimePicker
+                      value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
+                      mode="date"
+                      display="inline"
+                      onChange={onDateChange}
+                      maximumDate={new Date()}
+                      style={styles.datePickerInline}
+                    />
+                  ) : (
+                    <DateTimePicker
+                      value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={onDateChange}
+                      maximumDate={new Date()}
+                    />
+                  )}
+                  <TouchableOpacity
+                    style={styles.dateModalConfirmButton}
+                    onPress={() => setShowDatePicker(false)}
+                  >
+                    <Text style={styles.dateModalConfirmText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-            <DateTimePicker
-              value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
-              mode="date"
-              display="spinner"
-              onChange={onDateChange}
-              style={styles.datePicker}
-            />
-          </View>
-        )}
-
-        {/* For Android, DateTimePicker is rendered directly */}
-        {Platform.OS === 'android' && showDatePicker && (
-          <DateTimePicker
-            value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
-            mode="date"
-            display="default"
-            onChange={onDateChange}
-          />
-        )}
+          </TouchableWithoutFeedback>
+        </Modal>
 
         {/* WRC ID Info Modal */}
         <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
@@ -1074,12 +1091,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
-      {isEditing ? (
-        <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }}>
+      {/* Always render profile underneath */}
+      {renderProfile()}
+
+      {/* Overlay the form when editing */}
+      {isEditing && (
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: slideAnim }] }]}>
           {renderProfileForm()}
         </Animated.View>
-      ) : (
-        renderProfile()
       )}
     </SafeAreaView>
   );
@@ -1543,38 +1562,51 @@ const styles = StyleSheet.create({
     ...typography.button,
     color: colors.white,
   },
-  // Date picker
-  datePickerContainer: {
-    backgroundColor: colors.white,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    ...shadows.large,
+  // Date picker modal styles - matching ReportFormScreen
+  dateModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  datePickerHeader: {
+  dateModalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  dateModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 16,
   },
-  datePickerTitle: {
-    ...typography.subtitle,
+  dateModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.textPrimary,
   },
-  datePickerCancel: {
-    ...typography.bodySmall,
-    color: colors.darkGray,
+  datePickerInline: {
+    height: 350,
+    width: '100%',
   },
-  datePickerDone: {
-    ...typography.bodySmall,
-    color: colors.primary,
+  dateModalConfirmButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  dateModalConfirmText: {
+    color: colors.white,
+    fontSize: 16,
     fontWeight: '600',
-  },
-  datePicker: {
-    backgroundColor: colors.white,
   },
 });
 
