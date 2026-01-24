@@ -27,6 +27,7 @@ import { SubmittedReport, QueuedReport } from "../types/harvestReport";
 import { colors, spacing, typography, borderRadius } from "../styles/common";
 import { isTestMode } from "../config/appConfig";
 import ScreenLayout from "../components/ScreenLayout";
+import { useAllFishSpecies } from "../api/speciesApi";
 
 // DMF services
 import {
@@ -78,6 +79,33 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [selectedReport, setSelectedReport] = useState<DisplayReport | null>(null);
   const [filterType, setFilterType] = useState<"all" | "synced" | "pending">("all");
+
+  // Fetch species data for stock images
+  const { data: fishSpeciesData = [] } = useAllFishSpecies();
+
+  // Map species names to their stock images
+  const getSpeciesImage = (speciesName: string): string | null => {
+    const species = fishSpeciesData.find(
+      (s) => s.name.toLowerCase().includes(speciesName.toLowerCase()) ||
+             speciesName.toLowerCase().includes(s.name.toLowerCase())
+    );
+    return species?.images?.primary || null;
+  };
+
+  // Get the best image for a report (user photo or primary species stock image)
+  const getReportImage = (report: DisplayReport): string | null => {
+    // User's catch photo takes priority
+    if (report.catchPhoto) return report.catchPhoto;
+
+    // Otherwise, find stock image for primary species
+    if (report.redDrumCount > 0) return getSpeciesImage("Red Drum");
+    if (report.flounderCount > 0) return getSpeciesImage("Southern Flounder");
+    if (report.spottedSeatroutCount > 0) return getSpeciesImage("Spotted Seatrout");
+    if (report.stripedBassCount > 0) return getSpeciesImage("Striped Bass");
+    if (report.weakfishCount > 0) return getSpeciesImage("Weakfish");
+
+    return null;
+  };
 
   // Load reports from storage
   const loadReports = useCallback(async () => {
@@ -209,17 +237,6 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     );
   };
 
-  // Get species summary
-  const getSpeciesSummary = (report: DisplayReport): string => {
-    const species: string[] = [];
-    if (report.redDrumCount > 0) species.push(`${report.redDrumCount} Red Drum`);
-    if (report.flounderCount > 0) species.push(`${report.flounderCount} Flounder`);
-    if (report.spottedSeatroutCount > 0) species.push(`${report.spottedSeatroutCount} Seatrout`);
-    if (report.weakfishCount > 0) species.push(`${report.weakfishCount} Weakfish`);
-    if (report.stripedBassCount > 0) species.push(`${report.stripedBassCount} Striped Bass`);
-    return species.join(", ") || "No fish reported";
-  };
-
   // Format date
   const formatDate = (dateString: string): string => {
     if (!dateString) return "Unknown date";
@@ -231,111 +248,151 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     });
   };
 
+  // Get species chips for display
+  const getSpeciesChips = (report: DisplayReport): Array<{ name: string; count: number }> => {
+    const chips: Array<{ name: string; count: number }> = [];
+    if (report.redDrumCount > 0) chips.push({ name: "Red Drum", count: report.redDrumCount });
+    if (report.flounderCount > 0) chips.push({ name: "Flounder", count: report.flounderCount });
+    if (report.spottedSeatroutCount > 0) chips.push({ name: "Seatrout", count: report.spottedSeatroutCount });
+    if (report.weakfishCount > 0) chips.push({ name: "Weakfish", count: report.weakfishCount });
+    if (report.stripedBassCount > 0) chips.push({ name: "Striped Bass", count: report.stripedBassCount });
+    return chips;
+  };
+
   // Render individual report card
-  const renderReportItem: ListRenderItem<DisplayReport> = ({ item }) => (
-    <TouchableOpacity
-      style={styles.reportCard}
-      onPress={() => setSelectedReport(item)}
-      activeOpacity={0.7}
-    >
-      {/* Status Badges Row */}
-      <View style={styles.badgesRow}>
-        <View style={[
-          styles.statusBadge,
-          item.type === "queued" ? styles.statusBadgePending : styles.statusBadgeSynced
-        ]}>
-          <Feather
-            name={item.type === "queued" ? "clock" : "check-circle"}
-            size={12}
-            color={item.type === "queued" ? colors.warning : colors.success}
-          />
-          <Text style={[
-            styles.statusBadgeText,
-            item.type === "queued" ? styles.statusBadgeTextPending : styles.statusBadgeTextSynced
-          ]}>
-            {item.type === "queued" ? "PENDING" : "SUBMITTED"}
-          </Text>
-        </View>
+  const renderReportItem: ListRenderItem<DisplayReport> = ({ item }) => {
+    const speciesChips = getSpeciesChips(item);
+    const totalFish = getTotalFish(item);
+    const isPending = item.type === "queued";
+    const reportImage = getReportImage(item);
+    const isUserPhoto = !!item.catchPhoto;
 
-        {/* Raffle Badge */}
-        {item.enteredRaffle && (
-          <View style={styles.raffleBadge}>
-            <Feather name="gift" size={12} color={colors.primary} />
-            <Text style={styles.raffleBadgeText}>RAFFLE</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Confirmation Number - PROMINENT */}
+    return (
       <TouchableOpacity
-        style={[
-          styles.confirmationBox,
-          item.type === "queued" && styles.confirmationBoxPending
-        ]}
-        onPress={() => handleCopyConfirmation(item.confirmationNumber)}
+        style={[styles.reportCard, isPending && styles.reportCardPending]}
+        onPress={() => setSelectedReport(item)}
         activeOpacity={0.8}
       >
-        <Text style={styles.confirmationLabel}>
-          {item.type === "queued" ? "LOCAL #" : "CONFIRMATION #"}
-        </Text>
-        <Text style={[
-          styles.confirmationNumber,
-          item.type === "queued" && styles.confirmationNumberPending
+        {/* Status Icon - Top Right */}
+        <View style={styles.statusIconContainer}>
+          {item.enteredRaffle && (
+            <View style={styles.raffleBadge}>
+              <Feather name="gift" size={12} color="#fff" />
+            </View>
+          )}
+          {isPending ? (
+            <View style={styles.pendingStatusBadge}>
+              <Feather name="clock" size={24} color={colors.warning} />
+            </View>
+          ) : (
+            <View style={styles.syncedStatusBadge}>
+              <Feather name="check-circle" size={28} color={colors.success} />
+            </View>
+          )}
+        </View>
+
+        {/* Main Card Content */}
+        <View style={styles.cardContent}>
+          {/* Info Section - Left */}
+          <View style={styles.infoSection}>
+            {/* Date */}
+            <Text style={styles.cardDate}>{formatDate(item.harvestDate)}</Text>
+
+            {/* Location */}
+            <View style={styles.locationRow}>
+              <Feather name="map-pin" size={14} color={colors.textSecondary} />
+              <Text style={styles.cardLocation} numberOfLines={1}>
+                {item.areaLabel || `Area ${item.areaCode}`}
+              </Text>
+            </View>
+
+            {/* Species Tags */}
+            <View style={styles.speciesTagsContainer}>
+              {speciesChips.length > 0 ? (
+                speciesChips.slice(0, 3).map((chip, index) => (
+                  <View key={index} style={styles.speciesTag}>
+                    <Text style={styles.speciesTagCount}>{chip.count}</Text>
+                    <Text style={styles.speciesTagName}>{chip.name}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.noFishText}>No fish reported</Text>
+              )}
+              {speciesChips.length > 3 && (
+                <Text style={styles.moreSpeciesText}>+{speciesChips.length - 3} more</Text>
+              )}
+            </View>
+
+            {/* Footer Row */}
+            <View style={styles.cardFooter}>
+              <View style={styles.footerLeft}>
+                <Feather name="anchor" size={14} color={colors.primary} />
+                <Text style={styles.fishCountText}>{totalFish} fish</Text>
+                <Text style={styles.methodDivider}>•</Text>
+                <Text style={styles.methodText}>
+                  {item.usedHookAndLine ? "Hook & Line" : (item.gearLabel || "Other")}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Photo Section - Right */}
+          <View style={styles.photoSection}>
+            {reportImage ? (
+              <View style={styles.cardPhotoContainer}>
+                <Image
+                  source={{ uri: reportImage }}
+                  style={styles.cardPhoto}
+                  resizeMode="contain"
+                />
+              </View>
+            ) : (
+              <View style={styles.cardPhotoPlaceholder}>
+                <Feather name="image" size={28} color={colors.lightGray} />
+              </View>
+            )}
+            {isUserPhoto && (
+              <View style={styles.userPhotoBadge}>
+                <Feather name="camera" size={10} color="#fff" />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Perforation Line */}
+        <View style={styles.perforationContainer}>
+          <View style={styles.perforationNotchLeft} />
+          <View style={styles.perforationLine}>
+            {Array.from({ length: 20 }).map((_, i) => (
+              <View key={i} style={styles.perforationDot} />
+            ))}
+          </View>
+          <View style={styles.perforationNotchRight} />
+        </View>
+
+        {/* Footer - Confirmation Number */}
+        <View style={[
+          styles.confirmationRow,
+          !isPending && styles.confirmationRowBottom
         ]}>
-          {item.confirmationNumber}
-        </Text>
-        <Text style={styles.confirmationHint}>Tap to copy</Text>
+          <Text style={styles.confirmationLabel}>Confirmation</Text>
+          <Text style={styles.confirmationNumber}>#{item.confirmationNumber}</Text>
+        </View>
+
+        {/* Pending Banner */}
+        {isPending && (
+          <View style={styles.cardPendingBanner}>
+            <Feather name="wifi-off" size={14} color={colors.warning} />
+            <Text style={styles.cardPendingBannerText}>
+              {item.retryCount && item.retryCount > 0
+                ? `Sync failed (${item.retryCount}x) — will retry`
+                : "Pending sync to DMF"}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
-
-      {/* Report Details */}
-      <View style={styles.reportDetails}>
-        <View style={styles.reportRow}>
-          <Feather name="calendar" size={14} color={colors.textSecondary} />
-          <Text style={styles.reportRowText}>
-            {formatDate(item.harvestDate)}
-          </Text>
-        </View>
-
-        <View style={styles.reportRow}>
-          <Feather name="map-pin" size={14} color={colors.textSecondary} />
-          <Text style={styles.reportRowText} numberOfLines={1}>
-            {item.areaLabel || `Area ${item.areaCode}`}
-          </Text>
-        </View>
-
-        <View style={styles.reportRow}>
-          <Feather name="anchor" size={14} color={colors.textSecondary} />
-          <Text style={styles.reportRowText}>
-            {getTotalFish(item)} fish • {item.usedHookAndLine ? "Hook & Line" : item.gearLabel}
-          </Text>
-        </View>
-      </View>
-
-      {/* Species Summary */}
-      <Text style={styles.speciesSummary} numberOfLines={2}>
-        {getSpeciesSummary(item)}
-      </Text>
-
-      {/* Retry Warning for Failed Queued Reports */}
-      {item.type === "queued" && item.retryCount && item.retryCount > 0 && (
-        <View style={styles.retryWarning}>
-          <Feather name="alert-triangle" size={14} color={colors.warning} />
-          <Text style={styles.retryWarningText}>
-            Retry {item.retryCount} failed. Will try again when online.
-          </Text>
-        </View>
-      )}
-
-      {/* View Details Button */}
-      <TouchableOpacity
-        style={styles.viewDetailsButton}
-        onPress={() => setSelectedReport(item)}
-      >
-        <Text style={styles.viewDetailsText}>View Details</Text>
-        <Feather name="chevron-right" size={16} color={colors.primary} />
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   // Render detail modal
   const renderDetailModal = () => (
@@ -355,7 +412,10 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             <Feather name="x" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.modalScrollContent}
+          >
             {/* Status Header */}
             <View style={[
               styles.modalStatusHeader,
@@ -765,143 +825,265 @@ const styles = StyleSheet.create({
   },
   reportCard: {
     backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    shadowColor: colors.shadow,
+    borderRadius: 16,
+    marginBottom: spacing.lg,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.md,
+    paddingBottom: 0,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  badgesRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: borderRadius.sm,
-  },
-  statusBadgeSynced: {
-    backgroundColor: "#e8f5e9",
-  },
-  statusBadgePending: {
-    backgroundColor: "#fff8e1",
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    marginLeft: 4,
-    letterSpacing: 0.5,
-  },
-  statusBadgeTextSynced: {
-    color: colors.success,
-  },
-  statusBadgeTextPending: {
-    color: colors.warning,
-  },
-  raffleBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: borderRadius.sm,
-    backgroundColor: "#e3f2fd",
-  },
-  raffleBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    marginLeft: 4,
-    letterSpacing: 0.5,
-    color: colors.primary,
-  },
-  confirmationBox: {
-    backgroundColor: "#f0f7f0",
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    alignItems: "center",
-    marginBottom: spacing.md,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
     borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: colors.success,
+    borderColor: "rgba(0,0,0,0.04)",
+    position: "relative",
   },
-  confirmationBoxPending: {
+  reportCardPending: {
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+  },
+  statusIconContainer: {
+    position: "absolute",
+    top: -22,
+    right: -10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    zIndex: 10,
+  },
+  pendingStatusBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#fff8e1",
-    borderColor: colors.warning,
-  },
-  confirmationLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: colors.success,
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  confirmationNumber: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: colors.success,
-    letterSpacing: 2,
-  },
-  confirmationNumberPending: {
-    color: colors.warning,
-  },
-  confirmationHint: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  reportDetails: {
-    marginBottom: spacing.sm,
-  },
-  reportRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: spacing.xs,
-  },
-  reportRowText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginLeft: spacing.sm,
-    flex: 1,
-  },
-  speciesSummary: {
-    ...typography.body,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  retryWarning: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff3cd",
-    padding: spacing.sm,
-    borderRadius: borderRadius.sm,
-    marginBottom: spacing.sm,
-  },
-  retryWarningText: {
-    ...typography.bodySmall,
-    color: "#856404",
-    marginLeft: spacing.sm,
-    flex: 1,
-  },
-  viewDetailsButton: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.lightGray,
-    marginTop: spacing.xs,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 3,
+    borderColor: colors.white,
   },
-  viewDetailsText: {
-    ...typography.bodySmall,
+  syncedStatusBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#e8f5e9",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 3,
+    borderColor: colors.white,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  cardHeaderLeft: {
+    flex: 1,
+  },
+  cardDate: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  cardLocation: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginLeft: 6,
+    flex: 1,
+  },
+  cardHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  raffleBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmationNumber: {
+    fontSize: 15,
+    fontWeight: "700",
     color: colors.primary,
+  },
+  confirmationRow: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.sm,
+    marginTop: 0,
+    marginHorizontal: -spacing.md,
+    backgroundColor: colors.primaryLight,
+  },
+  confirmationRowBottom: {
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  confirmationLabel: {
+    fontSize: 12,
+    color: colors.primary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
     fontWeight: "600",
-    marginRight: 4,
+  },
+  perforationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: spacing.md,
+    marginHorizontal: -spacing.md,
+    height: 0,
+    overflow: "visible",
+  },
+  perforationNotchLeft: {
+    width: 12,
+    height: 24,
+    backgroundColor: colors.background,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    marginLeft: -1,
+    marginTop: -12,
+  },
+  perforationNotchRight: {
+    width: 12,
+    height: 24,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    marginRight: -1,
+    marginTop: -12,
+  },
+  perforationLine: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    alignItems: "center",
+    marginTop: -4,
+  },
+  perforationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.background,
+  },
+  speciesTagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  speciesTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  speciesTagCount: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.primary,
+    marginRight: 5,
+  },
+  speciesTagName: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.textPrimary,
+  },
+  noFishText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    fontStyle: "italic",
+  },
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  footerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  fishCountBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  fishCountText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  methodText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  footerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  pendingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff8e1",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  pendingText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.warning,
+  },
+  syncedBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#e8f5e9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  retryBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffebee",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: spacing.sm,
+    gap: 8,
+  },
+  retryText: {
+    fontSize: 12,
+    color: "#c0392b",
+    fontWeight: "500",
+    flex: 1,
   },
   emptyContainer: {
     alignItems: "center",
@@ -945,6 +1127,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     width: "90%",
     maxHeight: "85%",
+    overflow: "hidden",
+  },
+  modalScrollContent: {
     padding: spacing.lg,
   },
   modalXButton: {
@@ -1094,6 +1279,100 @@ const styles = StyleSheet.create({
   modalRaffleText: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  // New card layout styles
+  cardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  photoSection: {
+    position: "relative",
+    marginLeft: spacing.md,
+    alignSelf: "center",
+  },
+  cardPhotoContainer: {
+    width: 140,
+    height: 140,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardPhoto: {
+    width: "100%",
+    height: "100%",
+  },
+  cardPhotoPlaceholder: {
+    width: 140,
+    height: 140,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  userPhotoBadge: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  infoSection: {
+    flex: 1,
+    paddingRight: spacing.xs,
+  },
+  headerBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  pendingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.warning,
+  },
+  moreSpeciesText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: "italic",
+    alignSelf: "center",
+  },
+  methodDivider: {
+    fontSize: 14,
+    color: colors.lightGray,
+  },
+  chevronContainer: {
+    marginLeft: spacing.sm,
+    paddingLeft: spacing.sm,
+  },
+  cardPendingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff8e1",
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginHorizontal: -spacing.md,
+    gap: 8,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  cardPendingBannerText: {
+    fontSize: 14,
+    color: "#856404",
+    fontWeight: "500",
+    flex: 1,
   },
 });
 

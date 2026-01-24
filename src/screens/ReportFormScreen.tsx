@@ -25,6 +25,7 @@ import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList, FishReportData, UserProfile, FishingLicense } from "../types";
 import styles from "../styles/reportFormScreenStyles";
 import { colors } from "../styles/common";
+import WrcIdInfoModal from "../components/WrcIdInfoModal";
 
 // DMF constants
 import { AREA_LABELS, getAreaCodeFromLabel } from "../constants/areaOptions";
@@ -402,6 +403,36 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // State for abandonment modal
   const [showAbandonModal, setShowAbandonModal] = useState<boolean>(false);
 
+  // State for WRC ID info modal
+  const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
+
+  // State for raffle modal inline validation
+  const [raffleValidationErrors, setRaffleValidationErrors] = useState<{
+    email?: string;
+    phone?: string;
+  }>({});
+
+  // Email validation helper
+  const validateEmail = (email: string): string | undefined => {
+    if (!email.trim()) return undefined; // Don't show error for empty (will be caught on submit)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return "Please enter a valid email address";
+    }
+    return undefined;
+  };
+
+  // Phone validation helper (validates xxx-xxx-xxxx format)
+  const validatePhone = (phone: string): string | undefined => {
+    if (!phone.trim()) return undefined; // Phone is optional
+    // Remove formatting to check digit count
+    const digitsOnly = phone.replace(/\D/g, "");
+    if (digitsOnly.length > 0 && digitsOnly.length < 10) {
+      return "Please enter a complete 10-digit phone number";
+    }
+    return undefined;
+  };
+
   // Derived rewards info from context (with fallback for backward compatibility)
   const currentRewards = {
     id: currentDrawing?.id || '',
@@ -532,9 +563,22 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   };
 
   // Helper to update a specific length in the array
+  // Sanitizes input to only allow numbers and one decimal point
   const updateLength = (index: number, value: string): void => {
+    // Remove any character that's not a digit or decimal point
+    let sanitized = value.replace(/[^0-9.]/g, '');
+
+    // Ensure only one decimal point
+    const decimalCount = (sanitized.match(/\./g) || []).length;
+    if (decimalCount > 1) {
+      // Keep only the first decimal point
+      const firstDecimalIndex = sanitized.indexOf('.');
+      sanitized = sanitized.slice(0, firstDecimalIndex + 1) +
+                  sanitized.slice(firstDecimalIndex + 1).replace(/\./g, '');
+    }
+
     const newLengths = [...formData.lengths];
-    newLengths[index] = value;
+    newLengths[index] = sanitized;
     setFormData({ ...formData, lengths: newLengths });
   };
 
@@ -1050,6 +1094,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     </Modal>
   );
 
+
   // Render the input field for picker-style data
   const renderPickerField = (
     label: string,
@@ -1108,6 +1153,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}>
       {renderSelectionModal()}
       {renderAbandonModal()}
+      <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
 
       {/* Reporting Type Section */}
       <View style={styles.section}>
@@ -1519,7 +1565,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         {/* Show WRC ID if licensed (required), or Name + ZIP if unlicensed (required) */}
         {formData.hasLicense === true && (
           <>
-            <Text style={styles.label}>WRC ID / Customer ID *</Text>
+            <View style={localStyles.labelRow}>
+              <Text style={styles.label}>WRC ID / Customer ID *</Text>
+              <TouchableOpacity
+                onPress={() => setShowWrcIdInfoModal(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Feather name="info" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={[
                 styles.input,
@@ -1870,7 +1924,10 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       >
         <View style={localStyles.raffleModalOverlay}>
           <View style={localStyles.raffleModalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={localStyles.raffleModalScrollContent}
+            >
               {/* Header */}
               <View style={localStyles.raffleModalHeader}>
                 <TouchableOpacity
@@ -1967,31 +2024,63 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
                 <Text style={localStyles.raffleInputLabel}>Email *</Text>
                 <TextInput
-                  style={localStyles.raffleInput}
+                  style={[
+                    localStyles.raffleInput,
+                    raffleValidationErrors.email && localStyles.raffleInputError,
+                  ]}
                   value={formData.angler.email}
-                  onChangeText={(text) => setFormData({
-                    ...formData,
-                    angler: { ...formData.angler, email: text },
-                  })}
+                  onChangeText={(text) => {
+                    setFormData({
+                      ...formData,
+                      angler: { ...formData.angler, email: text },
+                    });
+                    // Clear error when user starts typing
+                    if (raffleValidationErrors.email) {
+                      setRaffleValidationErrors(prev => ({ ...prev, email: undefined }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const error = validateEmail(formData.angler.email || "");
+                    setRaffleValidationErrors(prev => ({ ...prev, email: error }));
+                  }}
                   placeholder="Email address"
                   placeholderTextColor={colors.textTertiary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
+                {raffleValidationErrors.email && (
+                  <Text style={localStyles.raffleErrorText}>{raffleValidationErrors.email}</Text>
+                )}
 
                 <Text style={localStyles.raffleInputLabel}>Phone (optional)</Text>
                 <TextInput
-                  style={localStyles.raffleInput}
+                  style={[
+                    localStyles.raffleInput,
+                    raffleValidationErrors.phone && localStyles.raffleInputError,
+                  ]}
                   value={formData.angler.phone}
-                  onChangeText={(text) => setFormData({
-                    ...formData,
-                    angler: { ...formData.angler, phone: formatPhoneNumber(text) },
-                  })}
+                  onChangeText={(text) => {
+                    setFormData({
+                      ...formData,
+                      angler: { ...formData.angler, phone: formatPhoneNumber(text) },
+                    });
+                    // Clear error when user starts typing
+                    if (raffleValidationErrors.phone) {
+                      setRaffleValidationErrors(prev => ({ ...prev, phone: undefined }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const error = validatePhone(formData.angler.phone || "");
+                    setRaffleValidationErrors(prev => ({ ...prev, phone: error }));
+                  }}
                   placeholder="555-555-5555"
                   placeholderTextColor={colors.textTertiary}
                   keyboardType="phone-pad"
                   maxLength={12}
                 />
+                {raffleValidationErrors.phone && (
+                  <Text style={localStyles.raffleErrorText}>{raffleValidationErrors.phone}</Text>
+                )}
               </View>
 
               {/* Terms */}
@@ -2035,7 +2124,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                     localStyles.raffleModalButton,
                     localStyles.raffleModalPrimaryButton,
                     (!catchPhoto || !formData.angler.firstName?.trim() || !formData.angler.lastName?.trim() ||
-                     !formData.angler.email?.trim()) && localStyles.raffleModalButtonDisabled,
+                     !formData.angler.email?.trim() || validateEmail(formData.angler.email || "") ||
+                     validatePhone(formData.angler.phone || "")) && localStyles.raffleModalButtonDisabled,
                   ]}
                   onPress={() => {
                     // Validate rewards requirements (phone is now optional)
@@ -2051,12 +2141,27 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                       Alert.alert("Email Required", "Please enter your email address to join the rewards program.");
                       return;
                     }
+                    // Validate email format
+                    const emailError = validateEmail(formData.angler.email || "");
+                    if (emailError) {
+                      setRaffleValidationErrors(prev => ({ ...prev, email: emailError }));
+                      Alert.alert("Invalid Email", emailError);
+                      return;
+                    }
+                    // Validate phone format (if provided)
+                    const phoneError = validatePhone(formData.angler.phone || "");
+                    if (phoneError) {
+                      setRaffleValidationErrors(prev => ({ ...prev, phone: phoneError }));
+                      Alert.alert("Invalid Phone", phoneError);
+                      return;
+                    }
                     setEnterRaffle(true);
                     setShowRaffleModal(false);
                     showToast("Rewards Entry Added", "You'll be entered in this quarter's drawing.");
                   }}
                   disabled={!catchPhoto || !formData.angler.firstName?.trim() || !formData.angler.lastName?.trim() ||
-                           !formData.angler.email?.trim()}
+                           !formData.angler.email?.trim() || !!validateEmail(formData.angler.email || "") ||
+                           !!validatePhone(formData.angler.phone || "")}
                 >
                   <Feather name="check" size={18} color={colors.white} />
                   <Text style={localStyles.raffleModalPrimaryButtonText}>Submit & Enter</Text>
@@ -2072,6 +2177,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
 // Local styles for multi-fish UI and count picker
 const localStyles = StyleSheet.create({
+  // Label row with info icon
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   // Toast notification styles
   toast: {
     position: "absolute",
@@ -2543,12 +2654,15 @@ const localStyles = StyleSheet.create({
     borderRadius: 16,
     width: "90%",
     maxHeight: "85%",
-    padding: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
     elevation: 8,
+    overflow: "hidden",
+  },
+  raffleModalScrollContent: {
+    padding: 24,
   },
   raffleModalHeader: {
     alignItems: "center",
@@ -2719,6 +2833,15 @@ const localStyles = StyleSheet.create({
     color: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  raffleInputError: {
+    borderColor: colors.error || "#FF3B30",
+    borderWidth: 1,
+  },
+  raffleErrorText: {
+    color: colors.error || "#FF3B30",
+    fontSize: 12,
+    marginTop: 4,
   },
   // Photo capture styles
   photoContainer: {

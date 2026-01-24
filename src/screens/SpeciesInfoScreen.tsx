@@ -9,7 +9,6 @@ import {
   Image,
   TextInput,
   ScrollView,
-  Modal,
   Dimensions,
   ListRenderItem,
   Animated,
@@ -17,7 +16,7 @@ import {
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../types";
 import { EnhancedFishSpecies } from "../types/fishSpecies";
-import fishSpeciesData from "../data/fishSpeciesData";
+import { useAllFishSpecies } from "../api/speciesApi";
 import styles from "../styles/enhancedSpeciesStyles";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "../styles/common";
@@ -32,55 +31,173 @@ interface SpeciesInfoScreenProps {
   navigation: SpeciesInfoScreenNavigationProp;
 }
 
-// Filter options
-type FilterType = "all" | "freshwater" | "saltwater" | "brackish";
-type SeasonFilter = "all" | "spring" | "summer" | "fall" | "winter";
+// Skeleton loader for species cards
+const SkeletonCard: React.FC = () => {
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+  React.useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
+
+  return (
+    <View style={styles.speciesCard}>
+      <View style={styles.imageContainer}>
+        <Animated.View
+          style={[
+            styles.imageWrapper,
+            {
+              backgroundColor: '#E0E0E0',
+              opacity: pulseAnim,
+            },
+          ]}
+        />
+      </View>
+      <View style={styles.speciesBasicInfo}>
+        <Animated.View
+          style={{
+            height: 18,
+            width: '70%',
+            backgroundColor: '#E0E0E0',
+            borderRadius: 4,
+            marginBottom: 8,
+            opacity: pulseAnim,
+          }}
+        />
+        <Animated.View
+          style={{
+            height: 14,
+            width: '50%',
+            backgroundColor: '#E0E0E0',
+            borderRadius: 4,
+            marginBottom: 8,
+            opacity: pulseAnim,
+          }}
+        />
+        <Animated.View
+          style={{
+            height: 12,
+            width: '90%',
+            backgroundColor: '#E0E0E0',
+            borderRadius: 4,
+            marginBottom: 12,
+            opacity: pulseAnim,
+          }}
+        />
+        {/* Season dots skeleton */}
+        <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+          {[1, 2, 3, 4].map((i) => (
+            <Animated.View
+              key={i}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: '#E0E0E0',
+                marginRight: 4,
+                opacity: pulseAnim,
+              }}
+            />
+          ))}
+        </View>
+        {/* Regulation badges skeleton */}
+        <View style={{ flexDirection: 'row' }}>
+          <Animated.View
+            style={{
+              height: 20,
+              width: 60,
+              backgroundColor: '#E0E0E0',
+              borderRadius: 4,
+              marginRight: 8,
+              opacity: pulseAnim,
+            }}
+          />
+          <Animated.View
+            style={{
+              height: 20,
+              width: 50,
+              backgroundColor: '#E0E0E0',
+              borderRadius: 4,
+              opacity: pulseAnim,
+            }}
+          />
+        </View>
+      </View>
+    </View>
+  );
+};
 
 const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedSpecies, setSelectedSpecies] = useState<EnhancedFishSpecies | null>(null);
-  const [typeFilter, setTypeFilter] = useState<FilterType>("all");
-  const [seasonFilter, setSeasonFilter] = useState<SeasonFilter>("all");
-  const [showFilterModal, setShowFilterModal] = useState<boolean>(false);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
-  const [showRegulations, setShowRegulations] = useState<boolean>(true);
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get("window");
 
-  // Filter species based on search query and filters
+  // Animation for detail view
+  const detailAnim = useRef(new Animated.Value(0)).current;
+
+  // Handle selecting a species with animation
+  const handleSelectSpecies = (species: EnhancedFishSpecies) => {
+    setSelectedSpecies(species);
+    setCurrentImageIndex(0);
+    detailAnim.setValue(0);
+    Animated.spring(detailAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start();
+  };
+
+  // Handle closing detail view with animation
+  const handleCloseDetail = () => {
+    Animated.timing(detailAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setSelectedSpecies(null);
+    });
+  };
+
+  // Fetch fish species from Supabase
+  const { data: fishSpeciesData = [], isLoading, error } = useAllFishSpecies();
+
+  // Filter species based on search query
   const filteredSpecies = fishSpeciesData.filter((species) => {
-    // Search filter
-    const matchesSearch =
-      searchQuery === "" ||
-      species.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      species.scientificName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    if (searchQuery === "") return true;
+
+    const query = searchQuery.toLowerCase();
+    return (
+      species.name.toLowerCase().includes(query) ||
+      species.scientificName.toLowerCase().includes(query) ||
       (species.commonNames &&
         species.commonNames.some((name) =>
-          name.toLowerCase().includes(searchQuery.toLowerCase())
-        ));
-
-    // Type filter
-    const matchesType =
-      typeFilter === "all" ||
-      (species.categories &&
-        species.categories.type &&
-        species.categories.type.some(
-          (type) => type.toLowerCase() === typeFilter.toLowerCase()
-        ));
-
-    // Season filter
-    const matchesSeason =
-      seasonFilter === "all" ||
-      (species.seasons && species.seasons[seasonFilter as keyof typeof species.seasons]);
-
-    return matchesSearch && matchesType && matchesSeason;
+          name.toLowerCase().includes(query)
+        ))
+    );
   });
 
   // Render fish species item in the list
   const renderSpeciesItem: ListRenderItem<EnhancedFishSpecies> = ({ item }) => (
     <TouchableOpacity
       style={styles.speciesCard}
-      onPress={() => setSelectedSpecies(item)}
+      onPress={() => handleSelectSpecies(item)}
       activeOpacity={0.7}
     >
       <View style={styles.imageContainer}>
@@ -132,7 +249,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
         </View>
         
         {/* Regulation indicators */}
-        {showRegulations && formatCompactRegulations(item.regulations)}
+        {formatCompactRegulations(item.regulations)}
         
         <Text style={styles.tapPrompt}>Tap for more info</Text>
       </View>
@@ -391,173 +508,41 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
     );
   };
   
-  // Render similar species section
-  const renderSimilarSpecies = () => {
-    if (!selectedSpecies || !selectedSpecies.similarSpecies) return null;
-    
-    return (
-      <View>
-        <Text style={styles.sectionTitle}>Similar Species</Text>
-        
-        {selectedSpecies.similarSpecies.map((similar) => {
-          const similarSpecies = fishSpeciesData.find(s => s.id === similar.id);
-          return (
-            <TouchableOpacity
-              key={similar.id}
-              style={styles.similarSpeciesCard}
-              onPress={() => {
-                if (similarSpecies) {
-                  // Reset the current image index
-                  setCurrentImageIndex(0);
-                  
-                  // Update the selected species with a forced refresh approach
-                  setSelectedSpecies(null);
-                  
-                  // Use a short timeout to ensure the state updates in sequence
-                  setTimeout(() => {
-                    setSelectedSpecies(similarSpecies);
-                    
-                    // Scroll back to top after a short delay to ensure content is rendered
-                    setTimeout(() => {
-                      if (scrollViewRef.current) {
-                        scrollViewRef.current.scrollTo({ y: 0, animated: true });
-                      }
-                    }, 150);
-                  }, 50);
-                }
-              }}
-            >
-              {similarSpecies && (
-                <Image
-                  source={{ uri: similarSpecies.images.primary }}
-                  style={styles.similarSpeciesImage}
-                  resizeMode="cover"
-                />
-              )}
-              <View style={styles.similarSpeciesInfo}>
-                <Text style={styles.similarSpeciesName}>{similar.name}</Text>
-                <Text style={styles.similarSpeciesFeatures}>
-                  {similar.differentiatingFeatures}
-                </Text>
-              </View>
-              <View style={styles.chevronContainer}>
-                <Feather name="chevron-right" size={24} color={colors.white} />
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    );
-  };
-  
-  // Render filter modal
-  const renderFilterModal = () => (
-    <Modal
-      visible={showFilterModal}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowFilterModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.filterModal}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filter Species</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowFilterModal(false)}
-            >
-              <Feather name="x" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Water Type</Text>
-            <View style={styles.filterOptionRow}>
-              {["all", "freshwater", "saltwater", "brackish"].map((type) => (
-                <TouchableOpacity
-                  key={`type-${type}`}
-                  style={[
-                    styles.filterOption,
-                    typeFilter === type && styles.filterOptionSelected
-                  ]}
-                  onPress={() => setTypeFilter(type as FilterType)}
-                >
-                  <Text
-                    style={[
-                      styles.filterOptionText,
-                      typeFilter === type && styles.filterOptionSelectedText
-                    ]}
-                  >
-                    {type === "all" ? "All Types" : type.charAt(0).toUpperCase() + type.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-          
-          <View style={styles.filterSection}>
-            <Text style={styles.filterSectionTitle}>Season</Text>
-            <View style={styles.filterOptionRow}>
-              {["all", "spring", "summer", "fall", "winter"].map((season) => (
-                <TouchableOpacity
-                  key={`season-${season}`}
-                  style={[
-                    styles.filterOption,
-                    seasonFilter === season && styles.filterOptionSelected
-                  ]}
-                  onPress={() => setSeasonFilter(season as SeasonFilter)}
-                >
-                  <Text
-                    style={[
-                      styles.filterOptionText,
-                      seasonFilter === season && styles.filterOptionSelectedText
-                    ]}
-                  >
-                    {season === "all" ? "All Seasons" : season.charAt(0).toUpperCase() + season.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.applyButton}
-            onPress={() => setShowFilterModal(false)}
-          >
-            <Text style={styles.applyButtonText}>Apply Filters</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.resetFiltersButton}
-            onPress={() => {
-              setTypeFilter("all");
-              setSeasonFilter("all");
-            }}
-          >
-            <Text style={styles.resetFiltersText}>Reset All Filters</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-  
   const scrollViewRef = useRef<ScrollView>(null);
   
+  // Animation interpolations for detail view
+  const detailTranslateY = detailAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [50, 0],
+  });
+
+  const detailOpacity = detailAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
   // When a species is selected, show the detail view
   if (selectedSpecies) {
     return (
       <ScreenLayout
-        navigation={{ goBack: () => setSelectedSpecies(null) }}
+        navigation={{ goBack: handleCloseDetail }}
         title={selectedSpecies.name}
         subtitle={selectedSpecies.scientificName}
         scrollViewRef={scrollViewRef}
       >
-        {/* Image gallery */}
-        <View style={styles.imageGallery}>
-          {renderImageGallery()}
-        </View>
+        <Animated.View
+          style={{
+            flex: 1,
+            opacity: detailOpacity,
+            transform: [{ translateY: detailTranslateY }],
+          }}
+        >
+          {/* Image gallery */}
+          <View style={styles.imageGallery}>
+            {renderImageGallery()}
+          </View>
 
-        <View style={styles.detailInfo}>
+          <View style={styles.detailInfo}>
           <Text style={styles.detailName}>{selectedSpecies.name}</Text>
           <Text style={styles.detailScientific}>
             {selectedSpecies.scientificName}
@@ -627,22 +612,23 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
           {/* Fishing tips section */}
           {renderFishingTips()}
 
-          {/* Similar species section */}
-          {renderSimilarSpecies()}
-
-          <TouchableOpacity
-            style={styles.reportButton}
-            onPress={() => {
-              setSelectedSpecies(null);
-              navigation.navigate("ReportForm");
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.reportButtonText}>
-              Report Catching This Species
-            </Text>
-          </TouchableOpacity>
+          {/* Report button - only show for mandatory harvest report species */}
+          {['Red Drum', 'Southern Flounder', 'Spotted Seatrout', 'Striped Bass', 'Weakfish'].includes(selectedSpecies.name) && (
+            <TouchableOpacity
+              style={styles.reportButton}
+              onPress={() => {
+                handleCloseDetail();
+                navigation.navigate("ReportForm");
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.reportButtonText}>
+                Report Catching This Species
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
+        </Animated.View>
       </ScreenLayout>
     );
   }
@@ -663,200 +649,38 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
           onChangeText={setSearchQuery}
           clearButtonMode="while-editing"
         />
-
-        <View style={styles.filterRow}>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setShowFilterModal(true)}
-          >
-            <Feather name="filter" size={16} color={colors.textPrimary} />
-            <Text style={styles.filterButtonText}>Filter</Text>
-          </TouchableOpacity>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                typeFilter === "all" && styles.filterActiveButton
-              ]}
-              onPress={() => setTypeFilter("all")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  typeFilter === "all" && styles.filterActiveText
-                ]}
-              >
-                All Types
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                typeFilter === "freshwater" && styles.filterActiveButton
-              ]}
-              onPress={() => setTypeFilter("freshwater")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  typeFilter === "freshwater" && styles.filterActiveText
-                ]}
-              >
-                Freshwater
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                typeFilter === "saltwater" && styles.filterActiveButton
-              ]}
-              onPress={() => setTypeFilter("saltwater")}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  typeFilter === "saltwater" && styles.filterActiveText
-                ]}
-              >
-                Saltwater
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                showRegulations && styles.filterActiveButton
-              ]}
-              onPress={() => setShowRegulations(!showRegulations)}
-            >
-              <Feather
-                name="clipboard"
-                size={16}
-                color={showRegulations ? colors.white : colors.textPrimary}
-              />
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  showRegulations && styles.filterActiveText
-                ]}
-              >
-                Regs
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryTabs}
-        >
-          <TouchableOpacity
-            style={[
-              styles.categoryTab,
-              seasonFilter === "all" && styles.categoryActiveTab
-            ]}
-            onPress={() => setSeasonFilter("all")}
-          >
-            <Text
-              style={[
-                styles.categoryTabText,
-                seasonFilter === "all" && styles.categoryActiveTabText
-              ]}
-            >
-              All Seasons
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.categoryTab,
-              seasonFilter === "spring" && styles.categoryActiveTab
-            ]}
-            onPress={() => setSeasonFilter("spring")}
-          >
-            <Text
-              style={[
-                styles.categoryTabText,
-                seasonFilter === "spring" && styles.categoryActiveTabText
-              ]}
-            >
-              Spring
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.categoryTab,
-              seasonFilter === "summer" && styles.categoryActiveTab
-            ]}
-            onPress={() => setSeasonFilter("summer")}
-          >
-            <Text
-              style={[
-                styles.categoryTabText,
-                seasonFilter === "summer" && styles.categoryActiveTabText
-              ]}
-            >
-              Summer
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.categoryTab,
-              seasonFilter === "fall" && styles.categoryActiveTab
-            ]}
-            onPress={() => setSeasonFilter("fall")}
-          >
-            <Text
-              style={[
-                styles.categoryTabText,
-                seasonFilter === "fall" && styles.categoryActiveTabText
-              ]}
-            >
-              Fall
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.categoryTab,
-              seasonFilter === "winter" && styles.categoryActiveTab
-            ]}
-            onPress={() => setSeasonFilter("winter")}
-          >
-            <Text
-              style={[
-                styles.categoryTabText,
-                seasonFilter === "winter" && styles.categoryActiveTabText
-              ]}
-            >
-              Winter
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
       </View>
 
-      <FlatList
-        data={filteredSpecies}
-        renderItem={renderSpeciesItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              No species found matching your search.
-            </Text>
-          </View>
-        }
-      />
-
-      {renderFilterModal()}
+      {isLoading ? (
+        <FlatList
+          data={[1, 2, 3, 4, 5]}
+          renderItem={() => <SkeletonCard />}
+          keyExtractor={(item) => `skeleton-${item}`}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <FlatList
+          data={filteredSpecies}
+          renderItem={renderSpeciesItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              {error ? (
+                <Text style={styles.emptyText}>
+                  Unable to load species data. Please check your connection.
+                </Text>
+              ) : (
+                <Text style={styles.emptyText}>
+                  No species found matching your search.
+                </Text>
+              )}
+            </View>
+          }
+        />
+      )}
     </ScreenLayout>
   );
 };
