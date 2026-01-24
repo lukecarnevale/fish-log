@@ -1644,9 +1644,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           value={formData.angler.email}
           onChangeText={(text) => {
             clearValidationError("email");
+            // Auto-select email confirmation when user enters email
+            const hasEmail = text.trim().length > 0;
             setFormData({
               ...formData,
               angler: { ...formData.angler, email: text },
+              wantEmailConfirmation: hasEmail ? true : formData.wantEmailConfirmation,
             });
           }}
           placeholder="Your email"
@@ -1682,9 +1685,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           value={formData.angler.phone}
           onChangeText={(text) => {
             clearValidationError("phone");
+            const formattedPhone = formatPhoneNumber(text);
+            // Auto-select text confirmation when user enters phone
+            const hasPhone = formattedPhone.trim().length > 0;
             setFormData({
               ...formData,
-              angler: { ...formData.angler, phone: formatPhoneNumber(text) },
+              angler: { ...formData.angler, phone: formattedPhone },
+              wantTextConfirmation: hasPhone ? true : formData.wantTextConfirmation,
             });
           }}
           placeholder="555-555-5555"

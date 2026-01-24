@@ -1,6 +1,6 @@
 // App.tsx - Main component for the Fish Reporting App
 
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createStackNavigator, TransitionPresets } from "@react-navigation/stack";
 import { Feather } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { Linking, Alert } from 'react-native';
 
 // Import Redux store
 import { store } from './store';
@@ -21,6 +22,11 @@ import { queryClient } from './api/queryClient';
 
 // Import Rewards context
 import { RewardsProvider } from './contexts/RewardsContext';
+
+// Import auth services for deep link handling
+import { isMagicLinkCallback, handleMagicLinkCallback, onAuthStateChange } from './services/authService';
+import { createRewardsMemberFromAuthUser } from './services/userService';
+import { getOrCreateAnonymousUser } from './services/anonymousUserService';
 
 // Import connectivity listener for auto-sync of queued reports
 import { startConnectivityListener } from './hooks';
@@ -58,7 +64,56 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 // Component to initialize data and listeners on app startup
 const AppInitializer: React.FC = () => {
+  /**
+   * Handle incoming deep links for magic link authentication.
+   */
+  const handleDeepLink = useCallback(async (url: string) => {
+    console.log('📱 Deep link received:', url);
+
+    if (isMagicLinkCallback(url)) {
+      console.log('🔐 Processing magic link callback...');
+      const result = await handleMagicLinkCallback(url);
+
+      if (result.success) {
+        console.log('✅ Magic link authenticated, creating rewards member...');
+        const memberResult = await createRewardsMemberFromAuthUser();
+
+        if (memberResult.success) {
+          console.log('✅ Rewards member created:', memberResult.user?.email);
+          // Refresh user data in Redux
+          store.dispatch(fetchUserProfile());
+
+          // Show welcome message to user
+          Alert.alert(
+            'Welcome to Rewards! 🎉',
+            `You're now signed in as ${memberResult.user?.email}. Good luck in the quarterly drawing!`,
+            [{ text: 'Awesome!', style: 'default' }]
+          );
+        } else {
+          console.error('❌ Failed to create rewards member:', memberResult.error);
+          Alert.alert(
+            'Sign In Issue',
+            memberResult.error || 'There was a problem completing your sign up. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        console.error('❌ Magic link authentication failed:', result.error);
+        Alert.alert(
+          'Sign In Failed',
+          result.error || 'The sign-in link may have expired. Please request a new one.',
+          [{ text: 'OK' }]
+        );
+      }
+    }
+  }, []);
+
   useEffect(() => {
+    // Initialize anonymous user on app startup (creates in Supabase if needed)
+    getOrCreateAnonymousUser()
+      .then(() => console.log('✅ Anonymous user initialized'))
+      .catch((error) => console.warn('⚠️ Failed to initialize anonymous user:', error));
+
     // Load all initial data in parallel
     Promise.all([
       store.dispatch(fetchUserProfile()),
@@ -83,11 +138,37 @@ const AppInitializer: React.FC = () => {
       }
     });
 
-    // Cleanup listener on unmount
+    // Handle deep links - check for initial URL (app opened via link)
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    // Listen for deep links while app is running
+    const linkingSubscription = Linking.addEventListener('url', (event) => {
+      handleDeepLink(event.url);
+    });
+
+    // Listen for auth state changes (handles session restore, sign out, etc.)
+    const unsubscribeAuth = onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        console.log('🔐 Auth state: SIGNED_IN');
+        // User signed in - refresh user data
+        store.dispatch(fetchUserProfile());
+      } else if (event === 'SIGNED_OUT') {
+        console.log('🔐 Auth state: SIGNED_OUT');
+        // User signed out - could clear user data here if needed
+      }
+    });
+
+    // Cleanup listeners on unmount
     return () => {
       unsubscribeConnectivity();
+      linkingSubscription.remove();
+      unsubscribeAuth();
     };
-  }, []);
+  }, [handleDeepLink]);
 
   return null;
 };
@@ -96,7 +177,7 @@ const AppContent: React.FC = () => {
   return (
     <NavigationContainer theme={AppTheme} linking={{
       // Define app linking configuration for React Navigation v7
-      prefixes: [],
+      prefixes: ['fishlog://'],
       config: {
         screens: {
           Home: 'home',

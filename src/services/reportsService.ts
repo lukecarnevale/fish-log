@@ -15,7 +15,8 @@ import {
   transformFishEntry,
 } from '../types/report';
 import { HarvestReportInput } from '../types/harvestReport';
-import { getCurrentUser } from './userService';
+import { getCurrentUser, getRewardsMemberForAnonymousUser } from './userService';
+import { getOrCreateAnonymousUser } from './anonymousUserService';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -114,7 +115,8 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
   const { data, error } = await supabase
     .from('harvest_reports')
     .insert({
-      user_id: input.userId,
+      user_id: input.userId || null,
+      anonymous_user_id: input.anonymousUserId || null,
       dmf_status: 'pending',
       has_license: input.hasLicense,
       wrc_id: input.wrcId || null,
@@ -205,13 +207,26 @@ async function updateDMFStatusInSupabase(
 
 /**
  * Fetch all reports for a user from Supabase.
+ * Queries by user_id for rewards members, or anonymous_user_id for anonymous users.
  */
-async function fetchReportsFromSupabase(userId: string): Promise<StoredReport[]> {
-  const { data, error } = await supabase
-    .from('harvest_reports')
-    .select('*')
-    .eq('user_id', userId)
-    .order('harvest_date', { ascending: false });
+async function fetchReportsFromSupabase(
+  userId?: string,
+  anonymousUserId?: string
+): Promise<StoredReport[]> {
+  let query = supabase.from('harvest_reports').select('*');
+
+  if (userId && anonymousUserId) {
+    // Get reports from both (for rewards members with history)
+    query = query.or(`user_id.eq.${userId},anonymous_user_id.eq.${anonymousUserId}`);
+  } else if (userId) {
+    query = query.eq('user_id', userId);
+  } else if (anonymousUserId) {
+    query = query.eq('anonymous_user_id', anonymousUserId);
+  } else {
+    return [];
+  }
+
+  const { data, error } = await query.order('harvest_date', { ascending: false });
 
   if (error) {
     throw new Error(`Failed to fetch reports: ${error.message}`);
@@ -245,10 +260,12 @@ async function fetchFishEntriesFromSupabase(reportId: string): Promise<StoredFis
  */
 export function harvestInputToReportInput(
   input: HarvestReportInput,
-  userId: string
+  userId?: string,
+  anonymousUserId?: string
 ): ReportInput {
   return {
     userId,
+    anonymousUserId,
     hasLicense: input.hasLicense,
     wrcId: input.wrcId,
     firstName: input.firstName,
@@ -301,7 +318,8 @@ function createLocalReport(input: ReportInput): StoredReport {
   const now = new Date().toISOString();
   return {
     id: generateLocalId(),
-    userId: input.userId,
+    userId: input.userId || null,
+    anonymousUserId: input.anonymousUserId || null,
     dmfStatus: 'pending',
     dmfConfirmationNumber: null,
     dmfObjectId: null,
@@ -381,18 +399,27 @@ export async function createReport(input: ReportInput): Promise<CreateReportResu
 
 /**
  * Create a report from HarvestReportInput (convenience method).
+ * Automatically determines whether to use anonymous_user_id or user_id.
  */
 export async function createReportFromHarvestInput(
   harvestInput: HarvestReportInput
 ): Promise<CreateReportResult> {
-  const user = await getCurrentUser();
-  if (!user) {
-    const localReport = createLocalReport(harvestInputToReportInput(harvestInput, 'unknown'));
-    await addLocalReport(localReport);
-    return { success: true, report: localReport, savedToSupabase: false };
+  // First, get the anonymous user (always exists)
+  const anonymousUser = await getOrCreateAnonymousUser();
+
+  // Check if there's a rewards member for this anonymous user
+  const rewardsMember = await getRewardsMemberForAnonymousUser();
+
+  let input: ReportInput;
+
+  if (rewardsMember) {
+    // User is a rewards member - use their user_id
+    input = harvestInputToReportInput(harvestInput, rewardsMember.id, undefined);
+  } else {
+    // User is anonymous - use their anonymous_user_id
+    input = harvestInputToReportInput(harvestInput, undefined, anonymousUser.id);
   }
 
-  const input = harvestInputToReportInput(harvestInput, user.id);
   return createReport(input);
 }
 
@@ -433,15 +460,24 @@ export async function updateDMFStatus(
 
 /**
  * Get all reports for the current user.
+ * For rewards members, includes both their member reports and anonymous history.
  */
 export async function getReports(): Promise<StoredReport[]> {
-  const user = await getCurrentUser();
-
   const connected = await isSupabaseConnected();
 
-  if (connected && user) {
+  if (connected) {
     try {
-      const reports = await fetchReportsFromSupabase(user.id);
+      // Get anonymous user
+      const anonymousUser = await getOrCreateAnonymousUser();
+      // Check if there's a rewards member
+      const rewardsMember = await getRewardsMemberForAnonymousUser();
+
+      // Fetch reports - for rewards members, get both their user_id and anonymous_user_id reports
+      const reports = await fetchReportsFromSupabase(
+        rewardsMember?.id,
+        anonymousUser.id
+      );
+
       // Merge with local reports (in case some haven't synced)
       const localReports = await getLocalReports();
       const localOnlyReports = localReports.filter(
@@ -522,7 +558,8 @@ export async function syncPendingReports(): Promise<{
     try {
       // Create in Supabase
       const input: ReportInput = {
-        userId: localReport.userId,
+        userId: localReport.userId || undefined,
+        anonymousUserId: localReport.anonymousUserId || undefined,
         hasLicense: localReport.hasLicense,
         wrcId: localReport.wrcId || undefined,
         firstName: localReport.firstName || undefined,

@@ -9,7 +9,8 @@
  */
 export interface StoredReport {
   id: string;
-  userId: string;
+  userId: string | null; // Nullable - set for rewards members
+  anonymousUserId: string | null; // Nullable - set for anonymous users
 
   // DMF sync status
   dmfStatus: 'pending' | 'submitted' | 'confirmed' | 'failed';
@@ -83,7 +84,8 @@ export interface StoredFishEntry {
  * This maps from HarvestReportInput for Supabase storage.
  */
 export interface ReportInput {
-  userId: string;
+  userId?: string; // Set for rewards members
+  anonymousUserId?: string; // Set for anonymous users
 
   // Identity
   hasLicense: boolean;
@@ -153,7 +155,8 @@ export interface DMFStatusUpdate {
 export function transformReport(row: Record<string, unknown>): StoredReport {
   return {
     id: row.id as string,
-    userId: row.user_id as string,
+    userId: row.user_id as string | null,
+    anonymousUserId: row.anonymous_user_id as string | null,
     dmfStatus: row.dmf_status as StoredReport['dmfStatus'],
     dmfConfirmationNumber: row.dmf_confirmation_number as string | null,
     dmfObjectId: row.dmf_object_id as number | null,

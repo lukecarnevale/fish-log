@@ -6,12 +6,16 @@
 
 /**
  * User record from Supabase.
- * Supports both device-based and email-based authentication.
+ * Represents a Rewards Member (user who has opted into the Rewards Program).
+ * Links to their anonymous user history via anonymousUserId.
  */
 export interface User {
   id: string;
   deviceId: string | null;
   email: string | null;
+
+  // Link to anonymous user history
+  anonymousUserId: string | null;
 
   // Profile info
   firstName: string | null;
@@ -35,6 +39,9 @@ export interface User {
   longestStreak: number;
   lastReportDate: string | null;
 
+  // Rewards Program
+  rewardsOptedInAt: string | null;
+
   // Timestamps
   createdAt: string;
   updatedAt: string;
@@ -46,6 +53,7 @@ export interface User {
 export interface UserInput {
   deviceId?: string;
   email?: string;
+  anonymousUserId?: string;
   firstName?: string;
   lastName?: string;
   zipCode?: string;
@@ -55,6 +63,18 @@ export interface UserInput {
   phone?: string;
   wantTextConfirmation?: boolean;
   wantEmailConfirmation?: boolean;
+  rewardsOptedInAt?: string;
+}
+
+/**
+ * Input for converting an anonymous user to a rewards member.
+ */
+export interface ConvertToMemberInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  zipCode?: string;
 }
 
 /**
@@ -127,6 +147,7 @@ export function transformUser(row: Record<string, unknown>): User {
     id: row.id as string,
     deviceId: row.device_id as string | null,
     email: row.email as string | null,
+    anonymousUserId: row.anonymous_user_id as string | null,
     firstName: row.first_name as string | null,
     lastName: row.last_name as string | null,
     zipCode: row.zip_code as string | null,
@@ -141,6 +162,7 @@ export function transformUser(row: Record<string, unknown>): User {
     currentStreak: row.current_streak as number,
     longestStreak: row.longest_streak as number,
     lastReportDate: row.last_report_date as string | null,
+    rewardsOptedInAt: row.rewards_opted_in_at as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };

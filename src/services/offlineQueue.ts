@@ -16,6 +16,7 @@ import {
   submitHarvestReport,
   generateConfirmationNumber,
 } from './harvestReportService';
+import { createReportFromHarvestInput } from './reportsService';
 
 // ============================================
 // STORAGE KEYS
@@ -428,11 +429,11 @@ export interface SubmitWithQueueResult {
 export async function submitWithQueueFallback(
   input: HarvestReportInput
 ): Promise<SubmitWithQueueResult> {
-  // Attempt submission
+  // Attempt submission to DMF
   const result = await submitHarvestReport(input);
 
   if (result.success) {
-    // Save to history
+    // Save to local history
     await addToHistory({
       ...input,
       harvestDate: input.harvestDate.toISOString(),
@@ -440,6 +441,19 @@ export async function submitWithQueueFallback(
       objectId: result.objectId,
       submittedAt: new Date().toISOString(),
     });
+
+    // Also save to Supabase (for anonymous user tracking and rewards)
+    try {
+      const supabaseResult = await createReportFromHarvestInput(input);
+      if (supabaseResult.success) {
+        console.log('✅ Report saved to Supabase:', supabaseResult.report.id);
+      } else {
+        console.warn('⚠️ Failed to save report to Supabase:', supabaseResult.error);
+      }
+    } catch (error) {
+      console.warn('⚠️ Supabase save error:', error);
+      // Don't fail the overall submission - DMF is the primary system
+    }
 
     return {
       success: true,
@@ -452,6 +466,18 @@ export async function submitWithQueueFallback(
   // Submission failed - check if we should queue
   if (result.queued || APP_CONFIG.features.offlineQueueEnabled) {
     const localConfirmation = await addToQueue(input);
+
+    // Still save to Supabase even if DMF failed (for user tracking and rewards)
+    try {
+      const supabaseResult = await createReportFromHarvestInput(input);
+      if (supabaseResult.success) {
+        console.log('✅ Queued report saved to Supabase:', supabaseResult.report.id);
+      } else {
+        console.warn('⚠️ Failed to save queued report to Supabase:', supabaseResult.error);
+      }
+    } catch (error) {
+      console.warn('⚠️ Supabase save error for queued report:', error);
+    }
 
     return {
       success: false,
