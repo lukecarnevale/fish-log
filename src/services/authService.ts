@@ -256,10 +256,20 @@ export async function handleMagicLinkCallback(
         }
 
         console.log(`🔄 Setting session (attempt ${attempt + 1}/3)...`);
-        const { data, error } = await supabase.auth.setSession({
+
+        // Wrap setSession in a timeout to prevent hanging
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('setSession timed out after 10s')), 10000);
+        });
+
+        const sessionPromise = supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
+
+        console.log('🔄 Awaiting setSession...');
+        const { data, error } = await Promise.race([sessionPromise, timeoutPromise]);
+        console.log('🔄 setSession returned:', { hasData: !!data, hasError: !!error });
 
         if (error) {
           console.error('❌ Supabase setSession error:', error.message);
