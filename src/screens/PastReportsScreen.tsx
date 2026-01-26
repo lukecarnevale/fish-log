@@ -273,13 +273,17 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         onPress={() => setSelectedReport(item)}
         activeOpacity={0.8}
       >
+        {/* Raffle Badge - Top Left */}
+        {item.enteredRaffle && (
+          <View style={styles.raffleBadgeContainer}>
+            <View style={styles.raffleBadge}>
+              <Feather name="gift" size={28} color="#7B1FA2" />
+            </View>
+          </View>
+        )}
+
         {/* Status Icon - Top Right */}
         <View style={styles.statusIconContainer}>
-          {item.enteredRaffle && (
-            <View style={styles.raffleBadge}>
-              <Feather name="gift" size={12} color="#fff" />
-            </View>
-          )}
           {isPending ? (
             <View style={styles.pendingStatusBadge}>
               <Feather name="clock" size={24} color={colors.warning} />
@@ -915,13 +919,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  raffleBadgeContainer: {
+    position: "absolute",
+    top: -22,
+    left: -10,
+    zIndex: 10,
+  },
   raffleBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#E1BEE7",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 3,
+    borderColor: colors.white,
   },
   confirmationNumber: {
     fontSize: 15,

@@ -110,6 +110,7 @@ const styles = StyleSheet.create({
   },
   licenseRow: {
     flexDirection: "row",
+    alignItems: "center",
     marginBottom: spacing.xs,
   },
   licenseLabel: {

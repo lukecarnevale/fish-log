@@ -4,7 +4,7 @@
 // Handles actual DMF submission, displays confirmation number, and provides copy/share.
 //
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Text,
   View,
@@ -15,6 +15,9 @@ import {
   Alert,
   Share,
   ActivityIndicator,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -48,6 +51,9 @@ interface ConfirmationScreenProps {
   route: ConfirmationScreenRouteProp;
 }
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const DISMISS_THRESHOLD = 150; // How far to swipe before dismissing
+
 const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigation }) => {
   const { reportData } = route.params || { reportData: {} as FishReportData };
 
@@ -59,6 +65,55 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
   // Rewards prompt state
   const [showRewardsPrompt, setShowRewardsPrompt] = useState(false);
   const [rewardsPromptChecked, setRewardsPromptChecked] = useState(false);
+
+  // Swipe-to-dismiss animation
+  const translateY = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  // Pan responder for swipe-to-dismiss
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only respond to downward swipes
+        return gestureState.dy > 10 && Math.abs(gestureState.dx) < Math.abs(gestureState.dy);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Only allow downward movement
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+          // Fade out as user swipes down
+          const newOpacity = Math.max(0, 1 - gestureState.dy / SCREEN_HEIGHT);
+          opacity.setValue(newOpacity);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > DISMISS_THRESHOLD) {
+          // Navigate immediately so Home screen appears behind the animating confirmation
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Home" }],
+          });
+        } else {
+          // Snap back
+          Animated.parallel([
+            Animated.spring(translateY, {
+              toValue: 0,
+              useNativeDriver: true,
+              tension: 65,
+              friction: 11,
+            }),
+            Animated.spring(opacity, {
+              toValue: 1,
+              useNativeDriver: true,
+              tension: 65,
+              friction: 11,
+            }),
+          ]).start();
+        }
+      },
+    })
+  ).current;
 
   // Submit to DMF on mount
   useEffect(() => {
@@ -271,10 +326,24 @@ This report was submitted to the NC Division of Marine Fisheries.`;
   const statusTitle = submitResult?.queued ? "Report Queued" : "Report Submitted";
 
   return (
-    <View style={[localStyles.screenContainer, { backgroundColor: headerColor }]}>
-      {/* Modern Header */}
-      <View style={[localStyles.header, { backgroundColor: headerColor }]}>
+    <Animated.View
+      style={[
+        localStyles.screenContainer,
+        { backgroundColor: headerColor },
+        {
+          transform: [{ translateY }],
+          opacity,
+        },
+      ]}
+    >
+      {/* Modern Header - Swipe down to dismiss */}
+      <View
+        style={[localStyles.header, { backgroundColor: headerColor }]}
+        {...panResponder.panHandlers}
+      >
+        <View style={localStyles.swipeIndicator} />
         <Text style={localStyles.headerTitle}>{statusTitle}</Text>
+        <Text style={localStyles.swipeHint}>Swipe down to close</Text>
         {isTestMode() && (
           <View style={localStyles.testModeBadge}>
             <Text style={localStyles.testModeBadgeText}>TEST MODE</Text>
@@ -545,7 +614,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
         // If user opted into rewards during form, they must complete signup
         requiresSignup={!!reportData.enteredRaffle}
       />
-    </View>
+    </Animated.View>
   );
 };
 
@@ -637,16 +706,28 @@ const localStyles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.success,
-    paddingTop: 60,
+    paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
     alignItems: "center",
+  },
+  swipeIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    borderRadius: 3,
+    marginBottom: 12,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
     color: colors.white,
     letterSpacing: 0.3,
+  },
+  swipeHint: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginTop: 6,
   },
   testModeBadge: {
     backgroundColor: "#ff9800",
