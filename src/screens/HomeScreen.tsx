@@ -35,6 +35,8 @@ import {
   setAppModeWithWarning,
   AppMode,
 } from "../config/appConfig";
+import { getPendingAuth, PendingAuth } from "../services/authService";
+import { isRewardsMember, getCurrentUser } from "../services/userService";
 
 // Update the navigation type to be compatible with React Navigation v7
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
@@ -59,6 +61,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Feedback modal state
   const [feedbackModalVisible, setFeedbackModalVisible] = useState<boolean>(false);
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('feedback');
+  // Track pending magic link auth for badge indicator
+  const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
+  // Track if user is a rewards member
+  const [rewardsMember, setRewardsMember] = useState<boolean>(false);
+  const [rewardsMemberEmail, setRewardsMemberEmail] = useState<string | null>(null);
   const slideAnim = useRef<Animated.Value>(new Animated.Value(width)).current;
   const overlayOpacity = useRef<Animated.Value>(new Animated.Value(0)).current;
 
@@ -124,13 +131,28 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         }
 
         setHasLicenseInfo(foundLicenseInfo);
+
+        // Check for pending magic link auth
+        const pending = await getPendingAuth();
+        console.log('🔔 Pending auth loaded:', pending ? pending.email : 'none');
+        setPendingAuth(pending);
+
+        // Check if user is a rewards member
+        const isMember = await isRewardsMember();
+        setRewardsMember(isMember);
+        if (isMember) {
+          const user = await getCurrentUser();
+          setRewardsMemberEmail(user?.email || null);
+          console.log('🏆 Rewards member:', user?.email);
+        }
       } catch (error) {
         console.error("Error retrieving user data:", error);
         setUserName("");
         setHasLicenseInfo(false);
+        setPendingAuth(null);
       }
     };
-    
+
     loadUserData();
     
     // Set up a focus listener to update the data when returning to this screen
@@ -267,14 +289,20 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     onPress: () => void;
     iconBgColor?: string;
     iconColor?: string;
-  }> = ({ icon, label, onPress, iconBgColor, iconColor }) => (
+    showBadge?: boolean;
+  }> = ({ icon, label, onPress, iconBgColor, iconColor, showBadge }) => (
     <TouchableOpacity
       style={styles.menuItem}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View style={[styles.menuItemIcon, iconBgColor && { backgroundColor: iconBgColor }]}>
+      <View style={[styles.menuItemIcon, iconBgColor && { backgroundColor: iconBgColor }, { overflow: 'visible' }]}>
         <Feather name={icon as any} size={20} color={iconColor || colors.white} />
+        {showBadge && (
+          <View style={localStyles.menuBadge}>
+            <View style={localStyles.menuBadgeDot} />
+          </View>
+        )}
       </View>
       <Text style={styles.menuItemText} numberOfLines={2} ellipsizeMode="tail">
         {label}
@@ -326,6 +354,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               onPress={() => navigateToScreen("Profile")}
               iconBgColor={colors.primary}
               iconColor={colors.white}
+              showBadge={!!pendingAuth}
             />
 
             <MenuItem
@@ -353,11 +382,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             />
 
             <MenuItem
-              icon="award"
-              label="Leaderboard"
-              onPress={() => navigateToScreen("Leaderboard")}
-              iconBgColor={colors.warningLight}
-              iconColor="#D4940A"
+              icon="activity"
+              label="Catch Feed"
+              onPress={() => navigateToScreen("CatchFeed")}
+              iconBgColor="#FFF3CD"
+              iconColor="#F9A825"
             />
 
             <MenuItem
@@ -738,7 +767,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             </View>
           </View>
         ) : null}
-        
+
+        {/* Rewards Member Banner - shown when user is signed in */}
+        {rewardsMember && (
+          <View style={localStyles.rewardsMemberBanner}>
+            <View style={localStyles.rewardsMemberIcon}>
+              <Feather name="award" size={20} color={colors.white} />
+            </View>
+            <View style={localStyles.rewardsMemberContent}>
+              <Text style={localStyles.rewardsMemberTitle}>Rewards Member</Text>
+              <Text style={localStyles.rewardsMemberEmail}>{rewardsMemberEmail}</Text>
+            </View>
+            <Feather name="check-circle" size={20} color="#4CAF50" />
+          </View>
+        )}
+
         {/* License Card Preview */}
         <TouchableOpacity
           style={styles.licenseCardContainer}
@@ -791,11 +834,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           />
 
           <ActionButton
-            label="Leaderboard"
-            icon="award"
-            onPress={() => navigateToScreen("Leaderboard")}
-            iconBgColor={colors.warningLight}
-            iconColor="#D4940A"
+            label="Catch Feed"
+            icon="activity"
+            onPress={() => navigateToScreen("CatchFeed")}
+            iconBgColor="#FFF3CD"
+            iconColor="#F9A825"
           />
         </View>
         
@@ -961,6 +1004,52 @@ const localStyles = StyleSheet.create({
     right: 0,
     backgroundColor: colors.primary,
     height: 30,
+  },
+  menuBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+  },
+  menuBadgeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF6B6B',
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  rewardsMemberBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+  },
+  rewardsMemberIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  rewardsMemberContent: {
+    flex: 1,
+  },
+  rewardsMemberTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  rewardsMemberEmail: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
 });
 

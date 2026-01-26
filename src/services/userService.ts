@@ -684,21 +684,28 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
   user?: User;
   error?: string;
 }> {
+  console.log('🔄 createRewardsMemberFromAuthUser: Starting...');
+
   const connected = await isSupabaseConnected();
+  console.log('🔄 createRewardsMemberFromAuthUser: Supabase connected:', connected);
   if (!connected) {
     return { success: false, error: 'No connection to server' };
   }
 
   try {
     // Get the authenticated user from Supabase Auth
+    console.log('🔄 createRewardsMemberFromAuthUser: Getting auth user...');
     const authUser = await getCurrentAuthUser();
+    console.log('🔄 createRewardsMemberFromAuthUser: Auth user:', authUser?.email || 'none');
     if (!authUser || !authUser.email) {
       return { success: false, error: 'No authenticated user found' };
     }
 
     // Check if user already exists with this email
+    console.log('🔄 createRewardsMemberFromAuthUser: Checking for existing user...');
     const existingUser = await findUserByEmail(authUser.email);
     if (existingUser) {
+      console.log('🔄 createRewardsMemberFromAuthUser: Found existing user, returning');
       // User already exists - just return them
       await cacheUser(existingUser);
       await syncToUserProfile(existingUser); // Sync to ProfileScreen's storage
@@ -707,13 +714,18 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
     }
 
     // Get pending auth data (name, phone from signup form)
+    console.log('🔄 createRewardsMemberFromAuthUser: Getting pending auth...');
     const pendingAuth = await getPendingAuth();
+    console.log('🔄 createRewardsMemberFromAuthUser: Pending auth:', pendingAuth?.email || 'none');
 
     // Get current anonymous user to link
+    console.log('🔄 createRewardsMemberFromAuthUser: Getting anonymous user...');
     const anonymousUser = await getAnonymousUser();
     const deviceId = await getDeviceId();
+    console.log('🔄 createRewardsMemberFromAuthUser: Anonymous user:', anonymousUser?.id || 'none', 'Device:', deviceId);
 
     // Create the rewards member
+    console.log('🔄 createRewardsMemberFromAuthUser: Inserting new user into Supabase...');
     const { data, error } = await supabase
       .from('users')
       .insert({
@@ -732,8 +744,10 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
       .single();
 
     if (error) {
+      console.error('🔄 createRewardsMemberFromAuthUser: Insert error:', error.code, error.message);
       // If unique constraint error, try to find existing user
       if (error.code === '23505') {
+        console.log('🔄 createRewardsMemberFromAuthUser: Unique constraint - finding existing user...');
         const existingEmailUser = await findUserByEmail(authUser.email);
         if (existingEmailUser) {
           await cacheUser(existingEmailUser);
@@ -745,6 +759,7 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
       throw new Error(`Failed to create rewards member: ${error.message}`);
     }
 
+    console.log('🔄 createRewardsMemberFromAuthUser: User inserted successfully, transforming...');
     const user = transformUser(data);
     await cacheUser(user);
     await syncToUserProfile(user); // Sync to ProfileScreen's storage
@@ -754,7 +769,7 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
     return { success: true, user };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Failed to create rewards member from auth user:', error);
+    console.error('❌ Failed to create rewards member from auth user:', error);
     return { success: false, error: message };
   }
 }
