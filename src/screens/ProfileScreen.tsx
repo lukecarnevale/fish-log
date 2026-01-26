@@ -268,17 +268,27 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         // Check for pending magic link auth
         const pending = await getPendingAuth();
+        console.log('🔔 ProfileScreen - Pending auth loaded:', pending ? pending.email : 'none');
         if (pending) {
           setPendingAuth(pending);
           setPendingAuthEmail(pending.email);
+        } else {
+          // Clear pending auth state if none exists (important for re-renders)
+          setPendingAuth(null);
+          setPendingAuthEmail('');
         }
 
         // Check if user is a rewards member
         const isMember = await isRewardsMember();
+        console.log('🏆 ProfileScreen - Is rewards member:', isMember);
         setRewardsMember(isMember);
         if (isMember) {
           const user = await getCurrentUser();
+          console.log('🏆 ProfileScreen - Rewards member email:', user?.email);
           setRewardsMemberUser(user);
+        } else {
+          // Clear rewards member state if not a member (important for re-renders)
+          setRewardsMemberUser(null);
         }
       } catch (error) {
         Alert.alert("Error", "Failed to load your profile");

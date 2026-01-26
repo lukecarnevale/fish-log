@@ -691,10 +691,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           <View style={styles.headerRightSection}>
             <TouchableOpacity
               onPress={toggleMenu}
-              style={{ padding: 12 }}
+              style={{ padding: 12, position: 'relative' }}
               hitSlop={{ top: 20, right: 20, bottom: 20, left: 20 }}
             >
               <Feather name="menu" size={32} color="#fff" />
+              {pendingAuth && (
+                <View style={localStyles.hamburgerBadge}>
+                  <View style={localStyles.hamburgerBadgeDot} />
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -722,6 +727,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
             <Feather name="menu" size={24} color={colors.white} />
+            {pendingAuth && (
+              <View style={localStyles.floatingBadge}>
+                <View style={localStyles.floatingBadgeDot} />
+              </View>
+            )}
           </TouchableOpacity>
         </Animated.View>
       )}
@@ -1014,6 +1024,32 @@ const localStyles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+    backgroundColor: '#FF6B6B',
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  hamburgerBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+  },
+  hamburgerBadgeDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#FF6B6B',
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  floatingBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+  },
+  floatingBadgeDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#FF6B6B',
     borderWidth: 2,
     borderColor: colors.white,
