@@ -81,7 +81,44 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     outputRange: [0, 0, 1],
     extrapolate: 'clamp',
   });
-  
+
+  // Pulsing animation for notification badge
+  const badgePulse = useRef(new Animated.Value(0)).current;
+
+  // Start pulsing animation when pendingAuth exists
+  useEffect(() => {
+    if (pendingAuth) {
+      const pulseAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(badgePulse, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: false, // Color interpolation requires native driver off
+          }),
+          Animated.timing(badgePulse, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: false,
+          }),
+        ])
+      );
+      pulseAnimation.start();
+      return () => pulseAnimation.stop();
+    }
+  }, [pendingAuth, badgePulse]);
+
+  // Interpolate border color from white to red
+  const badgeBorderColor = badgePulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.white, '#FF6B6B'],
+  });
+
+  // Scale pulse effect (subtle grow/shrink)
+  const badgeScale = badgePulse.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 1.15, 1],
+  });
+
   // Load user preferences and profile data
   useEffect(() => {
     const loadUserData = async () => {
@@ -299,9 +336,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       <View style={[styles.menuItemIcon, iconBgColor && { backgroundColor: iconBgColor }, { overflow: 'visible' }]}>
         <Feather name={icon as any} size={20} color={iconColor || colors.white} />
         {showBadge && (
-          <View style={localStyles.menuBadge}>
-            <View style={localStyles.menuBadgeDot} />
-          </View>
+          <Animated.View style={[
+            localStyles.menuBadge,
+            { transform: [{ scale: badgeScale }] }
+          ]}>
+            <Animated.View style={[
+              localStyles.menuBadgeDot,
+              { borderColor: badgeBorderColor }
+            ]} />
+          </Animated.View>
         )}
       </View>
       <Text style={styles.menuItemText} numberOfLines={2} ellipsizeMode="tail">
@@ -696,9 +739,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             >
               <Feather name="menu" size={32} color="#fff" />
               {pendingAuth && (
-                <View style={localStyles.hamburgerBadge}>
-                  <View style={localStyles.hamburgerBadgeDot} />
-                </View>
+                <Animated.View style={[
+                  localStyles.hamburgerBadge,
+                  { transform: [{ scale: badgeScale }] }
+                ]}>
+                  <Animated.View style={[
+                    localStyles.hamburgerBadgeDot,
+                    { borderColor: badgeBorderColor }
+                  ]} />
+                </Animated.View>
               )}
             </TouchableOpacity>
           </View>
@@ -728,9 +777,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           >
             <Feather name="menu" size={24} color={colors.white} />
             {pendingAuth && (
-              <View style={localStyles.floatingBadge}>
-                <View style={localStyles.floatingBadgeDot} />
-              </View>
+              <Animated.View style={[
+                localStyles.floatingBadge,
+                { transform: [{ scale: badgeScale }] }
+              ]}>
+                <Animated.View style={[
+                  localStyles.floatingBadgeDot,
+                  { borderColor: badgeBorderColor }
+                ]} />
+              </Animated.View>
             )}
           </TouchableOpacity>
         </Animated.View>
