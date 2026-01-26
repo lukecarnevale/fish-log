@@ -41,7 +41,7 @@ import ConfirmationScreen from "./screens/ConfirmationScreen";
 import PastReportsScreen from "./screens/PastReportsScreen";
 import SpeciesInfoScreen from "./screens/SpeciesInfoScreen";
 import FishingLicenseScreen from "./screens/FishingLicenseScreen";
-import LeaderboardScreen from "./screens/LeaderboardScreen";
+import CatchFeedScreen from "./screens/CatchFeedScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 
 // Import styles
@@ -72,36 +72,58 @@ const AppInitializer: React.FC = () => {
 
     if (isMagicLinkCallback(url)) {
       console.log('🔐 Processing magic link callback...');
-      const result = await handleMagicLinkCallback(url);
 
-      if (result.success) {
-        console.log('✅ Magic link authenticated, creating rewards member...');
-        const memberResult = await createRewardsMemberFromAuthUser();
+      try {
+        const result = await handleMagicLinkCallback(url);
+        console.log('🔐 Magic link callback result:', { success: result.success, error: result.error });
 
-        if (memberResult.success) {
-          console.log('✅ Rewards member created:', memberResult.user?.email);
-          // Refresh user data in Redux
-          store.dispatch(fetchUserProfile());
+        if (result.success) {
+          console.log('✅ Magic link authenticated, creating rewards member...');
 
-          // Show welcome message to user
-          Alert.alert(
-            'Welcome to Rewards! 🎉',
-            `You're now signed in as ${memberResult.user?.email}. Good luck in the quarterly drawing!`,
-            [{ text: 'Awesome!', style: 'default' }]
-          );
+          try {
+            const memberResult = await createRewardsMemberFromAuthUser();
+            console.log('🔐 Create member result:', { success: memberResult.success, error: memberResult.error });
+
+            if (memberResult.success) {
+              console.log('✅ Rewards member created:', memberResult.user?.email);
+              // Refresh user data in Redux
+              store.dispatch(fetchUserProfile());
+
+              // Show welcome message to user
+              Alert.alert(
+                'Welcome to Rewards! 🎉',
+                `You're now signed in as ${memberResult.user?.email}. Good luck in the quarterly drawing!`,
+                [{ text: 'Awesome!', style: 'default' }]
+              );
+            } else {
+              console.error('❌ Failed to create rewards member:', memberResult.error);
+              Alert.alert(
+                'Sign In Issue',
+                memberResult.error || 'There was a problem completing your sign up. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
+          } catch (memberError) {
+            console.error('❌ Exception creating rewards member:', memberError);
+            Alert.alert(
+              'Sign In Issue',
+              'There was a problem completing your sign up. Please try again.',
+              [{ text: 'OK' }]
+            );
+          }
         } else {
-          console.error('❌ Failed to create rewards member:', memberResult.error);
+          console.error('❌ Magic link authentication failed:', result.error);
           Alert.alert(
-            'Sign In Issue',
-            memberResult.error || 'There was a problem completing your sign up. Please try again.',
+            'Sign In Failed',
+            result.error || 'The sign-in link may have expired. Please request a new one.',
             [{ text: 'OK' }]
           );
         }
-      } else {
-        console.error('❌ Magic link authentication failed:', result.error);
+      } catch (error) {
+        console.error('❌ Exception handling magic link:', error);
         Alert.alert(
           'Sign In Failed',
-          result.error || 'The sign-in link may have expired. Please request a new one.',
+          'An unexpected error occurred. Please try again.',
           [{ text: 'OK' }]
         );
       }
@@ -185,7 +207,7 @@ const AppContent: React.FC = () => {
           PastReports: 'my-reports',
           SpeciesInfo: 'species',
           LicenseDetails: 'license',
-          Leaderboard: 'leaderboard',
+          CatchFeed: 'catchfeed',
           Profile: 'profile',
           Confirmation: 'confirmation',
         },
@@ -257,8 +279,8 @@ const AppContent: React.FC = () => {
             }}
           />
           <Stack.Screen
-            name="Leaderboard"
-            component={LeaderboardScreen}
+            name="CatchFeed"
+            component={CatchFeedScreen}
             options={{
               headerShown: false,
             }}

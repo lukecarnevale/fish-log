@@ -35,6 +35,16 @@ import { colors, spacing, borderRadius, shadows, typography } from "../styles/co
 import { getReports, getFishEntries } from "../services/reportsService";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
 import { StoredReport } from "../types/report";
+import {
+  getPendingAuth,
+  clearPendingAuth,
+  sendMagicLink,
+  storePendingAuth,
+  PendingAuth,
+  signOut,
+} from "../services/authService";
+import { isRewardsMember, getCurrentUser } from "../services/userService";
+import { User } from "../types/user";
 
 type ProfileScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -124,6 +134,24 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   // State for WRC ID info modal
   const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
+
+  // State for pending magic link auth
+  const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
+  const [pendingAuthEmail, setPendingAuthEmail] = useState<string>('');
+  const [isResendingLink, setIsResendingLink] = useState<boolean>(false);
+  const [isEditingPendingEmail, setIsEditingPendingEmail] = useState<boolean>(false);
+
+  // State for rewards member status
+  const [rewardsMember, setRewardsMember] = useState<boolean>(false);
+  const [rewardsMemberUser, setRewardsMemberUser] = useState<User | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState<boolean>(false);
+
+  // State for sign-in flow (for non-members)
+  const [showSignInForm, setShowSignInForm] = useState<boolean>(false);
+  const [signInEmail, setSignInEmail] = useState<string>('');
+  const [signInFirstName, setSignInFirstName] = useState<string>('');
+  const [signInLastName, setSignInLastName] = useState<string>('');
+  const [isSendingSignInLink, setIsSendingSignInLink] = useState<boolean>(false);
 
   // Refs for inputs to enable keyboard navigation
   const wrcIdInputRef = useRef<TextInput>(null);
@@ -237,6 +265,21 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         setProfile(profileData);
         setFormData(profileData);
+
+        // Check for pending magic link auth
+        const pending = await getPendingAuth();
+        if (pending) {
+          setPendingAuth(pending);
+          setPendingAuthEmail(pending.email);
+        }
+
+        // Check if user is a rewards member
+        const isMember = await isRewardsMember();
+        setRewardsMember(isMember);
+        if (isMember) {
+          const user = await getCurrentUser();
+          setRewardsMemberUser(user);
+        }
       } catch (error) {
         Alert.alert("Error", "Failed to load your profile");
       } finally {
@@ -245,7 +288,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     };
 
     loadProfile();
-  }, []);
+
+    // Set up a focus listener to refresh data when returning to this screen
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadProfile();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   // Function to pick an image from gallery
   const pickImage = async () => {
@@ -382,6 +432,169 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     } catch (error) {
       Alert.alert("Error", "Failed to save your profile");
     }
+  };
+
+  // Handle resending magic link
+  const handleResendMagicLink = async () => {
+    if (!pendingAuthEmail.trim()) {
+      Alert.alert('Email Required', 'Please enter your email address.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(pendingAuthEmail.trim())) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    setIsResendingLink(true);
+
+    try {
+      // Update pending auth with new email if changed
+      const updatedPendingAuth: PendingAuth = {
+        email: pendingAuthEmail.trim().toLowerCase(),
+        firstName: pendingAuth?.firstName || '',
+        lastName: pendingAuth?.lastName || '',
+        phone: pendingAuth?.phone,
+        sentAt: new Date().toISOString(),
+      };
+
+      await storePendingAuth(updatedPendingAuth);
+
+      // Send magic link
+      const result = await sendMagicLink(pendingAuthEmail.trim(), {
+        firstName: pendingAuth?.firstName,
+        lastName: pendingAuth?.lastName,
+        phone: pendingAuth?.phone,
+      });
+
+      if (result.success) {
+        setPendingAuth(updatedPendingAuth);
+        setIsEditingPendingEmail(false);
+        Alert.alert(
+          'Email Sent!',
+          `We've sent a new sign-in link to ${pendingAuthEmail.trim()}. Check your inbox!`
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to send verification email.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsResendingLink(false);
+    }
+  };
+
+  // Handle canceling pending auth
+  const handleCancelPendingAuth = () => {
+    Alert.alert(
+      'Cancel Sign Up?',
+      'Are you sure you want to cancel the Rewards sign up? You can always sign up again later.',
+      [
+        { text: 'Keep Waiting', style: 'cancel' },
+        {
+          text: 'Cancel Sign Up',
+          style: 'destructive',
+          onPress: async () => {
+            await clearPendingAuth();
+            setPendingAuth(null);
+            setPendingAuthEmail('');
+            setIsEditingPendingEmail(false);
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle sign in / join rewards for returning users
+  const handleSignIn = async () => {
+    if (!signInEmail.trim()) {
+      Alert.alert('Email Required', 'Please enter your email address.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(signInEmail.trim())) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    // For new sign-ups, require first and last name
+    if (showSignInForm && (!signInFirstName.trim() || !signInLastName.trim())) {
+      Alert.alert('Name Required', 'Please enter your first and last name to join rewards.');
+      return;
+    }
+
+    setIsSendingSignInLink(true);
+
+    try {
+      // Store pending auth data
+      const newPendingAuth: PendingAuth = {
+        email: signInEmail.trim().toLowerCase(),
+        firstName: signInFirstName.trim(),
+        lastName: signInLastName.trim(),
+        sentAt: new Date().toISOString(),
+      };
+
+      await storePendingAuth(newPendingAuth);
+
+      // Send magic link
+      const result = await sendMagicLink(signInEmail.trim(), {
+        firstName: signInFirstName.trim(),
+        lastName: signInLastName.trim(),
+      });
+
+      if (result.success) {
+        setPendingAuth(newPendingAuth);
+        setPendingAuthEmail(signInEmail.trim());
+        setShowSignInForm(false);
+        setSignInEmail('');
+        setSignInFirstName('');
+        setSignInLastName('');
+        Alert.alert(
+          'Check Your Email!',
+          `We've sent a sign-in link to ${newPendingAuth.email}. Click the link to complete sign-in.`
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to send sign-in link. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSendingSignInLink(false);
+    }
+  };
+
+  // Handle sign out
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out?',
+      'Are you sure you want to sign out of Rewards? You can sign back in anytime.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSigningOut(true);
+            try {
+              const result = await signOut();
+              if (result.success) {
+                setRewardsMember(false);
+                setRewardsMemberUser(null);
+                Alert.alert('Signed Out', 'You have been signed out of Rewards.');
+              } else {
+                Alert.alert('Error', result.error || 'Failed to sign out.');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'An unexpected error occurred.');
+            } finally {
+              setIsSigningOut(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Format date for display
@@ -828,6 +1041,219 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       {/* Content area with light background */}
       <View style={styles.contentArea}>
       <View style={styles.infoContainer}>
+        {/* Rewards Member Banner - shown when signed in */}
+        {rewardsMember && rewardsMemberUser && (
+          <View style={[styles.infoSection, localStyles.rewardsMemberSection]}>
+            <View style={localStyles.rewardsMemberHeader}>
+              <View style={localStyles.rewardsMemberIcon}>
+                <Feather name="award" size={20} color={colors.white} />
+              </View>
+              <View style={localStyles.rewardsMemberInfo}>
+                <Text style={localStyles.rewardsMemberTitle}>Rewards Member</Text>
+                <Text style={localStyles.rewardsMemberEmail}>{rewardsMemberUser.email}</Text>
+              </View>
+              <Feather name="check-circle" size={20} color="#4CAF50" />
+            </View>
+
+            <Text style={localStyles.rewardsMemberDesc}>
+              You're entered in the quarterly drawing! Keep reporting your catches to earn more entries.
+            </Text>
+
+            <TouchableOpacity
+              style={localStyles.signOutButton}
+              onPress={handleSignOut}
+              disabled={isSigningOut}
+              activeOpacity={0.7}
+            >
+              {isSigningOut ? (
+                <ActivityIndicator size="small" color={colors.textSecondary} />
+              ) : (
+                <>
+                  <Feather name="log-out" size={16} color={colors.textSecondary} />
+                  <Text style={localStyles.signOutButtonText}>Sign Out</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Pending Magic Link Auth Section */}
+        {pendingAuth && !rewardsMember && (
+          <View style={[styles.infoSection, localStyles.pendingAuthSection]}>
+            <View style={localStyles.pendingAuthHeader}>
+              <View style={localStyles.pendingAuthIcon}>
+                <Feather name="mail" size={20} color={colors.white} />
+              </View>
+              <Text style={localStyles.pendingAuthTitle}>Rewards Sign Up Pending</Text>
+            </View>
+
+            <Text style={localStyles.pendingAuthDesc}>
+              Check your email for the sign-in link. If you didn't receive it, you can resend below.
+            </Text>
+
+            <View style={localStyles.pendingAuthEmailContainer}>
+              <Text style={localStyles.pendingAuthLabel}>Email</Text>
+              {isEditingPendingEmail ? (
+                <TextInput
+                  style={localStyles.pendingAuthInput}
+                  value={pendingAuthEmail}
+                  onChangeText={setPendingAuthEmail}
+                  placeholder="Enter your email"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoFocus
+                />
+              ) : (
+                <View style={localStyles.pendingAuthEmailRow}>
+                  <Text style={localStyles.pendingAuthEmail}>{pendingAuthEmail}</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsEditingPendingEmail(true)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Feather name="edit-2" size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {pendingAuth.sentAt && (
+              <Text style={localStyles.pendingAuthSentAt}>
+                Last sent: {new Date(pendingAuth.sentAt).toLocaleString()}
+              </Text>
+            )}
+
+            <View style={localStyles.pendingAuthActions}>
+              <TouchableOpacity
+                style={[localStyles.pendingAuthButton, localStyles.pendingAuthResendButton]}
+                onPress={handleResendMagicLink}
+                disabled={isResendingLink}
+                activeOpacity={0.7}
+              >
+                {isResendingLink ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <>
+                    <Feather name="send" size={16} color={colors.white} />
+                    <Text style={localStyles.pendingAuthButtonText}>
+                      {isEditingPendingEmail ? 'Send Link' : 'Resend Link'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[localStyles.pendingAuthButton, localStyles.pendingAuthCancelButton]}
+                onPress={handleCancelPendingAuth}
+                activeOpacity={0.7}
+              >
+                <Feather name="x" size={16} color={colors.textSecondary} />
+                <Text style={localStyles.pendingAuthCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Sign In / Join Rewards Section - shown when not a member and no pending auth */}
+        {!rewardsMember && !pendingAuth && (
+          <View style={[styles.infoSection, localStyles.signInSection]}>
+            <View style={localStyles.signInHeader}>
+              <View style={localStyles.signInIcon}>
+                <Feather name="award" size={20} color={colors.white} />
+              </View>
+              <Text style={localStyles.signInTitle}>Join Quarterly Rewards</Text>
+            </View>
+
+            <Text style={localStyles.signInDesc}>
+              Sign in with your email to be entered in the quarterly prize drawing. Report your catches to earn more entries!
+            </Text>
+
+            {showSignInForm ? (
+              <View style={localStyles.signInForm}>
+                <View style={localStyles.signInInputGroup}>
+                  <Text style={localStyles.signInLabel}>Email *</Text>
+                  <TextInput
+                    style={localStyles.signInInput}
+                    value={signInEmail}
+                    onChangeText={setSignInEmail}
+                    placeholder="your.email@example.com"
+                    placeholderTextColor={colors.textTertiary}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    textContentType="emailAddress"
+                  />
+                </View>
+
+                <View style={localStyles.signInNameRow}>
+                  <View style={[localStyles.signInInputGroup, { flex: 1, marginRight: 8 }]}>
+                    <Text style={localStyles.signInLabel}>First Name *</Text>
+                    <TextInput
+                      style={localStyles.signInInput}
+                      value={signInFirstName}
+                      onChangeText={setSignInFirstName}
+                      placeholder="First"
+                      placeholderTextColor={colors.textTertiary}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                  <View style={[localStyles.signInInputGroup, { flex: 1, marginLeft: 8 }]}>
+                    <Text style={localStyles.signInLabel}>Last Name *</Text>
+                    <TextInput
+                      style={localStyles.signInInput}
+                      value={signInLastName}
+                      onChangeText={setSignInLastName}
+                      placeholder="Last"
+                      placeholderTextColor={colors.textTertiary}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                </View>
+
+                <View style={localStyles.signInActions}>
+                  <TouchableOpacity
+                    style={localStyles.signInSubmitButton}
+                    onPress={handleSignIn}
+                    disabled={isSendingSignInLink}
+                    activeOpacity={0.7}
+                  >
+                    {isSendingSignInLink ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <>
+                        <Feather name="send" size={16} color={colors.white} />
+                        <Text style={localStyles.signInSubmitText}>Send Sign-In Link</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={localStyles.signInCancelButton}
+                    onPress={() => {
+                      setShowSignInForm(false);
+                      setSignInEmail('');
+                      setSignInFirstName('');
+                      setSignInLastName('');
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={localStyles.signInCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={localStyles.joinRewardsButton}
+                onPress={() => setShowSignInForm(true)}
+                activeOpacity={0.7}
+              >
+                <Feather name="user-plus" size={18} color={colors.white} />
+                <Text style={localStyles.joinRewardsText}>Sign In or Join Rewards</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* License Status Section */}
         <View style={styles.infoSection}>
           <Text style={styles.infoSectionTitle}>License Status</Text>
@@ -1494,6 +1920,274 @@ const styles = StyleSheet.create({
   dateModalConfirmText: {
     color: colors.white,
     fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
+// Local styles for pending auth section
+const localStyles = StyleSheet.create({
+  pendingAuthSection: {
+    backgroundColor: '#FFF9E6',
+    borderColor: '#FFD700',
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  pendingAuthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  pendingAuthIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  pendingAuthTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  pendingAuthDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    lineHeight: 20,
+  },
+  pendingAuthEmailContainer: {
+    marginBottom: spacing.sm,
+  },
+  pendingAuthLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  pendingAuthEmailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  pendingAuthEmail: {
+    fontSize: 15,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  pendingAuthInput: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  pendingAuthSentAt: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    marginBottom: spacing.md,
+  },
+  pendingAuthActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  pendingAuthButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    gap: 6,
+  },
+  pendingAuthResendButton: {
+    backgroundColor: colors.primary,
+    flex: 1,
+  },
+  pendingAuthCancelButton: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  pendingAuthButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pendingAuthCancelText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Rewards member section styles
+  rewardsMemberSection: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#4CAF50',
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  rewardsMemberHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  rewardsMemberIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  rewardsMemberInfo: {
+    flex: 1,
+  },
+  rewardsMemberTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  rewardsMemberEmail: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  rewardsMemberDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  signOutButtonText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Sign in section styles
+  signInSection: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  signInHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  signInIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  signInTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  signInDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  signInForm: {
+    marginTop: spacing.sm,
+  },
+  signInInputGroup: {
+    marginBottom: spacing.sm,
+  },
+  signInLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  signInInput: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  signInNameRow: {
+    flexDirection: 'row',
+  },
+  signInActions: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  signInSubmitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+    gap: 8,
+  },
+  signInSubmitText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  signInCancelButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+  },
+  signInCancelText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  joinRewardsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+    gap: 8,
+  },
+  joinRewardsText: {
+    color: colors.white,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

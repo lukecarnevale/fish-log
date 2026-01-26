@@ -7,6 +7,7 @@
 import { supabase } from '../config/supabase';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -16,7 +17,16 @@ const STORAGE_KEYS = {
 // App URL scheme for deep linking
 // This should match your app.json/app.config.js scheme
 const APP_SCHEME = 'fishlog';
-const REDIRECT_URL = `${APP_SCHEME}://auth/callback`;
+
+/**
+ * Get the redirect URL for magic link authentication.
+ * Must be called at runtime (not module load) to ensure Expo linking is ready.
+ * In Expo Go: exp://192.168.x.x:8081/--/auth/callback
+ * In standalone: fishlog://auth/callback
+ */
+function getRedirectURL(): string {
+  return Linking.createURL('auth/callback');
+}
 
 // =============================================================================
 // Types
@@ -49,10 +59,16 @@ export async function sendMagicLink(
   metadata?: { firstName?: string; lastName?: string; phone?: string }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Get redirect URL at runtime (not module load) to ensure Expo linking is ready
+    const redirectUrl = getRedirectURL();
+
+    // Log the redirect URL for debugging - add this to Supabase dashboard
+    console.log('🔗 Magic link redirect URL:', redirectUrl);
+
     const { error } = await supabase.auth.signInWithOtp({
       email: email.toLowerCase(),
       options: {
-        emailRedirectTo: REDIRECT_URL,
+        emailRedirectTo: redirectUrl,
         data: metadata, // This will be stored in user metadata on first sign-in
       },
     });
@@ -69,6 +85,14 @@ export async function sendMagicLink(
     console.error('Magic link error:', error);
     return { success: false, error: message };
   }
+}
+
+/**
+ * Get the current redirect URL.
+ * Useful for debugging and adding to Supabase dashboard.
+ */
+export function getRedirectUrl(): string {
+  return getRedirectURL();
 }
 
 /**
@@ -200,6 +224,7 @@ export async function handleMagicLinkCallback(
   url: string
 ): Promise<{ success: boolean; session?: Session; error?: string }> {
   try {
+    console.log('🔍 Parsing magic link URL...');
     // Parse the URL to extract tokens
     // The URL format is: fishlog://auth/callback#access_token=...&refresh_token=...
     const hashString = url.split('#')[1] || '';
@@ -213,34 +238,67 @@ export async function handleMagicLinkCallback(
     const accessToken = params['access_token'] || null;
     const refreshToken = params['refresh_token'] || null;
 
+    console.log('🔑 Tokens found:', { hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken });
+
     if (!accessToken || !refreshToken) {
+      console.error('❌ Missing tokens in callback URL');
       return { success: false, error: 'Invalid callback URL - missing tokens' };
     }
 
-    // Set the session with the tokens
-    const { data, error } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
+    // Set the session with the tokens (with retry for network timing issues)
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        // Small delay to ensure network is ready after app reopens
+        if (attempt > 0) {
+          console.log(`⏳ Waiting 1s before retry ${attempt + 1}...`);
+          await new Promise<void>(resolve => setTimeout(() => resolve(), 1000));
+        }
 
-    if (error) {
-      return { success: false, error: error.message };
+        console.log(`🔄 Setting session (attempt ${attempt + 1}/3)...`);
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (error) {
+          console.error('❌ Supabase setSession error:', error.message);
+          return { success: false, error: error.message };
+        }
+
+        console.log('✅ Magic link authenticated:', data.session?.user?.email);
+        return { success: true, session: data.session ?? undefined };
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error('Unknown error');
+        console.log(`⚠️ Auth attempt ${attempt + 1} failed:`, lastError.message);
+      }
     }
 
-    console.log('✅ Magic link authenticated:', data.session?.user?.email);
-    return { success: true, session: data.session ?? undefined };
+    // All retries failed
+    console.error('❌ All auth retries failed:', lastError?.message);
+    return { success: false, error: lastError?.message || 'Network request failed after retries' };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to handle magic link';
-    console.error('Magic link callback error:', error);
+    console.error('❌ Magic link callback error:', error);
     return { success: false, error: message };
   }
 }
 
 /**
  * Check if a URL is a magic link callback.
+ * Handles both Expo Go URLs (exp://.../--/auth/callback) and standalone URLs (fishlog://auth/callback)
  */
 export function isMagicLinkCallback(url: string): boolean {
-  return url.startsWith(`${APP_SCHEME}://auth/callback`);
+  // Check for standalone app scheme
+  if (url.startsWith(`${APP_SCHEME}://auth/callback`)) {
+    return true;
+  }
+  // Check for Expo Go scheme (exp:// or expo-development-client://)
+  // The path will contain /--/auth/callback or /auth/callback
+  if (url.includes('/auth/callback') && (url.startsWith('exp://') || url.startsWith('expo-development-client://'))) {
+    return true;
+  }
+  return false;
 }
 
 // =============================================================================
