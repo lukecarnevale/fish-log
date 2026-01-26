@@ -4,7 +4,7 @@
 // Uses magic link (passwordless) authentication for cross-device access.
 //
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../styles/common';
@@ -51,6 +52,9 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
 }) => {
   const { currentDrawing } = useRewards();
 
+  // Animation for modal content slide-up
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
   // Step state
   const [step, setStep] = useState<ModalStep>('form');
 
@@ -75,10 +79,20 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
     console.log('📋 RewardsPromptModal step changed to:', step);
   }, [step]);
 
-  // Log visibility changes
+  // Log visibility changes and animate modal
   useEffect(() => {
     console.log('👁️ RewardsPromptModal visible:', visible);
-  }, [visible]);
+    if (visible) {
+      // Reset and animate slide-up
+      slideAnim.setValue(0);
+      Animated.spring(slideAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    }
+  }, [visible, slideAnim]);
 
   // Loading state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -527,7 +541,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={handleClose}
     >
       <KeyboardAvoidingView
@@ -535,17 +549,31 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
         style={styles.keyboardAvoid}
       >
         <View style={styles.overlay}>
-          <View style={styles.container}>
+          <Animated.View
+            style={[
+              styles.container,
+              {
+                transform: [
+                  {
+                    translateY: slideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [300, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ flexGrow: 1 }}
+              contentContainerStyle={styles.scrollContent}
             >
               {step === 'form' && renderFormStep()}
               {step === 'login' && renderLoginStep()}
               {step === 'email-sent' && renderEmailSentStep()}
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -569,12 +597,16 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     maxHeight: '90%',
-    padding: spacing.lg,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
     elevation: 8,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: spacing.lg,
   },
   header: {
     alignItems: 'center',

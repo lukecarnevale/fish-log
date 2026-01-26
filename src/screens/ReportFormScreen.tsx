@@ -1,6 +1,6 @@
 // screens/ReportFormScreen.tsx
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   View,
@@ -16,6 +16,8 @@ import {
   TouchableWithoutFeedback,
   Image,
   Linking,
+  Keyboard,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
@@ -110,6 +112,65 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // Refs for scrolling
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Keyboard height tracking for scroll-to-center behavior
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const currentScrollY = useRef(0);
+
+  // Track keyboard show/hide for scroll-to-center
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardShowListener = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const keyboardHideListener = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      keyboardShowListener.remove();
+      keyboardHideListener.remove();
+    };
+  }, []);
+
+  // Scroll to center the focused input in the visible area
+  const scrollToCenter = useCallback((event: { target: unknown }) => {
+    const target = event.target;
+    if (!scrollViewRef.current || !target) return;
+
+    // Small delay to ensure keyboard is shown and layout is stable
+    setTimeout(() => {
+      // Use measureInWindow to get absolute position on screen
+      (target as any).measureInWindow(
+        (_x: number, y: number, _width: number, height: number) => {
+          if (y === undefined) return; // measureInWindow failed
+
+          const windowHeight = Dimensions.get('window').height;
+          const headerHeight = 120; // Approximate header height
+          const estimatedKeyboardHeight = keyboardHeight || 300;
+
+          // Calculate visible area between header and keyboard
+          const visibleTop = headerHeight;
+          const visibleBottom = windowHeight - estimatedKeyboardHeight;
+          const visibleCenter = (visibleTop + visibleBottom) / 2;
+
+          // Current position of input center on screen
+          const inputCenterOnScreen = y + height / 2;
+
+          // How much we need to scroll to center the input
+          const scrollAdjustment = inputCenterOnScreen - visibleCenter;
+          const targetScrollY = currentScrollY.current + scrollAdjustment;
+
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, targetScrollY),
+            animated: true,
+          });
+        }
+      );
+    }, 100);
+  }, [keyboardHeight]);
 
   // Toast notification state
   const [toastVisible, setToastVisible] = useState<boolean>(false);
@@ -382,6 +443,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   const [enterRaffle, setEnterRaffle] = useState<boolean>(false);
   const [showRaffleModal, setShowRaffleModal] = useState<boolean>(false);
 
+  // Animation for raffle modal content slide-up
+  const raffleModalSlideAnim = useRef(new Animated.Value(0)).current;
+
   // Get rewards data from centralized context
   const {
     currentDrawing,
@@ -430,6 +494,21 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     }).start();
   };
 
+  // Animate raffle modal content slide-up when modal opens
+  useEffect(() => {
+    if (showRaffleModal) {
+      // Reset to starting position (off-screen below)
+      raffleModalSlideAnim.setValue(0);
+      // Animate to final position
+      Animated.spring(raffleModalSlideAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    }
+  }, [showRaffleModal, raffleModalSlideAnim]);
+
   // State for raffle modal inline validation
   const [raffleValidationErrors, setRaffleValidationErrors] = useState<{
     email?: string;
@@ -469,10 +548,45 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // Email validation helper
   const validateEmail = (email: string): string | undefined => {
     if (!email.trim()) return undefined; // Don't show error for empty (will be caught on submit)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
+
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // More robust email regex:
+    // - Local part: letters, numbers, dots, hyphens, underscores, plus signs
+    // - Domain: letters, numbers, hyphens, dots
+    // - TLD: 2-6 letters only (covers .com, .org, .io, .museum, etc.)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    if (!emailRegex.test(trimmedEmail)) {
       return "Please enter a valid email address";
     }
+
+    // Check for common TLD typos (catches .clm, .con, .cpm, .ocm, .vom, etc.)
+    const commonTldTypos = ['.clm', '.con', '.cpm', '.ocm', '.vom', '.gmai', '.gmial', '.gmil', '.comn', '.comm'];
+    for (const typo of commonTldTypos) {
+      if (trimmedEmail.endsWith(typo)) {
+        return "Please check your email address for typos";
+      }
+    }
+
+    // Check common email providers have correct TLD
+    const commonProviders: Record<string, string[]> = {
+      'gmail': ['.com'],
+      'yahoo': ['.com', '.co.uk', '.ca'],
+      'hotmail': ['.com', '.co.uk'],
+      'outlook': ['.com'],
+      'icloud': ['.com'],
+      'aol': ['.com'],
+    };
+
+    for (const [provider, validTlds] of Object.entries(commonProviders)) {
+      if (trimmedEmail.includes(`@${provider}.`) || trimmedEmail.includes(`@${provider}`)) {
+        const hasValidTld = validTlds.some(tld => trimmedEmail.endsWith(`${provider}${tld}`));
+        if (!hasValidTld && trimmedEmail.includes(`@${provider}.`)) {
+          return `Did you mean @${provider}.com?`;
+        }
+      }
+    }
+
     return undefined;
   };
 
@@ -1266,7 +1380,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         ref={scrollViewRef}
         style={localStyles.scrollView}
         contentContainerStyle={localStyles.scrollViewContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScroll={(e) => {
+          currentScrollY.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}>
       {renderSelectionModal()}
       {renderAbandonModal()}
       <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
@@ -1373,6 +1492,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   const num = parseInt(text) || 2;
                   setFormData({ ...formData, totalPeopleCount: Math.max(2, num) });
                 }}
+                onFocus={scrollToCenter}
               />
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1411,6 +1531,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 keyboardType="number-pad"
                 value={String(formData.count)}
                 onChangeText={(text) => handleCountChange(parseInt(text) || 1)}
+                onFocus={scrollToCenter}
               />
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1450,6 +1571,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                     value={formData.lengths[0] || ""}
                     onChangeText={(text) => updateLength(0, text)}
                     placeholder="Enter the length"
+                    onFocus={scrollToCenter}
                   />
                 ) : (
                   // Multiple fish - numbered inputs
@@ -1463,6 +1585,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                           value={length}
                           onChangeText={(text) => updateLength(index, text)}
                           placeholder={`Fish ${index + 1}`}
+                          onFocus={scrollToCenter}
                         />
                       </View>
                     ))}
@@ -1475,6 +1598,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   value={formData.tagNumber}
                   onChangeText={(text) => setFormData({ ...formData, tagNumber: text })}
                   placeholder="Enter tag number if fish is tagged"
+                  onFocus={scrollToCenter}
                 />
               </View>
             )}
@@ -1788,6 +1912,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               }}
               placeholder="Enter your WRC ID or Customer ID"
               autoCapitalize="characters"
+              onFocus={scrollToCenter}
             />
             {validationErrors.wrcId && (
               <Text style={localStyles.errorText}>{validationErrors.wrcId}</Text>
@@ -1839,6 +1964,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="First"
+                onFocus={scrollToCenter}
               />
               <TextInput
                 style={[styles.input, localStyles.nameInput]}
@@ -1859,6 +1985,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="Last"
+                onFocus={scrollToCenter}
               />
             </View>
 
@@ -1875,6 +2002,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               placeholder="Enter your 5-digit ZIP code"
               keyboardType="number-pad"
               maxLength={5}
+              onFocus={scrollToCenter}
             />
           </>
         )}
@@ -1915,6 +2043,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="First"
+                onFocus={scrollToCenter}
               />
               <TextInput
                 style={[
@@ -1948,6 +2077,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="Last"
+                onFocus={scrollToCenter}
               />
             </View>
             {(validationErrors.firstName || validationErrors.lastName) && (
@@ -1982,6 +2112,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               placeholder="Enter your 5-digit ZIP code"
               keyboardType="number-pad"
               maxLength={5}
+              onFocus={scrollToCenter}
             />
             {validationErrors.zipCode && (
               <Text style={localStyles.errorText}>{validationErrors.zipCode}</Text>
@@ -2048,11 +2179,10 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               placeholder="Your email"
               keyboardType="email-address"
               autoCapitalize="none"
+              onFocus={scrollToCenter}
               onBlur={() => {
                 const error = validateEmail(formData.angler.email || "");
-                if (error) {
-                  setValidationErrors(prev => ({ ...prev, email: error }));
-                }
+                setValidationErrors(prev => ({ ...prev, email: error }));
               }}
             />
             {validationErrors.email && (
@@ -2116,11 +2246,10 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               placeholder="555-555-5555"
               keyboardType="phone-pad"
               maxLength={12}
+              onFocus={scrollToCenter}
               onBlur={() => {
                 const error = validatePhone(formData.angler.phone || "");
-                if (error) {
-                  setValidationErrors(prev => ({ ...prev, phone: error }));
-                }
+                setValidationErrors(prev => ({ ...prev, phone: error }));
               }}
             />
             {validationErrors.phone && (
@@ -2295,11 +2424,25 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       <Modal
         visible={showRaffleModal}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowRaffleModal(false)}
       >
         <View style={localStyles.raffleModalOverlay}>
-          <View style={localStyles.raffleModalContent}>
+          <Animated.View
+            style={[
+              localStyles.raffleModalContent,
+              {
+                transform: [
+                  {
+                    translateY: raffleModalSlideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [300, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={localStyles.raffleModalScrollContent}
@@ -2544,7 +2687,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </View>

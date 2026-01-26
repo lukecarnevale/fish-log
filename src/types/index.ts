@@ -62,7 +62,7 @@ export type RootStackParamList = {
   PastReports: undefined;
   SpeciesInfo: undefined;
   LicenseDetails: undefined;
-  Leaderboard: undefined;
+  CatchFeed: undefined;
   Profile: undefined;
 };
 
