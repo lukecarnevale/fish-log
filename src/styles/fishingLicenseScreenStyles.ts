@@ -550,6 +550,7 @@ const styles = StyleSheet.create({
   datePickerInline: {
     height: 350,
     width: '100%',
+    backgroundColor: colors.white,
   },
   dateModalConfirmButton: {
     backgroundColor: colors.primary,

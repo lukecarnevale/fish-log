@@ -963,14 +963,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     </TouchableOpacity>
                   </View>
                   {Platform.OS === 'ios' ? (
-                    <DateTimePicker
-                      value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
-                      mode="date"
-                      display="inline"
-                      onChange={onDateChange}
-                      maximumDate={new Date()}
-                      style={styles.datePickerInline}
-                    />
+                    <View style={styles.datePickerContainer}>
+                      <DateTimePicker
+                        value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
+                        mode="date"
+                        display="inline"
+                        onChange={onDateChange}
+                        maximumDate={new Date()}
+                        themeVariant="light"
+                        style={styles.datePickerInline}
+                      />
+                    </View>
                   ) : (
                     <DateTimePicker
                       value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
@@ -1916,9 +1919,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
+  datePickerContainer: {
+    width: '100%',
+    minHeight: 350,
+    backgroundColor: colors.white,
+    overflow: 'hidden',
+  },
   datePickerInline: {
     height: 350,
     width: '100%',
+    backgroundColor: colors.white,
   },
   dateModalConfirmButton: {
     backgroundColor: colors.primary,
