@@ -387,13 +387,16 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                     </TouchableOpacity>
                   </View>
                   {Platform.OS === 'ios' ? (
-                    <DateTimePicker
-                      value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
-                      mode="date"
-                      display="inline"
-                      onChange={onDateChange}
-                      style={styles.datePickerInline}
-                    />
+                    <View style={{ width: '100%', minHeight: 350, backgroundColor: colors.white, overflow: 'hidden' }}>
+                      <DateTimePicker
+                        value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
+                        mode="date"
+                        display="inline"
+                        onChange={onDateChange}
+                        themeVariant="light"
+                        style={styles.datePickerInline}
+                      />
+                    </View>
                   ) : (
                     <DateTimePicker
                       value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}

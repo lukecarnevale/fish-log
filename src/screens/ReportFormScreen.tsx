@@ -1746,14 +1746,17 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                       <Feather name="x" size={24} color={colors.darkGray} />
                     </TouchableOpacity>
                   </View>
-                  <DateTimePicker
-                    value={formData.date}
-                    mode="date"
-                    display="inline"
-                    onChange={handleDateChange}
-                    maximumDate={new Date()}
-                    style={localStyles.datePickerInline}
-                  />
+                  <View style={localStyles.datePickerContainer}>
+                    <DateTimePicker
+                      value={formData.date}
+                      mode="date"
+                      display="inline"
+                      onChange={handleDateChange}
+                      maximumDate={new Date()}
+                      themeVariant="light"
+                      style={localStyles.datePickerInline}
+                    />
+                  </View>
                   <TouchableOpacity
                     style={localStyles.dateModalConfirmButton}
                     onPress={() => setShowDatePicker(false)}
@@ -3619,9 +3622,16 @@ const localStyles = StyleSheet.create({
     fontWeight: "700",
     color: colors.textPrimary,
   },
+  datePickerContainer: {
+    width: "100%",
+    minHeight: 350,
+    backgroundColor: colors.white,
+    overflow: "hidden",
+  },
   datePickerInline: {
     height: 350,
     width: "100%",
+    backgroundColor: colors.white,
   },
   dateModalConfirmButton: {
     backgroundColor: colors.primary,
