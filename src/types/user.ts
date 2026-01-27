@@ -29,8 +29,6 @@ export interface User {
 
   // Contact preferences
   phone: string | null;
-  wantTextConfirmation: boolean;
-  wantEmailConfirmation: boolean;
 
   // Denormalized stats for quick access
   totalReports: number;
@@ -61,8 +59,6 @@ export interface UserInput {
   hasLicense?: boolean;
   wrcId?: string;
   phone?: string;
-  wantTextConfirmation?: boolean;
-  wantEmailConfirmation?: boolean;
   rewardsOptedInAt?: string;
 }
 
@@ -155,8 +151,6 @@ export function transformUser(row: Record<string, unknown>): User {
     hasLicense: row.has_license as boolean,
     wrcId: row.wrc_id as string | null,
     phone: row.phone as string | null,
-    wantTextConfirmation: row.want_text_confirmation as boolean,
-    wantEmailConfirmation: row.want_email_confirmation as boolean,
     totalReports: row.total_reports as number,
     totalFish: row.total_fish as number,
     currentStreak: row.current_streak as number,

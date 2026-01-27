@@ -21,6 +21,7 @@ import {
 } from '../types/user';
 import { getOrCreateAnonymousUser, getAnonymousUser } from './anonymousUserService';
 import { getPendingAuth, clearPendingAuth, getCurrentAuthUser } from './authService';
+import { linkReportsToUser } from './reportsService';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -207,8 +208,6 @@ async function createUserInSupabase(input: UserInput): Promise<User> {
       has_license: input.hasLicense ?? true,
       wrc_id: input.wrcId || null,
       phone: input.phone || null,
-      want_text_confirmation: input.wantTextConfirmation ?? false,
-      want_email_confirmation: input.wantEmailConfirmation ?? false,
     })
     .select()
     .single();
@@ -234,8 +233,6 @@ async function updateUserInSupabase(userId: string, input: UserInput): Promise<U
   if (input.hasLicense !== undefined) updateData.has_license = input.hasLicense;
   if (input.wrcId !== undefined) updateData.wrc_id = input.wrcId || null;
   if (input.phone !== undefined) updateData.phone = input.phone || null;
-  if (input.wantTextConfirmation !== undefined) updateData.want_text_confirmation = input.wantTextConfirmation;
-  if (input.wantEmailConfirmation !== undefined) updateData.want_email_confirmation = input.wantEmailConfirmation;
 
   const { data, error } = await supabase
     .from('users')
@@ -329,14 +326,27 @@ export async function getCurrentUser(): Promise<User | null> {
       let user = await findUserByDeviceId(deviceId);
 
       if (!user) {
-        // Create new device user
-        user = await createUserInSupabase({ deviceId });
-        console.log('✅ Created new user in Supabase');
+        // Try to create new device user
+        try {
+          user = await createUserInSupabase({ deviceId });
+          console.log('✅ Created new user in Supabase');
+        } catch (createError) {
+          // If duplicate key error, user already exists - try finding again
+          const errorMessage = createError instanceof Error ? createError.message : '';
+          if (errorMessage.includes('duplicate key') || errorMessage.includes('users_device_id_key')) {
+            console.log('🔄 User already exists, fetching...');
+            user = await findUserByDeviceId(deviceId);
+          } else {
+            throw createError;
+          }
+        }
       }
 
-      // Cache the user
-      await cacheUser(user);
-      return user;
+      // Cache the user if found
+      if (user) {
+        await cacheUser(user);
+        return user;
+      }
     } catch (error) {
       console.warn('⚠️ Supabase user fetch failed, using cache:', error);
     }
@@ -363,8 +373,6 @@ export async function getCurrentUser(): Promise<User | null> {
     hasLicense: true,
     wrcId: null,
     phone: null,
-    wantTextConfirmation: false,
-    wantEmailConfirmation: false,
     totalReports: 0,
     totalFish: 0,
     currentStreak: 0,
@@ -509,8 +517,6 @@ export async function convertToRewardsMember(
         zip_code: input.zipCode || null,
         rewards_opted_in_at: new Date().toISOString(),
         has_license: true,
-        want_text_confirmation: false,
-        want_email_confirmation: true,
       })
       .select()
       .single();
@@ -521,6 +527,11 @@ export async function convertToRewardsMember(
 
     const user = transformUser(data);
     await cacheUser(user);
+
+    // Link any anonymous reports to this user so they appear in Catch Feed
+    if (anonymousUser?.id) {
+      await linkReportsToUser(anonymousUser.id, user.id);
+    }
 
     console.log('✅ Converted anonymous user to rewards member');
     return { success: true, user };
@@ -737,21 +748,61 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
         phone: pendingAuth?.phone || authUser.user_metadata?.phone || null,
         rewards_opted_in_at: new Date().toISOString(),
         has_license: true,
-        want_text_confirmation: false,
-        want_email_confirmation: true,
       })
       .select()
       .single();
 
     if (error) {
-      console.error('🔄 createRewardsMemberFromAuthUser: Insert error:', error.code, error.message);
-      // If unique constraint error, try to find existing user
+      console.log('🔄 createRewardsMemberFromAuthUser: Insert constraint (upgrading existing user):', error.code);
+      // If unique constraint error, handle based on which constraint was violated
       if (error.code === '23505') {
-        console.log('🔄 createRewardsMemberFromAuthUser: Unique constraint - finding existing user...');
+        // Check if it's a device_id constraint (user exists from anonymous usage)
+        if (error.message.includes('device_id')) {
+          console.log('🔄 createRewardsMemberFromAuthUser: Device ID exists - upgrading existing user...');
+          // Find and update the existing user by device_id
+          const existingDeviceUser = await findUserByDeviceId(deviceId);
+          if (existingDeviceUser) {
+            // Update the existing user with email, rewards info, AND link to anonymous user
+            const { data: updatedData, error: updateError } = await supabase
+              .from('users')
+              .update({
+                email: authUser.email.toLowerCase(),
+                first_name: pendingAuth?.firstName || existingDeviceUser.firstName || null,
+                last_name: pendingAuth?.lastName || existingDeviceUser.lastName || null,
+                phone: pendingAuth?.phone || existingDeviceUser.phone || null,
+                rewards_opted_in_at: new Date().toISOString(),
+                anonymous_user_id: anonymousUser?.id || existingDeviceUser.anonymousUserId || null,
+              })
+              .eq('id', existingDeviceUser.id)
+              .select()
+              .single();
+
+            if (updateError) {
+              console.error('🔄 createRewardsMemberFromAuthUser: Update error:', updateError.message);
+              throw new Error(`Failed to upgrade user: ${updateError.message}`);
+            }
+
+            const updatedUser = transformUser(updatedData);
+            await cacheUser(updatedUser);
+            await syncToUserProfile(updatedUser);
+            await clearPendingAuth();
+
+            // Link any anonymous reports to this user so they appear in Catch Feed
+            if (anonymousUser?.id) {
+              await linkReportsToUser(anonymousUser.id, updatedUser.id);
+            }
+
+            console.log('✅ Upgraded existing device user to rewards member:', authUser.email);
+            return { success: true, user: updatedUser };
+          }
+        }
+
+        // Email constraint - user already exists with this email
+        console.log('🔄 createRewardsMemberFromAuthUser: Email exists - finding existing user...');
         const existingEmailUser = await findUserByEmail(authUser.email);
         if (existingEmailUser) {
           await cacheUser(existingEmailUser);
-          await syncToUserProfile(existingEmailUser); // Sync to ProfileScreen's storage
+          await syncToUserProfile(existingEmailUser);
           await clearPendingAuth();
           return { success: true, user: existingEmailUser };
         }
@@ -764,6 +815,11 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
     await cacheUser(user);
     await syncToUserProfile(user); // Sync to ProfileScreen's storage
     await clearPendingAuth();
+
+    // Link any anonymous reports to this user so they appear in Catch Feed
+    if (anonymousUser?.id) {
+      await linkReportsToUser(anonymousUser.id, user.id);
+    }
 
     console.log('✅ Created rewards member from authenticated user:', authUser.email);
     return { success: true, user };

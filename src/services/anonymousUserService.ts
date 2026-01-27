@@ -361,8 +361,25 @@ export async function isCurrentUserRewardsMember(): Promise<boolean> {
 
 /**
  * Check if rewards prompt should be shown.
+ * Returns false if user is already a rewards member (via any method).
  */
 export async function shouldShowRewardsPrompt(): Promise<boolean> {
+  // First, check if there's a cached rewards member (from magic link sign-in)
+  // This catches users who signed up via email auth but haven't been linked to anonymous user
+  try {
+    const cachedUser = await AsyncStorage.getItem('@current_user');
+    if (cachedUser) {
+      const user = JSON.parse(cachedUser);
+      if (user?.rewardsOptedInAt) {
+        console.log('🎁 shouldShowRewardsPrompt: User has rewardsOptedInAt in cache, not showing prompt');
+        return false;
+      }
+    }
+  } catch (error) {
+    console.warn('Error checking cached user for rewards status:', error);
+  }
+
+  // Fall back to checking anonymous user state
   const state = await getCurrentUserState();
   return state.shouldShowRewardsPrompt;
 }

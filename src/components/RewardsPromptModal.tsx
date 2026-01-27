@@ -22,7 +22,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../styles/common';
 import { useRewards } from '../contexts/RewardsContext';
-import { sendMagicLink, storePendingAuth } from '../services/authService';
+import { sendMagicLink, storePendingAuth, onAuthStateChange } from '../services/authService';
 import { dismissRewardsPrompt } from '../services/anonymousUserService';
 
 interface RewardsPromptModalProps {
@@ -93,6 +93,30 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       }).start();
     }
   }, [visible, slideAnim]);
+
+  // Listen for auth state changes when showing "Check Your Email" step
+  // This auto-dismisses the modal when the user successfully signs in via magic link
+  useEffect(() => {
+    // Only listen when modal is visible and showing email-sent step
+    if (!visible || step !== 'email-sent') return;
+
+    console.log('👂 RewardsPromptModal: Listening for auth state changes...');
+
+    const unsubscribe = onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user?.email) {
+        console.log('🎉 RewardsPromptModal: Auth success detected, calling onJoinSuccess');
+        // Small delay to let App.tsx handle user creation first
+        setTimeout(() => {
+          onJoinSuccess();
+        }, 500);
+      }
+    });
+
+    return () => {
+      console.log('👂 RewardsPromptModal: Cleaning up auth listener');
+      unsubscribe();
+    };
+  }, [visible, step, onJoinSuccess]);
 
   // Loading state
   const [isSubmitting, setIsSubmitting] = useState(false);

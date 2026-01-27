@@ -32,9 +32,6 @@ interface HomeScreenStyles {
   buttonContainer: ViewStyle;
   button: ViewStyle;
   buttonText: TextStyle;
-  actionButton: ViewStyle;
-  actionIconContainer: ViewStyle;
-  actionButtonText: TextStyle;
   infoContainer: ViewStyle;
   infoTitle: TextStyle;
   infoText: TextStyle;
@@ -146,6 +143,8 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFD700',
   },
   logo: {
     width: 44,
@@ -229,33 +228,6 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
     fontSize: 17,
     fontWeight: '600',
     letterSpacing: 0.5,
-  },
-  actionButton: {
-    width: '48%',
-    aspectRatio: 1,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.medium,
-    padding: spacing.sm,
-  },
-  actionIconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  actionButtonText: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: spacing.xs,
   },
   infoContainer: {
     backgroundColor: colors.card,

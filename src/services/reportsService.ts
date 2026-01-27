@@ -408,15 +408,33 @@ export async function createReportFromHarvestInput(
   const anonymousUser = await getOrCreateAnonymousUser();
 
   // Check if there's a rewards member for this anonymous user
-  const rewardsMember = await getRewardsMemberForAnonymousUser();
+  let rewardsMember = await getRewardsMemberForAnonymousUser();
+
+  // Fallback: Also check the cached user (for magic link sign-ins that might not have anonymous_user_id linked)
+  if (!rewardsMember) {
+    try {
+      const cachedUser = await AsyncStorage.getItem('@current_user');
+      if (cachedUser) {
+        const user = JSON.parse(cachedUser);
+        if (user?.id && user?.rewardsOptedInAt) {
+          console.log('📝 createReportFromHarvestInput: Using cached rewards user for report');
+          rewardsMember = user;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to check cached user for report:', error);
+    }
+  }
 
   let input: ReportInput;
 
   if (rewardsMember) {
     // User is a rewards member - use their user_id
+    console.log('📝 createReportFromHarvestInput: Creating report with user_id:', rewardsMember.id);
     input = harvestInputToReportInput(harvestInput, rewardsMember.id, undefined);
   } else {
     // User is anonymous - use their anonymous_user_id
+    console.log('📝 createReportFromHarvestInput: Creating report with anonymous_user_id:', anonymousUser.id);
     input = harvestInputToReportInput(harvestInput, undefined, anonymousUser.id);
   }
 
@@ -631,6 +649,43 @@ export async function clearReportsCache(): Promise<void> {
     ]);
   } catch (error) {
     console.error('Failed to clear reports cache:', error);
+  }
+}
+
+/**
+ * Link reports from an anonymous user to a rewards member.
+ * Called after a user signs up for rewards to ensure their reports appear in the Catch Feed.
+ */
+export async function linkReportsToUser(
+  anonymousUserId: string,
+  userId: string
+): Promise<{ updated: number; error?: string }> {
+  const connected = await isSupabaseConnected();
+  if (!connected) {
+    return { updated: 0, error: 'Not connected to Supabase' };
+  }
+
+  try {
+    // Update all reports with this anonymous_user_id to also have the user_id
+    const { data, error } = await supabase
+      .from('harvest_reports')
+      .update({ user_id: userId })
+      .eq('anonymous_user_id', anonymousUserId)
+      .is('user_id', null) // Only update reports that don't already have a user_id
+      .select('id');
+
+    if (error) {
+      console.warn('⚠️ Failed to link reports to user:', error.message);
+      return { updated: 0, error: error.message };
+    }
+
+    const updateCount = data?.length || 0;
+    console.log(`✅ Linked ${updateCount} reports from anonymous user to rewards member`);
+    return { updated: updateCount };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.warn('⚠️ Error linking reports:', message);
+    return { updated: 0, error: message };
   }
 }
 

@@ -6,8 +6,7 @@ const prizeComponentStyles = StyleSheet.create({
   // Main container
   container: {
     marginHorizontal: spacing.md,
-    marginTop: -35
-  ,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,

@@ -17,7 +17,6 @@ import {
   Animated,
   Dimensions,
   Modal,
-  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -125,6 +124,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [formData, setFormData] = useState<UserProfile>({});
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [isPickerMounted, setIsPickerMounted] = useState<boolean>(false);
+  const [datePickerKey, setDatePickerKey] = useState<number>(0);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
     const [fishingStats, setFishingStats] = useState<FishingStats>({
     totalCatches: 0,
@@ -643,17 +645,28 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  // Handle date change from date picker
+  // Handle date change from date picker (for spinner, this fires on each scroll)
   const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-
     if (selectedDate) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      setFormData({
-        ...formData,
-        dateOfBirth: formattedDate
-      });
+      setTempDate(selectedDate);
     }
+  };
+
+  // Confirm date selection and close picker
+  const confirmDateSelection = () => {
+    const formattedDate = tempDate.toISOString().split('T')[0];
+    setFormData({
+      ...formData,
+      dateOfBirth: formattedDate
+    });
+    closeDatePicker();
+  };
+
+  // Close date picker with delayed unmount to prevent flash
+  const closeDatePicker = () => {
+    setShowDatePicker(false);
+    // Delay unmounting the picker until after modal fade animation
+    setTimeout(() => setIsPickerMounted(false), 300);
   };
 
   // Render profile form
@@ -840,6 +853,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               ]}
               onPress={() => {
                 Keyboard.dismiss();
+                // Initialize tempDate with current value or a sensible default (30 years ago)
+                // Using 30 years ago allows scrolling both directions without hitting maximumDate
+                const defaultDate = new Date();
+                defaultDate.setFullYear(defaultDate.getFullYear() - 30);
+                setTempDate(formData.dateOfBirth ? new Date(formData.dateOfBirth) : defaultDate);
+                setDatePickerKey(prev => prev + 1);
+                setIsPickerMounted(true);
                 setShowDatePicker(true);
               }}
             >
@@ -950,49 +970,41 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           visible={showDatePicker}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setShowDatePicker(false)}
+          onRequestClose={closeDatePicker}
         >
-          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-            <View style={styles.dateModalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={styles.dateModalContent}>
-                  <View style={styles.dateModalHeader}>
-                    <Text style={styles.dateModalTitle}>Select Date of Birth</Text>
-                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Feather name="x" size={24} color={colors.darkGray} />
-                    </TouchableOpacity>
-                  </View>
-                  {Platform.OS === 'ios' ? (
-                    <View style={styles.datePickerContainer}>
-                      <DateTimePicker
-                        value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
-                        mode="date"
-                        display="inline"
-                        onChange={onDateChange}
-                        maximumDate={new Date()}
-                        themeVariant="light"
-                        style={styles.datePickerInline}
-                      />
-                    </View>
-                  ) : (
-                    <DateTimePicker
-                      value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={onDateChange}
-                      maximumDate={new Date()}
-                    />
-                  )}
-                  <TouchableOpacity
-                    style={styles.dateModalConfirmButton}
-                    onPress={() => setShowDatePicker(false)}
-                  >
-                    <Text style={styles.dateModalConfirmText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableWithoutFeedback>
+          <View style={styles.dateModalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeDatePicker}
+            />
+            <View style={styles.dateModalContent}>
+              <View style={styles.dateModalHeader}>
+                <Text style={styles.dateModalTitle}>Select Date of Birth</Text>
+                <TouchableOpacity onPress={closeDatePicker}>
+                  <Feather name="x" size={24} color={colors.darkGray} />
+                </TouchableOpacity>
+              </View>
+              {isPickerMounted && (
+                <DateTimePicker
+                  key={`profile-dob-picker-${datePickerKey}`}
+                  value={tempDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onDateChange}
+                  maximumDate={new Date()}
+                  themeVariant="light"
+                  style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.dateModalConfirmButton}
+                onPress={confirmDateSelection}
+              >
+                <Text style={styles.dateModalConfirmText}>Done</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableWithoutFeedback>
+          </View>
         </Modal>
 
         {/* WRC ID Info Modal */}

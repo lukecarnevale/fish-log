@@ -84,7 +84,7 @@ const Footer = () => {
                     source={{ uri: sponsor.icon }} 
                     style={styles.sponsorLogo}
                     resizeMode="contain"
-                    defaultSource={require('../assets/fish-logo.png')}
+                    defaultSource={require('../assets/icon.png')}
                   />
                 </View>
                 <Text style={styles.sponsorName}>
@@ -100,7 +100,7 @@ const Footer = () => {
       <View style={styles.contactContainer}>
         <View style={styles.logoContainer}>
           <Image 
-            source={require('../assets/fish-logo.png')} 
+            source={require('../assets/adaptive-icon.png')} 
             style={styles.logo}
             resizeMode="contain"
           />
@@ -152,8 +152,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -24,
     marginBottom: -1, // Prevent any potential gap at the bottom
   },
   divider: {
@@ -243,6 +244,8 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     marginRight: spacing.xs,
+    borderRadius: 18,
+    overflow: 'hidden',
   },
   appName: {
     ...typography.heading,
