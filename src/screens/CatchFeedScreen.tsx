@@ -24,6 +24,7 @@ import { colors, spacing, borderRadius, typography } from '../styles/common';
 import ScreenLayout from '../components/ScreenLayout';
 import CatchCard from '../components/CatchCard';
 import AnglerProfileModal from '../components/AnglerProfileModal';
+import { SCREEN_LABELS } from '../constants/screenLabels';
 
 // Use sample data for development (set to false when Supabase is ready)
 const USE_SAMPLE_DATA = false;
@@ -198,7 +199,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     <View style={styles.container}>
       <ScreenLayout
         navigation={navigation}
-        title="Catch Feed"
+        title={SCREEN_LABELS.catchFeed.title}
         subtitle="Community catches from NC anglers"
         headerRight={renderHeaderRight()}
         noScroll

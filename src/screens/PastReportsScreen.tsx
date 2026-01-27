@@ -28,6 +28,7 @@ import { colors, spacing, typography, borderRadius } from "../styles/common";
 import { isTestMode } from "../config/appConfig";
 import ScreenLayout from "../components/ScreenLayout";
 import { useAllFishSpecies } from "../api/speciesApi";
+import { SCREEN_LABELS } from "../constants/screenLabels";
 
 // DMF services
 import {
@@ -659,7 +660,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     return (
       <ScreenLayout
         navigation={navigation}
-        title="Report History"
+        title={SCREEN_LABELS.pastReports.title}
         noScroll
         loading={loading}
         loadingComponent={
@@ -675,7 +676,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   return (
     <ScreenLayout
       navigation={navigation}
-      title="Report History"
+      title={SCREEN_LABELS.pastReports.title}
       subtitle={`${submittedReports.length} submitted • ${queuedReports.length} pending`}
       headerRight={headerRight}
       noScroll

@@ -21,6 +21,7 @@ import styles from "../styles/enhancedSpeciesStyles";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "../styles/common";
 import ScreenLayout from "../components/ScreenLayout";
+import { SCREEN_LABELS } from "../constants/screenLabels";
 
 type SpeciesInfoScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -637,7 +638,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
   return (
     <ScreenLayout
       navigation={navigation}
-      title="Fish Species Guide"
+      title={SCREEN_LABELS.speciesGuide.title}
       subtitle="Find and learn about North Carolina's fish species"
       noScroll
     >

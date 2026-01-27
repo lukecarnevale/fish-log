@@ -1,9 +1,8 @@
 // styles/homeScreenStyles.ts
-import { StyleSheet, Dimensions, ViewStyle, TextStyle, ImageStyle, Platform, StatusBar } from 'react-native';
+import { StyleSheet, ViewStyle, TextStyle, ImageStyle, Platform, StatusBar } from 'react-native';
 import { colors, spacing, borderRadius, shadows, typography } from './common';
 
-const { width } = Dimensions.get('window');
-export const menuWidth = width * 0.85; // Increased menu width for better text fit
+export const menuWidth = 320; // Fixed width to match DrawerMenu component
 
 interface HomeScreenStyles {
   container: ViewStyle;

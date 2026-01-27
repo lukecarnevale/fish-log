@@ -28,6 +28,7 @@ import styles from "../styles/fishingLicenseScreenStyles";
 import LicenseTypePicker from "../components/LicenseTypePicker";
 import ScreenLayout from "../components/ScreenLayout";
 import { NCFlagIcon } from "../components/NCFlagIcon";
+import { SCREEN_LABELS } from "../constants/screenLabels";
 
 type FishingLicenseScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -721,7 +722,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
     return (
       <ScreenLayout
         navigation={navigation}
-        title="My Fishing License"
+        title={SCREEN_LABELS.fishingLicense.title}
         noScroll
         loading={loading}
         loadingComponent={<ActivityIndicator size="large" color={colors.primary} />}
@@ -734,7 +735,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       {/* Always render the license view underneath */}
       <ScreenLayout
         navigation={navigation}
-        title="My Fishing License"
+        title={SCREEN_LABELS.fishingLicense.title}
         subtitle="Manage your fishing license"
         noScroll
       >
