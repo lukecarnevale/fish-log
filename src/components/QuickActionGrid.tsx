@@ -6,6 +6,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import QuickActionCard from './QuickActionCard';
 import { RootStackParamList } from '../types';
+import { SCREEN_LABELS } from '../constants/screenLabels';
 
 // Card images
 const cardImages = {
@@ -24,14 +25,14 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({ onNavigate }) 
     <View style={styles.container}>
       <View style={styles.row}>
         <QuickActionCard
-          title="Report Catch"
+          title={SCREEN_LABELS.reportCatch.title}
           image={cardImages.reportCatch}
           onPress={() => onNavigate('ReportForm')}
         />
         <View style={styles.gap} />
         <QuickActionCard
-          title="Past Reports"
-          subtitle="View history"
+          title={SCREEN_LABELS.pastReports.title}
+          subtitle={SCREEN_LABELS.pastReports.subtitle}
           subtitleColor="#1E3A5F"
           image={cardImages.pastReports}
           onPress={() => onNavigate('PastReports')}
@@ -39,16 +40,16 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({ onNavigate }) 
       </View>
       <View style={styles.row}>
         <QuickActionCard
-          title="Species Guide"
-          subtitle="NC inshore fish"
+          title={SCREEN_LABELS.speciesGuide.title}
+          subtitle={SCREEN_LABELS.speciesGuide.subtitle}
           subtitleColor="#2D9596"
           image={cardImages.speciesGuide}
           onPress={() => onNavigate('SpeciesInfo')}
         />
         <View style={styles.gap} />
         <QuickActionCard
-          title="Catch Feed"
-          subtitle="Community catches"
+          title={SCREEN_LABELS.catchFeed.title}
+          subtitle={SCREEN_LABELS.catchFeed.subtitle}
           subtitleColor="#81C784"
           image={cardImages.catchFeed}
           imageStyle={{ width: '140%', height: '110%', marginLeft: -20 }}
