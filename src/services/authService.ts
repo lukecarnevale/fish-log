@@ -245,21 +245,30 @@ export async function handleMagicLinkCallback(
       return { success: false, error: 'Invalid callback URL - missing tokens' };
     }
 
-    // Set the session with the tokens (with retry for network timing issues)
+    // Set the session with the tokens
+    // Note: On physical devices, setSession can be slow due to AsyncStorage persistence
+    // We use a longer timeout and fallback to getUser verification
+
+    // Initial delay to let app fully initialize after reopening from email link
+    // This helps avoid AsyncStorage contention with other initialization operations
+    console.log('⏳ Waiting 500ms for app initialization...');
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
+
     let lastError: Error | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
+
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        // Small delay to ensure network is ready after app reopens
+        // Small delay on retry to let network stabilize
         if (attempt > 0) {
-          console.log(`⏳ Waiting 1s before retry ${attempt + 1}...`);
-          await new Promise<void>(resolve => setTimeout(() => resolve(), 1000));
+          console.log(`⏳ Waiting 2s before retry ${attempt + 1}...`);
+          await new Promise<void>(resolve => setTimeout(() => resolve(), 2000));
         }
 
-        console.log(`🔄 Setting session (attempt ${attempt + 1}/3)...`);
+        console.log(`🔄 Setting session (attempt ${attempt + 1}/2)...`);
 
-        // Wrap setSession in a timeout to prevent hanging
+        // Try setSession with a 20s timeout (AsyncStorage can be slow on physical devices)
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('setSession timed out after 10s')), 10000);
+          setTimeout(() => reject(new Error('setSession timed out after 20s')), 20000);
         });
 
         const sessionPromise = supabase.auth.setSession({
@@ -281,6 +290,22 @@ export async function handleMagicLinkCallback(
       } catch (e) {
         lastError = e instanceof Error ? e : new Error('Unknown error');
         console.log(`⚠️ Auth attempt ${attempt + 1} failed:`, lastError.message);
+
+        // If setSession timed out, try to verify if session was actually set
+        // by checking if we can get the user
+        if (lastError.message.includes('timed out')) {
+          console.log('🔍 Checking if session was set despite timeout...');
+          try {
+            const { data: userData } = await supabase.auth.getUser();
+            if (userData?.user?.email) {
+              console.log('✅ Session was actually set! User:', userData.user.email);
+              const { data: sessionData } = await supabase.auth.getSession();
+              return { success: true, session: sessionData.session ?? undefined };
+            }
+          } catch (checkError) {
+            console.log('🔍 Session check failed:', checkError);
+          }
+        }
       }
     }
 

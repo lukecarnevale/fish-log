@@ -7,7 +7,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
   Alert,
   ActivityIndicator,
   Platform,
@@ -15,7 +14,6 @@ import {
   Modal,
   Linking,
   StyleSheet,
-  TouchableWithoutFeedback,
   Animated,
   Dimensions,
 } from "react-native";
@@ -29,6 +27,7 @@ import { colors, spacing, borderRadius } from "../styles/common";
 import styles from "../styles/fishingLicenseScreenStyles";
 import LicenseTypePicker from "../components/LicenseTypePicker";
 import ScreenLayout from "../components/ScreenLayout";
+import { NCFlagIcon } from "../components/NCFlagIcon";
 
 type FishingLicenseScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -45,7 +44,10 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [formData, setFormData] = useState<FishingLicense>({});
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [isPickerMounted, setIsPickerMounted] = useState<boolean>(false);
+  const [datePickerKey, setDatePickerKey] = useState<number>(0);
   const [currentDateField, setCurrentDateField] = useState<'issueDate' | 'expiryDate'>('issueDate');
+  const [tempDate, setTempDate] = useState<Date>(new Date());
   const [licenseTypes] = useState<string[]>([
     "Annual Coastal Recreational Fishing License",
     "10-Day Coastal Recreational Fishing License",
@@ -198,22 +200,50 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
     });
   };
   
-  // Handle date change from date picker
+  // Handle date change from date picker (for spinner, this fires on each scroll)
   const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    
-    if (selectedDate && currentDateField) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      setFormData({
-        ...formData,
-        [currentDateField]: formattedDate
-      });
+    if (selectedDate) {
+      setTempDate(selectedDate);
     }
+  };
+
+  // Confirm date selection and close picker
+  const confirmDateSelection = () => {
+    const formattedDate = tempDate.toISOString().split('T')[0];
+    setFormData({
+      ...formData,
+      [currentDateField]: formattedDate
+    });
+    closeDatePicker();
+  };
+
+  // Close date picker with delayed unmount to prevent flash
+  const closeDatePicker = () => {
+    setShowDatePicker(false);
+    // Delay unmounting the picker until after modal fade animation
+    setTimeout(() => setIsPickerMounted(false), 300);
+  };
+
+  // Helper to safely get a valid Date object from a date string
+  const getValidDate = (dateString: string | undefined): Date => {
+    if (!dateString || dateString.trim() === '') {
+      return new Date();
+    }
+    const parsed = new Date(dateString);
+    // Check if the date is valid (not NaN)
+    if (isNaN(parsed.getTime())) {
+      return new Date();
+    }
+    return parsed;
   };
   
   // Show date picker for a specific field
   const showDatePickerFor = (field: 'issueDate' | 'expiryDate') => {
     setCurrentDateField(field);
+    // Initialize tempDate with the current field value or today's date
+    setTempDate(getValidDate(formData[field]));
+    setDatePickerKey(prev => prev + 1);
+    setIsPickerMounted(true);
     setShowDatePicker(true);
   };
   
@@ -372,49 +402,42 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           visible={showDatePicker}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setShowDatePicker(false)}
+          onRequestClose={closeDatePicker}
         >
-          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-            <View style={styles.dateModalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={styles.dateModalContent}>
-                  <View style={styles.dateModalHeader}>
-                    <Text style={styles.dateModalTitle}>
-                      Select {currentDateField === 'issueDate' ? 'Issue Date' : 'Expiry Date'}
-                    </Text>
-                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Feather name="x" size={24} color={colors.darkGray} />
-                    </TouchableOpacity>
-                  </View>
-                  {Platform.OS === 'ios' ? (
-                    <View style={{ width: '100%', minHeight: 350, backgroundColor: colors.white, overflow: 'hidden' }}>
-                      <DateTimePicker
-                        value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
-                        mode="date"
-                        display="inline"
-                        onChange={onDateChange}
-                        themeVariant="light"
-                        style={styles.datePickerInline}
-                      />
-                    </View>
-                  ) : (
-                    <DateTimePicker
-                      value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={onDateChange}
-                    />
-                  )}
-                  <TouchableOpacity
-                    style={styles.dateModalConfirmButton}
-                    onPress={() => setShowDatePicker(false)}
-                  >
-                    <Text style={styles.dateModalConfirmText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableWithoutFeedback>
+          <View style={styles.dateModalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeDatePicker}
+            />
+            <View style={styles.dateModalContent}>
+              <View style={styles.dateModalHeader}>
+                <Text style={styles.dateModalTitle}>
+                  Select {currentDateField === 'issueDate' ? 'Issue Date' : 'Expiry Date'}
+                </Text>
+                <TouchableOpacity onPress={closeDatePicker}>
+                  <Feather name="x" size={24} color={colors.darkGray} />
+                </TouchableOpacity>
+              </View>
+              {isPickerMounted && (
+                <DateTimePicker
+                  key={`license-${currentDateField}-picker-${datePickerKey}`}
+                  value={tempDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onDateChange}
+                  themeVariant="light"
+                  style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.dateModalConfirmButton}
+                onPress={confirmDateSelection}
+              >
+                <Text style={styles.dateModalConfirmText}>Done</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableWithoutFeedback>
+          </View>
         </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -437,13 +460,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           style={styles.licenseCard}
         >
           <View style={styles.licenseCardHeader}>
-            <View style={styles.licenseLogoContainer}>
-              <Image
-                source={require('../assets/fish-logo.png')}
-                style={styles.licenseLogo}
-                resizeMode="contain"
-              />
-            </View>
+            <NCFlagIcon width={60} height={40} style={{ marginRight: spacing.md }} />
             <View style={styles.licenseHeaderText}>
               <Text style={styles.licenseState}>North Carolina</Text>
               <Text style={styles.licenseTitle}>Fishing License</Text>
@@ -636,11 +653,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       contentContainerStyle={[styles.contentContainer, styles.emptyStateContainer]}
       showsVerticalScrollIndicator={false}
     >
-      <Image
-        source={require("../assets/fish-logo.png")}
-        style={styles.emptyStateImage}
-        resizeMode="contain"
-      />
+      <NCFlagIcon width={120} height={80} style={{ marginBottom: spacing.lg }} />
       
       <Text style={styles.emptyStateTitle}>No Fishing License Added</Text>
       <Text style={styles.emptyStateText}>

@@ -27,7 +27,10 @@ import { colors } from "../styles/common";
 import PrizesComponent from "../components/PrizesComponent";
 import Footer from "../components/Footer";
 import AdvertisementBanner from "../components/AdvertisementBanner";
+import { NCFlagIcon } from "../components/NCFlagIcon";
 import FeedbackModal from "../components/FeedbackModal";
+import QuickActionGrid from "../components/QuickActionGrid";
+import WaveBackground from "../components/WaveBackground";
 import { FeedbackType } from "../types/feedback";
 import { devConfig } from "../config/devConfig";
 import {
@@ -55,7 +58,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>("");
   const [showInfoCard, setShowInfoCard] = useState<boolean>(true);
-  const [hasLicenseInfo, setHasLicenseInfo] = useState<boolean>(false);
+  const [licenseNumber, setLicenseNumber] = useState<string | null>(null);
   // Track current DMF mode to force re-render when it changes
   const [currentMode, setCurrentMode] = useState<AppMode>(isTestMode() ? "mock" : "production");
   // Feedback modal state
@@ -123,9 +126,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // Reset license info state at start of each load
-        let foundLicenseInfo = false;
-
         // Check if info card has been dismissed
         const infoCardDismissed = await AsyncStorage.getItem("infoCardDismissed");
         if (infoCardDismissed === "true") {
@@ -147,27 +147,23 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             // If profile exists but no names, clear the username
             setUserName("");
           }
-
-          // Check if user has license info (WRC ID or hasLicense flag in profile)
-          if (parsedProfile.wrcId || parsedProfile.hasLicense) {
-            foundLicenseInfo = true;
-          }
         } else {
           // If no profile, don't set a default name
           setUserName("");
         }
 
-        // Also check the separate fishingLicense storage for license info
+        // Check the fishingLicense storage for license number
         const savedLicense = await AsyncStorage.getItem("fishingLicense");
         if (savedLicense) {
           const parsedLicense = JSON.parse(savedLicense);
-          // If license has a license number, user has license info
           if (parsedLicense.licenseNumber) {
-            foundLicenseInfo = true;
+            setLicenseNumber(parsedLicense.licenseNumber);
+          } else {
+            setLicenseNumber(null);
           }
+        } else {
+          setLicenseNumber(null);
         }
-
-        setHasLicenseInfo(foundLicenseInfo);
 
         // Check for pending magic link auth
         const pending = await getPendingAuth();
@@ -185,7 +181,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       } catch (error) {
         console.error("Error retrieving user data:", error);
         setUserName("");
-        setHasLicenseInfo(false);
+        setLicenseNumber(null);
         setPendingAuth(null);
       }
     };
@@ -353,21 +349,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     </TouchableOpacity>
   );
 
-  const ActionButton: React.FC<{
-    label: string;
-    icon: React.ComponentProps<typeof Feather>["name"];
-    onPress: () => void;
-    iconBgColor?: string;
-    iconColor?: string;
-  }> = ({ label, icon, onPress, iconBgColor = colors.primaryLight, iconColor = colors.primary }) => (
-    <TouchableOpacity style={styles.actionButton} onPress={onPress}>
-      <View style={[styles.actionIconContainer, { backgroundColor: iconBgColor }]}>
-        <Feather name={icon} size={36} color={iconColor} />
-      </View>
-      <Text style={styles.actionButtonText}>{label}</Text>
-    </TouchableOpacity>
-  );
-
   return (
     <View style={{flex: 1, backgroundColor: colors.primary}}>
       <SafeAreaView style={styles.container} edges={["left", "right"]}>
@@ -401,11 +382,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             />
 
             <MenuItem
-              icon="file-plus"
+              icon="camera"
               label="Report Catch"
               onPress={() => navigateToScreen("ReportForm")}
-              iconBgColor={colors.primaryLight}
-              iconColor={colors.primary}
+              iconBgColor="#E8F1FA"
+              iconColor="#1A5F8A"
             />
 
             <MenuItem
@@ -417,27 +398,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             />
 
             <MenuItem
-              icon="list"
+              icon="clock"
               label="My Reports"
               onPress={() => navigateToScreen("PastReports")}
-              iconBgColor={colors.secondaryLight}
-              iconColor={colors.secondary}
+              iconBgColor="#EDF1F9"
+              iconColor="#3D5A99"
             />
 
             <MenuItem
               icon="activity"
               label="Catch Feed"
               onPress={() => navigateToScreen("CatchFeed")}
-              iconBgColor="#FFF3CD"
-              iconColor="#F9A825"
+              iconBgColor="#FDF6E3"
+              iconColor="#A68B00"
             />
 
             <MenuItem
-              icon="info"
+              icon="book-open"
               label="Species Guide"
               onPress={() => navigateToScreen("SpeciesInfo")}
-              iconBgColor="#D4EDDA"
-              iconColor={colors.seaweedGreen}
+              iconBgColor="#EAF7EC"
+              iconColor="#2D7A3F"
             />
 
             <View style={styles.menuDivider} />
@@ -719,7 +700,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           <View style={styles.headerLeftSection}>
             <View style={styles.logoContainer}>
               <Image
-                source={require("../assets/fish-logo.png")}
+                source={require("../assets/adaptive-icon.png")}
                 style={styles.logo}
                 resizeMode="contain"
               />
@@ -819,31 +800,53 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
         {/* Content card with rounded top corners */}
         <View style={localStyles.contentContainer}>
-        {/* Personalized Greeting - only show if userName exists */}
-        {userName ? (
-          <View style={styles.greetingContainer}>
-            <View style={styles.greetingIcon}>
-              <Feather name="anchor" size={24} color={colors.secondary} />
-            </View>
-            <View style={styles.greetingTextContainer}>
-              <Text style={styles.greetingText}>{getNauticalGreeting()},</Text>
-              <Text style={styles.userNameText}>{userName}</Text>
-              <Text style={styles.greetingText}>Enjoy your fishing today!</Text>
-            </View>
-          </View>
-        ) : null}
+        {/* Unified Welcome Card - shows greeting and/or rewards status */}
+        {(userName || rewardsMember) && (
+          <View style={localStyles.welcomeCard}>
+            {/* Greeting Section - shows if user has a name */}
+            {userName && (
+              <View style={[localStyles.welcomeGreeting, { position: 'relative', overflow: 'hidden' }]}>
+                <WaveBackground />
+                <View style={localStyles.welcomeGreetingIcon}>
+                  <Feather name="anchor" size={22} color={colors.white} />
+                </View>
+                <View style={[localStyles.welcomeGreetingText, { zIndex: 1 }]}>
+                  <Text style={localStyles.welcomeGreetingLine}>{getNauticalGreeting()},</Text>
+                  <Text style={localStyles.welcomeUserName}>{userName}</Text>
+                  <Text style={localStyles.welcomeGreetingLine}>Enjoy your fishing today!</Text>
+                </View>
+              </View>
+            )}
 
-        {/* Rewards Member Banner - shown when user is signed in */}
-        {rewardsMember && (
-          <View style={localStyles.rewardsMemberBanner}>
-            <View style={localStyles.rewardsMemberIcon}>
-              <Feather name="award" size={20} color={colors.white} />
-            </View>
-            <View style={localStyles.rewardsMemberContent}>
-              <Text style={localStyles.rewardsMemberTitle}>Rewards Member</Text>
-              <Text style={localStyles.rewardsMemberEmail}>{rewardsMemberEmail}</Text>
-            </View>
-            <Feather name="check-circle" size={20} color="#4CAF50" />
+            {/* Rewards Status Section */}
+            {rewardsMember ? (
+              <View style={[
+                localStyles.welcomeRewardsSection,
+                userName && localStyles.welcomeRewardsSectionWithGreeting
+              ]}>
+                <View style={localStyles.welcomeRewardsIcon}>
+                  <Feather name="award" size={18} color={colors.secondary} />
+                </View>
+                <View style={localStyles.welcomeRewardsContent}>
+                  <Text style={localStyles.welcomeRewardsTitle}>Rewards Member</Text>
+                  <Text style={localStyles.welcomeRewardsEmail}>{rewardsMemberEmail}</Text>
+                </View>
+                <Feather name="check-circle" size={18} color="#4CAF50" />
+              </View>
+            ) : userName ? (
+              /* Subtle CTA for non-members who have a name */
+              <TouchableOpacity
+                style={localStyles.welcomeJoinRewards}
+                onPress={() => navigateToScreen("Profile")}
+                activeOpacity={0.7}
+              >
+                <View style={localStyles.welcomeJoinIcon}>
+                  <Feather name="gift" size={16} color={colors.secondary} />
+                </View>
+                <Text style={localStyles.welcomeJoinText}>Join Rewards Program</Text>
+                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.7)" />
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
 
@@ -855,17 +858,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         >
           <View style={styles.licenseCard}>
             <View style={styles.licenseHeader}>
-              <Image
-                source={require("../assets/fish-logo.png")}
-                style={styles.licenseIcon}
-                resizeMode="contain"
-              />
+              <NCFlagIcon width={56} height={36} style={{ marginRight: 12 }} />
               <View>
                 <Text style={styles.licenseTitle}>Fishing License</Text>
                 <Text style={styles.licenseSubtitle}>
-                  {hasLicenseInfo
-                    ? "Tap to edit or view license details"
-                    : "Tap to set up or view license details"}
+                  {licenseNumber
+                    ? `License #${licenseNumber}`
+                    : "Tap to edit or view license details"}
                 </Text>
               </View>
             </View>
@@ -873,39 +872,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           </View>
         </TouchableOpacity>
 
-        <View style={styles.buttonContainer}>
-          <ActionButton
-            label="Report Catch"
-            icon="file-plus"
-            onPress={() => navigateToScreen("ReportForm")}
-            iconBgColor={colors.primaryLight}
-            iconColor={colors.primary}
-          />
-
-          <ActionButton
-            label="Past Reports"
-            icon="list"
-            onPress={() => navigateToScreen("PastReports")}
-            iconBgColor={colors.secondaryLight}
-            iconColor={colors.secondary}
-          />
-
-          <ActionButton
-            label="Species Guide"
-            icon="info"
-            onPress={() => navigateToScreen("SpeciesInfo")}
-            iconBgColor="#D4EDDA"
-            iconColor={colors.seaweedGreen}
-          />
-
-          <ActionButton
-            label="Catch Feed"
-            icon="activity"
-            onPress={() => navigateToScreen("CatchFeed")}
-            iconBgColor="#FFF3CD"
-            iconColor="#F9A825"
-          />
-        </View>
+        {/* Quick Action Cards Grid */}
+        <QuickActionGrid onNavigate={navigateToScreen} />
         
         {/* Prizes Component */}
         <PrizesComponent
@@ -1109,38 +1077,104 @@ const localStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.white,
   },
-  rewardsMemberBanner: {
+  // Unified Welcome Card styles
+  welcomeCard: {
+    backgroundColor: colors.secondary,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 0, // License card has its own marginTop
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  welcomeGreeting: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
+    padding: 16,
   },
-  rewardsMemberIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
+  welcomeGreetingIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  rewardsMemberContent: {
+  welcomeGreetingText: {
     flex: 1,
   },
-  rewardsMemberTitle: {
+  welcomeGreetingLine: {
     fontSize: 14,
+    fontWeight: '500',
+    color: colors.white,
+    opacity: 0.9,
+  },
+  welcomeUserName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.white,
+    marginVertical: 2,
+  },
+  welcomeRewardsSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    padding: 12,
+    paddingHorizontal: 16,
+  },
+  welcomeRewardsSectionWithGreeting: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.3)',
+  },
+  welcomeRewardsIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.secondaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  welcomeRewardsContent: {
+    flex: 1,
+  },
+  welcomeRewardsTitle: {
+    fontSize: 13,
     fontWeight: '700',
     color: colors.textPrimary,
   },
-  rewardsMemberEmail: {
-    fontSize: 12,
+  welcomeRewardsEmail: {
+    fontSize: 11,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: 1,
+  },
+  welcomeJoinRewards: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(200, 245, 245, 0.35)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.4)',
+  },
+  welcomeJoinIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  welcomeJoinText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.white,
   },
 });
 

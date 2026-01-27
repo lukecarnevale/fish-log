@@ -622,6 +622,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // State for modal visibility
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [isPickerMounted, setIsPickerMounted] = useState<boolean>(false);
+  const [datePickerKey, setDatePickerKey] = useState<number>(0);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [currentPicker, setCurrentPicker] = useState<string>("");
   const [currentPickerLabel, setCurrentPickerLabel] = useState<string>("");
@@ -693,10 +696,23 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   };
 
   const handleDateChange = (event: any, selectedDate?: Date): void => {
-    // Don't auto-close on iOS with inline display - user will press Done
+    // Update tempDate on each scroll (for spinner mode)
     if (selectedDate) {
-      setFormData({ ...formData, date: selectedDate });
+      setTempDate(selectedDate);
     }
+  };
+
+  // Confirm date selection and close picker
+  const confirmDateSelection = (): void => {
+    setFormData({ ...formData, date: tempDate });
+    closeDatePicker();
+  };
+
+  // Close date picker with delayed unmount to prevent flash
+  const closeDatePicker = (): void => {
+    setShowDatePicker(false);
+    // Delay unmounting the picker until after modal fade animation
+    setTimeout(() => setIsPickerMounted(false), 300);
   };
 
   // Helper to get current fish data from form
@@ -1716,7 +1732,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         <Text style={styles.label}>Date of Harvest <Text style={localStyles.requiredAsterisk}>*</Text></Text>
         <TouchableOpacity
           style={styles.datePickerButton}
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => {
+            // Initialize tempDate with current formData.date
+            setTempDate(formData.date);
+            setDatePickerKey(prev => prev + 1);
+            setIsPickerMounted(true);
+            setShowDatePicker(true);
+          }}
         >
           <Feather name="calendar" size={18} color={colors.primary} style={{ marginRight: 8 }} />
           <Text style={styles.dateText}>
@@ -1734,39 +1756,41 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           visible={showDatePicker}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setShowDatePicker(false)}
+          onRequestClose={closeDatePicker}
         >
-          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-            <View style={localStyles.dateModalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={localStyles.dateModalContent}>
-                  <View style={localStyles.dateModalHeader}>
-                    <Text style={localStyles.dateModalTitle}>Select Date</Text>
-                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Feather name="x" size={24} color={colors.darkGray} />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={localStyles.datePickerContainer}>
-                    <DateTimePicker
-                      value={formData.date}
-                      mode="date"
-                      display="inline"
-                      onChange={handleDateChange}
-                      maximumDate={new Date()}
-                      themeVariant="light"
-                      style={localStyles.datePickerInline}
-                    />
-                  </View>
-                  <TouchableOpacity
-                    style={localStyles.dateModalConfirmButton}
-                    onPress={() => setShowDatePicker(false)}
-                  >
-                    <Text style={localStyles.dateModalConfirmText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableWithoutFeedback>
+          <View style={localStyles.dateModalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeDatePicker}
+            />
+            <View style={localStyles.dateModalContent}>
+              <View style={localStyles.dateModalHeader}>
+                <Text style={localStyles.dateModalTitle}>Select Date</Text>
+                <TouchableOpacity onPress={closeDatePicker}>
+                  <Feather name="x" size={24} color={colors.darkGray} />
+                </TouchableOpacity>
+              </View>
+              {isPickerMounted && (
+                <DateTimePicker
+                  key={`report-date-picker-${datePickerKey}`}
+                  value={tempDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                  maximumDate={new Date()}
+                  themeVariant="light"
+                  style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
+                />
+              )}
+              <TouchableOpacity
+                style={localStyles.dateModalConfirmButton}
+                onPress={confirmDateSelection}
+              >
+                <Text style={localStyles.dateModalConfirmText}>Done</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableWithoutFeedback>
+          </View>
         </Modal>
 
         {/* Hook & Line Selection */}
