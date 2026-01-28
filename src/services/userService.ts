@@ -694,6 +694,7 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
   success: boolean;
   user?: User;
   error?: string;
+  claimedCatches?: number;
 }> {
   console.log('🔄 createRewardsMemberFromAuthUser: Starting...');
 
@@ -788,12 +789,17 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
             await clearPendingAuth();
 
             // Link any anonymous reports to this user so they appear in Catch Feed
+            let claimedCatches = 0;
             if (anonymousUser?.id) {
-              await linkReportsToUser(anonymousUser.id, updatedUser.id);
+              const linkResult = await linkReportsToUser(anonymousUser.id, updatedUser.id);
+              claimedCatches = linkResult.updated;
+              if (claimedCatches > 0) {
+                console.log(`🎣 Linked ${claimedCatches} anonymous catches to user`);
+              }
             }
 
             console.log('✅ Upgraded existing device user to rewards member:', authUser.email);
-            return { success: true, user: updatedUser };
+            return { success: true, user: updatedUser, claimedCatches };
           }
         }
 
@@ -817,12 +823,17 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
     await clearPendingAuth();
 
     // Link any anonymous reports to this user so they appear in Catch Feed
+    let claimedCatches = 0;
     if (anonymousUser?.id) {
-      await linkReportsToUser(anonymousUser.id, user.id);
+      const linkResult = await linkReportsToUser(anonymousUser.id, user.id);
+      claimedCatches = linkResult.updated;
+      if (claimedCatches > 0) {
+        console.log(`🎣 Linked ${claimedCatches} anonymous catches to user`);
+      }
     }
 
     console.log('✅ Created rewards member from authenticated user:', authUser.email);
-    return { success: true, user };
+    return { success: true, user, claimedCatches };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('❌ Failed to create rewards member from auth user:', error);

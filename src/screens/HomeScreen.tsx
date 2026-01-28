@@ -10,7 +10,6 @@ import {
   TouchableWithoutFeedback,
   Dimensions,
   StatusBar,
-  Linking,
   StyleSheet,
   Platform,
 } from "react-native";
@@ -24,6 +23,7 @@ import { colors } from "../styles/common";
 import QuarterlyRewardsCard from "../components/QuarterlyRewardsCard";
 import Footer from "../components/Footer";
 import AdvertisementBanner from "../components/AdvertisementBanner";
+import MandatoryHarvestCard from "../components/MandatoryHarvestCard";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import FeedbackModal from "../components/FeedbackModal";
 import QuickActionGrid from "../components/QuickActionGrid";
@@ -533,67 +533,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         <AdvertisementBanner />
 
         {showInfoCard && (
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoTitle}>Mandatory Harvest Reporting</Text>
-            <Text style={styles.infoText}>
-              Beginning December 1, 2025, NC state law requires anglers to report
-              harvests of five finfish species from coastal, joint, or adjacent
-              inland fishing waters.
-            </Text>
-
-            <Text style={styles.infoTitle}>Species Requiring Reporting:</Text>
-            <View style={styles.checkListContainer}>
-              <View style={styles.checkItem}>
-                <Feather name="check-circle" size={18} color={colors.success} />
-                <Text style={styles.checkText}>Flounder</Text>
-              </View>
-
-              <View style={styles.checkItem}>
-                <Feather name="check-circle" size={18} color={colors.success} />
-                <Text style={styles.checkText}>Red Drum</Text>
-              </View>
-
-              <View style={styles.checkItem}>
-                <Feather name="check-circle" size={18} color={colors.success} />
-                <Text style={styles.checkText}>Spotted Seatrout</Text>
-              </View>
-
-              <View style={styles.checkItem}>
-                <Feather name="check-circle" size={18} color={colors.success} />
-                <Text style={styles.checkText}>Striped Bass</Text>
-              </View>
-
-              <View style={styles.checkItem}>
-                <Feather name="check-circle" size={18} color={colors.success} />
-                <Text style={styles.checkText}>Weakfish</Text>
-              </View>
-            </View>
-
-            <Text style={styles.infoTitle}>When to Report:</Text>
-            <Text style={styles.infoText}>
-              Reports are due when your fishing trip ends (when your boat reaches
-              shore or you stop actively fishing). Only report fish you keep —
-              released fish should not be reported.
-            </Text>
-
-            <TouchableOpacity
-              style={styles.learnMoreButton}
-              onPress={() => Linking.openURL("https://www.deq.nc.gov/about/divisions/marine-fisheries/science-and-statistics/mandatory-harvest-reporting/mandatory-harvest-reporting-recreational")}
-              activeOpacity={0.8}
-            >
-              <Feather name="external-link" size={16} color={colors.primary} />
-              <Text style={styles.learnMoreButtonText}>Learn More at NC DEQ</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.gotItButton}
-              onPress={dismissInfoCard}
-              activeOpacity={0.8}
-            >
-              <Feather name="thumbs-up" size={18} color={colors.white} />
-              <Text style={styles.gotItButtonText}>Got it</Text>
-            </TouchableOpacity>
-          </View>
+          <MandatoryHarvestCard onDismiss={dismissInfoCard} />
         )}
         
         {/* Footer with sponsor logos - wrapped with dark blue behind it */}
