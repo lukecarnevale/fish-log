@@ -23,7 +23,8 @@ import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../styles/common';
 import { useRewards } from '../contexts/RewardsContext';
 import { sendMagicLink, storePendingAuth, onAuthStateChange } from '../services/authService';
-import { dismissRewardsPrompt } from '../services/anonymousUserService';
+import { dismissRewardsPrompt, getDeviceId } from '../services/anonymousUserService';
+import { savePendingSubmission } from '../services/pendingSubmissionService';
 
 interface RewardsPromptModalProps {
   visible: boolean;
@@ -36,6 +37,8 @@ interface RewardsPromptModalProps {
   initialPhone?: string;
   // If true, user opted into rewards during form - hide skip options
   requiresSignup?: boolean;
+  // Report ID to link with pending submission (for mid-auth recovery)
+  reportId?: string;
 }
 
 type ModalStep = 'form' | 'email-sent' | 'login';
@@ -49,6 +52,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
   initialEmail = '',
   initialPhone = '',
   requiresSignup = false,
+  reportId,
 }) => {
   const { currentDrawing } = useRewards();
 
@@ -157,6 +161,21 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
     setIsSubmitting(true);
 
     try {
+      // Save pending submission for mid-auth recovery
+      // This preserves the submission context if the user closes the app
+      const deviceId = await getDeviceId();
+      await savePendingSubmission({
+        deviceId,
+        email: email.trim().toLowerCase(),
+        formData: {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim() || undefined,
+          harvestReportId: reportId,
+        },
+      });
+      console.log('✅ Pending submission saved for recovery');
+
       // Store pending auth data
       await storePendingAuth({
         email: email.trim().toLowerCase(),

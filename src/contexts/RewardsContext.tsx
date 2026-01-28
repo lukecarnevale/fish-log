@@ -11,8 +11,10 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useRef,
   ReactNode,
 } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import {
   RewardsConfig,
   RewardsDrawing,
@@ -26,6 +28,8 @@ import {
   recordDrawingEntry,
   getEnteredDrawingIds,
   refreshRewardsData,
+  checkForNewQuarter,
+  setLastSeenDrawingId,
 } from '../services/rewardsService';
 import { FALLBACK_CONFIG, FALLBACK_DRAWING } from '../data/rewardsFallbackData';
 import { getCurrentUserState } from '../services/anonymousUserService';
@@ -45,6 +49,10 @@ interface RewardsContextValue {
 
   // Calculated values
   calculated: RewardsCalculated;
+
+  // Quarter change detection
+  isNewQuarter: boolean;
+  acknowledgeNewQuarter: () => void;
 
   // Actions
   refresh: () => Promise<void>;
@@ -75,6 +83,8 @@ const defaultContextValue: RewardsContextValue = {
   isLoading: true,
   error: null,
   calculated: defaultCalculated,
+  isNewQuarter: false,
+  acknowledgeNewQuarter: () => {},
   refresh: async () => {},
   enterDrawing: async () => false,
   isEnteredInCurrentDrawing: () => false,
@@ -186,12 +196,40 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [enteredDrawingIds, setEnteredDrawingIds] = useState<string[]>([]);
+  const [isNewQuarter, setIsNewQuarter] = useState(false);
+
+  // Track app state for foreground refresh
+  const appState = useRef(AppState.currentState);
 
   // Load rewards data on mount
   useEffect(() => {
     loadRewardsData();
     loadEnteredDrawings();
   }, [userId]);
+
+  /**
+   * Check for new quarter when drawing changes.
+   */
+  useEffect(() => {
+    if (currentDrawing) {
+      checkForNewQuarter().then(({ isNewQuarter: isNew }) => {
+        if (isNew) {
+          console.log('🎉 New quarterly drawing detected!');
+          setIsNewQuarter(true);
+        }
+      });
+    }
+  }, [currentDrawing?.id]);
+
+  /**
+   * Acknowledge the new quarter (dismiss the notification).
+   */
+  const acknowledgeNewQuarter = useCallback(() => {
+    setIsNewQuarter(false);
+    if (currentDrawing) {
+      setLastSeenDrawingId(currentDrawing.id);
+    }
+  }, [currentDrawing]);
 
   /**
    * Load rewards data from service.
@@ -246,6 +284,27 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
       setIsLoading(false);
     }
   }, [userId, loadEnteredDrawings]);
+
+  // Refresh rewards data when app comes to foreground
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // App coming to foreground from background/inactive
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        console.log('📱 App returned to foreground, refreshing rewards...');
+        refresh();
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [refresh]);
 
   /**
    * Enter the current drawing.
@@ -330,6 +389,8 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
       isLoading,
       error,
       calculated,
+      isNewQuarter,
+      acknowledgeNewQuarter,
       refresh,
       enterDrawing,
       isEnteredInCurrentDrawing,
@@ -342,6 +403,8 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
       isLoading,
       error,
       calculated,
+      isNewQuarter,
+      acknowledgeNewQuarter,
       refresh,
       enterDrawing,
       isEnteredInCurrentDrawing,

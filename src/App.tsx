@@ -28,6 +28,9 @@ import { isMagicLinkCallback, handleMagicLinkCallback, onAuthStateChange } from 
 import { createRewardsMemberFromAuthUser } from './services/userService';
 import { getOrCreateAnonymousUser } from './services/anonymousUserService';
 
+// Import pending submission service for mid-auth recovery
+import { checkForPendingSubmission, clearPendingSubmission, completePendingSubmissionByEmail } from './services/pendingSubmissionService';
+
 // Import connectivity listener for auto-sync of queued reports
 import { startConnectivityListener } from './hooks';
 
@@ -89,10 +92,23 @@ const AppInitializer: React.FC = () => {
               // Refresh user data in Redux
               store.dispatch(fetchUserProfile());
 
+              // Complete any pending submission for this email
+              if (memberResult.user?.email) {
+                await completePendingSubmissionByEmail(memberResult.user.email);
+              }
+
+              // Build welcome message with claim info if applicable
+              let message = `You're now signed in as ${memberResult.user?.email}. Good luck in the quarterly drawing!`;
+
+              if (memberResult.claimedCatches && memberResult.claimedCatches > 0) {
+                const catchText = memberResult.claimedCatches === 1 ? 'catch' : 'catches';
+                message = `You're now signed in as ${memberResult.user?.email}.\n\n🎣 We linked ${memberResult.claimedCatches} previous ${catchText} to your account!`;
+              }
+
               // Show welcome message to user
               Alert.alert(
                 'Welcome to Rewards! 🎉',
-                `You're now signed in as ${memberResult.user?.email}. Good luck in the quarterly drawing!`,
+                message,
                 [{ text: 'Awesome!', style: 'default' }]
               );
             } else {
@@ -135,6 +151,43 @@ const AppInitializer: React.FC = () => {
     getOrCreateAnonymousUser()
       .then(() => console.log('✅ Anonymous user initialized'))
       .catch((error) => console.warn('⚠️ Failed to initialize anonymous user:', error));
+
+    // Check for pending submissions (mid-auth recovery)
+    checkForPendingSubmission()
+      .then((pending) => {
+        if (pending && pending.status === 'pending') {
+          console.log('📋 Found pending submission for:', pending.email);
+          // Show recovery prompt
+          Alert.alert(
+            'Continue Sign Up?',
+            `You have an unfinished rewards sign-up for ${pending.email}. Would you like to continue?`,
+            [
+              {
+                text: 'Dismiss',
+                style: 'cancel',
+                onPress: () => {
+                  clearPendingSubmission();
+                  console.log('📋 Pending submission dismissed by user');
+                },
+              },
+              {
+                text: 'Continue',
+                onPress: () => {
+                  // The user can continue by going to Profile tab and signing in
+                  // The pending auth data is already stored, so the magic link flow will use it
+                  console.log('📋 User chose to continue pending submission');
+                  Alert.alert(
+                    'Continue Sign Up',
+                    'Go to the Profile tab and tap "Sign In" to complete your rewards sign-up.',
+                    [{ text: 'OK' }]
+                  );
+                },
+              },
+            ]
+          );
+        }
+      })
+      .catch((error) => console.warn('⚠️ Failed to check pending submissions:', error));
 
     // Load all initial data in parallel
     Promise.all([

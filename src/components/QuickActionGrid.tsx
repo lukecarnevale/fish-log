@@ -44,6 +44,14 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({ onNavigate }) 
           subtitle={SCREEN_LABELS.speciesGuide.subtitle}
           subtitleColor="#2D9596"
           image={cardImages.speciesGuide}
+          imageStyle={{
+            position: 'absolute',
+            bottom: -28,
+            left: -13,
+            right: 0,
+            width: '120%',
+            height: '120%',
+          }}
           onPress={() => onNavigate('SpeciesInfo')}
         />
         <View style={styles.gap} />
@@ -52,7 +60,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({ onNavigate }) 
           subtitle={SCREEN_LABELS.catchFeed.subtitle}
           subtitleColor="#81C784"
           image={cardImages.catchFeed}
-          imageStyle={{ width: '140%', height: '110%', marginLeft: -20 }}
+          imageStyle={{ width: '140%', height: '110%', marginLeft: 0 }}
           onPress={() => onNavigate('CatchFeed')}
         />
       </View>

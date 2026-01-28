@@ -205,6 +205,7 @@ function getPrizeIllustration(category: PrizeCategory): React.ReactNode {
 const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress }) => {
   const navigation = useNavigation<NavigationProp>();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [isEntering, setIsEntering] = useState(false);
 
   const {
     currentDrawing,
@@ -213,7 +214,23 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     error,
     calculated,
     hasEnteredCurrentRaffle,
+    isNewQuarter,
+    acknowledgeNewQuarter,
+    enterDrawing,
   } = useRewards();
+
+  // Handle entering the drawing directly (for returning members)
+  const handleEnterDrawing = async () => {
+    setIsEntering(true);
+    try {
+      const success = await enterDrawing();
+      if (success) {
+        acknowledgeNewQuarter();
+      }
+    } finally {
+      setIsEntering(false);
+    }
+  };
 
   // Loading state
   if (isLoading) {
@@ -311,12 +328,30 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             </View>
 
             <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Your Eligibility</Text>
+              <Text style={styles.modalSectionTitle}>Your Entry Status</Text>
+              {hasEnteredCurrentRaffle ? (
+                <>
+                  <View style={styles.eligibilityBadge}>
+                    <Feather name="check-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.eligibilityBadgeText}>You're entered!</Text>
+                  </View>
+                  <Text style={styles.modalText}>
+                    You're in the {calculated.quarterDisplay} drawing. Good luck!
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <View style={[styles.eligibilityBadge, styles.eligibilityBadgeInactive]}>
+                    <Feather name="alert-circle" size={16} color="#FF9800" />
+                    <Text style={[styles.eligibilityBadgeText, styles.eligibilityBadgeTextInactive]}>Not yet entered</Text>
+                  </View>
+                  <Text style={styles.modalText}>
+                    Tap "Enter Drawing" on the rewards card to join this quarter's prize drawing.
+                  </Text>
+                </>
+              )}
               <Text style={styles.modalText}>
-                You are {hasEnteredCurrentRaffle ? 'eligible' : 'not yet eligible'} for this quarter's drawing.
-              </Text>
-              <Text style={styles.modalText}>
-                {config?.alternativeEntryText || 'Submit a harvest report to be automatically entered. No purchase or report necessary.'}
+                {config?.alternativeEntryText || 'No purchase or report necessary to enter.'}
               </Text>
             </View>
           </ScrollView>
@@ -365,6 +400,49 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
 
         {/* Content Area */}
         <View style={styles.contentContainer}>
+
+          {/* New Quarter Banner */}
+          {isNewQuarter && (
+            <TouchableOpacity
+              style={styles.newQuarterBanner}
+              onPress={handleEnterDrawing}
+              activeOpacity={0.8}
+              disabled={isEntering}
+            >
+              <LinearGradient
+                colors={['#4CAF50', '#2E7D32']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.newQuarterIcon}>
+                <Feather name="star" size={18} color="white" />
+              </View>
+              <View style={styles.newQuarterContent}>
+                <Text style={styles.newQuarterTitle}>New Quarter Started!</Text>
+                <Text style={styles.newQuarterText}>
+                  {calculated.quarterDisplay} drawing is now open. Tap to enter!
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.8)" />
+            </TouchableOpacity>
+          )}
+
+          {/* Enter Drawing Button (for returning members not yet entered) */}
+          {!hasEnteredCurrentRaffle && !isNewQuarter && (
+            <TouchableOpacity
+              style={styles.enterDrawingButton}
+              onPress={handleEnterDrawing}
+              activeOpacity={0.8}
+              disabled={isEntering}
+            >
+              <Feather name="award" size={18} color={COLORS.navyDark} />
+              <Text style={styles.enterDrawingText}>
+                {isEntering ? 'Entering...' : `Enter ${calculated.quarterDisplay} Drawing`}
+              </Text>
+              <Feather name="chevron-right" size={18} color={COLORS.navyDark} />
+            </TouchableOpacity>
+          )}
 
           {/* Progress Section */}
           <View style={styles.progressSection}>
@@ -826,6 +904,81 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.white,
+  },
+
+  // New Quarter Banner
+  newQuarterBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  newQuarterIcon: {
+    width: 36,
+    height: 36,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  newQuarterContent: {
+    flex: 1,
+  },
+  newQuarterTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.white,
+    marginBottom: 2,
+  },
+  newQuarterText: {
+    fontSize: 13,
+    color: COLORS.white,
+    opacity: 0.9,
+  },
+
+  // Enter Drawing Button
+  enterDrawingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.bgLight,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 8,
+  },
+  enterDrawingText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.navyDark,
+    flex: 1,
+  },
+
+  // Eligibility Badge (Modal)
+  eligibilityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    gap: 6,
+  },
+  eligibilityBadgeInactive: {
+    backgroundColor: '#FFF3E0',
+  },
+  eligibilityBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  eligibilityBadgeTextInactive: {
+    color: '#FF9800',
   },
 });
 

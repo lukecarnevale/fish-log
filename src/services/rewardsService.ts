@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   userEntry: '@rewards_user_entry',
   lastFetched: '@rewards_last_fetched',
   supabaseAvailable: '@supabase_available',
+  lastSeenDrawingId: '@rewards_last_seen_drawing_id',
 } as const;
 
 // Cache duration: 1 hour
@@ -548,4 +549,63 @@ export async function refreshRewardsData(userId?: string): Promise<RewardsData> 
 export function resetSupabaseAvailabilityCache(): void {
   supabaseAvailableCache = null;
   lastAvailabilityCheck = 0;
+}
+
+// =============================================================================
+// Quarter Change Detection
+// =============================================================================
+
+/**
+ * Get the last seen drawing ID from storage.
+ */
+export async function getLastSeenDrawingId(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(STORAGE_KEYS.lastSeenDrawingId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save the current drawing ID as the last seen.
+ */
+export async function setLastSeenDrawingId(drawingId: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.lastSeenDrawingId, drawingId);
+  } catch (error) {
+    console.error('Failed to save last seen drawing ID:', error);
+  }
+}
+
+/**
+ * Check if a new quarter/drawing has started since the user last saw one.
+ * Returns the new drawing if it changed, null otherwise.
+ */
+export async function checkForNewQuarter(): Promise<{
+  isNewQuarter: boolean;
+  previousDrawingId: string | null;
+  currentDrawing: RewardsDrawing | null;
+}> {
+  const lastSeenId = await getLastSeenDrawingId();
+  const { currentDrawing } = await fetchRewardsData();
+
+  if (!currentDrawing) {
+    return { isNewQuarter: false, previousDrawingId: lastSeenId, currentDrawing: null };
+  }
+
+  // If no previous drawing seen, this is first time - not a "new" quarter
+  if (!lastSeenId) {
+    await setLastSeenDrawingId(currentDrawing.id);
+    return { isNewQuarter: false, previousDrawingId: null, currentDrawing };
+  }
+
+  // Check if drawing changed
+  const isNewQuarter = lastSeenId !== currentDrawing.id;
+
+  if (isNewQuarter) {
+    // Update the last seen ID
+    await setLastSeenDrawingId(currentDrawing.id);
+  }
+
+  return { isNewQuarter, previousDrawingId: lastSeenId, currentDrawing };
 }
