@@ -89,8 +89,8 @@ const AppInitializer: React.FC = () => {
 
             if (memberResult.success) {
               console.log('✅ Rewards member created:', memberResult.user?.email);
-              // Refresh user data in Redux
-              store.dispatch(fetchUserProfile());
+              // Refresh user data in Redux (await to ensure store is updated before UI refresh)
+              await store.dispatch(fetchUserProfile());
 
               // Complete any pending submission for this email
               if (memberResult.user?.email) {

@@ -18,9 +18,14 @@ const cardImages = {
 
 interface QuickActionGridProps {
   onNavigate: (screen: keyof RootStackParamList) => void;
+  /** Whether the user is signed in (rewards member) */
+  isSignedIn?: boolean;
 }
 
-export const QuickActionGrid: React.FC<QuickActionGridProps> = ({ onNavigate }) => {
+export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
+  onNavigate,
+  isSignedIn = false,
+}) => {
   return (
     <View style={styles.container}>
       <View style={styles.row}>
@@ -36,6 +41,9 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({ onNavigate }) 
           subtitleColor="#1E3A5F"
           image={cardImages.pastReports}
           onPress={() => onNavigate('PastReports')}
+          disabled={!isSignedIn}
+          disabledMessage="Sign in to view"
+          onDisabledPress={() => onNavigate('Profile')}
         />
       </View>
       <View style={styles.row}>
@@ -62,6 +70,9 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({ onNavigate }) 
           image={cardImages.catchFeed}
           imageStyle={{ width: '140%', height: '110%', marginLeft: 0 }}
           onPress={() => onNavigate('CatchFeed')}
+          disabled={!isSignedIn}
+          disabledMessage="Sign in to view"
+          onDisabledPress={() => onNavigate('Profile')}
         />
       </View>
     </View>

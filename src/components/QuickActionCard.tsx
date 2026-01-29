@@ -21,6 +21,12 @@ interface QuickActionCardProps {
   image: ImageSourcePropType;
   imageStyle?: ImageStyle;
   onPress: () => void;
+  /** If true, card is grayed out with lock icon and not tappable */
+  disabled?: boolean;
+  /** Message to show when card is disabled */
+  disabledMessage?: string;
+  /** Callback when disabled card is pressed (e.g., navigate to sign in) */
+  onDisabledPress?: () => void;
 }
 
 export const QuickActionCard: React.FC<QuickActionCardProps> = ({
@@ -30,26 +36,51 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
   image,
   imageStyle,
   onPress,
+  disabled = false,
+  disabledMessage = 'Sign in to unlock',
+  onDisabledPress,
 }) => {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[styles.card, disabled && styles.cardDisabled]}
+      onPress={disabled ? onDisabledPress : onPress}
+      activeOpacity={disabled ? 0.7 : 0.7}
+    >
       <View style={styles.textContainer}>
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, disabled && styles.titleDisabled]}>{title}</Text>
         {subtitle && (
-          <Text style={[styles.subtitle, subtitleColor && { color: subtitleColor }]}>
+          <Text style={[
+            styles.subtitle,
+            subtitleColor && !disabled && { color: subtitleColor },
+            disabled && styles.subtitleDisabled,
+          ]}>
             {subtitle}
           </Text>
         )}
       </View>
       <Feather
-        name="chevron-right"
+        name={disabled ? 'lock' : 'chevron-right'}
         size={16}
-        color="#CCC"
+        color={disabled ? '#999' : '#CCC'}
         style={styles.chevron}
       />
       <View style={styles.imageContainer}>
-        <Image source={image} style={[styles.image, imageStyle]} resizeMode="contain" />
+        <Image
+          source={image}
+          style={[styles.image, imageStyle, disabled && styles.imageDisabled]}
+          resizeMode="contain"
+        />
       </View>
+
+      {/* Overlay for disabled state */}
+      {disabled && (
+        <View style={styles.disabledOverlay}>
+          <View style={styles.lockBadge}>
+            <Feather name="lock" size={14} color="#666" />
+            <Text style={styles.lockText}>{disabledMessage}</Text>
+          </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
@@ -71,6 +102,9 @@ const styles = StyleSheet.create({
     // Shadow for Android
     elevation: 3,
   },
+  cardDisabled: {
+    backgroundColor: '#F5F5F5',
+  },
   textContainer: {
     zIndex: 1,
   },
@@ -79,10 +113,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1A1A1A',
   },
+  titleDisabled: {
+    color: '#999',
+  },
   subtitle: {
     fontSize: 11,
     color: '#999',
     marginTop: 2,
+  },
+  subtitleDisabled: {
+    color: '#BBB',
   },
   chevron: {
     position: 'absolute',
@@ -97,6 +137,29 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '85%',
+  },
+  imageDisabled: {
+    opacity: 0.3,
+  },
+  disabledOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  lockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  lockText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
   },
 });
 

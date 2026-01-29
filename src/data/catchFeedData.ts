@@ -4,7 +4,7 @@
 // This data will be replaced by real Supabase data in production.
 //
 
-import { CatchFeedEntry, AnglerProfile } from '../types/catchFeed';
+import { CatchFeedEntry, AnglerProfile, TopAngler } from '../types/catchFeed';
 
 // Generate dates relative to now for realistic timestamps
 const now = new Date();
@@ -226,4 +226,42 @@ export async function getSampleAnglerProfile(userId: string): Promise<AnglerProf
   // Simulate network delay
   await new Promise<void>((resolve) => setTimeout(resolve, 300));
   return sampleAnglerProfiles[userId] || null;
+}
+
+/**
+ * Sample top anglers for "This Week's Top Anglers" section.
+ * Based on different ranking criteria.
+ */
+export const sampleTopAnglers: TopAngler[] = [
+  {
+    type: 'catches',
+    userId: 'user-1',
+    displayName: 'Mike J.',
+    value: 47,
+    label: 'catches',
+  },
+  {
+    type: 'species',
+    userId: 'user-1',
+    displayName: 'Mike J.',
+    value: 4,
+    label: 'species',
+  },
+  {
+    type: 'length',
+    userId: 'user-7',
+    displayName: 'Robert T.',
+    value: '32"',
+    label: 'longest',
+  },
+];
+
+/**
+ * Get sample top anglers.
+ * Simulates async fetch for development.
+ */
+export async function getSampleTopAnglers(): Promise<TopAngler[]> {
+  // Simulate network delay
+  await new Promise<void>((resolve) => setTimeout(resolve, 200));
+  return sampleTopAnglers;
 }

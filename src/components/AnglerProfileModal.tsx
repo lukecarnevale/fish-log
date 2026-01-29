@@ -19,6 +19,7 @@ import { Feather } from '@expo/vector-icons';
 import { AnglerProfile, formatMemberSince } from '../types/catchFeed';
 import { fetchAnglerProfile } from '../services/catchFeedService';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { getSpeciesTheme } from '../constants/speciesColors';
 import CatchCard from './CatchCard';
 
 interface AnglerProfileModalProps {
@@ -146,11 +147,22 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
           <View style={styles.speciesSection}>
             <Text style={styles.sectionTitle}>Species Caught</Text>
             <View style={styles.speciesTagsContainer}>
-              {profile.speciesCaught.map((species, index) => (
-                <View key={index} style={styles.speciesTag}>
-                  <Text style={styles.speciesTagText}>{species}</Text>
-                </View>
-              ))}
+              {profile.speciesCaught.map((species, index) => {
+                const theme = getSpeciesTheme(species);
+                return (
+                  <View
+                    key={index}
+                    style={[styles.speciesTag, { backgroundColor: theme.light }]}
+                  >
+                    <View
+                      style={[styles.speciesTagDot, { backgroundColor: theme.primary }]}
+                    />
+                    <Text style={[styles.speciesTagText, { color: theme.icon }]}>
+                      {species}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
         )}
@@ -348,10 +360,18 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   speciesTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.primaryLight,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.md,
+  },
+  speciesTagDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
   },
   speciesTagText: {
     ...typography.caption,

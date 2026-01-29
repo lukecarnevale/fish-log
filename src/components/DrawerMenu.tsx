@@ -43,6 +43,8 @@ interface DrawerMenuProps {
   currentMode: AppMode;
   setCurrentMode: (mode: AppMode) => void;
   onFeedbackPress?: (type: 'feedback' | 'bug_report') => void;
+  /** Whether the user is signed in (rewards member) */
+  isSignedIn?: boolean;
 }
 
 // ============================================
@@ -190,6 +192,10 @@ interface MenuItemProps {
   badgeScale?: Animated.AnimatedInterpolation<number>;
   badgeBorderColor?: Animated.AnimatedInterpolation<string>;
   isExternal?: boolean;
+  /** If true, shows lock icon and grayed out state */
+  disabled?: boolean;
+  /** Callback when disabled item is pressed */
+  onDisabledPress?: () => void;
 }
 
 const MenuItem: React.FC<MenuItemProps> = ({
@@ -204,15 +210,17 @@ const MenuItem: React.FC<MenuItemProps> = ({
   badgeScale,
   badgeBorderColor,
   isExternal,
+  disabled = false,
+  onDisabledPress,
 }) => (
   <TouchableOpacity
-    style={styles.menuItem}
-    onPress={onPress}
+    style={[styles.menuItem, disabled && styles.menuItemDisabled]}
+    onPress={disabled ? onDisabledPress : onPress}
     activeOpacity={0.7}
   >
-    <View style={[styles.menuItemIcon, { backgroundColor: iconBgColor }]}>
+    <View style={[styles.menuItemIcon, { backgroundColor: disabled ? '#F0F0F0' : iconBgColor }]}>
       {customIcon || (
-        <Feather name={icon as any} size={20} color={iconColor} />
+        <Feather name={icon as any} size={20} color={disabled ? '#999' : iconColor} />
       )}
       {showBadge && badgeScale && badgeBorderColor && (
         <Animated.View style={[styles.menuBadge, { transform: [{ scale: badgeScale }] }]}>
@@ -221,10 +229,13 @@ const MenuItem: React.FC<MenuItemProps> = ({
       )}
     </View>
     <View style={styles.menuItemContent}>
-      <Text style={styles.menuItemLabel}>{label}</Text>
-      {subtitle && <Text style={styles.menuItemSubtitle}>{subtitle}</Text>}
+      <Text style={[styles.menuItemLabel, disabled && styles.menuItemLabelDisabled]}>{label}</Text>
+      {subtitle && !disabled && <Text style={styles.menuItemSubtitle}>{subtitle}</Text>}
+      {disabled && <Text style={styles.menuItemSubtitleDisabled}>Sign in to view</Text>}
     </View>
-    {isExternal ? (
+    {disabled ? (
+      <Feather name="lock" size={14} color="#999" />
+    ) : isExternal ? (
       <Feather name="external-link" size={14} color="#ccc" />
     ) : (
       <Feather name="chevron-right" size={16} color="#ccc" />
@@ -247,6 +258,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   currentMode,
   setCurrentMode,
   onFeedbackPress,
+  isSignedIn = false,
 }) => {
   const menuScrollRef = useRef<ScrollView>(null);
 
@@ -390,7 +402,9 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>{SCREEN_LABELS.profile.title}</Text>
-              <Text style={styles.profileSubtitle}>{SCREEN_LABELS.profile.subtitle}</Text>
+              <Text style={styles.profileSubtitle}>
+                {isSignedIn ? SCREEN_LABELS.profile.subtitle : 'Sign in'}
+              </Text>
             </View>
             <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.6)" />
           </TouchableOpacity>
@@ -411,6 +425,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             subtitle={SCREEN_LABELS.pastReports.subtitle}
             onPress={() => handleNavigate("PastReports")}
             iconBgColor="#E8F5F4"
+            disabled={!isSignedIn}
+            onDisabledPress={() => handleNavigate("Profile")}
           />
 
           <MenuItem
@@ -419,6 +435,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             subtitle={SCREEN_LABELS.catchFeed.subtitle}
             onPress={() => handleNavigate("CatchFeed")}
             iconBgColor="#FFF3E0"
+            disabled={!isSignedIn}
+            onDisabledPress={() => handleNavigate("Profile")}
           />
 
           <MenuItem
@@ -676,6 +694,17 @@ const styles = StyleSheet.create({
   menuItemSubtitle: {
     fontSize: 11,
     color: '#888888',
+    marginTop: 1,
+  },
+  menuItemDisabled: {
+    opacity: 0.7,
+  },
+  menuItemLabelDisabled: {
+    color: '#999',
+  },
+  menuItemSubtitleDisabled: {
+    fontSize: 11,
+    color: '#aaa',
     marginTop: 1,
   },
   menuBadge: {

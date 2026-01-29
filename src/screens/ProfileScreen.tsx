@@ -27,6 +27,7 @@ import { isValidPhoneNumber } from 'libphonenumber-js';
 import MaskInput from 'react-native-mask-input';
 import * as yup from 'yup';
 import * as ImagePicker from 'expo-image-picker';
+import Svg, { Circle, Path, G, Ellipse } from 'react-native-svg';
 
 // Instead of using GooglePlacesAutocomplete which causes UUID issues
 import { RootStackParamList, UserProfile } from "../types";
@@ -41,6 +42,7 @@ import {
   storePendingAuth,
   PendingAuth,
   signOut,
+  onAuthStateChange,
 } from "../services/authService";
 import { isRewardsMember, getCurrentUser } from "../services/userService";
 import { User } from "../types/user";
@@ -117,6 +119,21 @@ interface FishingStats {
   uniqueSpecies: number;
   largestFish: number | null; // in inches
 }
+
+/** Profile avatar - Angler with fishing rod (larger version for profile screen) */
+const AnglerAvatarIcon: React.FC<{ size?: number }> = ({ size = 80 }) => (
+  <Svg width={size} height={size} viewBox="0 0 40 40">
+    <Circle cx={12} cy={10} r={5} fill={colors.primary} opacity={0.9} />
+    <Path d="M7 18 Q7 14 12 14 Q17 14 17 18 L17 28 L7 28 Z" fill={colors.primary} opacity={0.9} />
+    <Path d="M16 16 L30 6" stroke={colors.primary} strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={0.9} />
+    <Path d="M30 6 L32 16" stroke={colors.primary} strokeWidth={1} fill="none" opacity={0.7} />
+    <G transform="translate(28, 18)">
+      <Ellipse cx={5} cy={4} rx={5} ry={3} fill="#FFB74D" />
+      <Path d="M9 4 Q12 2 11 4 Q12 6 9 4" fill="#FF8F00" />
+      <Circle cx={2} cy={3} r={1} fill="white" />
+    </G>
+  </Svg>
+);
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [profile, setProfile] = useState<UserProfile>({});
@@ -302,11 +319,39 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     loadProfile();
 
     // Set up a focus listener to refresh data when returning to this screen
-    const unsubscribe = navigation.addListener('focus', () => {
+    const focusUnsubscribe = navigation.addListener('focus', () => {
       loadProfile();
     });
 
-    return unsubscribe;
+    // Set up an auth state listener to refresh when user signs in
+    const authUnsubscribe = onAuthStateChange((event, _session) => {
+      console.log('🔐 ProfileScreen - Auth state changed:', event);
+      if (event === 'SIGNED_IN') {
+        // Delay to allow createRewardsMemberFromAuthUser to complete
+        // Then retry if still not showing as member (database operations can take time)
+        const attemptReload = async (attempt: number) => {
+          console.log(`🔄 ProfileScreen - Reloading after sign in (attempt ${attempt})...`);
+          await loadProfile();
+
+          // Check if still showing pending auth after reload
+          const stillPending = await getPendingAuth();
+          const isMember = await isRewardsMember();
+
+          if (stillPending && !isMember && attempt < 3) {
+            // Retry after another delay
+            setTimeout(() => attemptReload(attempt + 1), 1000);
+          }
+        };
+
+        // Initial delay to let createRewardsMemberFromAuthUser start
+        setTimeout(() => attemptReload(1), 1500);
+      }
+    });
+
+    return () => {
+      focusUnsubscribe();
+      authUnsubscribe?.();
+    };
   }, [navigation]);
 
   // Function to pick an image from gallery
@@ -705,7 +750,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 style={styles.profileImage}
               />
             ) : (
-              <Feather name="user" size={50} color={colors.primary} />
+              <AnglerAvatarIcon size={70} />
             )}
             <View style={styles.cameraIconContainer}>
               <Feather name="camera" size={18} color={colors.white} />
@@ -1050,17 +1095,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 style={styles.profileImage}
               />
             ) : (
-              <Feather name="user" size={50} color={colors.primary} />
+              <AnglerAvatarIcon size={70} />
             )}
             <View style={styles.cameraIconContainer}>
               <Feather name="camera" size={18} color={colors.white} />
             </View>
           </TouchableOpacity>
-          <Text style={styles.profileName}>
-            {profile.firstName && profile.lastName
-              ? `${profile.firstName} ${profile.lastName}`
-              : profile.firstName || profile.lastName || "Add Your Name"}
-          </Text>
+          {(profile.firstName || profile.lastName) && (
+            <Text style={styles.profileName}>
+              {profile.firstName && profile.lastName
+                ? `${profile.firstName} ${profile.lastName}`
+                : profile.firstName || profile.lastName}
+            </Text>
+          )}
         </View>
 
       {/* Content area with light background */}
@@ -1186,7 +1233,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <View style={localStyles.signInIcon}>
                 <Feather name="award" size={20} color={colors.white} />
               </View>
-              <Text style={localStyles.signInTitle}>Join Quarterly Rewards</Text>
+              <Text style={localStyles.signInTitle}>Quarterly Rewards</Text>
             </View>
 
             <Text style={localStyles.signInDesc}>

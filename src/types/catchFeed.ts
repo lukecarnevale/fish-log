@@ -116,3 +116,15 @@ export function formatMemberSince(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
+
+/**
+ * Represents a top angler for the "This Week's Top Anglers" section.
+ */
+export interface TopAngler {
+  type: 'catches' | 'species' | 'length';
+  userId: string;
+  displayName: string;
+  profileImage?: string;
+  value: number | string;  // Number for catches/species, string for length (e.g., "32 inches")
+  label: string;           // Display label (e.g., "catches", "species", "longest")
+}
