@@ -12,6 +12,7 @@ import {
   Dimensions,
   ListRenderItem,
   Animated,
+  StyleSheet,
 } from "react-native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../types";
@@ -642,48 +643,80 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
       subtitle="Find and learn about North Carolina's fish species"
       noScroll
     >
-      <View style={styles.searchFilterContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          clearButtonMode="while-editing"
-        />
-      </View>
+      <View style={localStyles.container}>
+        {/* Floating sticky search bar */}
+        <View style={localStyles.floatingSearchContainer}>
+          <TextInput
+            style={[styles.searchInput, localStyles.searchInput]}
+            placeholder="Search by name..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            clearButtonMode="while-editing"
+          />
+        </View>
 
-      {isLoading ? (
-        <FlatList
-          data={[1, 2, 3, 4, 5]}
-          renderItem={() => <SkeletonCard />}
-          keyExtractor={(item) => `skeleton-${item}`}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : (
-        <FlatList
-          data={filteredSpecies}
-          renderItem={renderSpeciesItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              {error ? (
-                <Text style={styles.emptyText}>
-                  Unable to load species data. Please check your connection.
-                </Text>
-              ) : (
-                <Text style={styles.emptyText}>
-                  No species found matching your search.
-                </Text>
-              )}
-            </View>
-          }
-        />
-      )}
+        {/* Species list - scrolls under the search bar */}
+        {isLoading ? (
+          <FlatList
+            data={[1, 2, 3, 4, 5]}
+            renderItem={() => <SkeletonCard />}
+            keyExtractor={(item) => `skeleton-${item}`}
+            contentContainerStyle={localStyles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
+          <FlatList
+            data={filteredSpecies}
+            renderItem={renderSpeciesItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={localStyles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                {error ? (
+                  <Text style={styles.emptyText}>
+                    Unable to load species data. Please check your connection.
+                  </Text>
+                ) : (
+                  <Text style={styles.emptyText}>
+                    No species found matching your search.
+                  </Text>
+                )}
+              </View>
+            }
+          />
+        )}
+      </View>
     </ScreenLayout>
   );
 };
+
+// Local styles for floating search bar
+const localStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  floatingSearchContainer: {
+    position: 'absolute',
+    top: -24, // Pull up to float between header and content
+    left: 32,
+    right: 32,
+    zIndex: 100,
+    elevation: 10,
+  },
+  searchInput: {
+    // Add shadow to enhance floating effect
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  listContent: {
+    paddingTop: 40, // Space for the floating search bar
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+});
 
 export default SpeciesInfoScreen;

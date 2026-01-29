@@ -12,8 +12,10 @@ import {
   FlatList,
   StyleSheet,
   Animated,
+  Easing,
   Dimensions,
   TouchableWithoutFeedback,
+  Pressable,
   Image,
   Linking,
   Keyboard,
@@ -24,6 +26,7 @@ import { Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { StackNavigationProp } from "@react-navigation/stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RootStackParamList, FishReportData, UserProfile, FishingLicense } from "../types";
 import styles from "../styles/reportFormScreenStyles";
 import { colors } from "../styles/common";
@@ -99,6 +102,9 @@ interface PickerData {
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
+  // Safe area insets for bottom sheet padding on Android
+  const insets = useSafeAreaInsets();
+
   // State for multiple fish entries
   const [fishEntries, setFishEntries] = useState<FishEntry[]>([]);
   const [currentFishIndex, setCurrentFishIndex] = useState<number | null>(null);
@@ -650,16 +656,18 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     setCurrentPickerLabel(label);
     setModalVisible(true);
     // Animate drawer sliding up and overlay fading in
+    // Using timing with easing for smooth, predictable animation on Android
     Animated.parallel([
       Animated.timing(overlayAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-      Animated.spring(drawerAnim, {
+      Animated.timing(drawerAnim, {
         toValue: 0,
-        tension: 65,
-        friction: 11,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start();
@@ -670,12 +678,14 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     Animated.parallel([
       Animated.timing(overlayAnim, {
         toValue: 0,
-        duration: 200,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
       Animated.timing(drawerAnim, {
         toValue: SCREEN_HEIGHT,
         duration: 250,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
     ]).start(() => {
@@ -1241,8 +1251,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       visible={modalVisible}
       onRequestClose={closePicker}
     >
-      <View style={localStyles.modalWrapper}>
-        {/* Animated overlay */}
+      <View style={localStyles.modalWrapper} pointerEvents="box-none">
+        {/* Animated overlay - sits behind drawer */}
         <TouchableWithoutFeedback onPress={closePicker}>
           <Animated.View
             style={[
@@ -1252,12 +1262,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           />
         </TouchableWithoutFeedback>
 
-        {/* Animated drawer */}
+        {/* Animated drawer - pointerEvents auto ensures it receives touches */}
         <Animated.View
           style={[
             localStyles.modalDrawer,
-            { transform: [{ translateY: drawerAnim }] },
+            { transform: [{ translateY: drawerAnim }], paddingBottom: insets.bottom },
           ]}
+          pointerEvents="auto"
         >
           <View style={localStyles.modalHandle} />
           <View style={styles.modalHeader}>
@@ -1273,12 +1284,14 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             renderItem={({ item }) => {
               const isSelected = formData[currentPicker as keyof FormState] === item;
               return (
-                <TouchableOpacity
-                  style={[
+                <Pressable
+                  style={({ pressed }) => [
                     styles.optionItem,
-                    isSelected && localStyles.optionItemSelected
+                    isSelected && localStyles.optionItemSelected,
+                    pressed && { opacity: 0.7 }
                   ]}
                   onPress={() => handleSelection(item)}
+                  android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
                 >
                   <Text style={[
                     styles.optionText,
@@ -1287,12 +1300,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   {isSelected && (
                     <Feather name="check" size={20} color={colors.primary} />
                   )}
-                </TouchableOpacity>
+                </Pressable>
               );
             }}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             contentContainerStyle={{ paddingBottom: 34 }}
             scrollEnabled={pickerData[currentPicker as keyof PickerData]?.length > 8}
+            removeClippedSubviews={false}
           />
         </Animated.View>
       </View>
@@ -1627,25 +1641,29 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             <Text style={localStyles.fishListTitle}>
               Saved Fish ({fishEntries.reduce((sum, f) => sum + f.count, 0)} total)
             </Text>
-            {fishEntries.map((fish, index) => (
-              <View
-                key={index}
-                style={[
-                  localStyles.fishChip,
-                  currentFishIndex === index && localStyles.fishChipActive,
-                ]}
-              >
-                <TouchableOpacity
-                  style={localStyles.fishChipContent}
-                  onPress={() => handleSelectFish(index)}
+            {fishEntries.map((fish, index) => {
+              const isSelected = currentFishIndex === index;
+              return (
+                <View
+                  key={`fish-${index}-${isSelected ? 'active' : 'inactive'}`}
+                  style={[
+                    localStyles.fishChip,
+                    isSelected && localStyles.fishChipActive,
+                  ]}
                 >
-                  <Text style={localStyles.fishChipText}>
-                    {fish.count}x {fish.species}
-                    {fish.lengths.length > 0 && fish.lengths.some(l => l)
-                      ? ` (${fish.lengths.filter(l => l).join('", ')}${fish.lengths.filter(l => l).length > 0 ? '"' : ''})`
-                      : ""}
-                  </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={localStyles.fishChipContent}
+                    onPress={() => handleSelectFish(index)}
+                  >
+                    <Text
+                      style={isSelected ? localStyles.fishChipTextActive : localStyles.fishChipText}
+                    >
+                      {fish.count}x {fish.species}
+                      {fish.lengths.length > 0 && fish.lengths.some(l => l)
+                        ? ` (${fish.lengths.filter(l => l).join('", ')}${fish.lengths.filter(l => l).length > 0 ? '"' : ''})`
+                        : ""}
+                    </Text>
+                  </TouchableOpacity>
                 <TouchableOpacity
                   style={localStyles.fishChipRemove}
                   onPress={() => handleRemoveFish(index)}
@@ -1654,7 +1672,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   <Feather name="x" size={14} color={colors.darkGray} />
                 </TouchableOpacity>
               </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -1670,6 +1689,52 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               {currentFishIndex !== null ? "Save & Add Another Species" : "Add Another Species"}
             </Text>
           </TouchableOpacity>
+        )}
+
+        {/* CatchFeed photo option - only show for signed-in rewards members */}
+        {hasEnteredCurrentRaffle && (formData.species || fishEntries.length > 0) && (
+          <View style={localStyles.catchFeedPhotoSection}>
+            <Text style={localStyles.catchFeedPhotoLabel}>
+              <Feather name="camera" size={14} color={colors.primary} /> Add Photo for Catch Feed
+            </Text>
+            <Text style={localStyles.catchFeedPhotoDesc}>
+              Share your catch with the community (optional)
+            </Text>
+
+            {catchPhoto ? (
+              <View style={localStyles.catchFeedPhotoContainer}>
+                <Image
+                  source={{ uri: catchPhoto }}
+                  style={localStyles.catchFeedPhoto}
+                  resizeMode="cover"
+                />
+                <View style={localStyles.catchFeedPhotoActions}>
+                  <TouchableOpacity
+                    style={localStyles.catchFeedPhotoActionButton}
+                    onPress={handleTakePhoto}
+                  >
+                    <Feather name="camera" size={16} color={colors.primary} />
+                    <Text style={localStyles.catchFeedPhotoActionText}>Retake</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={localStyles.catchFeedPhotoActionButton}
+                    onPress={handleRemovePhoto}
+                  >
+                    <Feather name="trash-2" size={16} color={colors.error} />
+                    <Text style={[localStyles.catchFeedPhotoActionText, { color: colors.error }]}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={localStyles.catchFeedAddPhotoButton}
+                onPress={handleTakePhoto}
+              >
+                <Feather name="camera" size={20} color={colors.primary} />
+                <Text style={localStyles.catchFeedAddPhotoText}>Take Photo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </View>
       )}
@@ -2343,23 +2408,23 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       {/* Raffle Entry Section */}
       <View style={[
         localStyles.raffleSection,
-        hasEnteredCurrentRaffle && localStyles.raffleSectionEntered,
+        (hasEnteredCurrentRaffle || enterRaffle) && localStyles.raffleSectionEntered,
       ]}>
         <View style={localStyles.raffleSectionHeader}>
           <View style={[
             localStyles.raffleIconContainer,
-            hasEnteredCurrentRaffle && localStyles.raffleIconContainerEntered,
+            (hasEnteredCurrentRaffle || enterRaffle) && localStyles.raffleIconContainerEntered,
           ]}>
             <Feather
-              name={hasEnteredCurrentRaffle ? "check-circle" : "gift"}
+              name={(hasEnteredCurrentRaffle || enterRaffle) ? "check-circle" : "gift"}
               size={24}
-              color={hasEnteredCurrentRaffle ? colors.white : colors.primary}
+              color={(hasEnteredCurrentRaffle || enterRaffle) ? colors.white : colors.primary}
             />
           </View>
           <View style={localStyles.raffleTitleContainer}>
             <Text style={localStyles.raffleTitle}>{currentRewards.name}</Text>
             <Text style={localStyles.raffleSubtitle}>
-              {hasEnteredCurrentRaffle
+              {(hasEnteredCurrentRaffle || enterRaffle)
                 ? "You're entered! Good luck!"
                 : "Eligible contributors entered automatically"}
             </Text>
@@ -2829,12 +2894,15 @@ const localStyles = StyleSheet.create({
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
+    zIndex: 1,
   },
   modalDrawer: {
     backgroundColor: colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: "80%",
+    zIndex: 2,
+    elevation: 10,
   },
   modalHandle: {
     width: 40,
@@ -3037,6 +3105,11 @@ const localStyles = StyleSheet.create({
     fontSize: 14,
     color: colors.textPrimary,
   },
+  fishChipTextActive: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: "600",
+  },
   fishChipRemove: {
     padding: 10,
     paddingLeft: 4,
@@ -3189,6 +3262,67 @@ const localStyles = StyleSheet.create({
     fontSize: 13,
     color: "#166534",
     lineHeight: 18,
+  },
+  // CatchFeed photo section (for users already entered in raffle)
+  catchFeedPhotoSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  catchFeedPhotoLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  catchFeedPhotoDesc: {
+    fontSize: 13,
+    color: colors.darkGray,
+    marginBottom: 12,
+  },
+  catchFeedPhotoContainer: {
+    alignItems: "center",
+  },
+  catchFeedPhoto: {
+    width: "100%",
+    height: 160,
+    borderRadius: 12,
+    backgroundColor: colors.lightGray,
+  },
+  catchFeedPhotoActions: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 10,
+    gap: 16,
+  },
+  catchFeedPhotoActionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  catchFeedPhotoActionText: {
+    fontSize: 14,
+    color: colors.primary,
+    marginLeft: 6,
+  },
+  catchFeedAddPhotoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primaryLight,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderStyle: "dashed",
+    paddingVertical: 16,
+    gap: 8,
+  },
+  catchFeedAddPhotoText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.primary,
   },
   // Raffle modal styles
   raffleModalOverlay: {

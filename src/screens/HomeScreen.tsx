@@ -35,7 +35,7 @@ import {
   isTestMode,
   AppMode,
 } from "../config/appConfig";
-import { getPendingAuth, PendingAuth } from "../services/authService";
+import { getPendingAuth, PendingAuth, onAuthStateChange } from "../services/authService";
 import { isRewardsMember, getCurrentUser } from "../services/userService";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 
@@ -180,14 +180,39 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     };
 
     loadUserData();
-    
+
     // Set up a focus listener to update the data when returning to this screen
-    const unsubscribe = navigation.addListener('focus', () => {
+    const focusUnsubscribe = navigation.addListener('focus', () => {
       loadUserData();
     });
-    
-    // Clean up the listener when component unmounts
-    return unsubscribe;
+
+    // Set up an auth state listener to refresh when user signs in
+    const authUnsubscribe = onAuthStateChange((event, _session) => {
+      if (event === 'SIGNED_IN') {
+        // Delay to allow createRewardsMemberFromAuthUser to complete
+        // Then retry if still not showing as member (database operations can take time)
+        const attemptReload = async (attempt: number) => {
+          console.log(`🔄 HomeScreen - Reloading after sign in (attempt ${attempt})...`);
+          await loadUserData();
+
+          // Check if still not showing as member after reload
+          const isMember = await isRewardsMember();
+          if (!isMember && attempt < 3) {
+            // Retry after another delay
+            setTimeout(() => attemptReload(attempt + 1), 1000);
+          }
+        };
+
+        // Initial delay to let createRewardsMemberFromAuthUser start
+        setTimeout(() => attemptReload(1), 1500);
+      }
+    });
+
+    // Clean up the listeners when component unmounts
+    return () => {
+      focusUnsubscribe();
+      authUnsubscribe?.();
+    };
   }, [navigation]);
   
   // Function to dismiss the info card
@@ -328,6 +353,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           setFeedbackType(type);
           setFeedbackModalVisible(true);
         }}
+        isSignedIn={rewardsMember}
       />
 
       {/* Overlay when menu is open */}
@@ -522,7 +548,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         </TouchableOpacity>
 
         {/* Quick Action Cards Grid */}
-        <QuickActionGrid onNavigate={navigateToScreen} />
+        <QuickActionGrid onNavigate={navigateToScreen} isSignedIn={rewardsMember} />
         
         {/* Quarterly Rewards Card */}
         <QuarterlyRewardsCard

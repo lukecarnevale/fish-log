@@ -1,8 +1,8 @@
 // components/CatchCard.tsx
 //
-// Displays a single catch entry in the Catch Feed.
-// Shows photo, angler info, species, size, location, and time.
-//
+// Premium catch card for the community feed.
+// Features clean design without accent bars, glassmorphism badges,
+// and polished angler section matching the ultra-premium aesthetic.
 
 import React from 'react';
 import {
@@ -12,41 +12,103 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { CatchFeedEntry, formatRelativeTime } from '../types/catchFeed';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { colors, spacing, borderRadius } from '../styles/common';
+import { getSpeciesTheme } from '../constants/speciesColors';
+import CatchInfoBadge from './CatchInfoBadge';
+import SpeciesPlaceholder from './SpeciesPlaceholder';
 
 interface CatchCardProps {
   entry: CatchFeedEntry;
   onAnglerPress?: (userId: string) => void;
+  onCardPress?: (entry: CatchFeedEntry) => void;
   compact?: boolean;
 }
 
-/**
- * Get a placeholder icon for a species.
- */
-function getSpeciesIcon(species: string): keyof typeof Feather.glyphMap {
-  const speciesLower = species.toLowerCase();
-  if (speciesLower.includes('drum')) return 'disc';
-  if (speciesLower.includes('flounder')) return 'layers';
-  if (speciesLower.includes('bass')) return 'anchor';
-  if (speciesLower.includes('seatrout') || speciesLower.includes('trout')) return 'droplet';
-  if (speciesLower.includes('weakfish')) return 'wind';
-  return 'circle';
-}
-
-const CatchCard: React.FC<CatchCardProps> = ({ entry, onAnglerPress, compact = false }) => {
+const CatchCard: React.FC<CatchCardProps> = ({
+  entry,
+  onAnglerPress,
+  onCardPress,
+  compact = false,
+}) => {
   const relativeTime = formatRelativeTime(entry.createdAt);
+  const speciesTheme = getSpeciesTheme(entry.species);
 
-  // Build the catch details string
-  const details: string[] = [entry.species];
-  if (entry.length) details.push(entry.length);
-  const detailsText = details.join(' • ');
+  const handleCardPress = () => {
+    if (onCardPress) {
+      onCardPress(entry);
+    } else if (onAnglerPress) {
+      onAnglerPress(entry.userId);
+    }
+  };
 
+  const handleAnglerPress = () => {
+    onAnglerPress?.(entry.userId);
+  };
+
+  // Compact mode for AnglerProfileModal
+  if (compact) {
+    return (
+      <View style={styles.compactContainer}>
+        {/* Photo or placeholder */}
+        <View style={styles.compactPhotoContainer}>
+          {entry.photoUrl ? (
+            <Image
+              source={{ uri: entry.photoUrl }}
+              style={styles.compactPhoto}
+              resizeMode="cover"
+            />
+          ) : (
+            <SpeciesPlaceholder species={entry.species} size="small" />
+          )}
+
+          {/* Compact info overlay */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0, 0, 0, 0.5)']}
+            style={styles.compactGradient}
+          />
+          <View style={styles.compactInfoOverlay}>
+            <CatchInfoBadge
+              text={entry.species}
+              variant="species"
+              speciesTheme={speciesTheme}
+            />
+            {entry.length && (
+              <CatchInfoBadge text={entry.length} variant="size" />
+            )}
+          </View>
+        </View>
+
+        {/* Compact footer */}
+        <View style={styles.compactFooter}>
+          <View style={styles.compactFooterLeft}>
+            {entry.location && (
+              <View style={styles.compactLocation}>
+                <Feather name="map-pin" size={10} color={colors.textTertiary} />
+                <Text style={styles.compactLocationText} numberOfLines={1}>
+                  {entry.location}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.compactTimestamp}>{relativeTime}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Full card for main feed - PREMIUM DESIGN
   return (
-    <View style={[styles.container, compact && styles.containerCompact]}>
-      {/* Photo section */}
-      <View style={[styles.photoContainer, compact && styles.photoContainerCompact]}>
+    <TouchableOpacity
+      style={styles.container}
+      onPress={handleCardPress}
+      activeOpacity={0.97}
+      disabled={!onAnglerPress && !onCardPress}
+    >
+      {/* Photo section with glassmorphism overlay */}
+      <View style={styles.photoContainer}>
         {entry.photoUrl ? (
           <Image
             source={{ uri: entry.photoUrl }}
@@ -54,182 +116,253 @@ const CatchCard: React.FC<CatchCardProps> = ({ entry, onAnglerPress, compact = f
             resizeMode="cover"
           />
         ) : (
-          <View style={styles.photoPlaceholder}>
-            <Feather
-              name={getSpeciesIcon(entry.species)}
-              size={compact ? 28 : 40}
-              color={colors.primary}
-            />
-          </View>
+          <SpeciesPlaceholder species={entry.species} size="large" />
         )}
+
+        {/* Gradient overlay at bottom of photo */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0, 0, 0, 0.55)']}
+          style={styles.photoGradient}
+        />
+
+        {/* Info badges with glassmorphism effect */}
+        <View style={styles.infoOverlay}>
+          <CatchInfoBadge
+            text={entry.species}
+            variant="species"
+            speciesTheme={speciesTheme}
+          />
+          {entry.length && (
+            <CatchInfoBadge text={entry.length} variant="size" />
+          )}
+          <View style={styles.infoSpacer} />
+          {entry.location && (
+            <CatchInfoBadge
+              text={entry.location}
+              variant="location"
+            />
+          )}
+        </View>
       </View>
 
-      {/* Info section */}
-      <View style={styles.infoContainer}>
-        <View style={styles.topRow}>
-          {/* Angler info - tappable */}
-          <TouchableOpacity
-            style={styles.anglerInfo}
-            onPress={() => onAnglerPress?.(entry.userId)}
-            disabled={!onAnglerPress}
-            activeOpacity={0.7}
-          >
-            <View style={styles.avatarContainer}>
-              {entry.anglerProfileImage ? (
-                <Image
-                  source={{ uri: entry.anglerProfileImage }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarInitial}>
-                    {entry.anglerName.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.anglerName}>{entry.anglerName}</Text>
-          </TouchableOpacity>
-
-          {/* Timestamp */}
-          <Text style={styles.timestamp}>{relativeTime}</Text>
-        </View>
-
-        {/* Catch details */}
-        <Text style={styles.details} numberOfLines={1}>
-          {detailsText}
-        </Text>
-
-        {/* Location and chevron */}
-        <View style={styles.bottomRow}>
-          {entry.location ? (
-            <View style={styles.locationContainer}>
-              <Feather name="map-pin" size={12} color={colors.textSecondary} />
-              <Text style={styles.location} numberOfLines={1}>
-                {entry.location}
+      {/* Angler section - premium styling */}
+      <TouchableOpacity
+        style={styles.anglerRow}
+        onPress={handleAnglerPress}
+        disabled={!onAnglerPress}
+        activeOpacity={0.7}
+      >
+        {/* Avatar with species-themed background */}
+        <View style={styles.avatarContainer}>
+          {entry.anglerProfileImage ? (
+            <Image
+              source={{ uri: entry.anglerProfileImage }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={[styles.avatarPlaceholder, { backgroundColor: speciesTheme.primary }]}>
+              <Text style={styles.avatarInitial}>
+                {entry.anglerName.charAt(0).toUpperCase()}
               </Text>
             </View>
-          ) : (
-            <View />
-          )}
-
-          {onAnglerPress && (
-            <TouchableOpacity
-              style={styles.chevronButton}
-              onPress={() => onAnglerPress(entry.userId)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Feather name="chevron-right" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
           )}
         </View>
-      </View>
-    </View>
+
+        {/* Angler info */}
+        <View style={styles.anglerInfo}>
+          <Text style={styles.anglerName}>{entry.anglerName}</Text>
+          {onAnglerPress && (
+            <Text style={styles.viewProfileText}>Tap to view profile</Text>
+          )}
+        </View>
+
+        {/* Timestamp and chevron */}
+        <View style={styles.anglerRight}>
+          <Text style={styles.timestamp}>{relativeTime}</Text>
+          {onAnglerPress && (
+            <Feather
+              name="chevron-right"
+              size={18}
+              color={colors.textTertiary}
+              style={styles.chevron}
+            />
+          )}
+        </View>
+      </TouchableOpacity>
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
+  // =====================
+  // FULL CARD STYLES - PREMIUM
+  // =====================
   container: {
     backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
+    borderRadius: 20,
     marginHorizontal: spacing.md,
-    marginVertical: spacing.xs,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginVertical: 8,
+    // Premium shadow with blue tint
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
     overflow: 'hidden',
   },
-  containerCompact: {
-    marginHorizontal: 0,
-    marginVertical: spacing.xxs,
-  },
+
+  // Photo section - larger for premium feel
   photoContainer: {
     width: '100%',
-    height: 180,
+    height: 220,
     backgroundColor: colors.lightestGray,
-  },
-  photoContainerCompact: {
-    height: 120,
+    position: 'relative',
   },
   photo: {
     width: '100%',
     height: '100%',
   },
-  photoPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+  photoGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
   },
-  infoContainer: {
-    padding: spacing.md,
-  },
-  topRow: {
+
+  // Info overlay with glassmorphism badges
+  infoOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    gap: 8,
   },
-  anglerInfo: {
+  infoSpacer: {
+    flex: 1,
+  },
+
+  // Angler row - premium styling
+  anglerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    padding: 16,
   },
   avatarContainer: {
-    marginRight: spacing.sm,
+    marginRight: 12,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.lightGray,
   },
   avatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarInitial: {
     color: colors.white,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
   },
+  anglerInfo: {
+    flex: 1,
+  },
   anglerName: {
-    ...typography.body,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.textPrimary,
   },
+  viewProfileText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  anglerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   timestamp: {
-    ...typography.caption,
+    fontSize: 12,
     color: colors.textTertiary,
   },
-  details: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
+  chevron: {
+    marginLeft: 4,
   },
-  bottomRow: {
+
+  // =====================
+  // COMPACT CARD STYLES
+  // =====================
+  compactContainer: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    marginVertical: spacing.xxs,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  compactPhotoContainer: {
+    width: '100%',
+    height: 110,
+    backgroundColor: colors.lightestGray,
+    position: 'relative',
+  },
+  compactPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  compactGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 50,
+  },
+  compactInfoOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  compactFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  compactFooterLeft: {
     flex: 1,
   },
-  location: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginLeft: spacing.xxs,
+  compactLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  chevronButton: {
-    padding: spacing.xxs,
+  compactLocationText: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginLeft: 3,
+    flexShrink: 1,
+  },
+  compactTimestamp: {
+    fontSize: 11,
+    color: colors.textTertiary,
   },
 });
 

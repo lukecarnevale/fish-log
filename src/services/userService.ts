@@ -20,7 +20,7 @@ import {
   transformUserAchievement,
 } from '../types/user';
 import { getOrCreateAnonymousUser, getAnonymousUser } from './anonymousUserService';
-import { getPendingAuth, clearPendingAuth, getCurrentAuthUser } from './authService';
+import { getPendingAuth, clearPendingAuth, getCurrentAuthUser, getAuthState } from './authService';
 import { linkReportsToUser } from './reportsService';
 
 // Storage keys
@@ -544,8 +544,16 @@ export async function convertToRewardsMember(
 
 /**
  * Check if current user is a rewards member.
+ * Requires both: user has opted in AND has an active auth session.
  */
 export async function isRewardsMember(): Promise<boolean> {
+  // First check if there's an active auth session
+  const authState = await getAuthState();
+  if (!authState.isAuthenticated) {
+    return false;
+  }
+
+  // Then check if user has opted in to rewards
   const user = await getCurrentUser();
   return user?.rewardsOptedInAt !== null && user?.rewardsOptedInAt !== undefined;
 }
@@ -716,24 +724,62 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
     // Check if user already exists with this email
     console.log('🔄 createRewardsMemberFromAuthUser: Checking for existing user...');
     const existingUser = await findUserByEmail(authUser.email);
+    const deviceId = await getDeviceId();
+    const anonymousUser = await getAnonymousUser();
+
     if (existingUser) {
-      console.log('🔄 createRewardsMemberFromAuthUser: Found existing user, returning');
-      // User already exists - just return them
-      await cacheUser(existingUser);
-      await syncToUserProfile(existingUser); // Sync to ProfileScreen's storage
+      console.log('🔄 createRewardsMemberFromAuthUser: Found existing user, updating device_id...');
+
+      // Check if there's a conflicting user with the same device_id (device-only user)
+      const conflictingUser = await findUserByDeviceId(deviceId);
+      if (conflictingUser && conflictingUser.id !== existingUser.id) {
+        // There's a device-only user that conflicts - delete it if it has no email
+        if (!conflictingUser.email) {
+          console.log('🔄 createRewardsMemberFromAuthUser: Removing device-only user to resolve conflict...');
+          await supabase.from('users').delete().eq('id', conflictingUser.id);
+        } else {
+          // Both users have emails - this is a more complex merge scenario
+          // For now, just use the existing email user without updating device_id
+          console.warn('🔄 createRewardsMemberFromAuthUser: Both users have emails, keeping existing');
+          await cacheUser(existingUser);
+          await syncToUserProfile(existingUser);
+          await clearPendingAuth();
+          return { success: true, user: existingUser };
+        }
+      }
+
+      // Now update the existing user's device_id
+      const { data: updatedData, error: updateError } = await supabase
+        .from('users')
+        .update({
+          device_id: deviceId,
+          anonymous_user_id: anonymousUser?.id || existingUser.anonymousUserId || null,
+        })
+        .eq('id', existingUser.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.warn('🔄 createRewardsMemberFromAuthUser: Failed to update device_id:', updateError.message);
+        // Still return the existing user even if update fails
+        await cacheUser(existingUser);
+        await syncToUserProfile(existingUser);
+        await clearPendingAuth();
+        return { success: true, user: existingUser };
+      }
+
+      const updatedUser = transformUser(updatedData);
+      console.log('🔄 createRewardsMemberFromAuthUser: User device_id updated, returning');
+      await cacheUser(updatedUser);
+      await syncToUserProfile(updatedUser);
       await clearPendingAuth();
-      return { success: true, user: existingUser };
+      return { success: true, user: updatedUser };
     }
 
     // Get pending auth data (name, phone from signup form)
     console.log('🔄 createRewardsMemberFromAuthUser: Getting pending auth...');
     const pendingAuth = await getPendingAuth();
     console.log('🔄 createRewardsMemberFromAuthUser: Pending auth:', pendingAuth?.email || 'none');
-
-    // Get current anonymous user to link
-    console.log('🔄 createRewardsMemberFromAuthUser: Getting anonymous user...');
-    const anonymousUser = await getAnonymousUser();
-    const deviceId = await getDeviceId();
     console.log('🔄 createRewardsMemberFromAuthUser: Anonymous user:', anonymousUser?.id || 'none', 'Device:', deviceId);
 
     // Create the rewards member

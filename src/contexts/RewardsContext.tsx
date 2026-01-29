@@ -34,6 +34,7 @@ import {
 import { FALLBACK_CONFIG, FALLBACK_DRAWING } from '../data/rewardsFallbackData';
 import { getCurrentUserState } from '../services/anonymousUserService';
 import { getRewardsMemberForAnonymousUser } from '../services/userService';
+import { onAuthStateChange } from '../services/authService';
 
 // =============================================================================
 // Context Types
@@ -303,6 +304,23 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
 
     return () => {
       subscription.remove();
+    };
+  }, [refresh]);
+
+  // Refresh rewards data when user signs in
+  useEffect(() => {
+    const authUnsubscribe = onAuthStateChange((event, _session) => {
+      if (event === 'SIGNED_IN') {
+        console.log('🔄 RewardsContext - Refreshing after sign in...');
+        // Delay to allow createRewardsMemberFromAuthUser to complete
+        setTimeout(() => {
+          refresh();
+        }, 2000);
+      }
+    });
+
+    return () => {
+      authUnsubscribe?.();
     };
   }, [refresh]);
 

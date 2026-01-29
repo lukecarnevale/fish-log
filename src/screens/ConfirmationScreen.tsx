@@ -89,10 +89,24 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > DISMISS_THRESHOLD) {
-          // Navigate immediately so Home screen appears behind the animating confirmation
-          navigation.reset({
-            index: 0,
-            routes: [{ name: "Home" }],
+          // Animate off screen first, then navigate
+          Animated.parallel([
+            Animated.timing(translateY, {
+              toValue: SCREEN_HEIGHT,
+              duration: 250,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            // Navigate after animation completes
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Home" }],
+            });
           });
         } else {
           // Snap back
