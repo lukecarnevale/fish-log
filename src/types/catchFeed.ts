@@ -5,15 +5,25 @@
 //
 
 /**
+ * Represents a species and count for a catch entry.
+ */
+export interface SpeciesCatch {
+  species: string;
+  count: number;
+}
+
+/**
  * Represents a single catch entry in the feed.
+ * Now supports multiple species from a single submission.
  */
 export interface CatchFeedEntry {
   id: string;
   userId: string;
   anglerName: string;           // First name + last initial (e.g., "John D.")
   anglerProfileImage?: string;
-  species: string;
-  length?: string;              // e.g., "24 inches"
+  species: string;              // Primary species (for backwards compatibility and theming)
+  speciesList: SpeciesCatch[];  // All species caught in this submission
+  totalFish: number;            // Total count of all fish
   photoUrl?: string;
   catchDate: string;            // ISO date string
   location?: string;            // General area (e.g., "Pamlico Sound")
@@ -67,6 +77,8 @@ export interface AnglerProfileRow {
 
 /**
  * Transform a Supabase row to a CatchFeedEntry.
+ * Note: This is a legacy function for single-species entries.
+ * For multi-species entries, use the transformation in catchFeedService.
  */
 export function transformToCatchFeedEntry(row: CatchFeedRow): CatchFeedEntry {
   const firstName = row.first_name || 'Anonymous';
@@ -78,7 +90,8 @@ export function transformToCatchFeedEntry(row: CatchFeedRow): CatchFeedEntry {
     anglerName: `${firstName} ${lastInitial}`.trim(),
     anglerProfileImage: row.profile_image_url || undefined,
     species: row.species,
-    length: row.length || undefined,
+    speciesList: [{ species: row.species, count: 1 }],
+    totalFish: 1,
     photoUrl: row.photo_url || undefined,
     catchDate: row.catch_date || row.created_at,
     location: row.location || undefined,

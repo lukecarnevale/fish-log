@@ -9,6 +9,7 @@ import { supabase, isSupabaseConnected } from '../config/supabase';
 import {
   CatchFeedEntry,
   AnglerProfile,
+  SpeciesCatch,
   transformToCatchFeedEntry,
 } from '../types/catchFeed';
 
@@ -66,7 +67,7 @@ async function fetchCatchesFromSupabase(limit: number = 50): Promise<CatchFeedEn
     return [];
   }
 
-  // Transform to CatchFeedEntry - create one entry per species caught
+  // Transform to CatchFeedEntry - create ONE entry per report with all species
   const entries: CatchFeedEntry[] = [];
 
   for (const report of data) {
@@ -86,8 +87,8 @@ async function fetchCatchesFromSupabase(limit: number = 50): Promise<CatchFeedEn
     const lastInitial = user.last_name ? `${user.last_name.charAt(0)}.` : '';
     const anglerName = `${firstName} ${lastInitial}`.trim();
 
-    // Create entries for each species with count > 0
-    const speciesCounts = [
+    // Collect all species with count > 0
+    const allSpecies = [
       { species: 'Red Drum', count: report.red_drum_count },
       { species: 'Southern Flounder', count: report.flounder_count },
       { species: 'Spotted Seatrout', count: report.spotted_seatrout_count },
@@ -95,21 +96,34 @@ async function fetchCatchesFromSupabase(limit: number = 50): Promise<CatchFeedEn
       { species: 'Striped Bass', count: report.striped_bass_count },
     ];
 
-    for (const { species, count } of speciesCounts) {
-      if (count && count > 0) {
-        entries.push({
-          id: `${report.id}-${species}`,
-          userId: user.id,
-          anglerName,
-          anglerProfileImage: user.profile_image_url || undefined,
-          species,
-          photoUrl: report.photo_url || undefined,
-          catchDate: report.harvest_date || report.created_at,
-          location: report.area_label || undefined,
-          createdAt: report.created_at,
-        });
-      }
-    }
+    // Filter to only species with catches
+    const speciesList: SpeciesCatch[] = allSpecies
+      .filter(s => s.count && s.count > 0)
+      .map(s => ({ species: s.species, count: s.count as number }));
+
+    // Skip reports with no fish (shouldn't happen, but just in case)
+    if (speciesList.length === 0) continue;
+
+    // Calculate total fish count
+    const totalFish = speciesList.reduce((sum, s) => sum + s.count, 0);
+
+    // Primary species is the one with the highest count (for theming)
+    const primarySpecies = speciesList.reduce((max, s) =>
+      s.count > max.count ? s : max, speciesList[0]);
+
+    entries.push({
+      id: report.id,
+      userId: user.id,
+      anglerName,
+      anglerProfileImage: user.profile_image_url || undefined,
+      species: primarySpecies.species,
+      speciesList,
+      totalFish,
+      photoUrl: report.photo_url || undefined,
+      catchDate: report.harvest_date || report.created_at,
+      location: report.area_label || undefined,
+      createdAt: report.created_at,
+    });
   }
 
   return entries;
@@ -159,7 +173,7 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
 
   // Collect all species from their reports
   const speciesSet = new Set<string>();
-  const speciesCounts: Record<string, number> = {};
+  const speciesCountsTotal: Record<string, number> = {};
   const recentCatches: CatchFeedEntry[] = [];
 
   for (const report of (reportsData || [])) {
@@ -171,33 +185,43 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
       { species: 'Striped Bass', count: report.striped_bass_count },
     ];
 
-    for (const { species, count } of speciesInReport) {
-      if (count && count > 0) {
-        speciesSet.add(species);
-        speciesCounts[species] = (speciesCounts[species] || 0) + count;
+    // Filter to only species with catches
+    const speciesList: SpeciesCatch[] = speciesInReport
+      .filter(s => s.count && s.count > 0)
+      .map(s => ({ species: s.species, count: s.count as number }));
 
-        // Add to recent catches (limit to first few)
-        if (recentCatches.length < 6) {
-          recentCatches.push({
-            id: `${report.id}-${species}`,
-            userId: userData.id,
-            anglerName: displayName,
-            anglerProfileImage: userData.profile_image_url || undefined,
-            species,
-            photoUrl: report.photo_url || undefined,
-            catchDate: report.harvest_date || report.created_at,
-            location: report.area_label || undefined,
-            createdAt: report.created_at,
-          });
-        }
-      }
+    // Track species for profile stats
+    for (const { species, count } of speciesList) {
+      speciesSet.add(species);
+      speciesCountsTotal[species] = (speciesCountsTotal[species] || 0) + count;
+    }
+
+    // Add to recent catches (one entry per report, limit to 6 reports)
+    if (speciesList.length > 0 && recentCatches.length < 6) {
+      const totalFish = speciesList.reduce((sum, s) => sum + s.count, 0);
+      const primarySpecies = speciesList.reduce((max, s) =>
+        s.count > max.count ? s : max, speciesList[0]);
+
+      recentCatches.push({
+        id: report.id,
+        userId: userData.id,
+        anglerName: displayName,
+        anglerProfileImage: userData.profile_image_url || undefined,
+        species: primarySpecies.species,
+        speciesList,
+        totalFish,
+        photoUrl: report.photo_url || undefined,
+        catchDate: report.harvest_date || report.created_at,
+        location: report.area_label || undefined,
+        createdAt: report.created_at,
+      });
     }
   }
 
   // Find top species
   let topSpecies: string | undefined;
   let topCount = 0;
-  for (const [species, count] of Object.entries(speciesCounts)) {
+  for (const [species, count] of Object.entries(speciesCountsTotal)) {
     if (count > topCount) {
       topCount = count;
       topSpecies = species;

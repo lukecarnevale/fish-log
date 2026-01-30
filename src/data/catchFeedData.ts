@@ -21,6 +21,7 @@ const daysAgo = (days: number) => {
 
 /**
  * Sample catch feed entries for development.
+ * Now includes multi-species submissions to demonstrate the new format.
  */
 export const sampleCatchFeedEntries: CatchFeedEntry[] = [
   {
@@ -28,7 +29,11 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-1',
     anglerName: 'Mike J.',
     species: 'Red Drum',
-    length: '28 inches',
+    speciesList: [
+      { species: 'Red Drum', count: 2 },
+      { species: 'Spotted Seatrout', count: 3 },
+    ],
+    totalFish: 5,
     location: 'Pamlico Sound',
     catchDate: hoursAgo(2),
     createdAt: hoursAgo(2),
@@ -38,7 +43,10 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-2',
     anglerName: 'Sarah W.',
     species: 'Southern Flounder',
-    length: '19 inches',
+    speciesList: [
+      { species: 'Southern Flounder', count: 1 },
+    ],
+    totalFish: 1,
     location: 'Bogue Sound',
     catchDate: hoursAgo(5),
     createdAt: hoursAgo(5),
@@ -48,6 +56,12 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-3',
     anglerName: 'David C.',
     species: 'Spotted Seatrout',
+    speciesList: [
+      { species: 'Spotted Seatrout', count: 2 },
+      { species: 'Red Drum', count: 1 },
+      { species: 'Weakfish', count: 1 },
+    ],
+    totalFish: 4,
     location: 'Core Sound',
     catchDate: hoursAgo(8),
     createdAt: hoursAgo(8),
@@ -57,7 +71,10 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-1',
     anglerName: 'Mike J.',
     species: 'Striped Bass',
-    length: '32 inches',
+    speciesList: [
+      { species: 'Striped Bass', count: 1 },
+    ],
+    totalFish: 1,
     location: 'Albemarle Sound',
     catchDate: daysAgo(1),
     createdAt: daysAgo(1),
@@ -67,7 +84,11 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-4',
     anglerName: 'Emma R.',
     species: 'Red Drum',
-    length: '24 inches',
+    speciesList: [
+      { species: 'Red Drum', count: 3 },
+      { species: 'Southern Flounder', count: 2 },
+    ],
+    totalFish: 5,
     location: 'Neuse River',
     catchDate: daysAgo(1),
     createdAt: daysAgo(1),
@@ -77,6 +98,10 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-5',
     anglerName: 'James W.',
     species: 'Weakfish',
+    speciesList: [
+      { species: 'Weakfish', count: 2 },
+    ],
+    totalFish: 2,
     location: 'Pamlico Sound',
     catchDate: daysAgo(2),
     createdAt: daysAgo(2),
@@ -86,7 +111,10 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-2',
     anglerName: 'Sarah W.',
     species: 'Spotted Seatrout',
-    length: '22 inches',
+    speciesList: [
+      { species: 'Spotted Seatrout', count: 1 },
+    ],
+    totalFish: 1,
     location: 'Bogue Sound',
     catchDate: daysAgo(2),
     createdAt: daysAgo(2),
@@ -96,7 +124,11 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-6',
     anglerName: 'Linda M.',
     species: 'Southern Flounder',
-    length: '21 inches',
+    speciesList: [
+      { species: 'Southern Flounder', count: 2 },
+      { species: 'Spotted Seatrout', count: 1 },
+    ],
+    totalFish: 3,
     location: 'Cape Fear River',
     catchDate: daysAgo(3),
     createdAt: daysAgo(3),
@@ -106,7 +138,10 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-3',
     anglerName: 'David C.',
     species: 'Red Drum',
-    length: '26 inches',
+    speciesList: [
+      { species: 'Red Drum', count: 1 },
+    ],
+    totalFish: 1,
     location: 'Core Sound',
     catchDate: daysAgo(4),
     createdAt: daysAgo(4),
@@ -116,6 +151,12 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     userId: 'user-7',
     anglerName: 'Robert T.',
     species: 'Striped Bass',
+    speciesList: [
+      { species: 'Striped Bass', count: 2 },
+      { species: 'Red Drum', count: 2 },
+      { species: 'Weakfish', count: 1 },
+    ],
+    totalFish: 5,
     location: 'Roanoke River',
     catchDate: daysAgo(5),
     createdAt: daysAgo(5),

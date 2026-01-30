@@ -1,6 +1,6 @@
 // screens/SpeciesInfoScreen.tsx
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   Text,
   View,
@@ -13,8 +13,12 @@ import {
   ListRenderItem,
   Animated,
   StyleSheet,
+  PanResponder,
+  GestureResponderEvent,
+  LayoutChangeEvent,
 } from "react-native";
 import { StackNavigationProp } from "@react-navigation/stack";
+import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../types";
 import { EnhancedFishSpecies } from "../types/fishSpecies";
 import { useAllFishSpecies } from "../api/speciesApi";
@@ -29,8 +33,11 @@ type SpeciesInfoScreenNavigationProp = StackNavigationProp<
   "SpeciesInfo"
 >;
 
+type SpeciesInfoScreenRouteProp = RouteProp<RootStackParamList, "SpeciesInfo">;
+
 interface SpeciesInfoScreenProps {
   navigation: SpeciesInfoScreenNavigationProp;
+  route: SpeciesInfoScreenRouteProp;
 }
 
 // Skeleton loader for species cards
@@ -143,12 +150,28 @@ const SkeletonCard: React.FC = () => {
   );
 };
 
-const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => {
+// Species that require mandatory harvest reporting
+const HARVEST_TRACKED_SPECIES = [
+  'Red Drum',
+  'Southern Flounder',
+  'Spotted Seatrout',
+  'Striped Bass',
+  'Weakfish',
+];
+
+// Alphabet for the A-Z scroll component
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route }) => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedSpecies, setSelectedSpecies] = useState<EnhancedFishSpecies | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+  const [showTrackedOnly, setShowTrackedOnly] = useState<boolean>(
+    route.params?.showRequiredOnly ?? false
+  );
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get("window");
+  const flatListRef = useRef<FlatList<EnhancedFishSpecies>>(null);
 
   // Animation for detail view
   const detailAnim = useRef(new Animated.Value(0)).current;
@@ -180,25 +203,118 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
   // Fetch fish species from Supabase
   const { data: fishSpeciesData = [], isLoading, error } = useAllFishSpecies();
 
-  // Filter species based on search query
-  const filteredSpecies = fishSpeciesData.filter((species) => {
-    if (searchQuery === "") return true;
+  // Filter species based on search query and tracked filter, then sort alphabetically
+  const filteredSpecies = fishSpeciesData
+    .filter((species) => {
+      // First check tracked filter
+      if (showTrackedOnly && !HARVEST_TRACKED_SPECIES.includes(species.name)) {
+        return false;
+      }
 
-    const query = searchQuery.toLowerCase();
-    return (
-      species.name.toLowerCase().includes(query) ||
-      species.scientificName.toLowerCase().includes(query) ||
-      (species.commonNames &&
-        species.commonNames.some((name) =>
-          name.toLowerCase().includes(query)
-        ))
-    );
-  });
+      // Then check search query
+      if (searchQuery === "") return true;
+
+      const query = searchQuery.toLowerCase();
+      return (
+        species.name.toLowerCase().includes(query) ||
+        species.scientificName.toLowerCase().includes(query) ||
+        (species.commonNames &&
+          species.commonNames.some((name) =>
+            name.toLowerCase().includes(query)
+          ))
+      );
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Get available letters from filtered species
+  const availableLetters = new Set(
+    filteredSpecies.map((species) => species.name.charAt(0).toUpperCase())
+  );
+
+  // State for the active letter being touched
+  const [activeLetter, setActiveLetter] = useState<string | null>(null);
+  const alphabetContainerRef = useRef<View>(null);
+  const alphabetLayoutRef = useRef<{ y: number; height: number }>({ y: 0, height: 0 });
+
+  // Use refs to store latest values for PanResponder (avoids stale closure)
+  const filteredSpeciesRef = useRef(filteredSpecies);
+  const availableLettersRef = useRef(availableLetters);
+
+  // Keep refs updated
+  filteredSpeciesRef.current = filteredSpecies;
+  availableLettersRef.current = availableLetters;
+
+  // Get letter from Y position within the alphabet container
+  const getLetterFromY = (pageY: number) => {
+    const { y, height } = alphabetLayoutRef.current;
+    const relativeY = pageY - y;
+    const letterHeight = height / ALPHABET.length;
+    const index = Math.floor(relativeY / letterHeight);
+
+    if (index >= 0 && index < ALPHABET.length) {
+      return ALPHABET[index];
+    }
+    return null;
+  };
+
+  // Handle alphabet layout measurement
+  const onAlphabetLayout = useCallback((_event: LayoutChangeEvent) => {
+    alphabetContainerRef.current?.measureInWindow((_x, y, _width, height) => {
+      alphabetLayoutRef.current = { y, height };
+    });
+  }, []);
+
+  // Handle touch/pan on alphabet sidebar - uses refs to get latest values
+  const handleAlphabetTouch = (pageY: number) => {
+    const letter = getLetterFromY(pageY);
+    if (letter) {
+      setActiveLetter(letter);
+
+      // Only scroll if letter has species
+      if (availableLettersRef.current.has(letter)) {
+        const index = filteredSpeciesRef.current.findIndex(
+          (species) => species.name.charAt(0).toUpperCase() === letter
+        );
+        if (index !== -1 && flatListRef.current) {
+          flatListRef.current.scrollToIndex({
+            index,
+            animated: false, // Immediate for smooth scrubbing
+            viewPosition: 0,
+          });
+        }
+      }
+    }
+  };
+
+  // PanResponder for alphabet sidebar
+  const alphabetPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt: GestureResponderEvent) => {
+        handleAlphabetTouch(evt.nativeEvent.pageY);
+      },
+      onPanResponderMove: (evt: GestureResponderEvent) => {
+        handleAlphabetTouch(evt.nativeEvent.pageY);
+      },
+      onPanResponderRelease: () => {
+        setActiveLetter(null);
+      },
+      onPanResponderTerminate: () => {
+        setActiveLetter(null);
+      },
+    })
+  ).current;
 
   // Render fish species item in the list
-  const renderSpeciesItem: ListRenderItem<EnhancedFishSpecies> = ({ item }) => (
+  const renderSpeciesItem: ListRenderItem<EnhancedFishSpecies> = ({ item }) => {
+    const isRequiredSpecies = HARVEST_TRACKED_SPECIES.includes(item.name);
+    return (
     <TouchableOpacity
-      style={styles.speciesCard}
+      style={[
+        styles.speciesCard,
+        isRequiredSpecies && localStyles.requiredSpeciesCard,
+      ]}
       onPress={() => handleSelectSpecies(item)}
       activeOpacity={0.7}
     >
@@ -257,7 +373,8 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
       </View>
     </TouchableOpacity>
   );
-  
+  };
+
   // Get text representation of active seasons
   const getActiveSeasons = (seasons: any): string => {
     const activeSeasons = [];
@@ -615,7 +732,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
           {renderFishingTips()}
 
           {/* Report button - only show for mandatory harvest report species */}
-          {['Red Drum', 'Southern Flounder', 'Spotted Seatrout', 'Striped Bass', 'Weakfish'].includes(selectedSpecies.name) && (
+          {HARVEST_TRACKED_SPECIES.includes(selectedSpecies.name) && (
             <TouchableOpacity
               style={styles.reportButton}
               onPress={() => {
@@ -644,15 +761,39 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
       noScroll
     >
       <View style={localStyles.container}>
-        {/* Floating sticky search bar */}
+        {/* Floating sticky search bar with filter toggle */}
         <View style={localStyles.floatingSearchContainer}>
-          <TextInput
-            style={[styles.searchInput, localStyles.searchInput]}
-            placeholder="Search by name..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            clearButtonMode="while-editing"
-          />
+          <View style={localStyles.searchRow}>
+            <TextInput
+              style={[styles.searchInput, localStyles.searchInput, localStyles.searchInputFlex]}
+              placeholder="Search by name..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              clearButtonMode="while-editing"
+            />
+            <TouchableOpacity
+              style={[
+                localStyles.filterToggle,
+                showTrackedOnly && localStyles.filterToggleActive,
+              ]}
+              onPress={() => setShowTrackedOnly(!showTrackedOnly)}
+              activeOpacity={0.7}
+            >
+              <Feather
+                name="file-text"
+                size={16}
+                color={showTrackedOnly ? colors.white : '#00897B'}
+              />
+              <Text
+                style={[
+                  localStyles.filterToggleText,
+                  showTrackedOnly && localStyles.filterToggleTextActive,
+                ]}
+              >
+                Required
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Species list - scrolls under the search bar */}
@@ -665,26 +806,78 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation }) => 
             showsVerticalScrollIndicator={false}
           />
         ) : (
-          <FlatList
-            data={filteredSpecies}
-            renderItem={renderSpeciesItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={localStyles.listContent}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                {error ? (
-                  <Text style={styles.emptyText}>
-                    Unable to load species data. Please check your connection.
-                  </Text>
-                ) : (
-                  <Text style={styles.emptyText}>
-                    No species found matching your search.
-                  </Text>
-                )}
+          <View style={localStyles.listWithAlphabetContainer}>
+            <FlatList
+              ref={flatListRef}
+              data={filteredSpecies}
+              renderItem={renderSpeciesItem}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={localStyles.listContent}
+              showsVerticalScrollIndicator={false}
+              onScrollToIndexFailed={(info) => {
+                // Handle scroll failure by scrolling to approximate position
+                flatListRef.current?.scrollToOffset({
+                  offset: info.averageItemLength * info.index,
+                  animated: true,
+                });
+              }}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  {error ? (
+                    <Text style={styles.emptyText}>
+                      Unable to load species data. Please check your connection.
+                    </Text>
+                  ) : (
+                    <Text style={styles.emptyText}>
+                      No species found matching your search.
+                    </Text>
+                  )}
+                </View>
+              }
+            />
+
+            {/* A-Z Scroll Sidebar */}
+            {filteredSpecies.length > 0 && (
+              <View
+                style={localStyles.alphabetSidebar}
+                {...alphabetPanResponder.panHandlers}
+              >
+                <View
+                  ref={alphabetContainerRef}
+                  style={localStyles.alphabetSidebarInner}
+                  onLayout={onAlphabetLayout}
+                >
+                  {ALPHABET.map((letter) => {
+                    const isAvailable = availableLetters.has(letter);
+                    const isActive = activeLetter === letter;
+                    return (
+                      <View
+                        key={letter}
+                        style={localStyles.alphabetLetterContainer}
+                      >
+                        <Text
+                          style={[
+                            localStyles.alphabetLetter,
+                            !isAvailable && localStyles.alphabetLetterDisabled,
+                            isActive && localStyles.alphabetLetterActive,
+                          ]}
+                        >
+                          {letter}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
-            }
-          />
+            )}
+
+            {/* Active letter indicator bubble */}
+            {activeLetter && (
+              <View style={localStyles.letterBubble}>
+                <Text style={localStyles.letterBubbleText}>{activeLetter}</Text>
+              </View>
+            )}
+          </View>
         )}
       </View>
     </ScreenLayout>
@@ -699,10 +892,15 @@ const localStyles = StyleSheet.create({
   floatingSearchContainer: {
     position: 'absolute',
     top: -24, // Pull up to float between header and content
-    left: 32,
-    right: 32,
+    left: 16,
+    right: 16,
     zIndex: 100,
     elevation: 10,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   searchInput: {
     // Add shadow to enhance floating effect
@@ -712,10 +910,116 @@ const localStyles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  searchInputFlex: {
+    flex: 1,
+  },
+  filterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: '#00897B', // Teal border to match active state
+    // Shadow to match search bar
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  filterToggleActive: {
+    backgroundColor: '#00897B', // Vibrant teal for clear visibility
+    borderColor: '#00897B',
+  },
+  requiredSpeciesCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#00897B', // Same teal as the filter toggle
+  },
+  filterToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#00897B', // Teal to match border
+  },
+  filterToggleTextActive: {
+    color: colors.white,
+  },
   listContent: {
     paddingTop: 40, // Space for the floating search bar
     paddingHorizontal: 16,
     paddingBottom: 24,
+    paddingRight: 32, // Extra space for alphabet sidebar
+  },
+  listWithAlphabetContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  alphabetSidebar: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 50,
+  },
+  alphabetSidebarInner: {
+    backgroundColor: 'rgba(227, 242, 253, 0.95)', // Light blue to match content area
+    borderRadius: 9,
+    paddingVertical: 4,
+    alignItems: 'center',
+  },
+  alphabetLetterContainer: {
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  alphabetLetter: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  alphabetLetterDisabled: {
+    color: colors.lightGray,
+    opacity: 0.5,
+  },
+  alphabetLetterActive: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.white,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    textAlign: 'center',
+    lineHeight: 16,
+    overflow: 'hidden',
+  },
+  letterBubble: {
+    position: 'absolute',
+    right: 40,
+    top: '45%',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  letterBubbleText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.white,
   },
 });
 

@@ -19,7 +19,7 @@ import {
   StatusBar,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -33,6 +33,7 @@ import { getAllSpeciesThemes } from '../constants/speciesColors';
 import CatchCard from '../components/CatchCard';
 import AnglerProfileModal from '../components/AnglerProfileModal';
 import WaveBackground from '../components/WaveBackground';
+import TopAnglersSection from '../components/TopAnglersSection';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 
 // Use sample data for development (set to false when Supabase is ready)
@@ -134,7 +135,7 @@ const FilterPill: React.FC<{
   </TouchableOpacity>
 );
 
-/** Filter picker modal */
+/** Filter picker modal with proper animations */
 const FilterPickerModal: React.FC<{
   visible: boolean;
   title: string;
@@ -142,111 +143,93 @@ const FilterPickerModal: React.FC<{
   selectedValue: string | null;
   onSelect: (value: string | null) => void;
   onClose: () => void;
-}> = ({ visible, title, options, selectedValue, onSelect, onClose }) => (
-  <Modal
-    visible={visible}
-    transparent
-    animationType="slide"
-    onRequestClose={onClose}
-  >
-    <View style={styles.modalOverlay}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{title}</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Feather name="x" size={24} color={colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          data={options}
-          keyExtractor={(item) => item}
-          style={styles.modalList}
-          renderItem={({ item }) => {
-            const isAllOption = item.startsWith('All ');
-            const isSelected = isAllOption
-              ? selectedValue === null
-              : selectedValue === item;
-            return (
-              <TouchableOpacity
-                style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
-                onPress={() => {
-                  onSelect(isAllOption ? null : item);
-                  onClose();
-                }}
-              >
-                <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
-                  {item}
-                </Text>
-                {isSelected && (
-                  <Feather name="check" size={20} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-            );
-          }}
-          ItemSeparatorComponent={() => <View style={styles.modalSeparator} />}
+}> = ({ visible, title, options, selectedValue, onSelect, onClose }) => {
+  const insets = useSafeAreaInsets();
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // Animate content slide when modal becomes visible
+  useEffect(() => {
+    if (visible) {
+      slideAnim.setValue(0);
+      Animated.spring(slideAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    }
+  }, [visible, slideAnim]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        {/* Touchable overlay to close */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          activeOpacity={1}
+          onPress={onClose}
         />
+
+        {/* Animated content container */}
+        <Animated.View
+          style={[
+            styles.modalContainer,
+            {
+              paddingBottom: insets.bottom + spacing.md,
+              transform: [{
+                translateY: slideAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [300, 0],
+                }),
+              }],
+            },
+          ]}
+        >
+          <View style={styles.modalHandle} />
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Feather name="x" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={options}
+            keyExtractor={(item) => item}
+            style={styles.modalList}
+            contentContainerStyle={{ paddingBottom: spacing.sm }}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const isAllOption = item.startsWith('All ');
+              const isSelected = isAllOption
+                ? selectedValue === null
+                : selectedValue === item;
+              return (
+                <TouchableOpacity
+                  style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+                  onPress={() => {
+                    onSelect(isAllOption ? null : item);
+                    onClose();
+                  }}
+                >
+                  <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                    {item}
+                  </Text>
+                  {isSelected && (
+                    <Feather name="check" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              );
+            }}
+            ItemSeparatorComponent={() => <View style={styles.modalSeparator} />}
+          />
+        </Animated.View>
       </View>
-    </View>
-  </Modal>
-);
-
-/** Top angler card */
-const TopAnglerCard: React.FC<{ angler: TopAngler }> = ({ angler }) => {
-  const getIcon = (): keyof typeof Feather.glyphMap => {
-    switch (angler.type) {
-      case 'catches':
-        return 'award';
-      case 'species':
-        return 'list';
-      case 'length':
-        return 'maximize-2';
-      default:
-        return 'star';
-    }
-  };
-
-  const getIconColor = () => {
-    switch (angler.type) {
-      case 'catches':
-        return '#FFB300'; // Gold
-      case 'species':
-        return colors.secondary;
-      case 'length':
-        return '#7B1FA2'; // Purple
-      default:
-        return colors.primary;
-    }
-  };
-
-  return (
-    <View style={styles.topAnglerCard}>
-      <View style={[styles.topAnglerIcon, { backgroundColor: `${getIconColor()}15` }]}>
-        <Feather name={getIcon()} size={18} color={getIconColor()} />
-      </View>
-      <Text style={styles.topAnglerName} numberOfLines={1}>
-        {angler.displayName}
-      </Text>
-      <Text style={styles.topAnglerValue}>
-        {typeof angler.value === 'number' ? angler.value : angler.value}
-      </Text>
-      <Text style={styles.topAnglerLabel}>{angler.label}</Text>
-    </View>
-  );
-};
-
-/** Top anglers section */
-const TopAnglersSection: React.FC<{ anglers: TopAngler[] }> = ({ anglers }) => {
-  if (anglers.length === 0) return null;
-
-  return (
-    <View style={styles.topAnglersSection}>
-      <Text style={styles.topAnglersTitle}>This Week's Top Anglers</Text>
-      <View style={styles.topAnglersRow}>
-        {anglers.map((angler, index) => (
-          <TopAnglerCard key={`${angler.type}-${index}`} angler={angler} />
-        ))}
-      </View>
-    </View>
+    </Modal>
   );
 };
 
@@ -299,6 +282,40 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     extrapolate: 'clamp',
   });
 
+  // Slow pulsing animation for Live dot
+  const livePulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(livePulse, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(livePulse, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulseAnimation.start();
+    return () => pulseAnimation.stop();
+  }, [livePulse]);
+
+  // Opacity pulse for the live dot
+  const liveDotOpacity = livePulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.4],
+  });
+
+  // Scale pulse for the live dot
+  const liveDotScale = livePulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.15],
+  });
+
   // Derive available areas from feed data
   const availableAreas = useMemo(() => {
     const areas = new Set(entries.map(e => e.location).filter(Boolean) as string[]);
@@ -315,7 +332,12 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   const filteredEntries = useMemo(() => {
     return entries.filter(entry => {
       if (selectedArea && entry.location !== selectedArea) return false;
-      if (selectedSpecies && entry.species !== selectedSpecies) return false;
+      // Check if any species in the list matches the filter
+      if (selectedSpecies) {
+        const speciesList = entry.speciesList || [{ species: entry.species, count: 1 }];
+        const hasSpecies = speciesList.some(s => s.species === selectedSpecies);
+        if (!hasSpecies) return false;
+      }
       return true;
     });
   }, [entries, selectedArea, selectedSpecies]);
@@ -440,9 +462,12 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
   const keyExtractor = (item: CatchFeedEntry) => item.id;
 
-  // Render list header (filters + top anglers)
+  // Render list header (top anglers + filters)
   const renderListHeader = () => (
     <View>
+      {/* Top Anglers Section */}
+      <TopAnglersSection anglers={topAnglers} />
+
       {/* Filter Row */}
       <View style={styles.filterRow}>
         <FilterPill
@@ -457,8 +482,15 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         />
       </View>
 
-      {/* Top Anglers Section */}
-      <TopAnglersSection anglers={topAnglers} />
+      {/* Premium divider between filters and content */}
+      <View style={styles.filterDividerContainer}>
+        <LinearGradient
+          colors={['transparent', colors.primary, 'transparent']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.filterDividerGradient}
+        />
+      </View>
     </View>
   );
 
@@ -528,7 +560,15 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
             {/* Live Badge */}
             <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
+              <Animated.View
+                style={[
+                  styles.liveDot,
+                  {
+                    opacity: liveDotOpacity,
+                    transform: [{ scale: liveDotScale }],
+                  },
+                ]}
+              />
               <Text style={styles.liveText}>Live</Text>
             </View>
           </View>
@@ -675,20 +715,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    gap: 7,
   },
   liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#4CAF50',
   },
   liveText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: colors.white,
   },
 
@@ -752,7 +792,7 @@ const styles = StyleSheet.create({
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     gap: spacing.sm,
   },
   filterPill: {
@@ -785,55 +825,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Top anglers section
-  topAnglersSection: {
-    paddingHorizontal: spacing.md,
+  // Filter divider
+  filterDividerContainer: {
+    paddingHorizontal: spacing.xl,
     marginBottom: spacing.md,
   },
-  topAnglersTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  topAnglersRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  topAnglerCard: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  topAnglerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  topAnglerName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 2,
-  },
-  topAnglerValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  topAnglerLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
+  filterDividerGradient: {
+    height: 1.5,
+    width: '100%',
+    opacity: 0.25,
   },
 
   // Modal styles
@@ -847,6 +847,21 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '70%',
+    // Shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
   },
   modalHeader: {
     flexDirection: 'row',

@@ -1113,8 +1113,21 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       {/* Content area with light background */}
       <View style={styles.contentArea}>
       <View style={styles.infoContainer}>
-        {/* Rewards Member Banner - shown when signed in */}
-        {rewardsMember && rewardsMemberUser && (
+        {/* Rewards Status Section - with skeleton loading */}
+        {loading ? (
+          /* Skeleton loader while checking rewards status */
+          <View style={[styles.infoSection, localStyles.skeletonSection]}>
+            <View style={localStyles.skeletonHeader}>
+              <View style={localStyles.skeletonIcon} />
+              <View style={localStyles.skeletonTextContainer}>
+                <View style={localStyles.skeletonTitle} />
+                <View style={localStyles.skeletonSubtitle} />
+              </View>
+            </View>
+            <View style={localStyles.skeletonDescription} />
+            <View style={localStyles.skeletonButton} />
+          </View>
+        ) : rewardsMember && rewardsMemberUser ? (
           <View style={[styles.infoSection, localStyles.rewardsMemberSection]}>
             <View style={localStyles.rewardsMemberHeader}>
               <View style={localStyles.rewardsMemberIcon}>
@@ -1147,10 +1160,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               )}
             </TouchableOpacity>
           </View>
-        )}
-
-        {/* Pending Magic Link Auth Section */}
-        {pendingAuth && !rewardsMember && (
+        ) : pendingAuth ? (
           <View style={[styles.infoSection, localStyles.pendingAuthSection]}>
             <View style={localStyles.pendingAuthHeader}>
               <View style={localStyles.pendingAuthIcon}>
@@ -1224,10 +1234,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </View>
-        )}
-
-        {/* Sign In / Join Rewards Section - shown when not a member and no pending auth */}
-        {!rewardsMember && !pendingAuth && (
+        ) : (
+          /* Sign In / Join Rewards Section - shown when not a member and no pending auth */
           <View style={[styles.infoSection, localStyles.signInSection]}>
             <View style={localStyles.signInHeader}>
               <View style={localStyles.signInIcon}>
@@ -2268,6 +2276,56 @@ const localStyles = StyleSheet.create({
     color: colors.white,
     fontSize: 15,
     fontWeight: '600',
+  },
+  // Skeleton loader styles
+  skeletonSection: {
+    backgroundColor: colors.lightGray,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  skeletonIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.border,
+    marginRight: spacing.sm,
+  },
+  skeletonTextContainer: {
+    flex: 1,
+  },
+  skeletonTitle: {
+    width: 120,
+    height: 16,
+    borderRadius: 4,
+    backgroundColor: colors.border,
+    marginBottom: 6,
+  },
+  skeletonSubtitle: {
+    width: 180,
+    height: 12,
+    borderRadius: 4,
+    backgroundColor: colors.border,
+  },
+  skeletonDescription: {
+    width: '100%',
+    height: 40,
+    borderRadius: 4,
+    backgroundColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  skeletonButton: {
+    width: '100%',
+    height: 40,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.border,
   },
 });
 

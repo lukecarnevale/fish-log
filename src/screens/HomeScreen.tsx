@@ -553,13 +553,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         {/* Quarterly Rewards Card */}
         <QuarterlyRewardsCard
           onReportPress={() => navigateToScreen("ReportForm")}
+          isSignedIn={rewardsMember}
         />
 
         {/* Advertisement Banner */}
         <AdvertisementBanner />
 
         {showInfoCard && (
-          <MandatoryHarvestCard onDismiss={dismissInfoCard} />
+          <MandatoryHarvestCard
+            onDismiss={dismissInfoCard}
+            onFishPress={() => navigation.navigate('SpeciesInfo', { showRequiredOnly: true })}
+          />
         )}
         
         {/* Footer with sponsor logos - wrapped with dark blue behind it */}
