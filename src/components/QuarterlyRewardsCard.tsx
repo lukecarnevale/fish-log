@@ -4,7 +4,7 @@
 // Drop-in replacement for PrizesComponent.
 //
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -29,6 +30,8 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 
 interface QuarterlyRewardsCardProps {
   onReportPress?: () => void;
+  /** Whether the user is signed in (rewards member) */
+  isSignedIn?: boolean;
 }
 
 // ============================================
@@ -202,7 +205,7 @@ function getPrizeIllustration(category: PrizeCategory): React.ReactNode {
 // MAIN COMPONENT
 // ============================================
 
-const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress }) => {
+const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false }) => {
   const navigation = useNavigation<NavigationProp>();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [isEntering, setIsEntering] = useState(false);
@@ -218,6 +221,34 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     acknowledgeNewQuarter,
     enterDrawing,
   } = useRewards();
+
+  // Slow pulsing animation for progress indicator border
+  const progressPulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progressPulse, {
+          toValue: 1,
+          duration: 2000, // Slower - 2 seconds up
+          useNativeDriver: false,
+        }),
+        Animated.timing(progressPulse, {
+          toValue: 0,
+          duration: 2000, // Slower - 2 seconds down
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    pulseAnimation.start();
+    return () => pulseAnimation.stop();
+  }, [progressPulse]);
+
+  // Border color pulse - white to orange
+  const progressBorderColor = progressPulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLORS.white, COLORS.orange],
+  });
 
   // Handle entering the drawing directly (for returning members)
   const handleEnterDrawing = async () => {
@@ -369,6 +400,23 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
 
   return (
     <View style={styles.container}>
+      {/* Entry Status Tab - File folder style tab sticking up from behind */}
+      <View style={styles.entryStatusTab}>
+        <View style={[
+          styles.entryStatusContent,
+          hasEnteredCurrentRaffle ? styles.entryStatusEntered : styles.entryStatusNotEntered
+        ]}>
+          <Feather
+            name={hasEnteredCurrentRaffle ? "check-circle" : "alert-circle"}
+            size={13}
+            color="#FFFFFF"
+          />
+          <Text style={styles.entryStatusText}>
+            {hasEnteredCurrentRaffle ? "Entered" : "Not Entered"}
+          </Text>
+        </View>
+      </View>
+
       {/* Main Card Container */}
       <View style={styles.cardContainer}>
 
@@ -401,8 +449,8 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
         {/* Content Area */}
         <View style={styles.contentContainer}>
 
-          {/* New Quarter Banner */}
-          {isNewQuarter && (
+          {/* New Quarter Banner (for signed-in members) */}
+          {isSignedIn && isNewQuarter && (
             <TouchableOpacity
               style={styles.newQuarterBanner}
               onPress={handleEnterDrawing}
@@ -428,8 +476,8 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             </TouchableOpacity>
           )}
 
-          {/* Enter Drawing Button (for returning members not yet entered) */}
-          {!hasEnteredCurrentRaffle && !isNewQuarter && (
+          {/* Enter Drawing Button (for signed-in members not yet entered) */}
+          {isSignedIn && !hasEnteredCurrentRaffle && !isNewQuarter && (
             <TouchableOpacity
               style={styles.enterDrawingButton}
               onPress={handleEnterDrawing}
@@ -459,7 +507,15 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                 end={{ x: 1, y: 0 }}
                 style={[styles.progressBarFill, { width: `${calculated.periodProgress}%` }]}
               />
-              <View style={[styles.progressIndicator, { left: `${calculated.periodProgress}%` }]} />
+              <Animated.View
+                style={[
+                  styles.progressIndicator,
+                  {
+                    left: `${calculated.periodProgress}%`,
+                    borderColor: progressBorderColor,
+                  },
+                ]}
+              />
             </View>
           </View>
 
@@ -474,7 +530,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             <View style={styles.infoContent}>
               <Text style={styles.infoTitle}>How It Works</Text>
               <Text style={styles.infoText}>
-                {config?.noPurchaseNecessaryText || 'No purchase or report necessary to enter.'}
+                Must be a registered user of the Fish Log app.
               </Text>
             </View>
             <Feather name="chevron-right" size={20} color="#ccc" />
@@ -577,6 +633,45 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginVertical: 8,
+    marginTop: 20, // Extra space for the tab
+  },
+
+  // Entry Status Tab - File folder style (appears behind card)
+  entryStatusTab: {
+    position: 'absolute',
+    top: -18,
+    right: 16,
+    zIndex: -1, // Behind the card
+  },
+  entryStatusContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 5,
+    paddingBottom: 18, // Extra padding at bottom to tuck under card
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    gap: 6,
+    minWidth: 120, // Wider tab
+  },
+  entryStatusEntered: {
+    backgroundColor: '#4CAF50', // Solid green for better visibility
+  },
+  entryStatusNotEntered: {
+    backgroundColor: '#FF9800', // Solid orange for better visibility
+  },
+  entryStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    color: '#FFFFFF', // White text for contrast
+  },
+  entryStatusTextEntered: {
+    color: '#FFFFFF',
+  },
+  entryStatusTextNotEntered: {
+    color: '#FFFFFF',
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -603,6 +698,7 @@ const styles = StyleSheet.create({
   cardContainer: {
     backgroundColor: COLORS.white,
     borderRadius: 20,
+    zIndex: 1, // Above the tab
     overflow: 'hidden',
   },
 
@@ -691,14 +787,15 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: COLORS.orange,
-    borderWidth: 2,
-    borderColor: COLORS.white,
+    borderWidth: 2.5,
+    borderColor: COLORS.white, // This gets animated to orange
     marginLeft: -6,
+    // Subtle shadow for depth
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
+    shadowRadius: 3,
+    elevation: 4,
   },
 
   // Info Rows

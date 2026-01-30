@@ -3,6 +3,7 @@
 // Premium catch card for the community feed.
 // Features clean design without accent bars, glassmorphism badges,
 // and polished angler section matching the ultra-premium aesthetic.
+// Now supports displaying multiple species from a single submission.
 
 import React from 'react';
 import {
@@ -14,7 +15,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { CatchFeedEntry, formatRelativeTime } from '../types/catchFeed';
+import { CatchFeedEntry, SpeciesCatch, formatRelativeTime } from '../types/catchFeed';
 import { colors, spacing, borderRadius } from '../styles/common';
 import { getSpeciesTheme } from '../constants/speciesColors';
 import CatchInfoBadge from './CatchInfoBadge';
@@ -35,6 +36,11 @@ const CatchCard: React.FC<CatchCardProps> = ({
 }) => {
   const relativeTime = formatRelativeTime(entry.createdAt);
   const speciesTheme = getSpeciesTheme(entry.species);
+
+  // Get species list - fallback to single species for backwards compatibility
+  const speciesList: SpeciesCatch[] = entry.speciesList || [{ species: entry.species, count: 1 }];
+  const totalFish = entry.totalFish || speciesList.reduce((sum, s) => sum + s.count, 0);
+  const hasMultipleSpecies = speciesList.length > 1;
 
   const handleCardPress = () => {
     if (onCardPress) {
@@ -70,14 +76,19 @@ const CatchCard: React.FC<CatchCardProps> = ({
             style={styles.compactGradient}
           />
           <View style={styles.compactInfoOverlay}>
+            {/* Show total fish count badge if multiple */}
+            {totalFish > 1 && (
+              <CatchInfoBadge
+                text={`${totalFish} fish`}
+                variant="size"
+              />
+            )}
+            {/* Primary species badge */}
             <CatchInfoBadge
-              text={entry.species}
+              text={hasMultipleSpecies ? `${speciesList.length} species` : entry.species}
               variant="species"
               speciesTheme={speciesTheme}
             />
-            {entry.length && (
-              <CatchInfoBadge text={entry.length} variant="size" />
-            )}
           </View>
         </View>
 
@@ -98,6 +109,11 @@ const CatchCard: React.FC<CatchCardProps> = ({
       </View>
     );
   }
+
+  // Helper to format species with count
+  const formatSpeciesWithCount = (s: SpeciesCatch) => {
+    return s.count > 1 ? `${s.species} (${s.count})` : s.species;
+  };
 
   // Full card for main feed - PREMIUM DESIGN
   return (
@@ -127,13 +143,12 @@ const CatchCard: React.FC<CatchCardProps> = ({
 
         {/* Info badges with glassmorphism effect */}
         <View style={styles.infoOverlay}>
-          <CatchInfoBadge
-            text={entry.species}
-            variant="species"
-            speciesTheme={speciesTheme}
-          />
-          {entry.length && (
-            <CatchInfoBadge text={entry.length} variant="size" />
+          {/* Total fish count badge - shown when multiple fish */}
+          {totalFish > 1 && (
+            <CatchInfoBadge
+              text={`${totalFish} fish`}
+              variant="size"
+            />
           )}
           <View style={styles.infoSpacer} />
           {entry.location && (
@@ -142,6 +157,23 @@ const CatchCard: React.FC<CatchCardProps> = ({
               variant="location"
             />
           )}
+        </View>
+      </View>
+
+      {/* Species list section - shows all caught species */}
+      <View style={styles.speciesSection}>
+        <View style={styles.speciesRow}>
+          {speciesList.map((s, index) => {
+            const theme = getSpeciesTheme(s.species);
+            return (
+              <CatchInfoBadge
+                key={`${s.species}-${index}`}
+                text={formatSpeciesWithCount(s)}
+                variant="species"
+                speciesTheme={theme}
+              />
+            );
+          })}
         </View>
       </View>
 
@@ -244,6 +276,20 @@ const styles = StyleSheet.create({
   },
   infoSpacer: {
     flex: 1,
+  },
+
+  // Species section - shows all caught species
+  speciesSection: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  speciesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 
   // Angler row - premium styling

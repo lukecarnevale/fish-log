@@ -20,6 +20,7 @@ import {
   Linking,
   Keyboard,
   Platform,
+  StatusBar,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
@@ -118,6 +119,17 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // Refs for scrolling
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Scroll animation for floating back button
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const HEADER_HEIGHT = 100;
+
+  // Floating back button animation - appears as user scrolls
+  const floatingBackOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_HEIGHT * 0.5, HEADER_HEIGHT],
+    outputRange: [0, 0, 1],
+    extrapolate: 'clamp',
+  });
 
   // Keyboard height tracking for scroll-to-center behavior
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -479,11 +491,17 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // State for abandonment modal
   const [showAbandonModal, setShowAbandonModal] = useState<boolean>(false);
 
+  // Ref to track if user has confirmed they want to abandon (allows navigation)
+  const hasConfirmedAbandon = useRef<boolean>(false);
+
   // State for WRC ID info modal
   const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
 
   // State for Area of Harvest info modal
   const [showAreaInfoModal, setShowAreaInfoModal] = useState<boolean>(false);
+
+  // State for FAQ modal
+  const [showFaqModal, setShowFaqModal] = useState<boolean>(false);
 
   // State for collapsible contact section in Angler Information
   const [showContactSection, setShowContactSection] = useState<boolean>(false);
@@ -930,6 +948,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     );
   };
 
+  // Ref to hold the latest hasFormData check (for beforeRemove listener)
+  const hasFormDataRef = useRef<() => boolean>(() => false);
+
   // Check if user has entered any data in the form (beyond pre-loaded profile data)
   const hasFormData = (): boolean => {
     // Check reporting type - this is always user input
@@ -964,6 +985,60 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
     return false;
   };
+
+  // Keep the ref updated with the latest hasFormData function
+  hasFormDataRef.current = hasFormData;
+
+  // Intercept back navigation (including swipe gesture) to show abandonment modal
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // If user has confirmed abandon, allow navigation
+      if (hasConfirmedAbandon.current) {
+        hasConfirmedAbandon.current = false; // Reset for next time
+        return;
+      }
+
+      // Check if there's form data to protect
+      if (!hasFormDataRef.current()) {
+        // No form data, allow navigation
+        return;
+      }
+
+      // Prevent default behavior (leaving the screen)
+      e.preventDefault();
+
+      // Show the abandonment modal
+      setShowAbandonModal(true);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  // Disable swipe gesture when there's form data to protect
+  // This prevents the visual "swipe out" animation from starting before we can show the modal
+  useEffect(() => {
+    const hasData = hasFormDataRef.current();
+    navigation.setOptions({
+      gestureEnabled: !hasData,
+    });
+  }, [
+    navigation,
+    formData.reportingType,
+    formData.species,
+    formData.waterbody,
+    formData.usedHookAndLine,
+    formData.gearType,
+    formData.angler.firstName,
+    formData.angler.lastName,
+    formData.angler.email,
+    formData.angler.phone,
+    formData.wrcId,
+    formData.zipCode,
+    fishEntries.length,
+    catchPhoto,
+    enterRaffle,
+    initialLoadedValues,
+  ]);
 
   // Handle back button press with abandonment check
   const handleBackPress = (): void => {
@@ -1342,6 +1417,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               style={localStyles.abandonModalDiscardButton}
               onPress={() => {
                 setShowAbandonModal(false);
+                hasConfirmedAbandon.current = true; // Allow navigation to proceed
                 navigation.goBack();
               }}
               activeOpacity={0.7}
@@ -1385,40 +1461,240 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   return (
     <View style={localStyles.screenContainer}>
-      {/* Modern Header */}
-      <View style={localStyles.header}>
-        <TouchableOpacity
-          style={localStyles.backButton}
-          onPress={handleBackPress}
-          activeOpacity={0.7}
-        >
-          <Feather name="arrow-left" size={24} color={colors.white} />
-        </TouchableOpacity>
-        <View style={localStyles.headerTitleContainer}>
-          <Text style={localStyles.headerTitleText}>Report Catch</Text>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+
+      {/* Fixed Header - sits behind the scrolling content */}
+      <View style={localStyles.fixedHeader}>
+        <View style={localStyles.headerContent}>
+          <TouchableOpacity
+            style={localStyles.backButton}
+            onPress={handleBackPress}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather name="arrow-left" size={24} color={colors.white} />
+          </TouchableOpacity>
+
+          <View style={localStyles.headerTextContainer}>
+            <Text style={localStyles.headerTitle}>Report Catch</Text>
+            <Text style={localStyles.headerSubtitle}>NC Mandatory Harvest Report</Text>
+          </View>
+
           {/* TEST MODE badge - shows when not submitting to real DMF */}
           {isTestMode() && (
             <View style={localStyles.testModeBadge}>
-              <Text style={localStyles.testModeBadgeText}>TEST MODE</Text>
+              <Text style={localStyles.testModeBadgeText}>TEST</Text>
             </View>
           )}
+
+          {/* FAQ Button */}
+          <TouchableOpacity
+            style={localStyles.faqButton}
+            onPress={() => setShowFaqModal(true)}
+            activeOpacity={0.7}
+          >
+            <Feather name="help-circle" size={22} color={colors.white} />
+          </TouchableOpacity>
         </View>
-        <View style={localStyles.headerSpacer} />
       </View>
 
-      <ScrollView
+      {/* Floating back button - appears when scrolling */}
+      <Animated.View
+        style={[
+          localStyles.floatingBackButton,
+          {
+            opacity: floatingBackOpacity,
+            transform: [{
+              translateX: floatingBackOpacity.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-60, 0],
+              })
+            }]
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={handleBackPress}
+          style={localStyles.floatingBackTouchable}
+          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+        >
+          <Feather name="arrow-left" size={22} color={colors.white} />
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Scrollable content - slides over the header */}
+      <Animated.ScrollView
         ref={scrollViewRef}
         style={localStyles.scrollView}
         contentContainerStyle={localStyles.scrollViewContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        onScroll={(e) => {
-          currentScrollY.current = e.nativeEvent.contentOffset.y;
-        }}
-        scrollEventThrottle={16}>
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          {
+            useNativeDriver: true,
+            listener: (e: any) => {
+              currentScrollY.current = e.nativeEvent.contentOffset.y;
+            }
+          }
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* Header spacer - transparent area that lets header show through */}
+        <View style={localStyles.headerSpacerArea}>
+          <View style={localStyles.spacerButtonsRow}>
+            <TouchableOpacity
+              onPress={handleBackPress}
+              style={localStyles.spacerBackButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={{ width: 40, height: 40 }} />
+            </TouchableOpacity>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Spacer for TEST badge if visible */}
+            {isTestMode() && <View style={{ width: 50 }} />}
+
+            {/* FAQ button touchable area in spacer */}
+            <TouchableOpacity
+              onPress={() => setShowFaqModal(true)}
+              style={localStyles.spacerFaqButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={{ width: 40, height: 40 }} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Content container - the light blue card that slides over */}
+        <View style={localStyles.contentContainer}>
       {renderSelectionModal()}
       {renderAbandonModal()}
       <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
+
+      {/* FAQ Modal */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showFaqModal}
+        onRequestClose={() => setShowFaqModal(false)}
+      >
+        <View style={localStyles.faqModalOverlay}>
+          <View style={localStyles.faqModalContent}>
+            <View style={localStyles.faqModalHeader}>
+              <View style={localStyles.faqModalHeaderLeft}>
+                <Feather name="help-circle" size={24} color={colors.primary} />
+                <Text style={localStyles.faqModalTitle}>FAQs</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowFaqModal(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Feather name="x" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={localStyles.faqScrollView}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* FAQ 1 */}
+              <View style={localStyles.faqItem}>
+                <Text style={localStyles.faqQuestion}>What is Mandatory Harvest Reporting?</Text>
+                <Text style={localStyles.faqAnswer}>
+                  Beginning December 1, 2025, recreational anglers must report catches of red drum, flounder, spotted seatrout, striped bass, and weakfish. Commercial fishermen must also report all harvested fish regardless of sale status.
+                </Text>
+              </View>
+
+              {/* FAQ 2 */}
+              <View style={localStyles.faqItem}>
+                <Text style={localStyles.faqQuestion}>Why is Mandatory Harvest Reporting happening?</Text>
+                <Text style={localStyles.faqAnswer}>
+                  The program aims to enhance fisheries management by collecting comprehensive harvest data to supplement existing commercial trip ticket reporting and recreational survey programs.
+                </Text>
+              </View>
+
+              {/* FAQ 3 */}
+              <View style={localStyles.faqItem}>
+                <Text style={localStyles.faqQuestion}>Who has to participate?</Text>
+                <Text style={localStyles.faqAnswer}>
+                  Both recreational and commercial fishermen are impacted. Recreational anglers must report the five specified species, while commercial fishermen report personal consumption harvests through seafood dealers.
+                </Text>
+              </View>
+
+              {/* FAQ 4 */}
+              <View style={localStyles.faqItem}>
+                <Text style={localStyles.faqQuestion}>Which waters does this apply to?</Text>
+                <Text style={localStyles.faqAnswer}>
+                  Requirements apply to coastal, joint, and adjacent inland fishing waters under Marine Fisheries Commission and Wildlife Resources Commission authority.
+                </Text>
+              </View>
+
+              {/* FAQ 5 */}
+              <View style={localStyles.faqItem}>
+                <Text style={localStyles.faqQuestion}>What information must I report?</Text>
+                <Text style={localStyles.faqAnswer}>
+                  Recreational fishers report: license number (or name and zip code), harvest date, number of each species kept, harvest area, and gear type.
+                </Text>
+              </View>
+
+              {/* FAQ 6 */}
+              <View style={localStyles.faqItem}>
+                <Text style={localStyles.faqQuestion}>When must I report my harvest?</Text>
+                <Text style={localStyles.faqAnswer}>
+                  Recreational fishers should report when harvest is complete (shore/dock arrival for boats). If you lack internet connection, record information and submit electronically by midnight the following day.
+                </Text>
+              </View>
+
+              {/* FAQ 7 */}
+              <View style={localStyles.faqItem}>
+                <Text style={localStyles.faqQuestion}>Why these five fish species?</Text>
+                <Text style={localStyles.faqAnswer}>
+                  Red drum, flounder, spotted seatrout, striped bass, and weakfish are among the most targeted species in North Carolina's coastal and joint fishing waters.
+                </Text>
+              </View>
+
+              {/* FAQ 8 */}
+              <View style={localStyles.faqItem}>
+                <Text style={localStyles.faqQuestion}>How will the law be enforced?</Text>
+                <Text style={localStyles.faqAnswer}>
+                  Enforcement phases over three years:{'\n'}• Dec 1, 2025 — Verbal warnings{'\n'}• Dec 1, 2026 — Warning tickets{'\n'}• Dec 1, 2027 — $35 infractions plus court fees
+                </Text>
+              </View>
+
+              {/* FAQ 9 */}
+              <View style={localStyles.faqItem}>
+                <Text style={localStyles.faqQuestion}>Do charter captains report for customers?</Text>
+                <Text style={localStyles.faqAnswer}>
+                  No. The law specifies individual anglers bear reporting responsibility at trip completion. Captains can obtain QR code stickers by contacting the Mandatory Harvest Reporting Team.
+                </Text>
+              </View>
+
+              {/* Link to full FAQs */}
+              <TouchableOpacity
+                style={localStyles.faqLinkButton}
+                onPress={() => {
+                  setShowFaqModal(false);
+                  Linking.openURL("https://www.deq.nc.gov/about/divisions/marine-fisheries/science-and-statistics/mandatory-harvest-reporting/mandatory-harvest-reporting-faqs");
+                }}
+                activeOpacity={0.7}
+              >
+                <Feather name="external-link" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+                <Text style={localStyles.faqLinkText}>View Full FAQs on NC DEQ Website</Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={localStyles.faqCloseButton}
+              onPress={() => setShowFaqModal(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={localStyles.faqCloseButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Area of Harvest Info Modal */}
       <Modal
@@ -2494,7 +2770,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       <Text style={styles.requiredFields}><Text style={localStyles.requiredAsterisk}>*</Text> Required fields</Text>
       </>
       )}
-    </ScrollView>
+        </View>
+      </Animated.ScrollView>
 
       {/* Toast Notification */}
       {toastVisible && (
@@ -2810,7 +3087,8 @@ const localStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 15,
+    zIndex: 200, // Above scrollView (zIndex: 2) and floating back button (zIndex: 100)
   },
   toastContent: {
     flex: 1,
@@ -2832,60 +3110,224 @@ const localStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.primary,
   },
-  // Modern header styles
-  header: {
+
+  // Fixed header - sits behind scrolling content
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     backgroundColor: colors.primary,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 56,
     paddingBottom: 20,
     paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    zIndex: 1,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerTitleContainer: {
-    alignItems: "center",
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: 16,
   },
-  headerTitleText: {
-    fontSize: 24,
-    fontWeight: "700",
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
     color: colors.white,
-    letterSpacing: 0.3,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: colors.white,
+    opacity: 0.85,
+    marginTop: 2,
   },
   testModeBadge: {
-    backgroundColor: "#ff9800",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 4,
+    backgroundColor: '#ff9800',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginRight: 12,
   },
   testModeBadgeText: {
     color: colors.white,
-    fontSize: 10,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: '700',
     letterSpacing: 0.5,
   },
   headerSpacer: {
     width: 40,
   },
-  // Scroll view with rounded top corners
+
+  // FAQ button in header
+  faqButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // FAQ Modal styles
+  faqModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  faqModalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    width: '100%',
+    maxHeight: '85%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  faqModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  faqModalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  faqModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  faqScrollView: {
+    paddingHorizontal: 16,
+  },
+  faqItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  faqQuestion: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
+    marginBottom: 6,
+  },
+  faqAnswer: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  faqLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 12,
+  },
+  faqLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  faqCloseButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  faqCloseButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
+  },
+
+  // Floating back button - appears on scroll
+  floatingBackButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 52,
+    left: 16,
+    zIndex: 100,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  floatingBackTouchable: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Scroll view - slides over fixed header
   scrollView: {
     flex: 1,
+    zIndex: 2,
+  },
+  scrollViewContent: {
+    paddingBottom: 40,
+  },
+
+  // Header spacer - transparent area showing fixed header behind
+  headerSpacerArea: {
+    height: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130,
+    backgroundColor: 'transparent',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 56,
+    paddingHorizontal: 20,
+  },
+  spacerButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  spacerBackButton: {
+    width: 40,
+    height: 40,
+  },
+  spacerFaqButton: {
+    width: 40,
+    height: 40,
+  },
+
+  // Content container - the light card that slides over
+  contentContainer: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-  },
-  scrollViewContent: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     paddingTop: 8,
-    paddingBottom: 40,
+    paddingBottom: 24, // Extra padding for bottom rounded corners
+    marginBottom: 20, // Space below the card to show the rounded corners
+    minHeight: Dimensions.get('window').height - 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
   },
+
   // Modal styles
   modalWrapper: {
     flex: 1,

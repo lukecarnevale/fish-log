@@ -4,7 +4,7 @@
 // Extracted from HomeScreen to reduce clutter.
 //
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -261,6 +261,13 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   isSignedIn = false,
 }) => {
   const menuScrollRef = useRef<ScrollView>(null);
+
+  // Reset scroll position when menu opens
+  useEffect(() => {
+    if (visible && menuScrollRef.current) {
+      menuScrollRef.current.scrollTo({ y: 0, animated: false });
+    }
+  }, [visible]);
 
   const handleNavigate = (screen: keyof RootStackParamList) => {
     onClose();
