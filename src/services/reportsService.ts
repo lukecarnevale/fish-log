@@ -17,6 +17,7 @@ import {
 import { HarvestReportInput } from '../types/harvestReport';
 import { getCurrentUser, getRewardsMemberForAnonymousUser } from './userService';
 import { getOrCreateAnonymousUser } from './anonymousUserService';
+import { ensurePublicPhotoUrl, isLocalUri } from './photoUploadService';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -372,9 +373,22 @@ export interface CreateReportResult {
 /**
  * Create a new harvest report.
  * Saves to Supabase if connected, otherwise saves locally and queues for sync.
+ * Uploads photos to Supabase Storage to ensure cross-platform visibility.
  */
 export async function createReport(input: ReportInput): Promise<CreateReportResult> {
   const connected = await isSupabaseConnected();
+
+  // If we have a local photo URI and we're connected, upload it first
+  if (connected && isLocalUri(input.photoUrl)) {
+    console.log('📸 Uploading photo to Supabase Storage...');
+    const publicUrl = await ensurePublicPhotoUrl(input.photoUrl, input.userId || input.anonymousUserId);
+    if (publicUrl) {
+      console.log('✅ Photo uploaded, using public URL');
+      input = { ...input, photoUrl: publicUrl };
+    } else {
+      console.warn('⚠️ Photo upload failed, storing local URI (may not be visible to other users)');
+    }
+  }
 
   if (connected) {
     try {

@@ -201,10 +201,26 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
     });
   };
   
-  // Handle date change from date picker (for spinner, this fires on each scroll)
+  // Handle date change from date picker
+  // On iOS spinner: fires on each scroll, user confirms with Done button
+  // On Android native dialog: fires once when OK/Cancel is pressed
   const onDateChange = (event: any, selectedDate?: Date) => {
-    if (selectedDate) {
-      setTempDate(selectedDate);
+    if (Platform.OS === 'android') {
+      // Android native picker: close modal and apply date if OK was pressed
+      if (event.type === 'set' && selectedDate) {
+        const formattedDate = selectedDate.toISOString().split('T')[0];
+        setFormData({
+          ...formData,
+          [currentDateField]: formattedDate
+        });
+      }
+      // Close the modal for both OK and Cancel
+      closeDatePicker();
+    } else {
+      // iOS spinner: just update temp date, user confirms with Done button
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
     }
   };
 

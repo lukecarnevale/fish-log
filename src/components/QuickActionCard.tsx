@@ -27,6 +27,12 @@ interface QuickActionCardProps {
   disabledMessage?: string;
   /** Callback when disabled card is pressed (e.g., navigate to sign in) */
   onDisabledPress?: () => void;
+  /** Optional render prop for badges/notifications (positioned in image area) */
+  renderBadges?: () => React.ReactNode;
+  /** Optional render prop for corner notification badge (top-right of card) */
+  renderCornerBadge?: () => React.ReactNode;
+  /** Optional render prop for badge below subtitle text */
+  renderTextBadge?: () => React.ReactNode;
 }
 
 export const QuickActionCard: React.FC<QuickActionCardProps> = ({
@@ -39,13 +45,23 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
   disabled = false,
   disabledMessage = 'Sign in to unlock',
   onDisabledPress,
+  renderBadges,
+  renderCornerBadge,
+  renderTextBadge,
 }) => {
   return (
-    <TouchableOpacity
-      style={[styles.card, disabled && styles.cardDisabled]}
-      onPress={disabled ? onDisabledPress : onPress}
-      activeOpacity={disabled ? 0.7 : 0.7}
-    >
+    <View style={styles.cardWrapper}>
+      {/* Corner badge - positioned at top-right edge of card */}
+      {!disabled && renderCornerBadge && (
+        <View style={styles.cornerBadgeContainer}>
+          {renderCornerBadge()}
+        </View>
+      )}
+      <TouchableOpacity
+        style={[styles.card, disabled && styles.cardDisabled]}
+        onPress={disabled ? onDisabledPress : onPress}
+        activeOpacity={disabled ? 0.7 : 0.7}
+      >
       <View style={styles.textContainer}>
         <Text style={[styles.title, disabled && styles.titleDisabled]}>{title}</Text>
         {subtitle && (
@@ -56,6 +72,12 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
           ]}>
             {subtitle}
           </Text>
+        )}
+        {/* Text badge - rendered below subtitle */}
+        {!disabled && renderTextBadge && (
+          <View style={styles.textBadgeContainer}>
+            {renderTextBadge()}
+          </View>
         )}
       </View>
       <Feather
@@ -70,6 +92,12 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
           style={[styles.image, imageStyle, disabled && styles.imageDisabled]}
           resizeMode="contain"
         />
+        {/* Badges layer - positioned absolutely over the fish illustration */}
+        {!disabled && renderBadges && (
+          <View style={styles.badgesContainer}>
+            {renderBadges()}
+          </View>
+        )}
       </View>
 
       {/* Overlay for disabled state */}
@@ -81,11 +109,22 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
           </View>
         </View>
       )}
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  cardWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  cornerBadgeContainer: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    zIndex: 10,
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
@@ -107,6 +146,10 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     zIndex: 1,
+  },
+  textBadgeContainer: {
+    marginTop: 4,
+    alignSelf: 'flex-start',
   },
   title: {
     fontSize: 18,
@@ -133,6 +176,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'center',
+    position: 'relative',
+  },
+  badgesContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // Badges will use absolute positioning within this container
   },
   image: {
     width: '100%',

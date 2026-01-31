@@ -10,6 +10,8 @@
 export interface SpeciesCatch {
   species: string;
   count: number;
+  lengths?: string[];  // Individual fish lengths in inches
+  tagNumber?: string;  // Tag number if fish was tagged
 }
 
 /**
@@ -28,6 +30,8 @@ export interface CatchFeedEntry {
   catchDate: string;            // ISO date string
   location?: string;            // General area (e.g., "Pamlico Sound")
   createdAt: string;            // When the report was submitted
+  likeCount: number;            // Number of likes on this catch
+  isLikedByCurrentUser: boolean; // Whether the current user has liked this catch
 }
 
 /**
@@ -64,6 +68,7 @@ export interface CatchFeedRow {
 
 /**
  * Raw row from Supabase for angler profile data.
+ * Note: total_fish is calculated from reports, not stored on user.
  */
 export interface AnglerProfileRow {
   id: string;
@@ -72,7 +77,6 @@ export interface AnglerProfileRow {
   profile_image_url: string | null;
   rewards_opted_in_at: string | null;
   total_reports: number;
-  total_fish: number;
 }
 
 /**
@@ -96,6 +100,8 @@ export function transformToCatchFeedEntry(row: CatchFeedRow): CatchFeedEntry {
     catchDate: row.catch_date || row.created_at,
     location: row.location || undefined,
     createdAt: row.created_at,
+    likeCount: 0,
+    isLikedByCurrentUser: false,
   };
 }
 

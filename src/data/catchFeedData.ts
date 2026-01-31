@@ -37,6 +37,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Pamlico Sound',
     catchDate: hoursAgo(2),
     createdAt: hoursAgo(2),
+    likeCount: 12,
+    isLikedByCurrentUser: false,
   },
   {
     id: '2',
@@ -50,6 +52,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Bogue Sound',
     catchDate: hoursAgo(5),
     createdAt: hoursAgo(5),
+    likeCount: 8,
+    isLikedByCurrentUser: true,
   },
   {
     id: '3',
@@ -65,6 +69,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Core Sound',
     catchDate: hoursAgo(8),
     createdAt: hoursAgo(8),
+    likeCount: 15,
+    isLikedByCurrentUser: false,
   },
   {
     id: '4',
@@ -78,6 +84,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Albemarle Sound',
     catchDate: daysAgo(1),
     createdAt: daysAgo(1),
+    likeCount: 5,
+    isLikedByCurrentUser: false,
   },
   {
     id: '5',
@@ -92,6 +100,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Neuse River',
     catchDate: daysAgo(1),
     createdAt: daysAgo(1),
+    likeCount: 23,
+    isLikedByCurrentUser: true,
   },
   {
     id: '6',
@@ -105,6 +115,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Pamlico Sound',
     catchDate: daysAgo(2),
     createdAt: daysAgo(2),
+    likeCount: 3,
+    isLikedByCurrentUser: false,
   },
   {
     id: '7',
@@ -118,6 +130,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Bogue Sound',
     catchDate: daysAgo(2),
     createdAt: daysAgo(2),
+    likeCount: 7,
+    isLikedByCurrentUser: false,
   },
   {
     id: '8',
@@ -132,6 +146,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Cape Fear River',
     catchDate: daysAgo(3),
     createdAt: daysAgo(3),
+    likeCount: 11,
+    isLikedByCurrentUser: false,
   },
   {
     id: '9',
@@ -145,6 +161,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Core Sound',
     catchDate: daysAgo(4),
     createdAt: daysAgo(4),
+    likeCount: 4,
+    isLikedByCurrentUser: false,
   },
   {
     id: '10',
@@ -160,6 +178,8 @@ export const sampleCatchFeedEntries: CatchFeedEntry[] = [
     location: 'Roanoke River',
     catchDate: daysAgo(5),
     createdAt: daysAgo(5),
+    likeCount: 19,
+    isLikedByCurrentUser: false,
   },
 ];
 

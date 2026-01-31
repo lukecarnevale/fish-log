@@ -4,7 +4,7 @@
 // and recent catches when tapping on an angler name in the Catch Feed.
 //
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,10 @@ import {
   Image,
   ActivityIndicator,
   StyleSheet,
+  Animated,
+  Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { AnglerProfile, formatMemberSince } from '../types/catchFeed';
 import { fetchAnglerProfile } from '../services/catchFeedService';
@@ -28,24 +31,69 @@ interface AnglerProfileModalProps {
   onClose: () => void;
 }
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
   visible,
   userId,
   onClose,
 }) => {
+  const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<AnglerProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Animation values
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+
   useEffect(() => {
-    if (visible && userId) {
-      loadProfile(userId);
+    if (visible) {
+      // Animate in: fade overlay and slide content
+      Animated.parallel([
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 65,
+          friction: 11,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      if (userId) {
+        loadProfile(userId);
+      }
     } else {
+      // Reset animations
+      overlayOpacity.setValue(0);
+      slideAnim.setValue(SCREEN_HEIGHT);
       // Reset state when modal closes
       setProfile(null);
       setError(null);
     }
-  }, [visible, userId]);
+  }, [visible, userId, overlayOpacity, slideAnim]);
+
+  const handleClose = () => {
+    // Animate out before closing
+    Animated.parallel([
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose();
+    });
+  };
 
   const loadProfile = async (id: string) => {
     setLoading(true);
@@ -184,32 +232,62 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={handleClose}
+      statusBarTranslucent
     >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
+      <View style={styles.modalWrapper}>
+        {/* Animated overlay - fades in/out independently */}
+        <Animated.View
+          style={[
+            styles.overlay,
+            { opacity: overlayOpacity },
+          ]}
+        >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={handleClose}
+          />
+        </Animated.View>
+
+        {/* Animated content container - slides up/down */}
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              transform: [{ translateY: slideAnim }],
+              paddingBottom: insets.bottom || spacing.lg,
+            },
+          ]}
+        >
+          {/* Drag handle */}
+          <View style={styles.dragHandle} />
+
           {/* Close button */}
           <TouchableOpacity
             style={styles.closeButton}
-            onPress={onClose}
+            onPress={handleClose}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Feather name="x" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
 
           {renderContent()}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
+  modalWrapper: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   container: {
     backgroundColor: colors.background,
@@ -217,6 +295,15 @@ const styles = StyleSheet.create({
     borderTopRightRadius: borderRadius.xl,
     maxHeight: '90%',
     minHeight: '50%',
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
   closeButton: {
     position: 'absolute',

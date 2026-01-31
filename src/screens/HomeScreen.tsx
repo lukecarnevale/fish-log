@@ -26,7 +26,7 @@ import AdvertisementBanner from "../components/AdvertisementBanner";
 import MandatoryHarvestCard from "../components/MandatoryHarvestCard";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import FeedbackModal from "../components/FeedbackModal";
-import QuickActionGrid from "../components/QuickActionGrid";
+import QuickActionGrid, { CardBadgeData } from "../components/QuickActionGrid";
 import WaveBackground from "../components/WaveBackground";
 import WavyMenuIcon from "../components/WavyMenuIcon";
 import DrawerMenu from "../components/DrawerMenu";
@@ -37,6 +37,10 @@ import {
 } from "../config/appConfig";
 import { getPendingAuth, PendingAuth, onAuthStateChange } from "../services/authService";
 import { isRewardsMember, getCurrentUser } from "../services/userService";
+import { getReportsSummary } from "../services/reportsService";
+import { fetchAllFishSpecies } from "../services/fishSpeciesService";
+import { fetchRecentCatches } from "../services/catchFeedService";
+import { BADGE_STORAGE_KEYS } from "../utils/badgeUtils";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 
 // Update the navigation type to be compatible with React Navigation v7
@@ -65,6 +69,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Track if user is a rewards member
   const [rewardsMember, setRewardsMember] = useState<boolean>(false);
   const [rewardsMemberEmail, setRewardsMemberEmail] = useState<string | null>(null);
+  // User profile image for drawer menu
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  // Badge data for quick action cards
+  const [badgeData, setBadgeData] = useState<CardBadgeData>({
+    pastReportsCount: 0,
+    hasNewReport: false,
+    totalSpecies: 0,
+    newCatchesCount: 0,
+  });
   const slideAnim = useRef<Animated.Value>(new Animated.Value(menuWidth)).current;
   const overlayOpacity = useRef<Animated.Value>(new Animated.Value(0)).current;
 
@@ -140,9 +153,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             // If profile exists but no names, clear the username
             setUserName("");
           }
+
+          // Load profile image if available
+          if (parsedProfile.profileImage) {
+            setProfileImage(parsedProfile.profileImage);
+          } else {
+            setProfileImage(null);
+          }
         } else {
-          // If no profile, don't set a default name
+          // If no profile, don't set a default name or image
           setUserName("");
+          setProfileImage(null);
         }
 
         // Check the fishingLicense storage for license number
@@ -171,11 +192,63 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           setRewardsMemberEmail(user?.email || null);
           console.log('🏆 Rewards member:', user?.email);
         }
+
+        // Load badge data for quick action cards
+        await loadBadgeData();
       } catch (error) {
         console.error("Error retrieving user data:", error);
         setUserName("");
         setLicenseNumber(null);
         setPendingAuth(null);
+      }
+    };
+
+    // Load badge data for quick action cards
+    const loadBadgeData = async () => {
+      try {
+        // Get reports count
+        const reportsSummary = await getReportsSummary();
+        const pastReportsCount = reportsSummary.totalReports;
+
+        // Check if there's a new report since last view
+        const lastViewedPastReports = await AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastViewedPastReports);
+        const lastReportTimestamp = await AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastReportTimestamp);
+        const hasNewReport = lastReportTimestamp !== null &&
+          (lastViewedPastReports === null || lastReportTimestamp > lastViewedPastReports);
+
+        // Get species count from the species guide
+        const speciesList = await fetchAllFishSpecies();
+        const totalSpecies = speciesList.length;
+
+        // For catch feed, count catches newer than last viewed timestamp
+        const lastViewedCatchFeed = await AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastViewedCatchFeed);
+        let newCatchesCount = 0;
+
+        try {
+          const result = await fetchRecentCatches({ forceRefresh: false });
+          const recentCatches = result.entries;
+          if (lastViewedCatchFeed) {
+            // Count catches created after last view
+            const lastViewedDate = new Date(lastViewedCatchFeed);
+            newCatchesCount = recentCatches.filter(
+              catch_ => new Date(catch_.createdAt) > lastViewedDate
+            ).length;
+          } else {
+            // If never viewed, show count of recent catches (capped at 10)
+            newCatchesCount = Math.min(recentCatches.length, 10);
+          }
+        } catch (catchError) {
+          console.warn('Could not fetch catch feed for badge:', catchError);
+        }
+
+        setBadgeData({
+          pastReportsCount,
+          hasNewReport,
+          totalSpecies,
+          newCatchesCount,
+        });
+      } catch (error) {
+        console.error('Error loading badge data:', error);
       }
     };
 
@@ -325,6 +398,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
     console.log(`Navigating to: ${screenName}`);
 
+    // Clear "new" indicators when visiting those screens
+    if (screenName === 'PastReports') {
+      AsyncStorage.setItem(BADGE_STORAGE_KEYS.lastViewedPastReports, new Date().toISOString());
+      // Immediately update badge state
+      setBadgeData(prev => ({ ...prev, hasNewReport: false }));
+    } else if (screenName === 'CatchFeed') {
+      AsyncStorage.setItem(BADGE_STORAGE_KEYS.lastViewedCatchFeed, new Date().toISOString());
+      // Immediately update badge state
+      setBadgeData(prev => ({ ...prev, newCatchesCount: 0 }));
+    }
+
     // To prevent any possible interference, use setTimeout to separate
     // the navigation action from the touch event handling
     setTimeout(() => {
@@ -354,6 +438,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           setFeedbackModalVisible(true);
         }}
         isSignedIn={rewardsMember}
+        profileImage={profileImage}
       />
 
       {/* Overlay when menu is open */}
@@ -548,7 +633,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         </TouchableOpacity>
 
         {/* Quick Action Cards Grid */}
-        <QuickActionGrid onNavigate={navigateToScreen} isSignedIn={rewardsMember} />
+        <QuickActionGrid onNavigate={navigateToScreen} isSignedIn={rewardsMember} badgeData={badgeData} />
         
         {/* Quarterly Rewards Card */}
         <QuarterlyRewardsCard

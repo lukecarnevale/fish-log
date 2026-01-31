@@ -2,14 +2,20 @@
 
 import React, { useEffect, useCallback } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
-import { createStackNavigator, TransitionPresets } from "@react-navigation/stack";
+import {
+  createStackNavigator,
+  TransitionPresets,
+  TransitionSpecs,
+  HeaderStyleInterpolators,
+} from "@react-navigation/stack";
+import type { StackCardStyleInterpolator } from "@react-navigation/stack";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "./styles/common";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Linking, Alert } from 'react-native';
+import { Linking, Alert, Platform } from 'react-native';
 
 // Import Redux store
 import { store } from './store';
@@ -64,6 +70,41 @@ const AppTheme = {
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+/**
+ * Custom Android card style interpolator that prevents flicker during back navigation.
+ * The key is to keep the current screen fully visible until the incoming screen covers it.
+ */
+const forNoFlickerAndroid: StackCardStyleInterpolator = ({ current, next, layouts }) => {
+  const translateX = current.progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [layouts.screen.width, 0],
+  });
+
+  const overlayOpacity = current.progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.5],
+  });
+
+  // When this screen is being covered by another screen (next exists)
+  // Keep it fully visible (opacity 1) to prevent flicker
+  const cardOpacity = next
+    ? next.progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 1], // Always fully visible when being covered
+      })
+    : 1;
+
+  return {
+    cardStyle: {
+      transform: [{ translateX }],
+      opacity: cardOpacity,
+    },
+    overlayStyle: {
+      opacity: overlayOpacity,
+    },
+  };
+};
 
 // Component to initialize data and listeners on app startup
 const AppInitializer: React.FC = () => {
@@ -282,10 +323,29 @@ const AppContent: React.FC = () => {
               style={{ marginLeft: 4 }}
             />
           ),
-          // Make sure transitions are working properly with React Navigation v7
-          ...TransitionPresets.SlideFromRightIOS,
+          // Platform-specific transitions to prevent Android flicker
+          ...(Platform.OS === 'ios'
+            ? TransitionPresets.SlideFromRightIOS
+            : {
+                // Android-specific settings to prevent flicker
+                cardStyleInterpolator: forNoFlickerAndroid,
+                transitionSpec: {
+                  open: TransitionSpecs.TransitionIOSSpec,
+                  close: TransitionSpecs.TransitionIOSSpec,
+                },
+                headerStyleInterpolator: HeaderStyleInterpolators.forSlideLeft,
+                gestureDirection: 'horizontal',
+                // Critical: these prevent the flicker on Android
+                cardOverlayEnabled: true,
+                cardShadowEnabled: false,
+                // Keep previous screen mounted during transition
+                detachPreviousScreen: false,
+                freezeOnBlur: false,
+              }
+          ),
           gestureEnabled: true,
-          gestureDirection: 'horizontal',
+          // Ensure card background matches app theme to prevent white flash
+          cardStyle: { backgroundColor: colors.primary },
         }}
       >
           <Stack.Screen
@@ -308,6 +368,7 @@ const AppContent: React.FC = () => {
             component={ConfirmationScreen}
             options={{
               headerShown: false,
+              gestureEnabled: false, // Disable nav gesture - custom pan responder handles dismiss
             }}
           />
           <Stack.Screen

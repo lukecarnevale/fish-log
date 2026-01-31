@@ -33,6 +33,7 @@ import Svg, { Circle, Path, G, Ellipse } from 'react-native-svg';
 import { RootStackParamList, UserProfile } from "../types";
 import { colors, spacing, borderRadius, shadows, typography } from "../styles/common";
 import { getReports, getFishEntries } from "../services/reportsService";
+import { clearCatchFeedCache } from "../services/catchFeedService";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
 import { StoredReport } from "../types/report";
 import {
@@ -44,8 +45,9 @@ import {
   signOut,
   onAuthStateChange,
 } from "../services/authService";
-import { isRewardsMember, getCurrentUser } from "../services/userService";
+import { isRewardsMember, getCurrentUser, updateCurrentUser } from "../services/userService";
 import { User } from "../types/user";
+import { uploadProfilePhoto, isLocalUri } from "../services/photoUploadService";
 
 type ProfileScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -168,6 +170,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // State for sign-in flow (for non-members)
   const [showSignInForm, setShowSignInForm] = useState<boolean>(false);
   const [signInEmail, setSignInEmail] = useState<string>('');
+  const [signInEmailError, setSignInEmailError] = useState<string>('');
   const [signInFirstName, setSignInFirstName] = useState<string>('');
   const [signInLastName, setSignInLastName] = useState<string>('');
   const [isSendingSignInLink, setIsSendingSignInLink] = useState<boolean>(false);
@@ -365,14 +368,39 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        const newFormData = { ...formData, profileImage: result.assets[0].uri };
+        const imageUri = result.assets[0].uri;
+        const newFormData = { ...formData, profileImage: imageUri };
         setFormData(newFormData);
 
         if (!isEditing) {
           // If not in edit mode, directly save the profile picture
           try {
-            await AsyncStorage.setItem("userProfile", JSON.stringify(newFormData));
-            setProfile(newFormData);
+            // Get current user to check if signed in
+            const currentUser = await getCurrentUser();
+            let finalImageUrl: string | null = imageUri;
+
+            // Upload to Supabase if user is signed in
+            if (currentUser?.id && isLocalUri(imageUri)) {
+              console.log('📸 Uploading profile photo to Supabase...');
+              const uploadedUrl = await uploadProfilePhoto(imageUri, currentUser.id);
+              if (uploadedUrl) {
+                finalImageUrl = uploadedUrl;
+                console.log('✅ Profile photo uploaded:', uploadedUrl);
+
+                // Update user record in Supabase
+                await updateCurrentUser({
+                  profileImageUrl: uploadedUrl,
+                });
+
+                // Clear Catch Feed cache so profile image updates appear
+                await clearCatchFeedCache();
+                console.log('🔄 Cleared Catch Feed cache after profile update');
+              }
+            }
+
+            const profileToSave = { ...formData, profileImage: finalImageUrl };
+            await AsyncStorage.setItem("userProfile", JSON.stringify(profileToSave));
+            setProfile(profileToSave);
             Alert.alert("Success", "Profile picture updated");
           } catch (error) {
             Alert.alert("Error", "Failed to save profile picture");
@@ -434,7 +462,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  // Save profile data to AsyncStorage
+  // Save profile data to AsyncStorage and sync to Supabase
   const saveProfile = async () => {
     try {
       // Validate all fields
@@ -460,7 +488,55 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         }
       }
 
-      await AsyncStorage.setItem("userProfile", JSON.stringify(formData));
+      // Get current user to check if signed in and get user ID
+      const currentUser = await getCurrentUser();
+      let profileImageUrl: string | null = null;
+
+      // Handle profile image upload/sync
+      if (formData.profileImage && currentUser?.id) {
+        if (isLocalUri(formData.profileImage)) {
+          // Upload new local image to Supabase
+          console.log('📸 Uploading profile photo to Supabase...');
+          profileImageUrl = await uploadProfilePhoto(formData.profileImage, currentUser.id);
+          if (profileImageUrl) {
+            console.log('✅ Profile photo uploaded:', profileImageUrl);
+          } else {
+            console.log('⚠️ Profile photo upload failed, continuing with local image');
+          }
+        } else if (formData.profileImage.startsWith('http')) {
+          // Image is already a URL, use it directly
+          profileImageUrl = formData.profileImage;
+          console.log('📸 Using existing profile photo URL:', profileImageUrl);
+        }
+      }
+
+      // Save to AsyncStorage (with local or uploaded URL)
+      const profileToSave = {
+        ...formData,
+        // If we uploaded successfully, update the image URL to the public URL
+        profileImage: profileImageUrl || formData.profileImage,
+      };
+      await AsyncStorage.setItem("userProfile", JSON.stringify(profileToSave));
+
+      // Sync profile to Supabase if user is signed in
+      if (currentUser?.id) {
+        try {
+          await updateCurrentUser({
+            firstName: formData.firstName || undefined,
+            lastName: formData.lastName || undefined,
+            email: formData.email || undefined,
+            phone: formData.phone || undefined,
+            zipCode: formData.zipCode || undefined,
+            hasLicense: formData.hasLicense,
+            wrcId: formData.wrcId || undefined,
+            profileImageUrl: profileImageUrl || undefined,
+          });
+          console.log('✅ Profile synced to Supabase');
+        } catch (syncError) {
+          console.warn('Failed to sync profile to Supabase:', syncError);
+          // Continue anyway - local save was successful
+        }
+      }
 
       // Also sync license info to fishingLicense storage if user has a license
       if (formData.hasLicense === true && formData.wrcId) {
@@ -475,8 +551,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         await AsyncStorage.setItem("fishingLicense", JSON.stringify(updatedLicense));
       }
 
-      setProfile(formData);
+      setProfile(profileToSave);
       setValidationErrors({});
+
+      // Clear Catch Feed cache so profile image updates appear immediately
+      if (profileImageUrl) {
+        await clearCatchFeedCache();
+        console.log('🔄 Cleared Catch Feed cache after profile update');
+      }
+
       Alert.alert("Success", "Your profile information has been saved.");
       // Animate back to profile view - slide down
       Animated.timing(slideAnim, {
@@ -563,15 +646,46 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     );
   };
 
+  // Validate sign-in email
+  const validateSignInEmail = (email: string): boolean => {
+    if (!email.trim()) {
+      setSignInEmailError('');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setSignInEmailError('Please enter a valid email address');
+      return false;
+    }
+    setSignInEmailError('');
+    return true;
+  };
+
+  // Handle sign-in email change
+  const handleSignInEmailChange = (text: string) => {
+    setSignInEmail(text);
+    // Clear error while typing, validate on blur
+    if (signInEmailError) {
+      setSignInEmailError('');
+    }
+  };
+
+  // Handle sign-in email blur
+  const handleSignInEmailBlur = () => {
+    if (signInEmail.trim()) {
+      validateSignInEmail(signInEmail);
+    }
+  };
+
   // Handle sign in / join rewards for returning users
   const handleSignIn = async () => {
     if (!signInEmail.trim()) {
+      setSignInEmailError('Email is required');
       Alert.alert('Email Required', 'Please enter your email address.');
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(signInEmail.trim())) {
+    if (!validateSignInEmail(signInEmail)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
@@ -690,10 +804,26 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  // Handle date change from date picker (for spinner, this fires on each scroll)
+  // Handle date change from date picker
+  // On iOS spinner: fires on each scroll, user confirms with Done button
+  // On Android native dialog: fires once when OK/Cancel is pressed
   const onDateChange = (event: any, selectedDate?: Date) => {
-    if (selectedDate) {
-      setTempDate(selectedDate);
+    if (Platform.OS === 'android') {
+      // Android native picker: close modal and apply date if OK was pressed
+      if (event.type === 'set' && selectedDate) {
+        const formattedDate = selectedDate.toISOString().split('T')[0];
+        setFormData({
+          ...formData,
+          dateOfBirth: formattedDate
+        });
+      }
+      // Close the modal for both OK and Cancel
+      closeDatePicker();
+    } else {
+      // iOS spinner: just update temp date, user confirms with Done button
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
     }
   };
 
@@ -750,10 +880,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 style={styles.profileImage}
               />
             ) : (
-              <AnglerAvatarIcon size={70} />
+              <AnglerAvatarIcon size={105} />
             )}
             <View style={styles.cameraIconContainer}>
-              <Feather name="camera" size={18} color={colors.white} />
+              <Feather name="camera" size={18} color={colors.primary} />
             </View>
           </TouchableOpacity>
           <Text style={styles.photoHelpText}>Tap to change profile photo</Text>
@@ -1095,11 +1225,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 style={styles.profileImage}
               />
             ) : (
-              <AnglerAvatarIcon size={70} />
+              <AnglerAvatarIcon size={105} />
             )}
-            <View style={styles.cameraIconContainer}>
-              <Feather name="camera" size={18} color={colors.white} />
-            </View>
           </TouchableOpacity>
           {(profile.firstName || profile.lastName) && (
             <Text style={styles.profileName}>
@@ -1253,9 +1380,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <View style={localStyles.signInInputGroup}>
                   <Text style={localStyles.signInLabel}>Email *</Text>
                   <TextInput
-                    style={localStyles.signInInput}
+                    style={[
+                      localStyles.signInInput,
+                      signInEmailError ? localStyles.signInInputError : null
+                    ]}
                     value={signInEmail}
-                    onChangeText={setSignInEmail}
+                    onChangeText={handleSignInEmailChange}
+                    onBlur={handleSignInEmailBlur}
                     placeholder="your.email@example.com"
                     placeholderTextColor={colors.textTertiary}
                     keyboardType="email-address"
@@ -1263,6 +1394,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     autoComplete="email"
                     textContentType="emailAddress"
                   />
+                  {signInEmailError ? (
+                    <Text style={localStyles.signInInputErrorText}>{signInEmailError}</Text>
+                  ) : null}
                 </View>
 
                 <View style={localStyles.signInNameRow}>
@@ -1564,9 +1698,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileImageContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     backgroundColor: 'rgba(255,255,255,0.8)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1577,23 +1711,23 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
   },
   cameraIconContainer: {
     position: 'absolute',
-    bottom: -5,
-    right: -5,
-    backgroundColor: colors.primary,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    bottom: 2,
+    right: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.white,
-    ...shadows.medium,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    ...shadows.small,
   },
   profileName: {
     ...typography.h1,
@@ -2229,6 +2363,15 @@ const localStyles = StyleSheet.create({
     borderColor: colors.border,
     fontSize: 15,
     color: colors.textPrimary,
+  },
+  signInInputError: {
+    borderColor: colors.error || '#FF3B30',
+    borderWidth: 1,
+  },
+  signInInputErrorText: {
+    color: colors.error || '#FF3B30',
+    fontSize: 12,
+    marginTop: 4,
   },
   signInNameRow: {
     flexDirection: 'row',

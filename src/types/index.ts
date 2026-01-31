@@ -135,6 +135,10 @@ export interface UserProfile {
   email?: string;
   phone?: string;
 
+  // DMF notification preferences
+  wantTextConfirmation?: boolean;
+  wantEmailConfirmation?: boolean;
+
   // Profile customization
   profileImage?: string;
 

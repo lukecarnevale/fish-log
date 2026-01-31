@@ -14,6 +14,9 @@ export interface User {
   deviceId: string | null;
   email: string | null;
 
+  // Link to Supabase auth user (for RLS policies)
+  authId: string | null;
+
   // Link to anonymous user history
   anonymousUserId: string | null;
 
@@ -143,6 +146,7 @@ export function transformUser(row: Record<string, unknown>): User {
     id: row.id as string,
     deviceId: row.device_id as string | null,
     email: row.email as string | null,
+    authId: row.auth_id as string | null,
     anonymousUserId: row.anonymous_user_id as string | null,
     firstName: row.first_name as string | null,
     lastName: row.last_name as string | null,

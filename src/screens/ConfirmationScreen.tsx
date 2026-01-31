@@ -18,6 +18,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  BackHandler,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -35,6 +36,12 @@ import { isTestMode } from "../config/appConfig";
 // Rewards prompt
 import RewardsPromptModal from "../components/RewardsPromptModal";
 import { shouldShowRewardsPrompt } from "../services/anonymousUserService";
+
+// Badge notification
+import { markNewReportSubmitted } from "../utils/badgeUtils";
+
+// Catch feed cache
+import { clearCatchFeedCache } from "../services/catchFeedService";
 
 type ConfirmationScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -70,7 +77,19 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
 
-  // Pan responder for swipe-to-dismiss
+  // Ref to track if dismissing (prevents multiple navigation attempts)
+  const isDismissingRef = useRef(false);
+
+  // Close button handler - navigate directly (animation was unreliable)
+  const handleClose = () => {
+    if (isDismissingRef.current) return;
+    isDismissingRef.current = true;
+    console.log('❌ Close button pressed, navigating home directly');
+    // Use navigate instead of popToTop - same as "Return Home" button which works
+    navigation.navigate("Home");
+  };
+
+  // Pan responder for swipe-to-dismiss (keeping as secondary option)
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -88,27 +107,11 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > DISMISS_THRESHOLD) {
-          // Animate off screen first, then navigate
-          Animated.parallel([
-            Animated.timing(translateY, {
-              toValue: SCREEN_HEIGHT,
-              duration: 250,
-              useNativeDriver: true,
-            }),
-            Animated.timing(opacity, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            // Navigate after animation completes
-            navigation.reset({
-              index: 0,
-              routes: [{ name: "Home" }],
-            });
-          });
-        } else {
+        if (gestureState.dy > DISMISS_THRESHOLD && !isDismissingRef.current) {
+          // Just snap back - swipe dismiss is unreliable, use X button instead
+          console.log('👆 Swipe detected - snapping back (use X button to close)');
+        }
+        if (!isDismissingRef.current) {
           // Snap back
           Animated.parallel([
             Animated.spring(translateY, {
@@ -160,6 +163,20 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
     checkRewardsPrompt();
   }, [isSubmitting, submitResult, submitError, rewardsPromptChecked]);
 
+  // Prevent Android back button from going back to the form
+  // Instead, navigate to Home (same as pressing "Return Home" button)
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!isDismissingRef.current) {
+        isDismissingRef.current = true;
+        navigation.navigate("Home");
+      }
+      return true; // Prevent default back behavior
+    });
+
+    return () => backHandler.remove();
+  }, [navigation]);
+
   const submitToDMF = async () => {
     setIsSubmitting(true);
     setSubmitError(null);
@@ -171,6 +188,13 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
       // Submit via the offline-aware service
       const result = await submitWithQueueFallback(harvestInput);
       setSubmitResult(result);
+
+      // Mark new report for badge notification (if submitted or queued)
+      if (result.success || result.queued) {
+        markNewReportSubmitted();
+        // Clear catch feed cache so the new submission appears immediately
+        clearCatchFeedCache();
+      }
 
       if (!result.success && !result.queued) {
         setSubmitError(result.error || "Submission failed");
@@ -350,14 +374,23 @@ This report was submitted to the NC Division of Marine Fisheries.`;
         },
       ]}
     >
-      {/* Modern Header - Swipe down to dismiss */}
+      {/* Modern Header with Close Button */}
       <View
         style={[localStyles.header, { backgroundColor: headerColor }]}
         {...panResponder.panHandlers}
       >
+        {/* Close button - positioned top right */}
+        <TouchableOpacity
+          style={localStyles.closeButton}
+          onPress={handleClose}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Feather name="x" size={24} color="rgba(255, 255, 255, 0.9)" />
+        </TouchableOpacity>
+
         <View style={localStyles.swipeIndicator} />
         <Text style={localStyles.headerTitle}>{statusTitle}</Text>
-        <Text style={localStyles.swipeHint}>Swipe down to close</Text>
         {isTestMode() && (
           <View style={localStyles.testModeBadge}>
             <Text style={localStyles.testModeBadgeText}>TEST MODE</Text>
@@ -737,6 +770,18 @@ const localStyles = StyleSheet.create({
     fontWeight: "700",
     color: colors.white,
     letterSpacing: 0.3,
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
   },
   swipeHint: {
     fontSize: 12,
