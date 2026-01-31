@@ -748,12 +748,13 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
         }
       }
 
-      // Now update the existing user's device_id
+      // Now update the existing user's device_id and auth_id
       const { data: updatedData, error: updateError } = await supabase
         .from('users')
         .update({
           device_id: deviceId,
           anonymous_user_id: anonymousUser?.id || existingUser.anonymousUserId || null,
+          auth_id: authUser.id, // Link to Supabase auth user for RLS
         })
         .eq('id', existingUser.id)
         .select()
@@ -789,6 +790,7 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
       .insert({
         device_id: deviceId,
         anonymous_user_id: anonymousUser?.id || null,
+        auth_id: authUser.id, // Link to Supabase auth user for RLS
         email: authUser.email.toLowerCase(),
         first_name: pendingAuth?.firstName || authUser.user_metadata?.firstName || null,
         last_name: pendingAuth?.lastName || authUser.user_metadata?.lastName || null,
@@ -813,6 +815,7 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
             const { data: updatedData, error: updateError } = await supabase
               .from('users')
               .update({
+                auth_id: authUser.id, // Link to Supabase auth user for RLS
                 email: authUser.email.toLowerCase(),
                 first_name: pendingAuth?.firstName || existingDeviceUser.firstName || null,
                 last_name: pendingAuth?.lastName || existingDeviceUser.lastName || null,

@@ -12,7 +12,6 @@ import {
   FlatList,
   StyleSheet,
   Animated,
-  Easing,
   Dimensions,
   TouchableWithoutFeedback,
   Pressable,
@@ -32,6 +31,7 @@ import { RootStackParamList, FishReportData, UserProfile, FishingLicense } from 
 import styles from "../styles/reportFormScreenStyles";
 import { colors } from "../styles/common";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
+import BottomDrawer from "../components/BottomDrawer";
 
 // DMF constants
 import { AREA_LABELS, getAreaCodeFromLabel } from "../constants/areaOptions";
@@ -100,7 +100,6 @@ interface PickerData {
   [key: string]: string[];
 }
 
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // Safe area insets for bottom sheet padding on Android
@@ -113,9 +112,6 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // State for showing optional fish details
   const [showOptionalDetails, setShowOptionalDetails] = useState<boolean>(false);
 
-  // Animation for modal drawer
-  const drawerAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const overlayAnim = useRef(new Animated.Value(0)).current;
 
   // Refs for scrolling
   const scrollViewRef = useRef<ScrollView>(null);
@@ -308,6 +304,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               hasLicense: profile?.hasLicense ?? true,
               wrcId: effectiveWrcId || prevData.wrcId,
               zipCode: profile?.zipCode || prevData.zipCode,
+              // Load DMF notification preferences from profile
+              wantTextConfirmation: profile?.wantTextConfirmation ?? prevData.wantTextConfirmation,
+              wantEmailConfirmation: profile?.wantEmailConfirmation ?? prevData.wantEmailConfirmation,
               angler: {
                 ...prevData.angler,
                 firstName: profile?.firstName || license?.firstName || prevData.angler.firstName,
@@ -374,7 +373,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         const existingData = await AsyncStorage.getItem("userProfile");
         const profile = existingData ? JSON.parse(existingData) : {};
 
-        // Update profile with angler info
+        // Update profile with angler info and DMF preferences
         const updatedProfile = {
           ...profile,
           firstName: formData.angler.firstName || profile.firstName,
@@ -382,6 +381,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           email: formData.angler.email || profile.email,
           phone: formData.angler.phone || profile.phone,
           zipCode: formData.zipCode || profile.zipCode,
+          wantTextConfirmation: formData.wantTextConfirmation,
+          wantEmailConfirmation: formData.wantEmailConfirmation,
         };
 
         await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
@@ -424,6 +425,47 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       } catch (error) {
         console.error("Error saving license number:", error);
       }
+    }
+  };
+
+  // Auto-save DMF notification preferences to profile
+  const saveDMFPreferences = async (
+    textPref: boolean,
+    emailPref: boolean
+  ): Promise<void> => {
+    try {
+      const existingData = await AsyncStorage.getItem("userProfile");
+      const profile = existingData ? JSON.parse(existingData) : {};
+
+      const updatedProfile = {
+        ...profile,
+        wantTextConfirmation: textPref,
+        wantEmailConfirmation: emailPref,
+      };
+
+      await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+    } catch (error) {
+      console.error("Error saving DMF preferences:", error);
+    }
+  };
+
+  // Auto-save a single profile field (for fields like zip code)
+  const saveProfileField = async (
+    fieldName: string,
+    value: string
+  ): Promise<void> => {
+    try {
+      const existingData = await AsyncStorage.getItem("userProfile");
+      const profile = existingData ? JSON.parse(existingData) : {};
+
+      const updatedProfile = {
+        ...profile,
+        [fieldName]: value,
+      };
+
+      await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+    } catch (error) {
+      console.error(`Error saving ${fieldName}:`, error);
     }
   };
 
@@ -673,42 +715,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     setCurrentPicker(pickerType as string);
     setCurrentPickerLabel(label);
     setModalVisible(true);
-    // Animate drawer sliding up and overlay fading in
-    // Using timing with easing for smooth, predictable animation on Android
-    Animated.parallel([
-      Animated.timing(overlayAnim, {
-        toValue: 1,
-        duration: 280,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(drawerAnim, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
   };
 
-  // Function to close modal with animation
+  // Function to close modal - BottomDrawer handles animations
   const closePicker = (): void => {
-    Animated.parallel([
-      Animated.timing(overlayAnim, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(drawerAnim, {
-        toValue: SCREEN_HEIGHT,
-        duration: 250,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setModalVisible(false);
-    });
+    setModalVisible(false);
   };
 
   // Function to handle selection in modal
@@ -724,9 +735,18 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   };
 
   const handleDateChange = (event: any, selectedDate?: Date): void => {
-    // Update tempDate on each scroll (for spinner mode)
-    if (selectedDate) {
-      setTempDate(selectedDate);
+    if (Platform.OS === 'android') {
+      // Android native picker: close modal and apply date if OK was pressed
+      if (event.type === 'set' && selectedDate) {
+        setFormData({ ...formData, date: selectedDate });
+      }
+      // Close the modal for both OK and Cancel
+      closeDatePicker();
+    } else {
+      // iOS spinner: just update temp date, user confirms with Done button
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
     }
   };
 
@@ -1320,72 +1340,49 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // Render the selection modal
   const renderSelectionModal = (): React.ReactNode => (
-    <Modal
-      animationType="none"
-      transparent={true}
+    <BottomDrawer
       visible={modalVisible}
-      onRequestClose={closePicker}
+      onClose={closePicker}
+      maxHeight="80%"
     >
-      <View style={localStyles.modalWrapper} pointerEvents="box-none">
-        {/* Animated overlay - sits behind drawer */}
-        <TouchableWithoutFeedback onPress={closePicker}>
-          <Animated.View
-            style={[
-              localStyles.modalOverlay,
-              { opacity: overlayAnim },
-            ]}
-          />
-        </TouchableWithoutFeedback>
-
-        {/* Animated drawer - pointerEvents auto ensures it receives touches */}
-        <Animated.View
-          style={[
-            localStyles.modalDrawer,
-            { transform: [{ translateY: drawerAnim }], paddingBottom: insets.bottom },
-          ]}
-          pointerEvents="auto"
-        >
-          <View style={localStyles.modalHandle} />
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select {currentPickerLabel}</Text>
-            <TouchableOpacity onPress={closePicker}>
-              <Text style={styles.closeButton}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-
-          <FlatList
-            data={pickerData[currentPicker as keyof PickerData]}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => {
-              const isSelected = formData[currentPicker as keyof FormState] === item;
-              return (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.optionItem,
-                    isSelected && localStyles.optionItemSelected,
-                    pressed && { opacity: 0.7 }
-                  ]}
-                  onPress={() => handleSelection(item)}
-                  android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
-                >
-                  <Text style={[
-                    styles.optionText,
-                    isSelected && localStyles.optionTextSelected
-                  ]}>{item}</Text>
-                  {isSelected && (
-                    <Feather name="check" size={20} color={colors.primary} />
-                  )}
-                </Pressable>
-              );
-            }}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            contentContainerStyle={{ paddingBottom: 34 }}
-            scrollEnabled={pickerData[currentPicker as keyof PickerData]?.length > 8}
-            removeClippedSubviews={false}
-          />
-        </Animated.View>
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>Select {currentPickerLabel}</Text>
+        <TouchableOpacity onPress={closePicker}>
+          <Text style={styles.closeButton}>Cancel</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      <FlatList
+        data={pickerData[currentPicker as keyof PickerData]}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item }) => {
+          const isSelected = formData[currentPicker as keyof FormState] === item;
+          return (
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionItem,
+                isSelected && localStyles.optionItemSelected,
+                pressed && { opacity: 0.7 }
+              ]}
+              onPress={() => handleSelection(item)}
+              android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
+            >
+              <Text style={[
+                styles.optionText,
+                isSelected && localStyles.optionTextSelected
+              ]}>{item}</Text>
+              {isSelected && (
+                <Feather name="check" size={20} color={colors.primary} />
+              )}
+            </Pressable>
+          );
+        }}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        contentContainerStyle={{ paddingBottom: 34 }}
+        scrollEnabled={pickerData[currentPicker as keyof PickerData]?.length > 8}
+        removeClippedSubviews={false}
+      />
+    </BottomDrawer>
   );
 
   // Render the abandonment confirmation modal
@@ -2362,10 +2359,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               style={styles.input}
               value={formData.zipCode}
               onChangeText={(text) => {
+                const cleanedZip = text.replace(/\D/g, '').slice(0, 5);
                 setFormData({
                   ...formData,
-                  zipCode: text.replace(/\D/g, '').slice(0, 5),
+                  zipCode: cleanedZip,
                 });
+                // Auto-save when complete 5-digit zip is entered
+                if (cleanedZip.length === 5 && cleanedZip !== initialLoadedValues.zipCode) {
+                  saveProfileField('zipCode', cleanedZip);
+                }
               }}
               placeholder="Enter your 5-digit ZIP code"
               keyboardType="number-pad"
@@ -2469,6 +2471,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   zipCode: cleanedZip,
                 });
 
+                // Auto-save when complete 5-digit zip is entered
+                if (cleanedZip.length === 5 && cleanedZip !== initialLoadedValues.zipCode) {
+                  saveProfileField('zipCode', cleanedZip);
+                }
+
                 // Auto-expand contact section when all required fields are filled (unlicensed)
                 const hasRequiredFields = formData.angler.firstName?.trim() &&
                                           formData.angler.lastName?.trim() &&
@@ -2527,15 +2534,17 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 const isNewEmail = text.trim() !== "" && text !== initialLoadedValues.email;
                 const shouldAutoToggleSave = isNewEmail && !saveAnglerInfo;
 
+                const newEmailPref = hasEmail ? true : formData.wantEmailConfirmation;
                 setFormData({
                   ...formData,
                   angler: { ...formData.angler, email: text },
-                  wantEmailConfirmation: hasEmail ? true : formData.wantEmailConfirmation,
+                  wantEmailConfirmation: newEmailPref,
                 });
 
-                // Trigger animation when auto-toggling email confirmation
+                // Trigger animation and auto-save when auto-toggling email confirmation
                 if (shouldAutoToggleEmail) {
                   pulseCheckbox(emailCheckboxAnim);
+                  saveDMFPreferences(formData.wantTextConfirmation, true);
                 }
 
                 // Auto-toggle Save to Profile when entering new email
@@ -2561,7 +2570,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             {formData.angler.email && (
               <TouchableOpacity
                 style={localStyles.checkboxRow}
-                onPress={() => setFormData({ ...formData, wantEmailConfirmation: !formData.wantEmailConfirmation })}
+                onPress={() => {
+                  const newEmailPref = !formData.wantEmailConfirmation;
+                  setFormData({ ...formData, wantEmailConfirmation: newEmailPref });
+                  saveDMFPreferences(formData.wantTextConfirmation, newEmailPref);
+                }}
                 activeOpacity={0.7}
               >
                 <Animated.View style={[
@@ -2594,15 +2607,17 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 const isNewPhone = formattedPhone.trim() !== "" && formattedPhone !== initialLoadedValues.phone;
                 const shouldAutoToggleSave = isNewPhone && !saveAnglerInfo;
 
+                const newTextPref = hasPhone ? true : formData.wantTextConfirmation;
                 setFormData({
                   ...formData,
                   angler: { ...formData.angler, phone: formattedPhone },
-                  wantTextConfirmation: hasPhone ? true : formData.wantTextConfirmation,
+                  wantTextConfirmation: newTextPref,
                 });
 
-                // Trigger animation when auto-toggling phone confirmation
+                // Trigger animation and auto-save when auto-toggling phone confirmation
                 if (shouldAutoTogglePhone) {
                   pulseCheckbox(phoneCheckboxAnim);
+                  saveDMFPreferences(true, formData.wantEmailConfirmation);
                 }
 
                 // Auto-toggle Save to Profile when entering new phone
@@ -2628,7 +2643,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             {formData.angler.phone && (
               <TouchableOpacity
                 style={localStyles.checkboxRow}
-                onPress={() => setFormData({ ...formData, wantTextConfirmation: !formData.wantTextConfirmation })}
+                onPress={() => {
+                  const newTextPref = !formData.wantTextConfirmation;
+                  setFormData({ ...formData, wantTextConfirmation: newTextPref });
+                  saveDMFPreferences(newTextPref, formData.wantEmailConfirmation);
+                }}
                 activeOpacity={0.7}
               >
                 <Animated.View style={[
@@ -3328,33 +3347,6 @@ const localStyles = StyleSheet.create({
     elevation: 8,
   },
 
-  // Modal styles
-  modalWrapper: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    zIndex: 1,
-  },
-  modalDrawer: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "80%",
-    zIndex: 2,
-    elevation: 10,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 8,
-  },
   // Reporting type styles
   reportingTypeOption: {
     flexDirection: "row",

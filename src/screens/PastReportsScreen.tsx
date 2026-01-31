@@ -4,13 +4,12 @@
 // Integrates with offlineQueue service to show synced and pending reports.
 //
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Text,
   View,
   FlatList,
   TouchableOpacity,
-  Image,
   Alert,
   ActivityIndicator,
   Modal,
@@ -18,7 +17,9 @@ import {
   ListRenderItem,
   StyleSheet,
   RefreshControl,
+  Platform,
 } from "react-native";
+import { Image } from "expo-image";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
@@ -43,6 +44,14 @@ type PastReportsScreenNavigationProp = StackNavigationProp<
 
 interface PastReportsScreenProps {
   navigation: PastReportsScreenNavigationProp;
+}
+
+// Fish entry with lengths for detailed display
+interface FishEntryDisplay {
+  species: string;
+  count: number;
+  lengths?: string[];
+  tagNumber?: string;
 }
 
 // Combined report type for display (either submitted or queued)
@@ -71,6 +80,8 @@ interface DisplayReport {
   // Raffle info
   enteredRaffle?: boolean;
   raffleId?: string;
+  // Fish entries with individual lengths
+  fishEntries?: FishEntryDisplay[];
 }
 
 const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => {
@@ -174,6 +185,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         objectId: submitted.objectId,
         enteredRaffle: submitted.raffleEntered,
         raffleId: submitted.raffleId,
+        fishEntries: submitted.fishEntries,
       };
     } else {
       const queued = report as QueuedReport;
@@ -198,12 +210,13 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         retryCount: queued.retryCount,
         lastError: queued.lastError,
         enteredRaffle: queued.enterRaffle,
+        fishEntries: queued.fishEntries,
       };
     }
   };
 
-  // Get combined and sorted display reports
-  const getDisplayReports = (): DisplayReport[] => {
+  // Get combined and sorted display reports - memoized for performance
+  const displayReports = useMemo((): DisplayReport[] => {
     const submitted = submittedReports.map(r => convertToDisplayReport(r, "submitted"));
     const queued = queuedReports.map(r => convertToDisplayReport(r, "queued"));
 
@@ -225,7 +238,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       const dateB = new Date(b.submittedAt || b.queuedAt || b.harvestDate).getTime();
       return dateB - dateA;
     });
-  };
+  }, [submittedReports, queuedReports, filterType]);
 
   // Get total fish count
   const getTotalFish = (report: DisplayReport): number => {
@@ -260,8 +273,11 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     return chips;
   };
 
-  // Render individual report card
-  const renderReportItem: ListRenderItem<DisplayReport> = ({ item }) => {
+  // Memoized keyExtractor for FlatList performance
+  const keyExtractor = useCallback((item: DisplayReport) => item.confirmationNumber, []);
+
+  // Render individual report card - memoized for performance
+  const renderReportItem: ListRenderItem<DisplayReport> = useCallback(({ item }) => {
     const speciesChips = getSpeciesChips(item);
     const totalFish = getTotalFish(item);
     const isPending = item.type === "queued";
@@ -348,7 +364,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 <Image
                   source={{ uri: reportImage }}
                   style={styles.cardPhoto}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  transition={200}
                 />
               </View>
             ) : (
@@ -397,7 +415,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         )}
       </TouchableOpacity>
     );
-  };
+  }, [fishSpeciesData]);
 
   // Render detail modal
   const renderDetailModal = () => (
@@ -469,7 +487,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 <Image
                   source={{ uri: selectedReport.catchPhoto }}
                   style={styles.modalPhoto}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
                 />
               </View>
             )}
@@ -515,42 +535,71 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               </View>
             </View>
 
-            {/* Species Counts */}
+            {/* Species Counts with Lengths */}
             <View style={styles.modalDetailSection}>
               <Text style={styles.modalDetailTitle}>
                 Fish Reported ({selectedReport ? getTotalFish(selectedReport) : 0} total)
               </Text>
               <View style={styles.modalDetailTable}>
-                {selectedReport?.redDrumCount ? (
-                  <View style={styles.modalDetailRow}>
-                    <Text style={styles.modalDetailLabel}>Red Drum</Text>
-                    <Text style={styles.modalDetailValue}>{selectedReport.redDrumCount}</Text>
-                  </View>
-                ) : null}
-                {selectedReport?.flounderCount ? (
-                  <View style={styles.modalDetailRow}>
-                    <Text style={styles.modalDetailLabel}>Flounder</Text>
-                    <Text style={styles.modalDetailValue}>{selectedReport.flounderCount}</Text>
-                  </View>
-                ) : null}
-                {selectedReport?.spottedSeatroutCount ? (
-                  <View style={styles.modalDetailRow}>
-                    <Text style={styles.modalDetailLabel}>Spotted Seatrout</Text>
-                    <Text style={styles.modalDetailValue}>{selectedReport.spottedSeatroutCount}</Text>
-                  </View>
-                ) : null}
-                {selectedReport?.weakfishCount ? (
-                  <View style={styles.modalDetailRow}>
-                    <Text style={styles.modalDetailLabel}>Weakfish</Text>
-                    <Text style={styles.modalDetailValue}>{selectedReport.weakfishCount}</Text>
-                  </View>
-                ) : null}
-                {selectedReport?.stripedBassCount ? (
-                  <View style={styles.modalDetailRow}>
-                    <Text style={styles.modalDetailLabel}>Striped Bass</Text>
-                    <Text style={styles.modalDetailValue}>{selectedReport.stripedBassCount}</Text>
-                  </View>
-                ) : null}
+                {selectedReport?.fishEntries && selectedReport.fishEntries.length > 0 ? (
+                  // Show detailed fish entries with lengths if available
+                  selectedReport.fishEntries.map((entry, index) => (
+                    <View key={`${entry.species}-${index}`}>
+                      <View style={styles.modalDetailRow}>
+                        <Text style={styles.modalDetailLabel}>{entry.species}</Text>
+                        <Text style={styles.modalDetailValue}>{entry.count}</Text>
+                      </View>
+                      {entry.lengths && entry.lengths.length > 0 && (
+                        <View style={styles.modalLengthsRow}>
+                          <Text style={styles.modalLengthsLabel}>Lengths:</Text>
+                          <Text style={styles.modalLengthsValue}>
+                            {entry.lengths.map(l => `${l}"`).join(", ")}
+                          </Text>
+                        </View>
+                      )}
+                      {entry.tagNumber && (
+                        <View style={styles.modalLengthsRow}>
+                          <Text style={styles.modalLengthsLabel}>Tag #:</Text>
+                          <Text style={styles.modalLengthsValue}>{entry.tagNumber}</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                ) : (
+                  // Fallback to showing counts only (older reports without fishEntries)
+                  <>
+                    {selectedReport?.redDrumCount ? (
+                      <View style={styles.modalDetailRow}>
+                        <Text style={styles.modalDetailLabel}>Red Drum</Text>
+                        <Text style={styles.modalDetailValue}>{selectedReport.redDrumCount}</Text>
+                      </View>
+                    ) : null}
+                    {selectedReport?.flounderCount ? (
+                      <View style={styles.modalDetailRow}>
+                        <Text style={styles.modalDetailLabel}>Flounder</Text>
+                        <Text style={styles.modalDetailValue}>{selectedReport.flounderCount}</Text>
+                      </View>
+                    ) : null}
+                    {selectedReport?.spottedSeatroutCount ? (
+                      <View style={styles.modalDetailRow}>
+                        <Text style={styles.modalDetailLabel}>Spotted Seatrout</Text>
+                        <Text style={styles.modalDetailValue}>{selectedReport.spottedSeatroutCount}</Text>
+                      </View>
+                    ) : null}
+                    {selectedReport?.weakfishCount ? (
+                      <View style={styles.modalDetailRow}>
+                        <Text style={styles.modalDetailLabel}>Weakfish</Text>
+                        <Text style={styles.modalDetailValue}>{selectedReport.weakfishCount}</Text>
+                      </View>
+                    ) : null}
+                    {selectedReport?.stripedBassCount ? (
+                      <View style={styles.modalDetailRow}>
+                        <Text style={styles.modalDetailLabel}>Striped Bass</Text>
+                        <Text style={styles.modalDetailValue}>{selectedReport.stripedBassCount}</Text>
+                      </View>
+                    ) : null}
+                  </>
+                )}
               </View>
             </View>
 
@@ -647,8 +696,6 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     );
   };
 
-  const displayReports = getDisplayReports();
-
   // Custom header right element for test mode badge
   const headerRight = isTestMode() ? (
     <View style={styles.testModeBadge}>
@@ -728,7 +775,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       <FlatList
         data={displayReports}
         renderItem={renderReportItem}
-        keyExtractor={(item) => item.confirmationNumber}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -740,6 +787,12 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           />
         }
         ListEmptyComponent={renderEmptyState}
+        // Performance optimizations
+        removeClippedSubviews={Platform.OS === "android"}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={50}
+        windowSize={10}
+        initialNumToRender={6}
       />
 
       {renderDetailModal()}
@@ -803,7 +856,8 @@ const styles = StyleSheet.create({
   filterContainer: {
     flexDirection: "row",
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
   },
   filterButton: {
     backgroundColor: colors.lightestGray,
@@ -825,6 +879,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xl,
     flexGrow: 1,
   },
@@ -1262,6 +1317,26 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
     padding: spacing.sm,
+    flex: 1,
+  },
+  modalLengthsRow: {
+    flexDirection: "row",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.lightestGray,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lightGray,
+  },
+  modalLengthsLabel: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontStyle: "italic",
+    marginRight: spacing.sm,
+  },
+  modalLengthsValue: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "600",
     flex: 1,
   },
   modalCloseButton: {

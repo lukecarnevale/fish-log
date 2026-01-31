@@ -5,16 +5,16 @@
 // and polished angler section matching the ultra-premium aesthetic.
 // Now supports displaying multiple species from a single submission.
 
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { CatchFeedEntry, SpeciesCatch, formatRelativeTime } from '../types/catchFeed';
 import { colors, spacing, borderRadius } from '../styles/common';
 import { getSpeciesTheme } from '../constants/speciesColors';
@@ -25,6 +25,7 @@ interface CatchCardProps {
   entry: CatchFeedEntry;
   onAnglerPress?: (userId: string) => void;
   onCardPress?: (entry: CatchFeedEntry) => void;
+  onLikePress?: (entry: CatchFeedEntry) => void;
   compact?: boolean;
 }
 
@@ -32,6 +33,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
   entry,
   onAnglerPress,
   onCardPress,
+  onLikePress,
   compact = false,
 }) => {
   const relativeTime = formatRelativeTime(entry.createdAt);
@@ -42,17 +44,19 @@ const CatchCard: React.FC<CatchCardProps> = ({
   const totalFish = entry.totalFish || speciesList.reduce((sum, s) => sum + s.count, 0);
   const hasMultipleSpecies = speciesList.length > 1;
 
-  const handleCardPress = () => {
+  // Memoized handlers to prevent unnecessary re-renders
+  const handleCardPress = useCallback(() => {
     if (onCardPress) {
       onCardPress(entry);
     } else if (onAnglerPress) {
       onAnglerPress(entry.userId);
     }
-  };
+  }, [onCardPress, onAnglerPress, entry]);
 
-  const handleAnglerPress = () => {
-    onAnglerPress?.(entry.userId);
-  };
+  const handleLikePress = useCallback(() => {
+    onLikePress?.(entry);
+  }, [onLikePress, entry]);
+
 
   // Compact mode for AnglerProfileModal
   if (compact) {
@@ -64,7 +68,9 @@ const CatchCard: React.FC<CatchCardProps> = ({
             <Image
               source={{ uri: entry.photoUrl }}
               style={styles.compactPhoto}
-              resizeMode="cover"
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
             />
           ) : (
             <SpeciesPlaceholder species={entry.species} size="small" />
@@ -110,9 +116,19 @@ const CatchCard: React.FC<CatchCardProps> = ({
     );
   }
 
-  // Helper to format species with count
-  const formatSpeciesWithCount = (s: SpeciesCatch) => {
-    return s.count > 1 ? `${s.species} (${s.count})` : s.species;
+  // Helper to format species with count and lengths integrated
+  // Format: "2 Red Drum • 18", 20"" or "Red Drum • 18"" (single fish)
+  const formatSpeciesDisplay = (s: SpeciesCatch): string => {
+    // Put count first if more than 1
+    let display = s.count > 1 ? `${s.count} ${s.species}` : s.species;
+
+    // Add lengths inline if available
+    if (s.lengths && s.lengths.length > 0) {
+      const lengthsStr = s.lengths.map(l => `${l}"`).join(', ');
+      display += ` • ${lengthsStr}`;
+    }
+
+    return display;
   };
 
   // Full card for main feed - PREMIUM DESIGN
@@ -123,17 +139,53 @@ const CatchCard: React.FC<CatchCardProps> = ({
       activeOpacity={0.97}
       disabled={!onAnglerPress && !onCardPress}
     >
-      {/* Photo section with glassmorphism overlay */}
+      {/* Photo section with overlays */}
       <View style={styles.photoContainer}>
         {entry.photoUrl ? (
           <Image
             source={{ uri: entry.photoUrl }}
             style={styles.photo}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={300}
+            cachePolicy="memory-disk"
+            placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+            placeholderContentFit="cover"
           />
         ) : (
           <SpeciesPlaceholder species={entry.species} size="large" />
         )}
+
+        {/* Top gradient overlay for profile info */}
+        <LinearGradient
+          colors={['rgba(0, 0, 0, 0.45)', 'transparent']}
+          style={styles.topGradient}
+        />
+
+        {/* Profile and timestamp overlay at top */}
+        <View style={styles.topOverlay}>
+          {/* Avatar - not clickable */}
+          <View style={styles.topAvatarContainer}>
+            {entry.anglerProfileImage ? (
+              <Image
+                source={{ uri: entry.anglerProfileImage }}
+                style={styles.topAvatar}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
+            ) : (
+              <View style={[styles.topAvatarPlaceholder, { backgroundColor: speciesTheme.primary }]}>
+                <Text style={styles.topAvatarInitial}>
+                  {entry.anglerName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.topAnglerInfo}>
+            <Text style={styles.topAnglerName}>{entry.anglerName}</Text>
+            <Text style={styles.topTimestamp}>{relativeTime}</Text>
+          </View>
+        </View>
 
         {/* Gradient overlay at bottom of photo */}
         <LinearGradient
@@ -160,67 +212,45 @@ const CatchCard: React.FC<CatchCardProps> = ({
         </View>
       </View>
 
-      {/* Species list section - shows all caught species */}
-      <View style={styles.speciesSection}>
+      {/* Bottom section - species badges with integrated lengths and like button */}
+      <View style={styles.bottomSection}>
+        {/* Species list - shows all caught species with lengths integrated */}
         <View style={styles.speciesRow}>
           {speciesList.map((s, index) => {
             const theme = getSpeciesTheme(s.species);
             return (
               <CatchInfoBadge
                 key={`${s.species}-${index}`}
-                text={formatSpeciesWithCount(s)}
+                text={formatSpeciesDisplay(s)}
                 variant="species"
                 speciesTheme={theme}
               />
             );
           })}
         </View>
+
+        {/* Like button */}
+        <TouchableOpacity
+          style={styles.likeButton}
+          onPress={handleLikePress}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons
+            name={entry.isLikedByCurrentUser ? 'heart' : 'heart-outline'}
+            size={22}
+            color={entry.isLikedByCurrentUser ? '#E53935' : colors.textTertiary}
+          />
+          {entry.likeCount > 0 && (
+            <Text style={[
+              styles.likeCount,
+              entry.isLikedByCurrentUser && styles.likeCountActive
+            ]}>
+              {entry.likeCount}
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
-
-      {/* Angler section - premium styling */}
-      <TouchableOpacity
-        style={styles.anglerRow}
-        onPress={handleAnglerPress}
-        disabled={!onAnglerPress}
-        activeOpacity={0.7}
-      >
-        {/* Avatar with species-themed background */}
-        <View style={styles.avatarContainer}>
-          {entry.anglerProfileImage ? (
-            <Image
-              source={{ uri: entry.anglerProfileImage }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: speciesTheme.primary }]}>
-              <Text style={styles.avatarInitial}>
-                {entry.anglerName.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Angler info */}
-        <View style={styles.anglerInfo}>
-          <Text style={styles.anglerName}>{entry.anglerName}</Text>
-          {onAnglerPress && (
-            <Text style={styles.viewProfileText}>Tap to view profile</Text>
-          )}
-        </View>
-
-        {/* Timestamp and chevron */}
-        <View style={styles.anglerRight}>
-          <Text style={styles.timestamp}>{relativeTime}</Text>
-          {onAnglerPress && (
-            <Feather
-              name="chevron-right"
-              size={18}
-              color={colors.textTertiary}
-              style={styles.chevron}
-            />
-          )}
-        </View>
-      </TouchableOpacity>
     </TouchableOpacity>
   );
 };
@@ -278,70 +308,97 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Species section - shows all caught species
-  speciesSection: {
+  // Top gradient and profile overlay
+  topGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+  },
+  topOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 12,
     paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  topAvatarContainer: {
+    marginRight: 10,
+  },
+  topAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  topAvatarPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  topAvatarInitial: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  topAnglerInfo: {
+    flex: 1,
+  },
+  topAnglerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.white,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  topTimestamp: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.85)',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+
+  // Bottom section - species badges and like button
+  bottomSection: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   speciesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-  },
-
-  // Angler row - premium styling
-  anglerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  avatarContainer: {
-    marginRight: 12,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.lightGray,
-  },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitial: {
-    color: colors.white,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  anglerInfo: {
     flex: 1,
   },
-  anglerName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  viewProfileText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  anglerRight: {
+  likeButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingLeft: 12,
   },
-  timestamp: {
-    fontSize: 12,
+  likedHeart: {
+    // Filled heart effect - we use color change instead
+  },
+  likeCount: {
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.textTertiary,
+    marginLeft: 5,
   },
-  chevron: {
-    marginLeft: 4,
+  likeCountActive: {
+    color: '#E53935',
   },
 
   // =====================
@@ -412,4 +469,15 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CatchCard;
+// Custom comparison to prevent unnecessary re-renders
+// Only re-render if the entry data or like status actually changed
+const arePropsEqual = (prevProps: CatchCardProps, nextProps: CatchCardProps): boolean => {
+  return (
+    prevProps.entry.id === nextProps.entry.id &&
+    prevProps.entry.likeCount === nextProps.entry.likeCount &&
+    prevProps.entry.isLikedByCurrentUser === nextProps.entry.isLikedByCurrentUser &&
+    prevProps.compact === nextProps.compact
+  );
+};
+
+export default memo(CatchCard, arePropsEqual);

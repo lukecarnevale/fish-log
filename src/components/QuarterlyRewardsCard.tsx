@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
   Animated,
 } from 'react-native';
@@ -202,13 +201,159 @@ function getPrizeIllustration(category: PrizeCategory): React.ReactNode {
 }
 
 // ============================================
+// SKELETON LOADER
+// ============================================
+
+/** Animated skeleton box with shimmer effect */
+const SkeletonBox: React.FC<{
+  width: number | string;
+  height: number;
+  borderRadius?: number;
+  style?: object;
+}> = ({ width, height, borderRadius = 4, style }) => {
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(shimmer, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [shimmer]);
+
+  const backgroundColor = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#E8EEF4', '#D0DAE4'],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor,
+        },
+        style,
+      ]}
+    />
+  );
+};
+
+/** Skeleton loader for QuarterlyRewardsCard */
+const QuarterlyRewardsCardSkeleton: React.FC = () => {
+  return (
+    <View style={styles.container}>
+      {/* Entry Status Tab Skeleton */}
+      <View style={styles.entryStatusTab}>
+        <View style={[styles.entryStatusContent, { backgroundColor: '#D0DAE4' }]}>
+          <SkeletonBox width={80} height={12} borderRadius={6} />
+        </View>
+      </View>
+
+      {/* Main Card Container */}
+      <View style={styles.cardContainer}>
+        {/* Hero Header Skeleton */}
+        <LinearGradient
+          colors={[COLORS.navyDark, COLORS.navyLight]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroContainer}
+        >
+          <View style={styles.heroContent}>
+            {/* Title skeleton */}
+            <SkeletonBox width={180} height={24} borderRadius={6} style={{ marginBottom: 8, opacity: 0.3 }} />
+            {/* Subtitle skeleton */}
+            <SkeletonBox width={240} height={14} borderRadius={4} style={{ marginBottom: 12, opacity: 0.2 }} />
+            {/* Badge skeleton */}
+            <SkeletonBox width={140} height={28} borderRadius={20} style={{ opacity: 0.25 }} />
+          </View>
+        </LinearGradient>
+
+        {/* Content Area Skeleton */}
+        <View style={styles.contentContainer}>
+          {/* Progress Section Skeleton */}
+          <View style={styles.progressSection}>
+            <View style={styles.progressHeader}>
+              <SkeletonBox width={100} height={13} />
+              <SkeletonBox width={70} height={13} />
+            </View>
+            <SkeletonBox width="100%" height={8} borderRadius={4} />
+          </View>
+
+          {/* How It Works Row Skeleton */}
+          <View style={styles.infoRow}>
+            <SkeletonBox width={36} height={36} borderRadius={10} />
+            <View style={[styles.infoContent, { marginLeft: 12 }]}>
+              <SkeletonBox width={100} height={15} style={{ marginBottom: 6 }} />
+              <SkeletonBox width={200} height={13} />
+            </View>
+          </View>
+
+          {/* Drawing Date Row Skeleton */}
+          <View style={styles.infoRow}>
+            <SkeletonBox width={36} height={36} borderRadius={10} />
+            <View style={[styles.infoContent, { marginLeft: 12 }]}>
+              <SkeletonBox width={90} height={15} style={{ marginBottom: 6 }} />
+              <SkeletonBox width={180} height={13} style={{ marginBottom: 4 }} />
+              <SkeletonBox width={140} height={13} />
+            </View>
+          </View>
+
+          {/* Prize Section Skeleton */}
+          <View style={styles.prizeSection}>
+            <SkeletonBox width={140} height={15} style={{ marginBottom: 12 }} />
+            <View style={[styles.prizeItem, { backgroundColor: COLORS.bgCard }]}>
+              <SkeletonBox width={60} height={50} borderRadius={8} />
+              <View style={[styles.prizeDetails, { marginLeft: 14 }]}>
+                <SkeletonBox width={120} height={14} style={{ marginBottom: 6 }} />
+                <SkeletonBox width={80} height={13} />
+              </View>
+            </View>
+          </View>
+
+          {/* Notification Banner Skeleton */}
+          <View style={[styles.notificationBanner, { backgroundColor: COLORS.bgLight }]}>
+            <SkeletonBox width={36} height={36} borderRadius={10} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <SkeletonBox width="90%" height={12} style={{ marginBottom: 5 }} />
+              <SkeletonBox width="70%" height={12} />
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Footer CTA Skeleton */}
+      <View style={styles.footerCta}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <SkeletonBox width="80%" height={13} style={{ marginBottom: 4 }} />
+          <SkeletonBox width="60%" height={13} />
+        </View>
+        <SkeletonBox width={100} height={44} borderRadius={16} />
+      </View>
+    </View>
+  );
+};
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
 const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false }) => {
   const navigation = useNavigation<NavigationProp>();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [isEntering, setIsEntering] = useState(false);
 
   const {
     currentDrawing,
@@ -218,8 +363,6 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     calculated,
     hasEnteredCurrentRaffle,
     isNewQuarter,
-    acknowledgeNewQuarter,
-    enterDrawing,
   } = useRewards();
 
   // Slow pulsing animation for progress indicator border
@@ -250,27 +393,9 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     outputRange: [COLORS.white, COLORS.orange],
   });
 
-  // Handle entering the drawing directly (for returning members)
-  const handleEnterDrawing = async () => {
-    setIsEntering(true);
-    try {
-      const success = await enterDrawing();
-      if (success) {
-        acknowledgeNewQuarter();
-      }
-    } finally {
-      setIsEntering(false);
-    }
-  };
-
-  // Loading state
+  // Loading state - show skeleton
   if (isLoading) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading rewards...</Text>
-      </View>
-    );
+    return <QuarterlyRewardsCardSkeleton />;
   }
 
   // Error or no drawing state
@@ -323,6 +448,34 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             </View>
 
             <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Your Entry Status</Text>
+              {hasEnteredCurrentRaffle ? (
+                <>
+                  <View style={styles.eligibilityBadge}>
+                    <Feather name="check-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.eligibilityBadgeText}>You're entered!</Text>
+                  </View>
+                  <Text style={styles.modalText}>
+                    You're in the {calculated.quarterDisplay} drawing. Good luck!
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <View style={[styles.eligibilityBadge, styles.eligibilityBadgeInactive]}>
+                    <Feather name="alert-circle" size={16} color="#FF9800" />
+                    <Text style={[styles.eligibilityBadgeText, styles.eligibilityBadgeTextInactive]}>Not yet entered</Text>
+                  </View>
+                  <Text style={styles.modalText}>
+                    Tap "Enter Drawing" on the rewards card to join this quarter's prize drawing.
+                  </Text>
+                </>
+              )}
+              <Text style={styles.modalText}>
+                {config?.alternativeEntryText || 'No purchase or report necessary to enter.'}
+              </Text>
+            </View>
+
+            <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Entry Period</Text>
               <Text style={styles.modalText}>
                 Start: {formatDate(currentDrawing.startDate)}
@@ -356,34 +509,6 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               {currentDrawing.eligibilityRequirements.map((req, idx) => (
                 <Text key={idx} style={styles.modalText}>• {req}</Text>
               ))}
-            </View>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Your Entry Status</Text>
-              {hasEnteredCurrentRaffle ? (
-                <>
-                  <View style={styles.eligibilityBadge}>
-                    <Feather name="check-circle" size={16} color="#4CAF50" />
-                    <Text style={styles.eligibilityBadgeText}>You're entered!</Text>
-                  </View>
-                  <Text style={styles.modalText}>
-                    You're in the {calculated.quarterDisplay} drawing. Good luck!
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <View style={[styles.eligibilityBadge, styles.eligibilityBadgeInactive]}>
-                    <Feather name="alert-circle" size={16} color="#FF9800" />
-                    <Text style={[styles.eligibilityBadgeText, styles.eligibilityBadgeTextInactive]}>Not yet entered</Text>
-                  </View>
-                  <Text style={styles.modalText}>
-                    Tap "Enter Drawing" on the rewards card to join this quarter's prize drawing.
-                  </Text>
-                </>
-              )}
-              <Text style={styles.modalText}>
-                {config?.alternativeEntryText || 'No purchase or report necessary to enter.'}
-              </Text>
             </View>
           </ScrollView>
 
@@ -449,14 +574,9 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
         {/* Content Area */}
         <View style={styles.contentContainer}>
 
-          {/* New Quarter Banner (for signed-in members) */}
-          {isSignedIn && isNewQuarter && (
-            <TouchableOpacity
-              style={styles.newQuarterBanner}
-              onPress={handleEnterDrawing}
-              activeOpacity={0.8}
-              disabled={isEntering}
-            >
+          {/* New Quarter Banner (for signed-in members who haven't entered yet) */}
+          {isSignedIn && isNewQuarter && !hasEnteredCurrentRaffle && (
+            <View style={styles.newQuarterBanner}>
               <LinearGradient
                 colors={['#4CAF50', '#2E7D32']}
                 start={{ x: 0, y: 0 }}
@@ -469,27 +589,20 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               <View style={styles.newQuarterContent}>
                 <Text style={styles.newQuarterTitle}>New Quarter Started!</Text>
                 <Text style={styles.newQuarterText}>
-                  {calculated.quarterDisplay} drawing is now open. Tap to enter!
+                  {calculated.quarterDisplay} drawing is now open. Submit a report to enter!
                 </Text>
               </View>
-              <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.8)" />
-            </TouchableOpacity>
+            </View>
           )}
 
-          {/* Enter Drawing Button (for signed-in members not yet entered) */}
+          {/* Entry Reminder (for signed-in members not yet entered, after new quarter acknowledged) */}
           {isSignedIn && !hasEnteredCurrentRaffle && !isNewQuarter && (
-            <TouchableOpacity
-              style={styles.enterDrawingButton}
-              onPress={handleEnterDrawing}
-              activeOpacity={0.8}
-              disabled={isEntering}
-            >
+            <View style={styles.entryReminderBanner}>
               <Feather name="award" size={18} color={COLORS.navyDark} />
-              <Text style={styles.enterDrawingText}>
-                {isEntering ? 'Entering...' : `Enter ${calculated.quarterDisplay} Drawing`}
+              <Text style={styles.entryReminderText}>
+                Submit a harvest report to enter the {calculated.quarterDisplay} drawing
               </Text>
-              <Feather name="chevron-right" size={18} color={COLORS.navyDark} />
-            </TouchableOpacity>
+            </View>
           )}
 
           {/* Progress Section */}
@@ -672,17 +785,6 @@ const styles = StyleSheet.create({
   },
   entryStatusTextNotEntered: {
     color: '#FFFFFF',
-  },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 200,
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    color: COLORS.textSecondary,
   },
   errorContainer: {
     padding: 20,
@@ -1034,6 +1136,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.white,
     opacity: 0.9,
+  },
+
+  // Entry Reminder Banner (non-interactive)
+  entryReminderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.bgLight,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 10,
+  },
+  entryReminderText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.navyDark,
+    fontWeight: '500',
+    lineHeight: 18,
   },
 
   // Enter Drawing Button

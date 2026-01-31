@@ -16,6 +16,7 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -45,6 +46,8 @@ interface DrawerMenuProps {
   onFeedbackPress?: (type: 'feedback' | 'bug_report') => void;
   /** Whether the user is signed in (rewards member) */
   isSignedIn?: boolean;
+  /** User's profile image URI */
+  profileImage?: string | null;
 }
 
 // ============================================
@@ -259,6 +262,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   setCurrentMode,
   onFeedbackPress,
   isSignedIn = false,
+  profileImage,
 }) => {
   const menuScrollRef = useRef<ScrollView>(null);
 
@@ -400,7 +404,17 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.profileAvatar}>
-              <AnglerAvatarIcon />
+              {profileImage ? (
+                <Image
+                  source={{ uri: profileImage }}
+                  style={styles.profileAvatarImage}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={150}
+                />
+              ) : (
+                <AnglerAvatarIcon />
+              )}
               {pendingAuth && (
                 <Animated.View style={[styles.profileBadge, { transform: [{ scale: badgeScale }] }]}>
                   <Animated.View style={[styles.profileBadgeDot, { borderColor: badgeBorderColor }]} />
@@ -624,6 +638,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  profileAvatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   profileInfo: {
     flex: 1,

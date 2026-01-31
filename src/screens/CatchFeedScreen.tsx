@@ -17,7 +17,6 @@ import {
   Dimensions,
   Platform,
   StatusBar,
-  Modal,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -26,12 +25,15 @@ import { Feather } from '@expo/vector-icons';
 import Svg, { Path, Ellipse, Circle, G } from 'react-native-svg';
 import { RootStackParamList } from '../types';
 import { CatchFeedEntry, TopAngler } from '../types/catchFeed';
-import { fetchRecentCatches } from '../services/catchFeedService';
+import { fetchRecentCatches, fetchTopAnglers, likeCatch, unlikeCatch, enrichCatchesWithLikes, PaginatedCatchFeed } from '../services/catchFeedService';
+import { getRewardsMemberForAnonymousUser } from '../services/userService';
+import { onAuthStateChange } from '../services/authService';
 import { sampleCatchFeedEntries, sampleTopAnglers } from '../data/catchFeedData';
 import { colors, spacing, borderRadius } from '../styles/common';
 import { getAllSpeciesThemes } from '../constants/speciesColors';
 import CatchCard from '../components/CatchCard';
 import AnglerProfileModal from '../components/AnglerProfileModal';
+import BottomDrawer from '../components/BottomDrawer';
 import WaveBackground from '../components/WaveBackground';
 import TopAnglersSection from '../components/TopAnglersSection';
 import { SCREEN_LABELS } from '../constants/screenLabels';
@@ -122,20 +124,24 @@ const FilterPill: React.FC<{
   <TouchableOpacity
     style={[styles.filterPill, isActive && styles.filterPillActive]}
     onPress={onPress}
-    activeOpacity={0.7}
+    activeOpacity={0.85}
   >
-    <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
+    <Text
+      style={[styles.filterPillText, isActive && styles.filterPillTextActive]}
+      numberOfLines={1}
+      ellipsizeMode="tail"
+    >
       {label}
     </Text>
     <Feather
       name="chevron-down"
       size={14}
-      color={isActive ? colors.primary : colors.textSecondary}
+      color={isActive ? colors.white : colors.textSecondary}
     />
   </TouchableOpacity>
 );
 
-/** Filter picker modal with proper animations */
+/** Filter picker modal using BottomDrawer for consistent UX */
 const FilterPickerModal: React.FC<{
   visible: boolean;
   title: string;
@@ -144,94 +150,59 @@ const FilterPickerModal: React.FC<{
   onSelect: (value: string | null) => void;
   onClose: () => void;
 }> = ({ visible, title, options, selectedValue, onSelect, onClose }) => {
-  const insets = useSafeAreaInsets();
-  const slideAnim = useRef(new Animated.Value(0)).current;
-
-  // Animate content slide when modal becomes visible
-  useEffect(() => {
-    if (visible) {
-      slideAnim.setValue(0);
-      Animated.spring(slideAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 65,
-        friction: 11,
-      }).start();
-    }
-  }, [visible, slideAnim]);
-
   return (
-    <Modal
+    <BottomDrawer
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
+      onClose={onClose}
+      maxHeight="70%"
     >
-      <View style={styles.modalOverlay}>
-        {/* Touchable overlay to close */}
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-
-        {/* Animated content container */}
-        <Animated.View
-          style={[
-            styles.modalContainer,
-            {
-              paddingBottom: insets.bottom + spacing.md,
-              transform: [{
-                translateY: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [300, 0],
-                }),
-              }],
-            },
-          ]}
-        >
-          <View style={styles.modalHandle} />
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Feather name="x" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={options}
-            keyExtractor={(item) => item}
-            style={styles.modalList}
-            contentContainerStyle={{ paddingBottom: spacing.sm }}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const isAllOption = item.startsWith('All ');
-              const isSelected = isAllOption
-                ? selectedValue === null
-                : selectedValue === item;
-              return (
-                <TouchableOpacity
-                  style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
-                  onPress={() => {
-                    onSelect(isAllOption ? null : item);
-                    onClose();
-                  }}
-                >
-                  <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
-                    {item}
-                  </Text>
-                  {isSelected && (
-                    <Feather name="check" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              );
-            }}
-            ItemSeparatorComponent={() => <View style={styles.modalSeparator} />}
-          />
-        </Animated.View>
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>{title}</Text>
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Feather name="x" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
       </View>
-    </Modal>
+      <FlatList
+        data={options}
+        keyExtractor={(item) => item}
+        style={styles.modalList}
+        contentContainerStyle={{ paddingBottom: spacing.sm }}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => {
+          const isAllOption = item.startsWith('All ');
+          const isSelected = isAllOption
+            ? selectedValue === null
+            : selectedValue === item;
+          return (
+            <TouchableOpacity
+              style={[styles.modalOption, isSelected && styles.modalOptionSelected]}
+              onPress={() => {
+                onSelect(isAllOption ? null : item);
+                onClose();
+              }}
+            >
+              <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                {item}
+              </Text>
+              {isSelected && (
+                <Feather name="check" size={20} color={colors.primary} />
+              )}
+            </TouchableOpacity>
+          );
+        }}
+        ItemSeparatorComponent={() => <View style={styles.modalSeparator} />}
+      />
+    </BottomDrawer>
   );
 };
+
+/** Loading indicator for infinite scroll */
+const LoadingMoreIndicator: React.FC = () => (
+  <View style={styles.loadingMoreContainer}>
+    <ActivityIndicator size="small" color={colors.primary} />
+    <Text style={styles.loadingMoreText}>Loading more catches...</Text>
+  </View>
+);
 
 /** Enhanced footer when user reaches end of feed */
 const FeedFooter: React.FC = () => (
@@ -255,16 +226,63 @@ const FeedFooter: React.FC = () => (
 // MAIN COMPONENT
 // ============================================
 
+// Page size for infinite scroll (similar to Instagram ~12 posts per load)
+const PAGE_SIZE = 12;
+
 const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [entries, setEntries] = useState<CatchFeedEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [topAnglers, setTopAnglers] = useState<TopAngler[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [nextOffset, setNextOffset] = useState(0);
+
+  // Get current user ID for like functionality (Supabase user ID)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Fetch the user's ID from the users table (not auth.users)
+  // The catch_likes table has a foreign key to users table, so we need the users table ID
+  useEffect(() => {
+    const fetchUserId = async () => {
+      // Get rewards member from users table (this is the ID we need for likes)
+      const rewardsMember = await getRewardsMemberForAnonymousUser();
+      if (rewardsMember?.id) {
+        console.log('✅ Using user ID for likes:', rewardsMember.id);
+        setCurrentUserId(rewardsMember.id);
+        return;
+      }
+
+      console.log('ℹ️ No rewards member found for likes');
+      setCurrentUserId(null);
+    };
+
+    fetchUserId();
+
+    // Listen for auth state changes (user signs in/out)
+    // When user signs in, refetch the user ID from users table
+    const unsubscribe = onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        console.log('🔄 Auth state changed, refetching user ID for likes');
+        // Delay to allow createRewardsMemberFromAuthUser to complete
+        setTimeout(() => {
+          fetchUserId();
+        }, 1500);
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUserId(null);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Filter state
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null);
+  const [showPhotosOnly, setShowPhotosOnly] = useState(false);
   const [showAreaPicker, setShowAreaPicker] = useState(false);
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false);
 
@@ -274,6 +292,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
   // Scroll animation
   const scrollY = useRef(new Animated.Value(0)).current;
+
 
   // Floating back button animation
   const floatingBackOpacity = scrollY.interpolate({
@@ -338,11 +357,13 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         const hasSpecies = speciesList.some(s => s.species === selectedSpecies);
         if (!hasSpecies) return false;
       }
+      // Filter to only show entries with photos
+      if (showPhotosOnly && !entry.photoUrl) return false;
       return true;
     });
-  }, [entries, selectedArea, selectedSpecies]);
+  }, [entries, selectedArea, selectedSpecies, showPhotosOnly]);
 
-  // Load catch feed data
+  // Load catch feed data (initial load or refresh)
   const loadFeed = useCallback(async (forceRefresh = false) => {
     try {
       setError(null);
@@ -354,10 +375,22 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         await new Promise<void>((resolve) => setTimeout(resolve, 500));
         feedData = sampleCatchFeedEntries;
         anglersData = sampleTopAnglers;
+        setHasMore(false);
+        setNextOffset(feedData.length);
       } else {
-        feedData = await fetchRecentCatches({ forceRefresh });
-        // For now, use sample top anglers until Supabase function is ready
-        anglersData = sampleTopAnglers;
+        // Fetch catches and top anglers in parallel
+        const [catchResult, topAnglersResult] = await Promise.all([
+          fetchRecentCatches({ forceRefresh, limit: PAGE_SIZE, offset: 0 }),
+          fetchTopAnglers(),
+        ]);
+
+        feedData = catchResult.entries;
+        // Enrich with like data
+        feedData = await enrichCatchesWithLikes(feedData, currentUserId ?? undefined);
+        setHasMore(catchResult.hasMore);
+        setNextOffset(catchResult.nextOffset);
+        // Use top anglers from Supabase (falls back to empty if no data)
+        anglersData = topAnglersResult.length > 0 ? topAnglersResult : sampleTopAnglers;
       }
 
       setEntries(feedData);
@@ -367,6 +400,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       if (forceRefresh) {
         setSelectedArea(null);
         setSelectedSpecies(null);
+        setShowPhotosOnly(false);
       }
     } catch (err) {
       console.error('Error loading catch feed:', err);
@@ -375,7 +409,40 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [currentUserId]);
+
+  // Load more catches (pagination)
+  const loadMore = useCallback(async () => {
+    // Don't load more if already loading, no more data, or using sample data
+    if (loadingMore || !hasMore || USE_SAMPLE_DATA || loading) {
+      return;
+    }
+
+    setLoadingMore(true);
+    try {
+      const result = await fetchRecentCatches({ limit: PAGE_SIZE, offset: nextOffset });
+      let newEntries = result.entries;
+
+      // Enrich new entries with like data
+      newEntries = await enrichCatchesWithLikes(newEntries, currentUserId ?? undefined);
+
+      // Append to existing entries, avoiding duplicates
+      setEntries(prev => {
+        const existingIds = new Set(prev.map(e => e.id));
+        const uniqueNew = newEntries.filter(e => !existingIds.has(e.id));
+        return [...prev, ...uniqueNew];
+      });
+      setHasMore(result.hasMore);
+      setNextOffset(result.nextOffset);
+
+      console.log(`📜 Loaded ${newEntries.length} more catches (total: ${entries.length + newEntries.length})`);
+    } catch (err) {
+      console.error('Error loading more catches:', err);
+      // Don't set error state for load-more failures, just stop loading more
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, nextOffset, currentUserId, loading, entries.length]);
 
   useEffect(() => {
     loadFeed();
@@ -385,6 +452,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     setRefreshing(true);
     loadFeed(true);
   }, [loadFeed]);
+
 
   const handleAnglerPress = useCallback((userId: string) => {
     setSelectedAnglerId(userId);
@@ -396,6 +464,54 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     setSelectedAnglerId(null);
   }, []);
 
+  // Handle like/unlike a catch
+  const handleLikePress = useCallback(async (entry: CatchFeedEntry) => {
+    // Optimistically update UI first (for immediate visual feedback)
+    setEntries(prevEntries =>
+      prevEntries.map(e => {
+        if (e.id === entry.id) {
+          const isLiked = e.isLikedByCurrentUser;
+          return {
+            ...e,
+            isLikedByCurrentUser: !isLiked,
+            likeCount: isLiked ? Math.max(0, e.likeCount - 1) : e.likeCount + 1,
+          };
+        }
+        return e;
+      })
+    );
+
+    // Only make API call if user is logged in
+    if (!currentUserId) {
+      console.log('User must be logged in to persist likes');
+      return;
+    }
+
+    // Make API call
+    try {
+      if (entry.isLikedByCurrentUser) {
+        await unlikeCatch(entry.id, currentUserId);
+      } else {
+        await likeCatch(entry.id, currentUserId);
+      }
+    } catch (err) {
+      console.error('Failed to update like:', err);
+      // Revert on error
+      setEntries(prevEntries =>
+        prevEntries.map(e => {
+          if (e.id === entry.id) {
+            return {
+              ...e,
+              isLikedByCurrentUser: entry.isLikedByCurrentUser,
+              likeCount: entry.likeCount,
+            };
+          }
+          return e;
+        })
+      );
+    }
+  }, [currentUserId]);
+
   const navigateToReport = useCallback(() => {
     navigation.navigate('ReportForm');
   }, [navigation]);
@@ -405,20 +521,21 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   }, [navigation]);
 
   // Render empty state
+  const hasActiveFilters = selectedArea || selectedSpecies || showPhotosOnly;
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIllustration}>
         <SwimmingFishIllustration />
       </View>
       <Text style={styles.emptyTitle}>
-        {selectedArea || selectedSpecies ? 'No Matches Found' : 'No Catches Yet'}
+        {hasActiveFilters ? 'No Matches Found' : 'No Catches Yet'}
       </Text>
       <Text style={styles.emptyText}>
-        {selectedArea || selectedSpecies
+        {hasActiveFilters
           ? 'Try adjusting your filters to see more catches.'
           : 'Be the first to share your catch today!\nReport a harvest to appear in the community feed.'}
       </Text>
-      {!selectedArea && !selectedSpecies && (
+      {!hasActiveFilters && (
         <TouchableOpacity
           style={styles.emptyCTA}
           onPress={navigateToReport}
@@ -456,14 +573,22 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     </View>
   );
 
-  const renderItem = ({ item }: { item: CatchFeedEntry }) => (
-    <CatchCard entry={item} onAnglerPress={handleAnglerPress} />
-  );
+  // Memoized renderItem for FlatList performance
+  const renderItem = useCallback(({ item }: { item: CatchFeedEntry }) => (
+    <CatchCard
+      entry={item}
+      onAnglerPress={handleAnglerPress}
+      onLikePress={handleLikePress}
+    />
+  ), [handleAnglerPress, handleLikePress]);
 
-  const keyExtractor = (item: CatchFeedEntry) => item.id;
+  const keyExtractor = useCallback((item: CatchFeedEntry) => item.id, []);
 
-  // Render list header (top anglers + filters)
-  const renderListHeader = () => (
+  // Item separator component
+  const ItemSeparator = useCallback(() => <View style={styles.separator} />, []);
+
+  // Memoized list header (top anglers + filters)
+  const renderListHeader = useCallback(() => (
     <View>
       {/* Top Anglers Section */}
       <TopAnglersSection anglers={topAnglers} />
@@ -480,6 +605,21 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           isActive={selectedSpecies !== null}
           onPress={() => setShowSpeciesPicker(true)}
         />
+        {/* Photo filter toggle - doesn't shrink */}
+        <TouchableOpacity
+          style={[styles.filterPill, styles.filterPillFixed, showPhotosOnly && styles.filterPillActive]}
+          onPress={() => setShowPhotosOnly(!showPhotosOnly)}
+          activeOpacity={0.85}
+        >
+          <Feather
+            name="image"
+            size={14}
+            color={showPhotosOnly ? colors.white : colors.textSecondary}
+          />
+          <Text style={[styles.filterPillText, showPhotosOnly && styles.filterPillTextActive]}>
+            Photos
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Premium divider between filters and content */}
@@ -492,13 +632,27 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         />
       </View>
     </View>
-  );
+  ), [topAnglers, selectedArea, selectedSpecies, showPhotosOnly]);
 
-  const renderListFooter = () => (
-    filteredEntries.length > 0 ? <FeedFooter /> : null
-  );
+  const renderListFooter = useCallback(() => {
+    if (filteredEntries.length === 0) return null;
 
-  const renderFeedContent = () => {
+    // Show loading indicator when fetching more
+    if (loadingMore) {
+      return <LoadingMoreIndicator />;
+    }
+
+    // Show "all caught up" only when there's no more data
+    if (!hasMore) {
+      return <FeedFooter />;
+    }
+
+    // Return empty spacer to allow scroll momentum
+    return <View style={{ height: 20 }} />;
+  }, [filteredEntries.length, loadingMore, hasMore]);
+
+  // Empty component for FlatList when no data
+  const renderEmptyComponent = useCallback(() => {
     if (loading) {
       return (
         <View style={styles.loadingContainer}>
@@ -507,74 +661,25 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         </View>
       );
     }
-
     if (error) {
       return renderErrorState();
     }
+    return renderEmptyState();
+  }, [loading, error]);
 
-    if (filteredEntries.length === 0) {
-      return (
-        <View>
-          {renderListHeader()}
-          {renderEmptyState()}
-        </View>
-      );
+  // Callback for when user scrolls near the end
+  const handleEndReached = useCallback(() => {
+    if (!loadingMore && hasMore && !loading) {
+      loadMore();
     }
-
-    return (
-      <FlatList
-        data={filteredEntries}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={false}
-        ListHeaderComponent={renderListHeader}
-        ListFooterComponent={renderListFooter}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-      />
-    );
-  };
+  }, [loadingMore, hasMore, loading, loadMore]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.primary }}>
-      <SafeAreaView style={styles.container} edges={['left', 'right']}>
+    <View style={styles.screenContainer}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
 
-        {/* Fixed Header */}
-        <View style={styles.fixedHeader}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={handleGoBack}
-              activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Feather name="arrow-left" size={24} color={colors.white} />
-            </TouchableOpacity>
-
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.headerTitle}>{SCREEN_LABELS.catchFeed.title}</Text>
-              <Text style={styles.headerSubtitle}>Community catches from NC anglers</Text>
-            </View>
-
-            {/* Live Badge */}
-            <View style={styles.liveBadge}>
-              <Animated.View
-                style={[
-                  styles.liveDot,
-                  {
-                    opacity: liveDotOpacity,
-                    transform: [{ scale: liveDotScale }],
-                  },
-                ]}
-              />
-              <Text style={styles.liveText}>Live</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Floating back button */}
+        {/* Floating back button - appears when header scrolls away */}
         <Animated.View
           style={[
             styles.floatingBackButton,
@@ -598,11 +703,17 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Scrollable content */}
-        <Animated.ScrollView
-          style={styles.scrollView}
+        {/* Main FlatList - header scrolls with content (Instagram-style) */}
+        <Animated.FlatList
+          data={filteredEntries}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          style={styles.flatList}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollViewContent}
+          contentContainerStyle={[
+            styles.flatListContent,
+            filteredEntries.length === 0 && styles.emptyListContent,
+          ]}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
             { useNativeDriver: true }
@@ -617,23 +728,64 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
               progressBackgroundColor={colors.white}
             />
           }
-        >
-          {/* Header spacer */}
-          <View style={styles.headerSpacerArea}>
-            <TouchableOpacity
-              onPress={handleGoBack}
-              style={styles.spacerBackButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <View style={{ width: 40, height: 40 }} />
-            </TouchableOpacity>
-          </View>
+          // Header scrolls with content
+          ListHeaderComponent={
+            <View style={{ backgroundColor: colors.primary }}>
+              {/* Scrolling header - dark blue background */}
+              <LinearGradient
+                colors={[colors.primary, colors.primary]}
+                style={styles.scrollingHeader}
+              >
+                <View style={styles.headerContent}>
+                  <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={handleGoBack}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Feather name="arrow-left" size={24} color={colors.white} />
+                  </TouchableOpacity>
 
-          {/* Content container */}
-          <View style={styles.contentContainer}>
-            {renderFeedContent()}
-          </View>
-        </Animated.ScrollView>
+                  <View style={styles.headerTextContainer}>
+                    <Text style={styles.headerTitle}>{SCREEN_LABELS.catchFeed.title}</Text>
+                    <Text style={styles.headerSubtitle}>Community catches from NC anglers</Text>
+                  </View>
+
+                  {/* Live Badge */}
+                  <View style={styles.liveBadge}>
+                    <Animated.View
+                      style={[
+                        styles.liveDot,
+                        {
+                          opacity: liveDotOpacity,
+                          transform: [{ scale: liveDotScale }],
+                        },
+                      ]}
+                    />
+                    <Text style={styles.liveText}>Live</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+
+              {/* Content area with rounded corners */}
+              <View style={styles.contentContainer}>
+                {renderListHeader()}
+              </View>
+            </View>
+          }
+          ListFooterComponent={renderListFooter}
+          ListEmptyComponent={renderEmptyComponent}
+          ItemSeparatorComponent={ItemSeparator}
+          // Infinite scroll
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.3}
+          // Performance optimizations
+          removeClippedSubviews={Platform.OS === 'android'}
+          maxToRenderPerBatch={5}
+          updateCellsBatchingPeriod={50}
+          windowSize={7}
+          initialNumToRender={4}
+        />
 
         {/* Filter Modals */}
         <FilterPickerModal
@@ -665,22 +817,20 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  screenContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.primary,
   },
 
-  // Fixed header
-  fixedHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.primary,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 56,
-    paddingBottom: 20,
+  // Scrolling header - part of FlatList, scrolls with content
+  scrollingHeader: {
+    paddingTop: Platform.OS === 'android' ? 16 : 8,
+    paddingBottom: 36,
     paddingHorizontal: spacing.md,
-    zIndex: 1,
   },
   headerContent: {
     flexDirection: 'row',
@@ -732,7 +882,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
-  // Floating back button
+  // Floating back button - appears when header scrolls away
   floatingBackButton: {
     position: 'absolute',
     top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 52,
@@ -753,39 +903,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Scroll view
-  scrollView: {
+  // FlatList styles
+  flatList: {
     flex: 1,
-    zIndex: 2,
+    backgroundColor: colors.primary,
   },
-  scrollViewContent: {
-    paddingBottom: 0,
-  },
-
-  // Header spacer
-  headerSpacerArea: {
-    height: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130,
-    backgroundColor: 'transparent',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 56,
-    paddingHorizontal: spacing.md,
-  },
-  spacerBackButton: {
-    width: 40,
-    height: 40,
+  flatListContent: {
+    backgroundColor: colors.background,
+    flexGrow: 1,
   },
 
-  // Content container
+  // Content container - rounded corners that slide over header
   contentContainer: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: spacing.md,
-    minHeight: Dimensions.get('window').height,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 8,
+    marginTop: -12,
+  },
+  // Style for empty list to ensure proper background
+  emptyListContent: {
+    flexGrow: 1,
+    backgroundColor: colors.background,
   },
 
   // Filter row
@@ -799,30 +938,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-    gap: 6,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    gap: 8,
+    // Premium layered shadow
+    shadowColor: '#1a365d',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    flexShrink: 1,
+    minWidth: 0,
   },
   filterPillActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
+    // Stronger shadow when active
+    shadowColor: colors.primary,
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  filterPillFixed: {
+    flexShrink: 0,
   },
   filterPillText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.textSecondary,
+    flexShrink: 1,
+    letterSpacing: 0.1,
   },
   filterPillTextActive: {
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.white,
+    fontWeight: '700',
   },
 
   // Filter divider
@@ -837,32 +990,7 @@ const styles = StyleSheet.create({
   },
 
   // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '70%',
-    // Shadow for depth
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 4,
-  },
+  // Modal styles (used within BottomDrawer)
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -920,6 +1048,21 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 4,
+  },
+
+  // Loading more indicator (infinite scroll)
+  loadingMoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
 
   // Feed footer
