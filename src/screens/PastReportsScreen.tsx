@@ -17,7 +17,9 @@ import {
   StyleSheet,
   RefreshControl,
   Platform,
+  Animated,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Image } from "expo-image";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { Feather } from "@expo/vector-icons";
@@ -92,6 +94,20 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   const [selectedReport, setSelectedReport] = useState<DisplayReport | null>(null);
   const [filterType, setFilterType] = useState<"all" | "synced" | "pending">("all");
 
+  // Date filter state
+  const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
+  const [fromDate, setFromDate] = useState<Date | null>(null);
+  const [toDate, setToDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [datePickerMode, setDatePickerMode] = useState<"from" | "to">("from");
+  const [tempDate, setTempDate] = useState<Date>(new Date());
+  const dateFilterHeight = useState(new Animated.Value(0))[0];
+
+  // Date picker modal animation values
+  const datePickerOverlayOpacity = useState(new Animated.Value(0))[0];
+  const datePickerSlide = useState(new Animated.Value(300))[0];
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+
   // Fetch species data for stock images
   const { data: fishSpeciesData = [] } = useAllFishSpecies();
 
@@ -150,6 +166,47 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     await loadReports();
     setRefreshing(false);
   }, [loadReports]);
+
+  // Animate date picker modal (overlay fades, content slides)
+  useEffect(() => {
+    if (showDatePicker) {
+      // Show modal immediately, then animate in
+      setDatePickerVisible(true);
+      // Reset values before animating open
+      datePickerOverlayOpacity.setValue(0);
+      datePickerSlide.setValue(300);
+
+      Animated.parallel([
+        Animated.timing(datePickerOverlayOpacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.spring(datePickerSlide, {
+          toValue: 0,
+          friction: 8,
+          tension: 65,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Animate out first, then hide modal
+      Animated.parallel([
+        Animated.timing(datePickerOverlayOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(datePickerSlide, {
+          toValue: 300,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setDatePickerVisible(false);
+      });
+    }
+  }, [showDatePicker, datePickerOverlayOpacity, datePickerSlide]);
 
   // Copy confirmation number
   const handleCopyConfirmation = async (confirmationNumber: string) => {
@@ -232,13 +289,102 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         combined = [...queued, ...submitted]; // Show pending first
     }
 
+    // Apply date range filter
+    if (fromDate || toDate) {
+      combined = combined.filter(report => {
+        const reportDate = new Date(report.harvestDate);
+        // Reset time components for date-only comparison
+        reportDate.setHours(0, 0, 0, 0);
+
+        if (fromDate) {
+          const fromDateStart = new Date(fromDate);
+          fromDateStart.setHours(0, 0, 0, 0);
+          if (reportDate < fromDateStart) return false;
+        }
+
+        if (toDate) {
+          const toDateEnd = new Date(toDate);
+          toDateEnd.setHours(23, 59, 59, 999);
+          if (reportDate > toDateEnd) return false;
+        }
+
+        return true;
+      });
+    }
+
     // Sort by date (most recent first)
     return combined.sort((a, b) => {
       const dateA = new Date(a.submittedAt || a.queuedAt || a.harvestDate).getTime();
       const dateB = new Date(b.submittedAt || b.queuedAt || b.harvestDate).getTime();
       return dateB - dateA;
     });
-  }, [submittedReports, queuedReports, filterType]);
+  }, [submittedReports, queuedReports, filterType, fromDate, toDate]);
+
+  // Toggle date filter visibility with animation
+  const toggleDateFilter = useCallback(() => {
+    const toValue = showDateFilter ? 0 : 1;
+    setShowDateFilter(!showDateFilter);
+    Animated.timing(dateFilterHeight, {
+      toValue,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [showDateFilter, dateFilterHeight]);
+
+  // Open date picker for from/to
+  const openDatePicker = useCallback((mode: "from" | "to") => {
+    setDatePickerMode(mode);
+    setTempDate(mode === "from" ? (fromDate || new Date()) : (toDate || new Date()));
+    setShowDatePicker(true);
+  }, [fromDate, toDate]);
+
+  // Handle date selection
+  const handleDateChange = useCallback((event: any, selectedDate?: Date) => {
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+      if (event.type === "set" && selectedDate) {
+        if (datePickerMode === "from") {
+          setFromDate(selectedDate);
+        } else {
+          setToDate(selectedDate);
+        }
+      }
+    } else {
+      // iOS - update temp date, confirm with Done button
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
+    }
+  }, [datePickerMode]);
+
+  // Confirm date selection (iOS)
+  const confirmDateSelection = useCallback(() => {
+    if (datePickerMode === "from") {
+      setFromDate(tempDate);
+    } else {
+      setToDate(tempDate);
+    }
+    setShowDatePicker(false);
+  }, [datePickerMode, tempDate]);
+
+  // Clear date filters
+  const clearDateFilters = useCallback(() => {
+    setFromDate(null);
+    setToDate(null);
+  }, []);
+
+  // Format date for display in filter
+  const formatFilterDate = (date: Date | null): string => {
+    if (!date) return "Any";
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  // Check if date filter is active
+  const hasDateFilter = fromDate !== null || toDate !== null;
 
   // Get total fish count
   const getTotalFish = (report: DisplayReport): number => {
@@ -764,7 +910,76 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             Pending ({queuedReports.length})
           </Text>
         </TouchableOpacity>
+
+        {/* Date Filter Toggle */}
+        <TouchableOpacity
+          style={[styles.filterButton, styles.dateFilterToggle, (showDateFilter || hasDateFilter) && styles.dateFilterToggleActive]}
+          onPress={toggleDateFilter}
+        >
+          <Feather name="calendar" size={14} color={(showDateFilter || hasDateFilter) ? colors.primary : colors.textSecondary} />
+          {hasDateFilter && <View style={styles.dateFilterDot} />}
+        </TouchableOpacity>
       </View>
+
+      {/* Date Range Filter - Collapsible */}
+      <Animated.View style={[
+        styles.dateFilterContainer,
+        {
+          maxHeight: dateFilterHeight.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 120],
+          }),
+        }
+      ]}>
+        <View style={styles.dateFilterContent}>
+          <View style={styles.dateFilterRow}>
+            {/* From Date */}
+            <TouchableOpacity
+              style={styles.datePickerButton}
+              onPress={() => openDatePicker("from")}
+            >
+              <Text style={styles.datePickerLabel}>From</Text>
+              <View style={styles.datePickerValueContainer}>
+                <Feather name="calendar" size={14} color={colors.primary} />
+                <Text style={[styles.datePickerValue, !fromDate && styles.datePickerValuePlaceholder]}>
+                  {formatFilterDate(fromDate)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* To Date */}
+            <TouchableOpacity
+              style={styles.datePickerButton}
+              onPress={() => openDatePicker("to")}
+            >
+              <Text style={styles.datePickerLabel}>To</Text>
+              <View style={styles.datePickerValueContainer}>
+                <Feather name="calendar" size={14} color={colors.primary} />
+                <Text style={[styles.datePickerValue, !toDate && styles.datePickerValuePlaceholder]}>
+                  {formatFilterDate(toDate)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Clear Button */}
+            {hasDateFilter && (
+              <TouchableOpacity
+                style={styles.clearDateButton}
+                onPress={clearDateFilters}
+              >
+                <Feather name="x" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Results count when filtered */}
+          {hasDateFilter && (
+            <Text style={styles.dateFilterResultsText}>
+              {displayReports.length} report{displayReports.length !== 1 ? "s" : ""} found
+            </Text>
+          )}
+        </View>
+      </Animated.View>
 
       {/* Reports List */}
       <FlatList
@@ -789,6 +1004,63 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         windowSize={10}
         initialNumToRender={6}
       />
+
+      {/* Date Picker Modal */}
+      <Modal
+        visible={datePickerVisible}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.dateModalContainer}>
+          {/* Animated overlay - fades in/out */}
+          <Animated.View
+            style={[
+              styles.dateModalOverlayBackground,
+              { opacity: datePickerOverlayOpacity }
+            ]}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setShowDatePicker(false)}
+            />
+          </Animated.View>
+          {/* Animated content - slides up/down */}
+          <Animated.View
+            style={[
+              styles.dateModalContent,
+              { transform: [{ translateY: datePickerSlide }] }
+            ]}
+          >
+            <View style={styles.dateModalHeader}>
+              <Text style={styles.dateModalTitle}>
+                {datePickerMode === "from" ? "From Date" : "To Date"}
+              </Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Feather name="x" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+              themeVariant="light"
+              style={Platform.OS === "ios" ? { height: 216, width: "100%" } : undefined}
+            />
+            {Platform.OS === "ios" && (
+              <TouchableOpacity
+                style={styles.dateModalConfirmButton}
+                onPress={confirmDateSelection}
+              >
+                <Text style={styles.dateModalConfirmText}>Done</Text>
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+        </View>
+      </Modal>
 
       {renderDetailModal()}
     </ScreenLayout>
@@ -1461,6 +1733,120 @@ const styles = StyleSheet.create({
     color: "#856404",
     fontWeight: "500",
     flex: 1,
+  },
+  // Date Filter styles
+  dateFilterToggle: {
+    marginLeft: "auto",
+    paddingHorizontal: spacing.sm,
+    position: "relative",
+  },
+  dateFilterToggleActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  dateFilterDot: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  dateFilterContainer: {
+    overflow: "hidden",
+    marginHorizontal: spacing.md,
+  },
+  dateFilterContent: {
+    paddingVertical: spacing.sm,
+  },
+  dateFilterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  datePickerButton: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.lightGray,
+  },
+  datePickerLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  datePickerValueContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  datePickerValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  datePickerValuePlaceholder: {
+    color: colors.textSecondary,
+    fontWeight: "400",
+  },
+  clearDateButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.lightestGray,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dateFilterResultsText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    fontStyle: "italic",
+  },
+  // Date Picker Modal styles
+  dateModalContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  dateModalOverlayBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  dateModalContent: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
+  },
+  dateModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.lightGray,
+  },
+  dateModalTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  dateModalConfirmButton: {
+    backgroundColor: colors.primary,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    alignItems: "center",
+  },
+  dateModalConfirmText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.white,
   },
 });
 

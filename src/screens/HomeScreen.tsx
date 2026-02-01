@@ -1,6 +1,6 @@
 // screens/HomeScreen.tsx
 
-import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect, useCallback, useMemo } from "react";
 import {
   Text,
   View,
@@ -141,6 +141,28 @@ interface HomeScreenProps {
 // Header height for scroll calculations
 const HEADER_HEIGHT = 100;
 
+// Cache for badge data to avoid refetching on every focus
+const BADGE_CACHE_TTL = 60000; // 1 minute
+let badgeDataCache: { data: CardBadgeData | null; timestamp: number } = {
+  data: null,
+  timestamp: 0,
+};
+
+// Persistent storage keys for cached data (faster initial render)
+const PERSISTENT_CACHE_KEYS = {
+  badgeData: 'homeScreen_badgeDataCache',
+  rewardsMember: 'homeScreen_rewardsMemberCache',
+  rewardsData: 'homeScreen_rewardsDataCache',
+};
+
+// Nautical greetings by time of day (moved outside component to avoid recreation)
+const NAUTICAL_GREETINGS = {
+  morning: ["Smooth sailing this morning", "Fair winds this morning", "Morning ahoy", "Clear skies ahead"],
+  afternoon: ["Afternoon on the high seas", "Steady as she goes this afternoon", "Fisherman's afternoon", "Tight lines this afternoon"],
+  evening: ["Evening tides", "Sunset fishing", "Evening on the water", "Dusk on the horizon"],
+  night: ["Starboard lights on", "Navigating by stars", "Night fishing", "Port lights on"],
+};
+
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Achievement notifications - flush any pending achievements when this screen gains focus
   const { flushPendingAchievements } = useAchievements();
@@ -222,143 +244,171 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     outputRange: [1, 1.15, 1],
   });
 
+  // Load badge data with caching to avoid expensive refetches
+  const loadBadgeData = useCallback(async (forceRefresh = false) => {
+    const now = Date.now();
+
+    // Check memory cache first (fastest)
+    if (!forceRefresh && badgeDataCache.data && (now - badgeDataCache.timestamp) < BADGE_CACHE_TTL) {
+      setBadgeData(badgeDataCache.data);
+      return;
+    }
+
+    // Load from persistent cache immediately for optimistic UI (don't await)
+    if (!badgeDataCache.data) {
+      AsyncStorage.getItem(PERSISTENT_CACHE_KEYS.badgeData).then(cached => {
+        if (cached && !badgeDataCache.data) {
+          try {
+            const parsed = JSON.parse(cached);
+            setBadgeData(parsed);
+          } catch { /* ignore parse errors */ }
+        }
+      });
+    }
+
+    try {
+      // Parallelize ALL badge data fetches including catch feed
+      const [
+        reportsSummary,
+        lastViewedPastReports,
+        lastReportTimestamp,
+        speciesList,
+        lastViewedCatchFeed,
+        catchFeedResult,
+      ] = await Promise.all([
+        getReportsSummary(),
+        AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastViewedPastReports),
+        AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastReportTimestamp),
+        fetchAllFishSpecies(),
+        AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastViewedCatchFeed),
+        fetchRecentCatches({ forceRefresh: false }).catch(() => ({ entries: [] })),
+      ]);
+
+      const pastReportsCount = reportsSummary.totalReports;
+      const hasNewReport = lastReportTimestamp !== null &&
+        (lastViewedPastReports === null || lastReportTimestamp > lastViewedPastReports);
+      const totalSpecies = speciesList.length;
+
+      // Calculate new catches count
+      let newCatchesCount = 0;
+      const recentCatches = catchFeedResult.entries || [];
+      if (lastViewedCatchFeed) {
+        const lastViewedDate = new Date(lastViewedCatchFeed);
+        newCatchesCount = recentCatches.filter(
+          (catch_: any) => new Date(catch_.createdAt) > lastViewedDate
+        ).length;
+      } else {
+        newCatchesCount = Math.min(recentCatches.length, 10);
+      }
+
+      const newBadgeData = {
+        pastReportsCount,
+        hasNewReport,
+        totalSpecies,
+        newCatchesCount,
+      };
+
+      // Update memory cache
+      badgeDataCache = { data: newBadgeData, timestamp: now };
+      setBadgeData(newBadgeData);
+
+      // Persist to storage for next app launch (don't await)
+      AsyncStorage.setItem(PERSISTENT_CACHE_KEYS.badgeData, JSON.stringify(newBadgeData));
+    } catch (error) {
+      console.error('Error loading badge data:', error);
+    }
+  }, []);
+
   // Load user preferences and profile data
   useEffect(() => {
     const loadUserData = async () => {
+      // PHASE 1: Load cached data immediately for instant UI (optimistic rendering)
+      // This runs synchronously before any awaits
+      AsyncStorage.getItem(PERSISTENT_CACHE_KEYS.rewardsData).then(cached => {
+        if (cached) {
+          try {
+            const { isMember, email, achievements } = JSON.parse(cached);
+            setRewardsMember(isMember);
+            setRewardsMemberEmail(email);
+            setUserAchievements(achievements || []);
+          } catch { /* ignore parse errors */ }
+        }
+      });
+
+      // Start badge data loading immediately (don't wait for other data)
+      loadBadgeData();
+
       try {
-        // Check if info card has been dismissed
-        const infoCardDismissed = await AsyncStorage.getItem("infoCardDismissed");
+        // PHASE 2: Load local storage data (fast) - parallelize all reads
+        const [infoCardDismissed, savedProfile, savedLicense, pending] = await Promise.all([
+          AsyncStorage.getItem("infoCardDismissed"),
+          AsyncStorage.getItem("userProfile"),
+          AsyncStorage.getItem("fishingLicense"),
+          getPendingAuth(),
+        ]);
+
+        // Process and update UI immediately with local data
         if (infoCardDismissed === "true") {
           setShowInfoCard(false);
         }
 
-        // Get name from user profile
-        const savedProfile = await AsyncStorage.getItem("userProfile");
-
         if (savedProfile) {
           const parsedProfile = JSON.parse(savedProfile);
-
-          // Use first name if available, otherwise use last name
-          if (parsedProfile.firstName) {
-            setUserName(parsedProfile.firstName);
-          } else if (parsedProfile.lastName) {
-            setUserName(parsedProfile.lastName);
-          } else {
-            // If profile exists but no names, clear the username
-            setUserName("");
-          }
-
-          // Load profile image if available
-          if (parsedProfile.profileImage) {
-            setProfileImage(parsedProfile.profileImage);
-          } else {
-            setProfileImage(null);
-          }
-
-          // Check if user has email in profile (to determine Sign In vs Join)
+          setUserName(parsedProfile.firstName || parsedProfile.lastName || "");
+          setProfileImage(parsedProfile.profileImage || null);
           setHasProfileEmail(!!parsedProfile.email);
         } else {
-          // If no profile, don't set a default name or image
           setUserName("");
           setProfileImage(null);
           setHasProfileEmail(false);
         }
 
-        // Check the fishingLicense storage for license number
-        const savedLicense = await AsyncStorage.getItem("fishingLicense");
         if (savedLicense) {
           const parsedLicense = JSON.parse(savedLicense);
-          if (parsedLicense.licenseNumber) {
-            setLicenseNumber(parsedLicense.licenseNumber);
-          } else {
-            setLicenseNumber(null);
-          }
+          setLicenseNumber(parsedLicense.licenseNumber || null);
         } else {
           setLicenseNumber(null);
         }
 
-        // Check for pending magic link auth
-        const pending = await getPendingAuth();
-        console.log('🔔 Pending auth loaded:', pending ? pending.email : 'none');
         setPendingAuth(pending);
 
-        // Check if user is a rewards member
+        // PHASE 3: Fetch fresh rewards data from network (slower, runs in background)
+        // This updates the UI when network data arrives
         const isMember = await isRewardsMember();
         setRewardsMember(isMember);
+
         if (isMember) {
-          const user = await getCurrentUser();
-          setRewardsMemberEmail(user?.email || null);
-          console.log('🏆 Rewards member:', user?.email);
+          // Parallelize user data and achievements fetch
+          const [user, stats] = await Promise.all([
+            getCurrentUser(),
+            getUserStats().catch(() => ({ achievements: [] })),
+          ]);
+          const email = user?.email || null;
+          const achievements = stats.achievements || [];
+          setRewardsMemberEmail(email);
+          setUserAchievements(achievements);
 
-          // Fetch user achievements
-          try {
-            const stats = await getUserStats();
-            setUserAchievements(stats.achievements || []);
-            console.log(`🏆 Loaded ${stats.achievements?.length || 0} achievements`);
-          } catch (achievementError) {
-            console.warn('Failed to load achievements:', achievementError);
-            setUserAchievements([]);
-          }
+          // Cache for next app launch (don't await)
+          AsyncStorage.setItem(PERSISTENT_CACHE_KEYS.rewardsData, JSON.stringify({
+            isMember: true,
+            email,
+            achievements,
+          }));
         } else {
+          setRewardsMemberEmail(null);
           setUserAchievements([]);
+          // Cache non-member status too
+          AsyncStorage.setItem(PERSISTENT_CACHE_KEYS.rewardsData, JSON.stringify({
+            isMember: false,
+            email: null,
+            achievements: [],
+          }));
         }
-
-        // Load badge data for quick action cards
-        await loadBadgeData();
       } catch (error) {
         console.error("Error retrieving user data:", error);
         setUserName("");
         setLicenseNumber(null);
         setPendingAuth(null);
-      }
-    };
-
-    // Load badge data for quick action cards
-    const loadBadgeData = async () => {
-      try {
-        // Get reports count
-        const reportsSummary = await getReportsSummary();
-        const pastReportsCount = reportsSummary.totalReports;
-
-        // Check if there's a new report since last view
-        const lastViewedPastReports = await AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastViewedPastReports);
-        const lastReportTimestamp = await AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastReportTimestamp);
-        const hasNewReport = lastReportTimestamp !== null &&
-          (lastViewedPastReports === null || lastReportTimestamp > lastViewedPastReports);
-
-        // Get species count from the species guide
-        const speciesList = await fetchAllFishSpecies();
-        const totalSpecies = speciesList.length;
-
-        // For catch feed, count catches newer than last viewed timestamp
-        const lastViewedCatchFeed = await AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastViewedCatchFeed);
-        let newCatchesCount = 0;
-
-        try {
-          const result = await fetchRecentCatches({ forceRefresh: false });
-          const recentCatches = result.entries;
-          if (lastViewedCatchFeed) {
-            // Count catches created after last view
-            const lastViewedDate = new Date(lastViewedCatchFeed);
-            newCatchesCount = recentCatches.filter(
-              catch_ => new Date(catch_.createdAt) > lastViewedDate
-            ).length;
-          } else {
-            // If never viewed, show count of recent catches (capped at 10)
-            newCatchesCount = Math.min(recentCatches.length, 10);
-          }
-        } catch (catchError) {
-          console.warn('Could not fetch catch feed for badge:', catchError);
-        }
-
-        setBadgeData({
-          pastReportsCount,
-          hasNewReport,
-          totalSpecies,
-          newCatchesCount,
-        });
-      } catch (error) {
-        console.error('Error loading badge data:', error);
       }
     };
 
@@ -400,54 +450,33 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     };
   }, [navigation, flushPendingAchievements]);
   
-  // Function to dismiss the info card
-  const dismissInfoCard = async () => {
+  // Memoized function to dismiss the info card
+  const dismissInfoCard = useCallback(async () => {
     try {
       await AsyncStorage.setItem("infoCardDismissed", "true");
       setShowInfoCard(false);
     } catch (error) {
       console.error("Error saving card preference:", error);
     }
-  };
+  }, []);
   
-  // Get nautical greeting based on time of day
-  const getNauticalGreeting = (): string => {
+  // Memoized nautical greeting - only changes when userName changes (triggers re-mount feel)
+  // Uses a stable random index based on the current hour to avoid flickering
+  const nauticalGreeting = useMemo((): string => {
     const hour = new Date().getHours();
-    
+    // Use hour as seed for consistent greeting within the same hour
+    const index = hour % 4;
+
     if (hour >= 5 && hour < 12) {
-      // Morning (5am - 11:59am)
-      return [
-        "Smooth sailing this morning",
-        "Fair winds this morning",
-        "Morning ahoy",
-        "Clear skies ahead"
-      ][Math.floor(Math.random() * 4)];
+      return NAUTICAL_GREETINGS.morning[index];
     } else if (hour >= 12 && hour < 17) {
-      // Afternoon (12pm - 4:59pm)
-      return [
-        "Afternoon on the high seas",
-        "Steady as she goes this afternoon",
-        "Fisherman's afternoon",
-        "Tight lines this afternoon"
-      ][Math.floor(Math.random() * 4)];
+      return NAUTICAL_GREETINGS.afternoon[index];
     } else if (hour >= 17 && hour < 21) {
-      // Evening (5pm - 8:59pm)
-      return [
-        "Evening tides",
-        "Sunset fishing",
-        "Evening on the water",
-        "Dusk on the horizon"
-      ][Math.floor(Math.random() * 4)];
+      return NAUTICAL_GREETINGS.evening[index];
     } else {
-      // Night (9pm - 4:59am)
-      return [
-        "Starboard lights on",
-        "Navigating by stars",
-        "Night fishing",
-        "Port lights on"
-      ][Math.floor(Math.random() * 4)];
+      return NAUTICAL_GREETINGS.night[index];
     }
-  };
+  }, []);
 
   // Setup to hide the default header and use our custom one
   useLayoutEffect(() => {
@@ -456,7 +485,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     });
   }, [navigation]);
 
-  const toggleMenu = (): void => {
+  const toggleMenu = useCallback((): void => {
     // When open: translateX = 0 (menu fully visible at right edge)
     // When closed: translateX = menuWidth (menu slides off to the right)
     const toValue = menuOpen ? menuWidth : 0;
@@ -479,9 +508,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     ]).start();
 
     setMenuOpen(!menuOpen);
-  };
+  }, [menuOpen, slideAnim, overlayOpacity]);
 
-  const closeMenu = (): void => {
+  const closeMenu = useCallback((): void => {
     if (menuOpen) {
       Animated.parallel([
         Animated.spring(slideAnim, {
@@ -501,33 +530,30 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
       setMenuOpen(false);
     }
-  };
+  }, [menuOpen, slideAnim, overlayOpacity]);
 
-  // Updated navigation function with debugging
-  const navigateToScreen = (screenName: keyof RootStackParamList): void => {
+  // Memoized navigation function
+  const navigateToScreen = useCallback((screenName: keyof RootStackParamList): void => {
     // Close the menu first if it's open
     closeMenu();
 
-    console.log(`Navigating to: ${screenName}`);
-
-    // Clear "new" indicators when visiting those screens
+    // Clear "new" indicators when visiting those screens and invalidate cache
     if (screenName === 'PastReports') {
       AsyncStorage.setItem(BADGE_STORAGE_KEYS.lastViewedPastReports, new Date().toISOString());
-      // Immediately update badge state
       setBadgeData(prev => ({ ...prev, hasNewReport: false }));
+      // Invalidate badge cache so it refreshes on return
+      badgeDataCache.timestamp = 0;
     } else if (screenName === 'CatchFeed') {
       AsyncStorage.setItem(BADGE_STORAGE_KEYS.lastViewedCatchFeed, new Date().toISOString());
-      // Immediately update badge state
       setBadgeData(prev => ({ ...prev, newCatchesCount: 0 }));
+      badgeDataCache.timestamp = 0;
     }
 
-    // To prevent any possible interference, use setTimeout to separate
-    // the navigation action from the touch event handling
+    // Use setTimeout to separate navigation from touch event handling
     setTimeout(() => {
-      // Type assertion needed for dynamic screen names in React Navigation v7
       (navigation.navigate as (screen: keyof RootStackParamList) => void)(screenName);
     }, 0);
-  };
+  }, [closeMenu, navigation]);
 
   return (
     <View style={{flex: 1, backgroundColor: colors.primary}}>
@@ -684,7 +710,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
                   <Feather name="anchor" size={22} color={colors.white} />
                 </View>
                 <View style={[localStyles.welcomeGreetingText, { zIndex: 1 }]}>
-                  <Text style={localStyles.welcomeGreetingLine}>{getNauticalGreeting()},</Text>
+                  <Text style={localStyles.welcomeGreetingLine}>{nauticalGreeting},</Text>
                   <Text style={localStyles.welcomeUserName}>{userName}</Text>
                   <Text style={localStyles.welcomeGreetingLine}>Enjoy your fishing today!</Text>
                 </View>

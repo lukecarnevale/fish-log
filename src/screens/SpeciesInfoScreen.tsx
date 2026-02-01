@@ -1,6 +1,6 @@
 // screens/SpeciesInfoScreen.tsx
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Text,
   View,
@@ -190,7 +190,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
   };
 
   // Handle closing detail view with animation
-  const handleCloseDetail = () => {
+  const handleCloseDetail = useCallback(() => {
     Animated.timing(detailAnim, {
       toValue: 0,
       duration: 200,
@@ -198,7 +198,22 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
     }).start(() => {
       setSelectedSpecies(null);
     });
-  };
+  }, [detailAnim]);
+
+  // Intercept back navigation when viewing species detail
+  // This prevents swipe-back from going to HomeScreen instead of back to list
+  useEffect(() => {
+    if (!selectedSpecies) return;
+
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // Prevent default back behavior
+      e.preventDefault();
+      // Close detail view instead
+      handleCloseDetail();
+    });
+
+    return unsubscribe;
+  }, [navigation, selectedSpecies, handleCloseDetail]);
 
   // Fetch fish species from Supabase
   const { data: fishSpeciesData = [], isLoading, error } = useAllFishSpecies();
