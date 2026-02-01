@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.lightGray,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
@@ -479,6 +479,21 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   modalButtonText: {
+    ...typography.button,
+    color: colors.textSecondary,
+  },
+  modalLookupButton: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  modalLookupButtonText: {
     ...typography.button,
     color: colors.white,
   },

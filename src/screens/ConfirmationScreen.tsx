@@ -24,6 +24,7 @@ import * as Clipboard from "expo-clipboard";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RouteProp, CommonActions } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles from "../styles/confirmationScreenStyles";
 import { RootStackParamList, FishReportData, HarvestReportInput } from "../types";
 import { colors, spacing, borderRadius, typography } from "../styles/common";
@@ -37,11 +38,18 @@ import { isTestMode } from "../config/appConfig";
 import RewardsPromptModal from "../components/RewardsPromptModal";
 import { shouldShowRewardsPrompt } from "../services/anonymousUserService";
 
+// Achievement notifications
+import { useAchievements } from "../contexts/AchievementContext";
+
 // Badge notification
 import { markNewReportSubmitted } from "../utils/badgeUtils";
 
 // Catch feed cache
 import { clearCatchFeedCache } from "../services/catchFeedService";
+
+// User service for syncing profile to Supabase
+import { updateCurrentUser } from "../services/userService";
+import { UserInput } from "../types/user";
 
 type ConfirmationScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -63,6 +71,9 @@ const DISMISS_THRESHOLD = 150; // How far to swipe before dismissing
 
 const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigation }) => {
   const { reportData } = route.params || { reportData: {} as FishReportData };
+
+  // Achievement notifications
+  const { queueAchievementsForLater } = useAchievements();
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(true);
@@ -194,6 +205,83 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
         markNewReportSubmitted();
         // Clear catch feed cache so the new submission appears immediately
         clearCatchFeedCache();
+
+        // Save preferred area to user profile for future reports
+        if (reportData.areaCode || reportData.waterbody) {
+          try {
+            const existingProfile = await AsyncStorage.getItem("userProfile");
+            const profileData = existingProfile ? JSON.parse(existingProfile) : {};
+            const updatedProfile = {
+              ...profileData,
+              preferredAreaCode: reportData.areaCode || profileData.preferredAreaCode,
+              preferredAreaLabel: reportData.waterbody || reportData.areaLabel || profileData.preferredAreaLabel,
+            };
+            await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+            console.log("✅ Preferred area saved to profile:", updatedProfile.preferredAreaLabel);
+          } catch (areaError) {
+            console.warn("Failed to save preferred area:", areaError);
+          }
+        }
+
+        // Sync profile fields to Supabase users table
+        try {
+          const profileUpdates: UserInput = {};
+
+          // Debug: Log what's in reportData for profile fields
+          console.log("🔄 Profile sync - reportData fields:", {
+            zipCode: reportData.zipCode,
+            wrcId: reportData.wrcId,
+            hasLicense: reportData.hasLicense,
+            areaCode: reportData.areaCode,
+            waterbody: reportData.waterbody,
+            anglerFirstName: reportData.angler?.firstName,
+            anglerLastName: reportData.angler?.lastName,
+            anglerPhone: reportData.angler?.phone,
+          });
+
+          // Add fields from report data if they exist
+          if (reportData.zipCode) {
+            profileUpdates.zipCode = reportData.zipCode;
+          }
+          if (reportData.wrcId) {
+            profileUpdates.wrcId = reportData.wrcId;
+          }
+          if (reportData.hasLicense !== undefined) {
+            profileUpdates.hasLicense = reportData.hasLicense;
+          }
+          if (reportData.areaCode) {
+            profileUpdates.preferredAreaCode = reportData.areaCode;
+          }
+          if (reportData.waterbody || reportData.areaLabel) {
+            profileUpdates.preferredAreaLabel = reportData.waterbody || reportData.areaLabel;
+          }
+          if (reportData.angler?.firstName) {
+            profileUpdates.firstName = reportData.angler.firstName;
+          }
+          if (reportData.angler?.lastName) {
+            profileUpdates.lastName = reportData.angler.lastName;
+          }
+          if (reportData.angler?.phone) {
+            profileUpdates.phone = reportData.angler.phone;
+          }
+
+          // Only call updateCurrentUser if we have fields to update
+          if (Object.keys(profileUpdates).length > 0) {
+            console.log("🔄 Profile updates to sync:", profileUpdates);
+            await updateCurrentUser(profileUpdates);
+            console.log("✅ Profile synced to Supabase:", Object.keys(profileUpdates).join(", "));
+          } else {
+            console.log("⚠️ No profile fields to sync (all empty)");
+          }
+        } catch (syncError) {
+          console.warn("Failed to sync profile to Supabase:", syncError);
+          // Don't fail the submission if sync fails - data is already in local storage
+        }
+      }
+
+      // Queue achievement notifications to show after navigating to HomeScreen
+      if (result.achievementsAwarded && result.achievementsAwarded.length > 0) {
+        queueAchievementsForLater(result.achievementsAwarded);
       }
 
       if (!result.success && !result.queued) {

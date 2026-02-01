@@ -11,10 +11,18 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  ImageSourcePropType,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
-import { Advertisement, getActiveAdvertisements } from '../data/advertisementsData';
+import { Advertisement as LocalAdvertisement, getActiveAdvertisements } from '../data/advertisementsData';
+import {
+  Advertisement as RemoteAdvertisement,
+  fetchAdvertisements,
+  trackAdClick,
+  AdPlacement,
+} from '../services/advertisementsService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12; // Gap between cards
@@ -25,19 +33,69 @@ const SNAP_WIDTH = CARD_WIDTH + CARD_GAP; // Width including gap for snapping
 // Auto-rotation interval in milliseconds
 const AUTO_ROTATE_INTERVAL = 5000;
 
+/**
+ * Unified ad type that works with both local and remote ads.
+ */
+interface DisplayAd {
+  id: string;
+  companyName: string;
+  promoText: string;
+  promoCode?: string;
+  linkUrl: string;
+  // Can be either a local require() or a URL string
+  image: ImageSourcePropType | string;
+  isRemote: boolean; // true if image is a URL
+}
+
 interface AdvertisementBannerProps {
-  // Optional: pass specific ads, otherwise shows all active ads
-  advertisements?: Advertisement[];
+  // Optional: pass specific local ads
+  advertisements?: LocalAdvertisement[];
+  // Optional: placement location to fetch ads for (uses Supabase if set)
+  placement?: AdPlacement;
   // Optional: callback when ad is pressed
-  onPress?: (ad: Advertisement) => void;
+  onPress?: (ad: DisplayAd) => void;
   // Optional: disable auto-rotation
   autoRotate?: boolean;
+  // Optional: use only local data (skip Supabase fetch)
+  useLocalOnly?: boolean;
+}
+
+/**
+ * Convert local advertisement to display format.
+ */
+function localToDisplayAd(ad: LocalAdvertisement): DisplayAd {
+  return {
+    id: ad.id,
+    companyName: ad.companyName,
+    promoText: ad.promoText,
+    promoCode: ad.promoCode,
+    linkUrl: ad.linkUrl,
+    image: ad.image,
+    isRemote: false,
+  };
+}
+
+/**
+ * Convert remote advertisement to display format.
+ */
+function remoteToDisplayAd(ad: RemoteAdvertisement): DisplayAd {
+  return {
+    id: ad.id,
+    companyName: ad.companyName,
+    promoText: ad.promoText,
+    promoCode: ad.promoCode,
+    linkUrl: ad.linkUrl,
+    image: ad.imageUrl,
+    isRemote: true,
+  };
 }
 
 const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   advertisements: propAds,
+  placement,
   onPress,
   autoRotate = true,
+  useLocalOnly = false,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -45,13 +103,47 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   const autoRotateTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const isJumping = useRef(false);
 
-  // Get ads to display
-  const originalAds = propAds || getActiveAdvertisements();
+  // State for fetched ads
+  const [fetchedAds, setFetchedAds] = useState<DisplayAd[]>([]);
+  const [isLoading, setIsLoading] = useState(!propAds && !useLocalOnly);
 
-  // Don't render if no ads are available
-  if (originalAds.length === 0) {
-    return null;
-  }
+  // Fetch ads from Supabase if no props and not using local only
+  useEffect(() => {
+    if (propAds || useLocalOnly) {
+      return;
+    }
+
+    const loadAds = async () => {
+      setIsLoading(true);
+      try {
+        const { advertisements, fromCache } = await fetchAdvertisements(placement);
+
+        if (fromCache) {
+          // Using local data - convert to display format
+          const localAds = getActiveAdvertisements().map(localToDisplayAd);
+          setFetchedAds(localAds);
+        } else {
+          // Using remote data
+          setFetchedAds(advertisements.map(remoteToDisplayAd));
+        }
+      } catch (error) {
+        console.warn('Failed to fetch ads, using local:', error);
+        const localAds = getActiveAdvertisements().map(localToDisplayAd);
+        setFetchedAds(localAds);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAds();
+  }, [propAds, placement, useLocalOnly]);
+
+  // Get ads to display
+  const originalAds: DisplayAd[] = propAds
+    ? propAds.map(localToDisplayAd)
+    : useLocalOnly
+    ? getActiveAdvertisements().map(localToDisplayAd)
+    : fetchedAds;
 
   // Create circular array: [last, ...original, first] for infinite scroll
   // Only do this if we have more than 1 ad
@@ -63,6 +155,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
 
   // Scroll to initial position (index 1 for circular, 0 for single)
   useEffect(() => {
+    if (originalAds.length === 0) return;
     if (isCircular && scrollViewRef.current) {
       // Start at index 1 (first real item) without animation
       setTimeout(() => {
@@ -72,7 +165,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
         });
       }, 50);
     }
-  }, [isCircular]);
+  }, [isCircular, originalAds.length]);
 
   // Start auto-rotation timer
   const startAutoRotate = useCallback(() => {
@@ -108,18 +201,30 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
 
   // Setup auto-rotation on mount
   useEffect(() => {
+    if (originalAds.length === 0) return;
     startAutoRotate();
     return () => stopAutoRotate();
-  }, [startAutoRotate, stopAutoRotate]);
+  }, [startAutoRotate, stopAutoRotate, originalAds.length]);
 
   // Restart auto-rotation when user stops scrolling
   useEffect(() => {
+    if (originalAds.length === 0) return;
     if (!isUserScrolling) {
       startAutoRotate();
     }
-  }, [isUserScrolling, startAutoRotate]);
+  }, [isUserScrolling, startAutoRotate, originalAds.length]);
 
-  const handlePress = async (ad: Advertisement) => {
+  // Don't render if loading or no ads available
+  if (isLoading || originalAds.length === 0) {
+    return null;
+  }
+
+  const handlePress = async (ad: DisplayAd) => {
+    // Track click for remote ads
+    if (ad.isRemote) {
+      trackAdClick(ad.id);
+    }
+
     if (onPress) {
       onPress(ad);
     } else {
@@ -186,7 +291,31 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
     }, 1000);
   };
 
-  const renderAd = (ad: Advertisement, index: number) => (
+  const renderAdImage = (ad: DisplayAd) => {
+    if (ad.isRemote && typeof ad.image === 'string') {
+      // Remote image URL - use ExpoImage for better caching
+      return (
+        <ExpoImage
+          source={{ uri: ad.image }}
+          style={styles.image}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={200}
+        />
+      );
+    } else {
+      // Local image - use standard Image
+      return (
+        <Image
+          source={ad.image as ImageSourcePropType}
+          style={styles.image}
+          resizeMode="cover"
+        />
+      );
+    }
+  };
+
+  const renderAd = (ad: DisplayAd, index: number) => (
     <TouchableOpacity
       key={`${ad.id}-${index}`}
       style={[
@@ -197,11 +326,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
       activeOpacity={0.9}
     >
       {/* Ad Image */}
-      <Image
-        source={ad.image}
-        style={styles.image}
-        resizeMode="cover"
-      />
+      {renderAdImage(ad)}
 
       {/* Overlay with company info and promo */}
       <View style={styles.overlay}>

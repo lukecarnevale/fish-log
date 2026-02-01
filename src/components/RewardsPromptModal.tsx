@@ -607,6 +607,29 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
               },
             ]}
           >
+            {/* Close button - always visible for escape hatch */}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                if (requiresSignup && step === 'form') {
+                  // Warn user they won't be entered in the raffle
+                  Alert.alert(
+                    'Skip Rewards Setup?',
+                    'You won\'t be entered in the quarterly drawing. You can always sign up later from your profile.',
+                    [
+                      { text: 'Continue Setup', style: 'cancel' },
+                      { text: 'Skip', style: 'destructive', onPress: handleClose },
+                    ]
+                  );
+                } else {
+                  handleClose();
+                }
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Feather name="x" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
@@ -650,6 +673,18 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     padding: spacing.lg,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   header: {
     alignItems: 'center',

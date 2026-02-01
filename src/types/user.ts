@@ -26,6 +26,10 @@ export interface User {
   zipCode: string | null;
   profileImageUrl: string | null;
 
+  // Preferred area of harvest (pre-fills report form)
+  preferredAreaCode: string | null;
+  preferredAreaLabel: string | null;
+
   // License info (cached for DMF submissions)
   hasLicense: boolean;
   wrcId: string | null;
@@ -59,6 +63,8 @@ export interface UserInput {
   lastName?: string;
   zipCode?: string;
   profileImageUrl?: string;
+  preferredAreaCode?: string;
+  preferredAreaLabel?: string;
   hasLicense?: boolean;
   wrcId?: string;
   phone?: string;
@@ -104,6 +110,7 @@ export interface SpeciesStat {
  */
 export interface Achievement {
   id: string;
+  code: string;
   name: string;
   description: string;
   iconName: string;
@@ -152,14 +159,16 @@ export function transformUser(row: Record<string, unknown>): User {
     lastName: row.last_name as string | null,
     zipCode: row.zip_code as string | null,
     profileImageUrl: row.profile_image_url as string | null,
+    preferredAreaCode: row.preferred_area_code as string | null,
+    preferredAreaLabel: row.preferred_area_label as string | null,
     hasLicense: row.has_license as boolean,
     wrcId: row.wrc_id as string | null,
     phone: row.phone as string | null,
     totalReports: row.total_reports as number,
-    totalFish: row.total_fish as number,
-    currentStreak: row.current_streak as number,
-    longestStreak: row.longest_streak as number,
-    lastReportDate: row.last_report_date as string | null,
+    totalFish: row.total_fish_reported as number,
+    currentStreak: row.current_streak_days as number,
+    longestStreak: row.longest_streak_days as number,
+    lastReportDate: row.last_active_at as string | null,
     rewardsOptedInAt: row.rewards_opted_in_at as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -174,7 +183,7 @@ export function transformSpeciesStat(row: Record<string, unknown>): SpeciesStat 
     species: row.species as string,
     totalCount: row.total_count as number,
     largestLength: row.largest_length as number | null,
-    lastCaughtDate: row.last_caught_date as string | null,
+    lastCaughtDate: row.last_caught_at as string | null,
   };
 }
 
@@ -184,6 +193,7 @@ export function transformSpeciesStat(row: Record<string, unknown>): SpeciesStat 
 export function transformAchievement(row: Record<string, unknown>): Achievement {
   return {
     id: row.id as string,
+    code: row.code as string,
     name: row.name as string,
     description: row.description as string,
     iconName: row.icon_name as string,

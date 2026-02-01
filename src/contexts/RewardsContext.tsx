@@ -234,13 +234,28 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
 
   /**
    * Load rewards data from service.
+   * Dynamically determines the user ID from rewards member if not provided.
    */
   const loadRewardsData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await fetchRewardsData(userId);
+      // Determine effective user ID - try to get rewards member if no userId prop
+      let effectiveUserId = userId;
+      if (!effectiveUserId) {
+        try {
+          const rewardsMember = await getRewardsMemberForAnonymousUser();
+          if (rewardsMember) {
+            effectiveUserId = rewardsMember.id;
+            console.log('🔍 RewardsContext - Found rewards member for loading:', effectiveUserId);
+          }
+        } catch (err) {
+          console.warn('Could not get rewards member during load:', err);
+        }
+      }
+
+      const data = await fetchRewardsData(effectiveUserId);
       setConfig(data.config);
       setCurrentDrawing(data.currentDrawing);
       setUserEntry(data.userEntry);
@@ -270,11 +285,26 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
 
   /**
    * Refresh rewards data.
+   * Dynamically determines the user ID from rewards member if not provided.
    */
   const refresh = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await refreshRewardsData(userId);
+      // Determine effective user ID - try to get rewards member if no userId prop
+      let effectiveUserId = userId;
+      if (!effectiveUserId) {
+        try {
+          const rewardsMember = await getRewardsMemberForAnonymousUser();
+          if (rewardsMember) {
+            effectiveUserId = rewardsMember.id;
+            console.log('🔄 RewardsContext - Found rewards member for refresh:', effectiveUserId);
+          }
+        } catch (err) {
+          console.warn('Could not get rewards member during refresh:', err);
+        }
+      }
+
+      const data = await refreshRewardsData(effectiveUserId);
       setConfig(data.config);
       setCurrentDrawing(data.currentDrawing);
       setUserEntry(data.userEntry);

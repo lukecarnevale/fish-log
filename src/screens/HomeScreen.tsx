@@ -14,6 +14,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -36,12 +37,98 @@ import {
   AppMode,
 } from "../config/appConfig";
 import { getPendingAuth, PendingAuth, onAuthStateChange } from "../services/authService";
-import { isRewardsMember, getCurrentUser } from "../services/userService";
+import { isRewardsMember, getCurrentUser, getUserStats } from "../services/userService";
+import { UserAchievement } from "../types/user";
 import { getReportsSummary } from "../services/reportsService";
 import { fetchAllFishSpecies } from "../services/fishSpeciesService";
 import { fetchRecentCatches } from "../services/catchFeedService";
 import { BADGE_STORAGE_KEYS } from "../utils/badgeUtils";
 import { SCREEN_LABELS } from "../constants/screenLabels";
+import { useAchievements } from "../contexts/AchievementContext";
+
+// Achievement color mapping - specific colors for each achievement code
+const ACHIEVEMENT_COLORS: Record<string, string> = {
+  // Special achievements
+  rewards_entered: '#9C27B0', // Purple
+  // Reporting milestones
+  first_report: '#4CAF50', // Green
+  reports_10: '#2E7D32', // Dark Green
+  reports_50: '#1B5E20', // Darker Green
+  reports_100: '#004D40', // Teal
+  // Photo achievements
+  photo_first: '#E91E63', // Pink
+  // Fish count achievements
+  fish_100: '#FF5722', // Deep Orange
+  fish_500: '#E64A19', // Dark Orange
+  // Streak achievements
+  streak_3: '#FF9800', // Orange
+  streak_7: '#F57C00', // Dark Orange
+  streak_30: '#EF6C00', // Darker Orange
+  // Species achievements
+  species_all_5: '#2196F3', // Blue
+  // Category fallbacks
+  milestone: '#4CAF50',
+  reporting: '#43A047',
+  species: '#1976D2',
+  streak: '#FB8C00',
+  special: '#8E24AA',
+  default: '#FFD700', // Gold
+};
+
+// Achievement icon mapping - specific icons for each achievement code
+const ACHIEVEMENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  // Special achievements
+  rewards_entered: 'gift',
+  // Reporting milestones
+  first_report: 'flag',
+  reports_10: 'trending-up',
+  reports_50: 'award',
+  reports_100: 'star',
+  // Photo achievements
+  photo_first: 'camera',
+  // Fish count achievements
+  fish_100: 'anchor',
+  fish_500: 'award',
+  // Streak achievements
+  streak_3: 'zap',
+  streak_7: 'zap',
+  streak_30: 'zap',
+  // Species achievements
+  species_all_5: 'list',
+  // Category fallbacks
+  milestone: 'award',
+  reporting: 'file-text',
+  species: 'anchor',
+  streak: 'zap',
+  special: 'star',
+  default: 'award',
+};
+
+/**
+ * Get the color for an achievement based on its code or category.
+ */
+function getAchievementColor(code: string | undefined, category: string): string {
+  if (code && ACHIEVEMENT_COLORS[code]) {
+    return ACHIEVEMENT_COLORS[code];
+  }
+  return ACHIEVEMENT_COLORS[category] || ACHIEVEMENT_COLORS.default;
+}
+
+/**
+ * Get the icon for an achievement based on its code, iconName, or category.
+ */
+function getAchievementIcon(code: string | undefined, iconName: string | undefined, category: string): keyof typeof Feather.glyphMap {
+  // First, try to use the iconName from the database
+  if (iconName && iconName in Feather.glyphMap) {
+    return iconName as keyof typeof Feather.glyphMap;
+  }
+  // Then try the code-specific icon
+  if (code && ACHIEVEMENT_ICONS[code]) {
+    return ACHIEVEMENT_ICONS[code];
+  }
+  // Fall back to category icon
+  return ACHIEVEMENT_ICONS[category] || ACHIEVEMENT_ICONS.default;
+}
 
 // Update the navigation type to be compatible with React Navigation v7
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
@@ -55,6 +142,9 @@ interface HomeScreenProps {
 const HEADER_HEIGHT = 100;
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
+  // Achievement notifications - flush any pending achievements when this screen gains focus
+  const { flushPendingAchievements } = useAchievements();
+
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>("");
   const [showInfoCard, setShowInfoCard] = useState<boolean>(true);
@@ -69,6 +159,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Track if user is a rewards member
   const [rewardsMember, setRewardsMember] = useState<boolean>(false);
   const [rewardsMemberEmail, setRewardsMemberEmail] = useState<string | null>(null);
+  // Track if user has email in profile (to show "Sign In" vs "Join")
+  const [hasProfileEmail, setHasProfileEmail] = useState<boolean>(false);
   // User profile image for drawer menu
   const [profileImage, setProfileImage] = useState<string | null>(null);
   // Badge data for quick action cards
@@ -78,6 +170,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     totalSpecies: 0,
     newCatchesCount: 0,
   });
+  // User achievements for display
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const slideAnim = useRef<Animated.Value>(new Animated.Value(menuWidth)).current;
   const overlayOpacity = useRef<Animated.Value>(new Animated.Value(0)).current;
 
@@ -160,10 +254,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           } else {
             setProfileImage(null);
           }
+
+          // Check if user has email in profile (to determine Sign In vs Join)
+          setHasProfileEmail(!!parsedProfile.email);
         } else {
           // If no profile, don't set a default name or image
           setUserName("");
           setProfileImage(null);
+          setHasProfileEmail(false);
         }
 
         // Check the fishingLicense storage for license number
@@ -191,6 +289,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           const user = await getCurrentUser();
           setRewardsMemberEmail(user?.email || null);
           console.log('🏆 Rewards member:', user?.email);
+
+          // Fetch user achievements
+          try {
+            const stats = await getUserStats();
+            setUserAchievements(stats.achievements || []);
+            console.log(`🏆 Loaded ${stats.achievements?.length || 0} achievements`);
+          } catch (achievementError) {
+            console.warn('Failed to load achievements:', achievementError);
+            setUserAchievements([]);
+          }
+        } else {
+          setUserAchievements([]);
         }
 
         // Load badge data for quick action cards
@@ -257,6 +367,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     // Set up a focus listener to update the data when returning to this screen
     const focusUnsubscribe = navigation.addListener('focus', () => {
       loadUserData();
+      // Show any pending achievements that were queued (e.g., from ConfirmationScreen)
+      flushPendingAchievements();
     });
 
     // Set up an auth state listener to refresh when user signs in
@@ -286,7 +398,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       focusUnsubscribe();
       authUnsubscribe?.();
     };
-  }, [navigation]);
+  }, [navigation, flushPendingAchievements]);
   
   // Function to dismiss the info card
   const dismissInfoCard = async () => {
@@ -439,6 +551,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         }}
         isSignedIn={rewardsMember}
         profileImage={profileImage}
+        hasProfileEmail={hasProfileEmail}
       />
 
       {/* Overlay when menu is open */}
@@ -580,10 +693,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
             {/* Rewards Status Section */}
             {rewardsMember ? (
-              <View style={[
-                localStyles.welcomeRewardsSection,
-                userName && localStyles.welcomeRewardsSectionWithGreeting
-              ]}>
+              <TouchableOpacity
+                style={[
+                  localStyles.welcomeRewardsSection,
+                  userName && localStyles.welcomeRewardsSectionWithGreeting
+                ]}
+                onPress={() => navigateToScreen("Profile")}
+                activeOpacity={0.7}
+              >
                 <View style={localStyles.welcomeRewardsIcon}>
                   <Feather name="award" size={18} color={colors.secondary} />
                 </View>
@@ -591,8 +708,44 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
                   <Text style={localStyles.welcomeRewardsTitle}>Rewards Member</Text>
                   <Text style={localStyles.welcomeRewardsEmail}>{rewardsMemberEmail}</Text>
                 </View>
-                <Feather name="check-circle" size={18} color="#4CAF50" />
-              </View>
+                {/* Achievement icons - show 3 most recent */}
+                {userAchievements.length > 0 ? (
+                  <View style={localStyles.achievementIconsRow}>
+                    {[...userAchievements]
+                      .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
+                      .slice(0, 3)
+                      .map((ua, index) => {
+                        const category = ua.achievement.category || 'default';
+                        const code = ua.achievement.code;
+                        const iconName = getAchievementIcon(code, ua.achievement.iconName, category);
+                        const bgColor = getAchievementColor(code, category);
+                        return (
+                          <View
+                            key={ua.id}
+                            style={[
+                              localStyles.achievementIconBadge,
+                              { backgroundColor: bgColor },
+                              index > 0 && { marginLeft: -8 },
+                            ]}
+                          >
+                            <Feather
+                              name={iconName}
+                              size={14}
+                              color={colors.white}
+                            />
+                          </View>
+                        );
+                      })}
+                    {userAchievements.length > 3 && (
+                      <View style={[localStyles.achievementIconBadge, localStyles.achievementCountBadge, { marginLeft: -8 }]}>
+                        <Text style={localStyles.achievementCountText}>+{userAchievements.length - 3}</Text>
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <Feather name="chevron-right" size={18} color={colors.textSecondary} />
+                )}
+              </TouchableOpacity>
             ) : userName ? (
               /* Subtle CTA for non-members who have a name */
               <TouchableOpacity
@@ -603,7 +756,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
                 <View style={localStyles.welcomeJoinIcon}>
                   <Feather name="gift" size={16} color={colors.secondary} />
                 </View>
-                <Text style={localStyles.welcomeJoinText}>Join Rewards Program</Text>
+                <Text style={localStyles.welcomeJoinText}>{hasProfileEmail ? 'Sign In to Rewards Program' : 'Join Rewards Program'}</Text>
                 <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.7)" />
               </TouchableOpacity>
             ) : null}
@@ -616,20 +769,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           onPress={() => navigateToScreen("LicenseDetails")}
           activeOpacity={0.7}
         >
-          <View style={styles.licenseCard}>
+          <LinearGradient
+            colors={[colors.primary, colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={localStyles.licenseCardGradient}
+          >
             <View style={styles.licenseHeader}>
               <NCFlagIcon width={56} height={36} style={{ marginRight: 12 }} />
               <View>
-                <Text style={styles.licenseTitle}>{SCREEN_LABELS.fishingLicense.title}</Text>
-                <Text style={styles.licenseSubtitle}>
+                <Text style={localStyles.licenseTitleWhite}>{SCREEN_LABELS.fishingLicense.title}</Text>
+                <Text style={localStyles.licenseSubtitleWhite}>
                   {licenseNumber
                     ? `License #${licenseNumber}`
                     : "Tap to edit or view license details"}
                 </Text>
               </View>
             </View>
-            <Feather name="chevron-right" size={24} color={colors.primary} />
-          </View>
+            <Feather name="chevron-right" size={24} color={colors.white} />
+          </LinearGradient>
         </TouchableOpacity>
 
         {/* Quick Action Cards Grid */}
@@ -654,7 +812,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         {/* Footer with sponsor logos - wrapped with dark blue behind it */}
         <View style={localStyles.footerContainer}>
           <View style={localStyles.footerBottomArea} />
-          <Footer />
+          <Footer
+            onPrivacyPress={() => navigation.navigate('LegalDocument', { type: 'privacy' })}
+            onTermsPress={() => navigation.navigate('LegalDocument', { type: 'terms' })}
+            onLicensesPress={() => navigation.navigate('LegalDocument', { type: 'licenses' })}
+          />
         </View>
         </View>
       </Animated.ScrollView>
@@ -867,6 +1029,56 @@ const localStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.white,
+  },
+  // Achievement icons in rewards section
+  achievementIconsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  achievementIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.95)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  achievementCountBadge: {
+    backgroundColor: colors.primary,
+  },
+  achievementCountText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  // License card gradient styles
+  licenseCardGradient: {
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  licenseTitleWhite: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: colors.white,
+    marginBottom: 2,
+  },
+  licenseSubtitleWhite: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
 });
 

@@ -21,7 +21,10 @@ import {
 } from '../types/user';
 import { getOrCreateAnonymousUser, getAnonymousUser } from './anonymousUserService';
 import { getPendingAuth, clearPendingAuth, getCurrentAuthUser, getAuthState } from './authService';
-import { linkReportsToUser } from './reportsService';
+import { backfillUserStatsFromReports } from './statsService';
+import { getEnteredDrawingIds, enterRewardsDrawing, fetchCurrentDrawing } from './rewardsService';
+
+// Note: linkReportsToUser is imported lazily to avoid circular dependency with reportsService
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -30,6 +33,55 @@ const STORAGE_KEYS = {
   userStats: '@user_stats',
   userProfile: 'userProfile', // Used by ProfileScreen
 } as const;
+
+// =============================================================================
+// Rewards Entry Migration
+// =============================================================================
+
+/**
+ * Migrate local rewards entries to Supabase when a user becomes a rewards member.
+ * This ensures that raffle entries made before signing up are preserved.
+ */
+async function migrateLocalRewardsEntries(userId: string): Promise<number> {
+  try {
+    // Get locally stored drawing entries
+    const localEntries = await getEnteredDrawingIds();
+    if (localEntries.length === 0) {
+      console.log('🎁 No local rewards entries to migrate');
+      return 0;
+    }
+
+    console.log(`🎁 Migrating ${localEntries.length} local rewards entries to Supabase...`);
+
+    // Get current active drawing to migrate entries for
+    const currentDrawing = await fetchCurrentDrawing();
+    let migrated = 0;
+
+    for (const drawingId of localEntries) {
+      try {
+        // Only migrate if this is the current drawing (or we have the drawing info)
+        if (currentDrawing && drawingId === currentDrawing.id) {
+          await enterRewardsDrawing(userId, drawingId);
+          migrated++;
+          console.log(`🎁 Migrated entry for drawing: ${drawingId}`);
+        } else {
+          // For non-current drawings, still try to migrate
+          await enterRewardsDrawing(userId, drawingId);
+          migrated++;
+          console.log(`🎁 Migrated entry for past drawing: ${drawingId}`);
+        }
+      } catch (entryError) {
+        console.warn(`Failed to migrate entry for drawing ${drawingId}:`, entryError);
+      }
+    }
+
+    console.log(`✅ Migrated ${migrated} rewards entries to Supabase`);
+    return migrated;
+  } catch (error) {
+    console.error('Failed to migrate local rewards entries:', error);
+    return 0;
+  }
+}
 
 // =============================================================================
 // Device ID Management
@@ -137,6 +189,9 @@ async function syncToUserProfile(user: User): Promise<void> {
       zipCode: user.zipCode || profileData.zipCode,
       hasLicense: user.hasLicense ?? profileData.hasLicense,
       wrcId: user.wrcId || profileData.wrcId,
+      profileImage: user.profileImageUrl || profileData.profileImage,
+      preferredAreaCode: user.preferredAreaCode || profileData.preferredAreaCode,
+      preferredAreaLabel: user.preferredAreaLabel || profileData.preferredAreaLabel,
     };
 
     await AsyncStorage.setItem(STORAGE_KEYS.userProfile, JSON.stringify(updatedProfile));
@@ -230,6 +285,8 @@ async function updateUserInSupabase(userId: string, input: UserInput): Promise<U
   if (input.lastName !== undefined) updateData.last_name = input.lastName || null;
   if (input.zipCode !== undefined) updateData.zip_code = input.zipCode || null;
   if (input.profileImageUrl !== undefined) updateData.profile_image_url = input.profileImageUrl || null;
+  if (input.preferredAreaCode !== undefined) updateData.preferred_area_code = input.preferredAreaCode || null;
+  if (input.preferredAreaLabel !== undefined) updateData.preferred_area_label = input.preferredAreaLabel || null;
   if (input.hasLicense !== undefined) updateData.has_license = input.hasLicense;
   if (input.wrcId !== undefined) updateData.wrc_id = input.wrcId || null;
   if (input.phone !== undefined) updateData.phone = input.phone || null;
@@ -288,7 +345,7 @@ async function fetchStatsFromSupabase(userId: string): Promise<UserStats> {
   // Get user for denormalized stats
   const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('total_reports, total_fish, current_streak, longest_streak, last_report_date')
+    .select('total_reports, total_fish_reported, current_streak_days, longest_streak_days, last_active_at')
     .eq('id', userId)
     .single();
 
@@ -298,10 +355,10 @@ async function fetchStatsFromSupabase(userId: string): Promise<UserStats> {
 
   return {
     totalReports: userData.total_reports as number,
-    totalFish: userData.total_fish as number,
-    currentStreak: userData.current_streak as number,
-    longestStreak: userData.longest_streak as number,
-    lastReportDate: userData.last_report_date as string | null,
+    totalFish: userData.total_fish_reported as number,
+    currentStreak: userData.current_streak_days as number,
+    longestStreak: userData.longest_streak_days as number,
+    lastReportDate: userData.last_active_at as string | null,
     speciesStats,
     achievements,
   };
@@ -365,11 +422,14 @@ export async function getCurrentUser(): Promise<User | null> {
     id: deviceId,
     deviceId,
     email: null,
+    authId: null,
     anonymousUserId: null,
     firstName: null,
     lastName: null,
     zipCode: null,
     profileImageUrl: null,
+    preferredAreaCode: null,
+    preferredAreaLabel: null,
     hasLicense: true,
     wrcId: null,
     phone: null,
@@ -530,7 +590,25 @@ export async function convertToRewardsMember(
 
     // Link any anonymous reports to this user so they appear in Catch Feed
     if (anonymousUser?.id) {
-      await linkReportsToUser(anonymousUser.id, user.id);
+      // Lazy import to avoid circular dependency
+      const { linkReportsToUser } = await import('./reportsService');
+      const linkResult = await linkReportsToUser(anonymousUser.id, user.id);
+
+      // Backfill stats from historical reports
+      if (linkResult.updated > 0) {
+        console.log(`🔄 Backfilling stats from ${linkResult.updated} linked reports...`);
+        // Clear catch feed cache so linked reports appear immediately
+        const { clearCatchFeedCache } = await import('./catchFeedService');
+        await clearCatchFeedCache();
+        console.log('🔄 Cleared catch feed cache after linking reports');
+        const backfillResult = await backfillUserStatsFromReports(user.id);
+        if (backfillResult.success) {
+          console.log(`✅ Backfilled: ${backfillResult.totalReports} reports, ${backfillResult.totalFish} fish`);
+          if (backfillResult.achievementsAwarded.length > 0) {
+            console.log(`🏆 Achievements unlocked: ${backfillResult.achievementsAwarded.map(a => a.name).join(', ')}`);
+          }
+        }
+      }
     }
 
     console.log('✅ Converted anonymous user to rewards member');
@@ -560,6 +638,7 @@ export async function isRewardsMember(): Promise<boolean> {
 
 /**
  * Get the rewards member for the current anonymous user (if exists).
+ * Also checks authenticated session to find user by email if anonymous_user_id doesn't match.
  */
 export async function getRewardsMemberForAnonymousUser(): Promise<User | null> {
   const connected = await isSupabaseConnected();
@@ -568,6 +647,27 @@ export async function getRewardsMemberForAnonymousUser(): Promise<User | null> {
   }
 
   try {
+    // First, check if there's an authenticated session - look up by email (case-insensitive)
+    const authState = await getAuthState();
+    if (authState.isAuthenticated && authState.user?.email) {
+      const { data: authUserData, error: authError } = await supabase
+        .from('users')
+        .select('*')
+        .ilike('email', authState.user.email)
+        .limit(1)
+        .single();
+
+      if (!authError && authUserData) {
+        console.log('🔑 Found rewards member by auth email:', authState.user.email);
+        const user = transformUser(authUserData);
+        // Sync user profile to AsyncStorage so profile data is restored
+        await syncToUserProfile(user);
+        await cacheUser(user);
+        return user;
+      }
+    }
+
+    // Fall back to looking up by anonymous_user_id
     const anonymousUser = await getAnonymousUser();
     if (!anonymousUser) {
       return null;
@@ -795,6 +895,7 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
         first_name: pendingAuth?.firstName || authUser.user_metadata?.firstName || null,
         last_name: pendingAuth?.lastName || authUser.user_metadata?.lastName || null,
         phone: pendingAuth?.phone || authUser.user_metadata?.phone || null,
+        zip_code: pendingAuth?.zipCode || authUser.user_metadata?.zipCode || null,
         rewards_opted_in_at: new Date().toISOString(),
         has_license: true,
       })
@@ -820,6 +921,7 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
                 first_name: pendingAuth?.firstName || existingDeviceUser.firstName || null,
                 last_name: pendingAuth?.lastName || existingDeviceUser.lastName || null,
                 phone: pendingAuth?.phone || existingDeviceUser.phone || null,
+                zip_code: pendingAuth?.zipCode || existingDeviceUser.zipCode || null,
                 rewards_opted_in_at: new Date().toISOString(),
                 anonymous_user_id: anonymousUser?.id || existingDeviceUser.anonymousUserId || null,
               })
@@ -840,12 +942,26 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
             // Link any anonymous reports to this user so they appear in Catch Feed
             let claimedCatches = 0;
             if (anonymousUser?.id) {
+              // Lazy import to avoid circular dependency
+              const { linkReportsToUser } = await import('./reportsService');
               const linkResult = await linkReportsToUser(anonymousUser.id, updatedUser.id);
               claimedCatches = linkResult.updated;
               if (claimedCatches > 0) {
                 console.log(`🎣 Linked ${claimedCatches} anonymous catches to user`);
+                // Clear catch feed cache so linked reports appear immediately
+                const { clearCatchFeedCache } = await import('./catchFeedService');
+                await clearCatchFeedCache();
+                console.log('🔄 Cleared catch feed cache after linking reports');
+                // Backfill stats from historical reports
+                const backfillResult = await backfillUserStatsFromReports(updatedUser.id);
+                if (backfillResult.success) {
+                  console.log(`✅ Backfilled: ${backfillResult.totalReports} reports, ${backfillResult.totalFish} fish`);
+                }
               }
             }
+
+            // Migrate local rewards entries to Supabase
+            await migrateLocalRewardsEntries(updatedUser.id);
 
             console.log('✅ Upgraded existing device user to rewards member:', authUser.email);
             return { success: true, user: updatedUser, claimedCatches };
@@ -874,12 +990,26 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
     // Link any anonymous reports to this user so they appear in Catch Feed
     let claimedCatches = 0;
     if (anonymousUser?.id) {
+      // Lazy import to avoid circular dependency
+      const { linkReportsToUser } = await import('./reportsService');
       const linkResult = await linkReportsToUser(anonymousUser.id, user.id);
       claimedCatches = linkResult.updated;
       if (claimedCatches > 0) {
         console.log(`🎣 Linked ${claimedCatches} anonymous catches to user`);
+        // Clear catch feed cache so linked reports appear immediately
+        const { clearCatchFeedCache } = await import('./catchFeedService');
+        await clearCatchFeedCache();
+        console.log('🔄 Cleared catch feed cache after linking reports');
+        // Backfill stats from historical reports
+        const backfillResult = await backfillUserStatsFromReports(user.id);
+        if (backfillResult.success) {
+          console.log(`✅ Backfilled: ${backfillResult.totalReports} reports, ${backfillResult.totalFish} fish`);
+        }
       }
     }
+
+    // Migrate local rewards entries to Supabase
+    await migrateLocalRewardsEntries(user.id);
 
     console.log('✅ Created rewards member from authenticated user:', authUser.email);
     return { success: true, user, claimedCatches };

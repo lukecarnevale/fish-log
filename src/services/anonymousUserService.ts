@@ -21,6 +21,9 @@ const STORAGE_KEYS = {
   deviceId: '@device_id',
 } as const;
 
+// Singleton promise to prevent race conditions
+let initializationPromise: Promise<AnonymousUser> | null = null;
+
 // =============================================================================
 // Device ID Management
 // =============================================================================
@@ -188,8 +191,33 @@ async function findRewardsMemberByAnonymousId(anonymousUserId: string): Promise<
 /**
  * Get or create the anonymous user for this device.
  * This is called silently on app launch.
+ * Uses singleton pattern to prevent race conditions when called multiple times concurrently.
  */
 export async function getOrCreateAnonymousUser(): Promise<AnonymousUser> {
+  // Return existing promise if initialization is in progress
+  if (initializationPromise) {
+    return initializationPromise;
+  }
+
+  // Create new initialization promise
+  initializationPromise = doGetOrCreateAnonymousUser();
+
+  try {
+    const result = await initializationPromise;
+    return result;
+  } finally {
+    // Clear the promise after completion so future calls can refresh if needed
+    // But keep a small delay to handle rapid successive calls
+    setTimeout(() => {
+      initializationPromise = null;
+    }, 1000);
+  }
+}
+
+/**
+ * Internal implementation of getOrCreateAnonymousUser.
+ */
+async function doGetOrCreateAnonymousUser(): Promise<AnonymousUser> {
   const deviceId = await getDeviceId();
 
   // Try Supabase first
@@ -200,9 +228,20 @@ export async function getOrCreateAnonymousUser(): Promise<AnonymousUser> {
       let user = await findAnonymousUserByDeviceId(deviceId);
 
       if (!user) {
-        // Create new anonymous user
-        user = await createAnonymousUserInSupabase({ deviceId });
-        console.log('✅ Created new anonymous user in Supabase');
+        // Try to create new anonymous user
+        try {
+          user = await createAnonymousUserInSupabase({ deviceId });
+          console.log('✅ Created new anonymous user in Supabase');
+        } catch (createError) {
+          // If duplicate key error, user was created by another call - fetch it
+          const errorMessage = createError instanceof Error ? createError.message : '';
+          if (errorMessage.includes('duplicate key') || errorMessage.includes('device_id')) {
+            console.log('🔄 Anonymous user already exists, fetching...');
+            user = await findAnonymousUserByDeviceId(deviceId);
+          } else {
+            throw createError;
+          }
+        }
       } else {
         // Update last active timestamp
         user = await updateAnonymousUserInSupabase(user.id, {
@@ -210,9 +249,11 @@ export async function getOrCreateAnonymousUser(): Promise<AnonymousUser> {
         });
       }
 
-      // Cache the user
-      await cacheAnonymousUser(user);
-      return user;
+      // Cache the user if found
+      if (user) {
+        await cacheAnonymousUser(user);
+        return user;
+      }
     } catch (error) {
       console.warn('⚠️ Supabase anonymous user fetch failed, using cache:', error);
     }

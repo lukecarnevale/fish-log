@@ -54,6 +54,9 @@ export {
   type RewardsCalculated,
 } from './rewards';
 
+// Legal Document Types
+export type LegalDocumentType = 'privacy' | 'terms' | 'licenses';
+
 // Navigation Types
 export type RootStackParamList = {
   Home: undefined;
@@ -64,6 +67,7 @@ export type RootStackParamList = {
   LicenseDetails: undefined;
   CatchFeed: undefined;
   Profile: undefined;
+  LegalDocument: { type: LegalDocumentType };
 };
 
 // Fish Report Types
@@ -138,6 +142,10 @@ export interface UserProfile {
   // DMF notification preferences
   wantTextConfirmation?: boolean;
   wantEmailConfirmation?: boolean;
+
+  // Preferred area of harvest (pre-fills report form)
+  preferredAreaCode?: string;
+  preferredAreaLabel?: string;
 
   // Profile customization
   profileImage?: string;
