@@ -43,6 +43,7 @@ export interface PendingAuth {
   firstName: string;
   lastName: string;
   phone?: string;
+  zipCode?: string;
   sentAt: string;
 }
 

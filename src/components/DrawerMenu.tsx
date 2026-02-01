@@ -48,6 +48,8 @@ interface DrawerMenuProps {
   isSignedIn?: boolean;
   /** User's profile image URI */
   profileImage?: string | null;
+  /** Whether the user has an email in their profile (to show "Sign In" vs "Join") */
+  hasProfileEmail?: boolean;
 }
 
 // ============================================
@@ -263,6 +265,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   onFeedbackPress,
   isSignedIn = false,
   profileImage,
+  hasProfileEmail = false,
 }) => {
   const menuScrollRef = useRef<ScrollView>(null);
 
@@ -403,18 +406,20 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             onPress={() => handleNavigate("Profile")}
             activeOpacity={0.8}
           >
-            <View style={styles.profileAvatar}>
-              {profileImage ? (
-                <Image
-                  source={{ uri: profileImage }}
-                  style={styles.profileAvatarImage}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                  transition={150}
-                />
-              ) : (
-                <AnglerAvatarIcon />
-              )}
+            <View style={styles.profileAvatarContainer}>
+              <View style={styles.profileAvatar}>
+                {profileImage ? (
+                  <Image
+                    source={{ uri: profileImage }}
+                    style={styles.profileAvatarImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
+                  />
+                ) : (
+                  <AnglerAvatarIcon />
+                )}
+              </View>
               {pendingAuth && (
                 <Animated.View style={[styles.profileBadge, { transform: [{ scale: badgeScale }] }]}>
                   <Animated.View style={[styles.profileBadgeDot, { borderColor: badgeBorderColor }]} />
@@ -424,7 +429,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>{SCREEN_LABELS.profile.title}</Text>
               <Text style={styles.profileSubtitle}>
-                {isSignedIn ? SCREEN_LABELS.profile.subtitle : 'Sign in'}
+                {isSignedIn ? SCREEN_LABELS.profile.subtitle : hasProfileEmail ? 'Sign In' : 'Join'}
               </Text>
             </View>
             <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.6)" />
@@ -630,6 +635,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  profileAvatarContainer: {
+    marginRight: 12,
+  },
   profileAvatar: {
     width: 44,
     height: 44,
@@ -637,7 +645,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
     overflow: 'hidden',
   },
   profileAvatarImage: {

@@ -37,6 +37,7 @@ import BottomDrawer from '../components/BottomDrawer';
 import WaveBackground from '../components/WaveBackground';
 import TopAnglersSection from '../components/TopAnglersSection';
 import { SCREEN_LABELS } from '../constants/screenLabels';
+import { CatchFeedSkeletonLoader } from '../components/SkeletonLoader';
 
 // Use sample data for development (set to false when Supabase is ready)
 const USE_SAMPLE_DATA = false;
@@ -654,12 +655,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   // Empty component for FlatList when no data
   const renderEmptyComponent = useCallback(() => {
     if (loading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading catches...</Text>
-        </View>
-      );
+      return <CatchFeedSkeletonLoader />;
     }
     if (error) {
       return renderErrorState();
@@ -1068,6 +1064,7 @@ const styles = StyleSheet.create({
   // Feed footer
   feedFooter: {
     marginTop: spacing.lg,
+    marginBottom: spacing.xxl,
     marginHorizontal: spacing.md,
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,

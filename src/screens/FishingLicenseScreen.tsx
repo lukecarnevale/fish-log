@@ -154,42 +154,6 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
     }
   };
   
-  // Generate sample license
-  const generateSampleLicense = async () => {
-    const sampleLicense: FishingLicense = {
-      id: "123456",
-      firstName: "John",
-      lastName: "Smith",
-      licenseNumber: "NC-789012345",
-      licenseType: "Annual Coastal Recreational Fishing License",
-      issueDate: "2024-01-01",
-      expiryDate: "2024-12-31",
-    };
-
-    setFormData(sampleLicense);
-    setLicense(sampleLicense);
-    setIsEditing(false);
-
-    // Also save to AsyncStorage and update profile
-    try {
-      await AsyncStorage.setItem("fishingLicense", JSON.stringify(sampleLicense));
-
-      // Update profile with name and license info
-      const existingProfile = await AsyncStorage.getItem("userProfile");
-      const profile = existingProfile ? JSON.parse(existingProfile) : {};
-      const updatedProfile = {
-        ...profile,
-        firstName: sampleLicense.firstName,
-        lastName: sampleLicense.lastName,
-        hasLicense: true,
-        wrcId: sampleLicense.licenseNumber,
-      };
-      await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
-    } catch (error) {
-      console.error("Error saving sample license:", error);
-    }
-  };
-  
   // Format date for display
   const formatDate = (dateString?: string): string => {
     if (!dateString) return "";
@@ -647,7 +611,23 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                   </Text>
                 </View>
               </View>
-              
+
+              <Text style={styles.modalSectionTitle}>Don't Know Your License Number?</Text>
+              <Text style={styles.modalText}>
+                You can look up your WRC ID or Customer ID online if you've previously purchased a license.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.modalLookupButton}
+                onPress={() => {
+                  setInfoModalVisible(false);
+                  Linking.openURL("https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx");
+                }}
+              >
+                <Feather name="external-link" size={18} color={colors.white} style={{ marginRight: 8 }} />
+                <Text style={styles.modalLookupButtonText}>Look Up My License</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.modalButton}
                 onPress={() => setInfoModalVisible(false)}
@@ -658,8 +638,6 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           </View>
         </View>
       </Modal>
-      
-      {/* Info Modal - License details modal remains but license type modal is replaced by the component */}
     </ScrollView>
   );
   
@@ -683,14 +661,6 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       >
         <Feather name="plus" size={18} color={colors.white} />
         <Text style={styles.actionButtonText}>Add My License</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.actionButton, styles.secondaryButton, { marginTop: spacing.md }]}
-        onPress={generateSampleLicense}
-      >
-        <Feather name="file-text" size={18} color={colors.primary} />
-        <Text style={styles.secondaryButtonText}>Use Sample License</Text>
       </TouchableOpacity>
       
       <View style={styles.emptyStateInfoContainer}>

@@ -417,26 +417,36 @@ export async function fetchCurrentDrawing(): Promise<RewardsDrawing | null> {
 
 /**
  * Enter the user into the current rewards drawing.
+ * If an entry already exists, preserves existing data and appends the new report ID.
  */
 export async function enterRewardsDrawing(
   userId: string,
   drawingId: string,
   reportId?: string
 ): Promise<UserRewardsEntry> {
-  const entry: UserRewardsEntry = {
-    userId,
-    drawingId,
-    isEntered: true,
-    entryMethod: 'app',
-    enteredAt: new Date().toISOString(),
-    associatedReportIds: reportId ? [reportId] : [],
-  };
-
   // Try Supabase first
   const supabaseAvailable = await isSupabaseAvailable();
 
   if (supabaseAvailable) {
     try {
+      // Check if entry already exists
+      const existingEntry = await fetchUserEntryFromSupabase(userId, drawingId);
+
+      // Build the entry, preserving existing report IDs
+      const existingReportIds = existingEntry?.associatedReportIds || [];
+      const newReportIds = reportId && !existingReportIds.includes(reportId)
+        ? [...existingReportIds, reportId]
+        : existingReportIds;
+
+      const entry: UserRewardsEntry = {
+        userId,
+        drawingId,
+        isEntered: true,
+        entryMethod: existingEntry?.entryMethod || 'app',
+        enteredAt: existingEntry?.enteredAt || new Date().toISOString(),
+        associatedReportIds: newReportIds,
+      };
+
       const savedEntry = await upsertUserEntryToSupabase(entry);
       // Also save locally for offline access
       await saveUserEntry(savedEntry);
@@ -446,9 +456,53 @@ export async function enterRewardsDrawing(
     }
   }
 
+  // For local storage, also preserve existing report IDs
+  const localEntry = await getCachedUserEntry();
+  const existingReportIds = (localEntry?.drawingId === drawingId ? localEntry.associatedReportIds : null) || [];
+  const newReportIds = reportId && !existingReportIds.includes(reportId)
+    ? [...existingReportIds, reportId]
+    : existingReportIds;
+
+  const entry: UserRewardsEntry = {
+    userId,
+    drawingId,
+    isEntered: true,
+    entryMethod: localEntry?.entryMethod || 'app',
+    enteredAt: localEntry?.enteredAt || new Date().toISOString(),
+    associatedReportIds: newReportIds,
+  };
+
   // Save locally
   await saveUserEntry(entry);
   return entry;
+}
+
+/**
+ * Add a report ID to the user's existing rewards entry.
+ * If the user is already entered in the drawing, appends the report ID.
+ * If not entered, creates a new entry with the report ID.
+ * Returns true if successful, false otherwise.
+ */
+export async function addReportToRewardsEntry(
+  userId: string,
+  reportId: string
+): Promise<boolean> {
+  try {
+    // Get the current active drawing
+    const currentDrawing = await fetchCurrentDrawingFromSupabase().catch(() => null);
+    if (!currentDrawing) {
+      console.log('No active drawing, skipping report association');
+      return false;
+    }
+
+    // Add the report to the entry (creates entry if doesn't exist)
+    await enterRewardsDrawing(userId, currentDrawing.id, reportId);
+    console.log(`📎 Report ${reportId} associated with rewards entry`);
+    return true;
+  } catch (error) {
+    console.warn('Failed to associate report with rewards entry:', error);
+    return false;
+  }
 }
 
 /**

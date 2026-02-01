@@ -45,8 +45,92 @@ import {
   signOut,
   onAuthStateChange,
 } from "../services/authService";
-import { isRewardsMember, getCurrentUser, updateCurrentUser } from "../services/userService";
-import { User } from "../types/user";
+import { isRewardsMember, getCurrentUser, updateCurrentUser, getUserStats } from "../services/userService";
+import { User, UserAchievement } from "../types/user";
+
+// Achievement color mapping - specific colors for each achievement code
+const ACHIEVEMENT_COLORS: Record<string, string> = {
+  // Special achievements
+  rewards_entered: '#9C27B0', // Purple
+  // Reporting milestones
+  first_report: '#4CAF50', // Green
+  reports_10: '#2E7D32', // Dark Green
+  reports_50: '#1B5E20', // Darker Green
+  reports_100: '#004D40', // Teal
+  // Photo achievements
+  photo_first: '#E91E63', // Pink
+  // Fish count achievements
+  fish_100: '#FF5722', // Deep Orange
+  fish_500: '#E64A19', // Dark Orange
+  // Streak achievements
+  streak_3: '#FF9800', // Orange
+  streak_7: '#F57C00', // Dark Orange
+  streak_30: '#EF6C00', // Darker Orange
+  // Species achievements
+  species_all_5: '#2196F3', // Blue
+  // Category fallbacks
+  milestone: '#4CAF50',
+  reporting: '#43A047',
+  species: '#1976D2',
+  streak: '#FB8C00',
+  special: '#8E24AA',
+  default: '#FFD700', // Gold
+};
+
+// Achievement icon mapping - specific icons for each achievement code
+const ACHIEVEMENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  // Special achievements
+  rewards_entered: 'gift',
+  // Reporting milestones
+  first_report: 'flag',
+  reports_10: 'trending-up',
+  reports_50: 'award',
+  reports_100: 'star',
+  // Photo achievements
+  photo_first: 'camera',
+  // Fish count achievements
+  fish_100: 'anchor',
+  fish_500: 'award',
+  // Streak achievements
+  streak_3: 'zap',
+  streak_7: 'zap',
+  streak_30: 'zap',
+  // Species achievements
+  species_all_5: 'list',
+  // Category fallbacks
+  milestone: 'award',
+  reporting: 'file-text',
+  species: 'anchor',
+  streak: 'zap',
+  special: 'star',
+  default: 'award',
+};
+
+/**
+ * Get the color for an achievement based on its code or category.
+ */
+function getAchievementColor(code: string | undefined, category: string): string {
+  if (code && ACHIEVEMENT_COLORS[code]) {
+    return ACHIEVEMENT_COLORS[code];
+  }
+  return ACHIEVEMENT_COLORS[category] || ACHIEVEMENT_COLORS.default;
+}
+
+/**
+ * Get the icon for an achievement based on its code, iconName, or category.
+ */
+function getAchievementIcon(code: string | undefined, iconName: string | undefined, category: string): keyof typeof Feather.glyphMap {
+  // First, try to use the iconName from the database
+  if (iconName && iconName in Feather.glyphMap) {
+    return iconName as keyof typeof Feather.glyphMap;
+  }
+  // Then try the code-specific icon
+  if (code && ACHIEVEMENT_ICONS[code]) {
+    return ACHIEVEMENT_ICONS[code];
+  }
+  // Fall back to category icon
+  return ACHIEVEMENT_ICONS[category] || ACHIEVEMENT_ICONS.default;
+}
 import { uploadProfilePhoto, isLocalUri } from "../services/photoUploadService";
 
 type ProfileScreenNavigationProp = StackNavigationProp<
@@ -152,6 +236,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     uniqueSpecies: 0,
     largestFish: null,
   });
+  const [statsLoading, setStatsLoading] = useState<boolean>(true);
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
 
   // State for WRC ID info modal
   const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
@@ -199,6 +285,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // Load fishing statistics from reports
   useEffect(() => {
     const loadFishingStats = async () => {
+      setStatsLoading(true);
       try {
         const reports = await getReports();
 
@@ -250,6 +337,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         setFishingStats({ totalCatches, uniqueSpecies, largestFish });
       } catch (error) {
         console.error('Failed to load fishing stats:', error);
+      } finally {
+        setStatsLoading(false);
       }
     };
 
@@ -308,9 +397,20 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           const user = await getCurrentUser();
           console.log('🏆 ProfileScreen - Rewards member email:', user?.email);
           setRewardsMemberUser(user);
+
+          // Load user achievements
+          try {
+            const stats = await getUserStats();
+            setUserAchievements(stats.achievements || []);
+            console.log(`🏆 ProfileScreen - Loaded ${stats.achievements?.length || 0} achievements`);
+          } catch (achievementError) {
+            console.warn('Failed to load achievements:', achievementError);
+            setUserAchievements([]);
+          }
         } else {
           // Clear rewards member state if not a member (important for re-renders)
           setRewardsMemberUser(null);
+          setUserAchievements([]);
         }
       } catch (error) {
         Alert.alert("Error", "Failed to load your profile");
@@ -530,6 +630,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             hasLicense: formData.hasLicense,
             wrcId: formData.wrcId || undefined,
             profileImageUrl: profileImageUrl || undefined,
+            preferredAreaCode: formData.preferredAreaCode || undefined,
+            preferredAreaLabel: formData.preferredAreaLabel || undefined,
           });
           console.log('✅ Profile synced to Supabase');
         } catch (syncError) {
@@ -1462,7 +1564,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 activeOpacity={0.7}
               >
                 <Feather name="user-plus" size={18} color={colors.white} />
-                <Text style={localStyles.joinRewardsText}>Sign In or Join Rewards</Text>
+                <Text style={localStyles.joinRewardsText}>{profile.email ? 'Sign In to Rewards Program' : 'Join Rewards Program'}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1596,22 +1698,75 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       <View style={styles.statsSection}>
         <Text style={styles.sectionTitle}>Fishing Statistics</Text>
         <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{fishingStats.totalCatches}</Text>
-            <Text style={styles.statLabel}>Catches</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{fishingStats.uniqueSpecies}</Text>
-            <Text style={styles.statLabel}>Species</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {fishingStats.largestFish !== null ? `${fishingStats.largestFish}"` : '--'}
-            </Text>
-            <Text style={styles.statLabel}>Largest Fish</Text>
-          </View>
+          {statsLoading ? (
+            <>
+              <View style={styles.statCard}>
+                <View style={localStyles.skeletonStatValue} />
+                <View style={localStyles.skeletonStatLabel} />
+              </View>
+              <View style={styles.statCard}>
+                <View style={localStyles.skeletonStatValue} />
+                <View style={localStyles.skeletonStatLabel} />
+              </View>
+              <View style={styles.statCard}>
+                <View style={localStyles.skeletonStatValue} />
+                <View style={localStyles.skeletonStatLabel} />
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{fishingStats.totalCatches}</Text>
+                <Text style={styles.statLabel}>Catches</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{fishingStats.uniqueSpecies}</Text>
+                <Text style={styles.statLabel}>Species</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>
+                  {fishingStats.largestFish !== null ? `${fishingStats.largestFish}"` : '--'}
+                </Text>
+                <Text style={styles.statLabel}>Largest Fish</Text>
+              </View>
+            </>
+          )}
         </View>
       </View>
+
+      {/* Achievements Section - Only show for rewards members with achievements */}
+      {rewardsMember && userAchievements.length > 0 && (
+        <View style={styles.statsSection}>
+          <Text style={styles.sectionTitle}>Achievements</Text>
+          <View style={localStyles.achievementsContainer}>
+            {[...userAchievements]
+              .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
+              .map((ua) => {
+                const category = ua.achievement.category || 'default';
+                const code = ua.achievement.code;
+                const iconName = getAchievementIcon(code, ua.achievement.iconName, category);
+                const bgColor = getAchievementColor(code, category);
+                return (
+                  <View key={ua.id} style={localStyles.achievementCard}>
+                    <View style={[localStyles.achievementIconCircle, { backgroundColor: bgColor }]}>
+                      <Feather
+                        name={iconName}
+                        size={20}
+                        color={colors.white}
+                      />
+                    </View>
+                    <View style={localStyles.achievementTextContainer}>
+                      <Text style={localStyles.achievementName}>{ua.achievement.name}</Text>
+                      <Text style={localStyles.achievementDescription} numberOfLines={2}>
+                        {ua.achievement.description}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+          </View>
+        </View>
+      )}
       </View>
       </ScrollView>
     </View>
@@ -2469,6 +2624,58 @@ const localStyles = StyleSheet.create({
     height: 40,
     borderRadius: borderRadius.md,
     backgroundColor: colors.border,
+  },
+  // Skeleton styles for fishing statistics
+  skeletonStatValue: {
+    width: 40,
+    height: 24,
+    borderRadius: 4,
+    backgroundColor: colors.border,
+    marginBottom: spacing.xxs,
+  },
+  skeletonStatLabel: {
+    width: 50,
+    height: 12,
+    borderRadius: 4,
+    backgroundColor: colors.border,
+  },
+  // Achievement section styles
+  achievementsContainer: {
+    gap: spacing.sm,
+  },
+  achievementCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  achievementIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  achievementTextContainer: {
+    flex: 1,
+  },
+  achievementName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  achievementDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });
 

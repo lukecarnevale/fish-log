@@ -91,7 +91,17 @@ const WaveTransition: React.FC = () => (
   </View>
 );
 
-const Footer: React.FC = () => {
+interface FooterProps {
+  onPrivacyPress?: () => void;
+  onTermsPress?: () => void;
+  onLicensesPress?: () => void;
+}
+
+const Footer: React.FC<FooterProps> = ({
+  onPrivacyPress,
+  onTermsPress,
+  onLicensesPress,
+}) => {
   const handleSponsorPress = (url: string) => {
     Linking.openURL(url).catch((err) =>
       console.error('An error occurred', err)
@@ -177,15 +187,15 @@ const Footer: React.FC = () => {
             Environmental Quality. All rights reserved.
           </Text>
           <View style={styles.legalLinks}>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={onPrivacyPress} activeOpacity={0.7}>
               <Text style={styles.legalLink}>Privacy Policy</Text>
             </TouchableOpacity>
             <Text style={styles.legalDot}>·</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={onTermsPress} activeOpacity={0.7}>
               <Text style={styles.legalLink}>Terms of Use</Text>
             </TouchableOpacity>
             <Text style={styles.legalDot}>·</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={onLicensesPress} activeOpacity={0.7}>
               <Text style={styles.legalLink}>Licenses</Text>
             </TouchableOpacity>
           </View>

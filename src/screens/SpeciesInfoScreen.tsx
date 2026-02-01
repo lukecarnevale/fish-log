@@ -935,8 +935,8 @@ const localStyles = StyleSheet.create({
     borderColor: '#00897B',
   },
   requiredSpeciesCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#00897B', // Same teal as the filter toggle
+    borderWidth: 2,
+    borderColor: '#00897B', // Same teal as the filter toggle
   },
   filterToggleText: {
     fontSize: 13,

@@ -29,6 +29,9 @@ import { queryClient } from './api/queryClient';
 // Import Rewards context
 import { RewardsProvider } from './contexts/RewardsContext';
 
+// Import Achievement context for displaying achievement notifications
+import { AchievementProvider } from './contexts/AchievementContext';
+
 // Import auth services for deep link handling
 import { isMagicLinkCallback, handleMagicLinkCallback, onAuthStateChange } from './services/authService';
 import { createRewardsMemberFromAuthUser } from './services/userService';
@@ -52,6 +55,7 @@ import SpeciesInfoScreen from "./screens/SpeciesInfoScreen";
 import FishingLicenseScreen from "./screens/FishingLicenseScreen";
 import CatchFeedScreen from "./screens/CatchFeedScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import LegalDocumentScreen from "./screens/LegalDocumentScreen";
 
 // Import styles
 import { navigationStyles } from "./styles/navigationStyles";
@@ -194,8 +198,17 @@ const AppInitializer: React.FC = () => {
       .catch((error) => console.warn('⚠️ Failed to initialize anonymous user:', error));
 
     // Check for pending submissions (mid-auth recovery)
-    checkForPendingSubmission()
-      .then((pending) => {
+    // But only if there's no deep link being processed (e.g., magic link auth)
+    const checkPendingSubmissionIfNoDeepLink = async () => {
+      try {
+        // First check if we're opening via a deep link (magic link auth)
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl) {
+          console.log('📋 Skipping pending submission check - deep link being processed');
+          return; // Let the deep link handler deal with auth flow
+        }
+
+        const pending = await checkForPendingSubmission();
         if (pending && pending.status === 'pending') {
           console.log('📋 Found pending submission for:', pending.email);
           // Show recovery prompt
@@ -227,8 +240,11 @@ const AppInitializer: React.FC = () => {
             ]
           );
         }
-      })
-      .catch((error) => console.warn('⚠️ Failed to check pending submissions:', error));
+      } catch (error) {
+        console.warn('⚠️ Failed to check pending submissions:', error);
+      }
+    };
+    checkPendingSubmissionIfNoDeepLink();
 
     // Load all initial data in parallel
     Promise.all([
@@ -270,7 +286,15 @@ const AppInitializer: React.FC = () => {
     const unsubscribeAuth = onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         console.log('🔐 Auth state: SIGNED_IN');
-        // User signed in - refresh user data
+        // User signed in - sync user data from Supabase and refresh
+        try {
+          const memberResult = await createRewardsMemberFromAuthUser();
+          if (memberResult.success) {
+            console.log('✅ User data synced from Supabase:', memberResult.user?.email);
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to sync user data on sign in:', error);
+        }
         store.dispatch(fetchUserProfile());
       } else if (event === 'SIGNED_OUT') {
         console.log('🔐 Auth state: SIGNED_OUT');
@@ -304,6 +328,7 @@ const AppContent: React.FC = () => {
           CatchFeed: 'catchfeed',
           Profile: 'profile',
           Confirmation: 'confirmation',
+          LegalDocument: 'legal/:type',
         },
       },
     }}>
@@ -406,6 +431,13 @@ const AppContent: React.FC = () => {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="LegalDocument"
+            component={LegalDocumentScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
   );
@@ -416,9 +448,11 @@ const App: React.FC = () => {
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <RewardsProvider>
-          <SafeAreaProvider>
-            <AppContent />
-          </SafeAreaProvider>
+          <AchievementProvider>
+            <SafeAreaProvider>
+              <AppContent />
+            </SafeAreaProvider>
+          </AchievementProvider>
         </RewardsProvider>
       </QueryClientProvider>
     </Provider>

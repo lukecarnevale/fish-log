@@ -258,7 +258,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
         const profile: UserProfile | null = profileData ? JSON.parse(profileData) : null;
         const license: FishingLicense | null = licenseData ? JSON.parse(licenseData) : null;
-        const primaryArea = primaryAreaData || null;
+        // Use primaryHarvestArea if set, otherwise fall back to preferredAreaLabel from profile
+        const primaryArea = primaryAreaData || profile?.preferredAreaLabel || null;
 
         // Track if we have a saved primary area
         if (primaryArea) {

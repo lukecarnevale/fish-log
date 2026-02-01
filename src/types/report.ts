@@ -129,6 +129,12 @@ export interface ReportInput {
   enteredRewards?: boolean;
   rewardsDrawingId?: string;
 
+  // DMF submission data (optional - set when DMF submission succeeds before Supabase save)
+  dmfStatus?: 'pending' | 'submitted' | 'confirmed' | 'failed';
+  dmfConfirmationNumber?: string;
+  dmfObjectId?: number;
+  dmfSubmittedAt?: string;
+
   // Fish entries
   fishEntries?: Array<{
     species: string;

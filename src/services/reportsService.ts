@@ -18,6 +18,11 @@ import { HarvestReportInput } from '../types/harvestReport';
 import { getCurrentUser, getRewardsMemberForAnonymousUser } from './userService';
 import { getOrCreateAnonymousUser } from './anonymousUserService';
 import { ensurePublicPhotoUrl, isLocalUri } from './photoUploadService';
+import { fetchCurrentDrawing, addReportToRewardsEntry } from './rewardsService';
+import { updateAllStatsAfterReport, AwardedAchievement } from './statsService';
+
+// Re-export for convenience
+export type { AwardedAchievement } from './statsService';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -118,7 +123,10 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
     .insert({
       user_id: input.userId || null,
       anonymous_user_id: input.anonymousUserId || null,
-      dmf_status: 'pending',
+      dmf_status: input.dmfStatus || 'pending',
+      dmf_confirmation_number: input.dmfConfirmationNumber || null,
+      dmf_object_id: input.dmfObjectId || null,
+      dmf_submitted_at: input.dmfSubmittedAt || null,
       has_license: input.hasLicense,
       wrc_id: input.wrcId || null,
       first_name: input.firstName || null,
@@ -367,6 +375,7 @@ export interface CreateReportResult {
   success: boolean;
   report: StoredReport;
   savedToSupabase: boolean;
+  achievementsAwarded?: AwardedAchievement[];
   error?: string;
 }
 
@@ -396,7 +405,25 @@ export async function createReport(input: ReportInput): Promise<CreateReportResu
       // Also save locally for offline access
       await addLocalReport(report);
       console.log('✅ Report saved to Supabase');
-      return { success: true, report, savedToSupabase: true };
+
+      // Update user stats if this is a rewards member (has user_id)
+      let achievementsAwarded: AwardedAchievement[] = [];
+      if (report.userId) {
+        try {
+          const statsResult = await updateAllStatsAfterReport(report.userId, report);
+          achievementsAwarded = statsResult.achievementsAwarded;
+          if (achievementsAwarded.length > 0) {
+            console.log('🏆 Achievements unlocked:', achievementsAwarded.map(a => a.name).join(', '));
+          }
+
+          // Associate this report with the user's rewards entry
+          await addReportToRewardsEntry(report.userId, report.id);
+        } catch (statsError) {
+          console.warn('⚠️ Failed to update stats (report still saved):', statsError);
+        }
+      }
+
+      return { success: true, report, savedToSupabase: true, achievementsAwarded };
     } catch (error) {
       console.warn('⚠️ Supabase save failed, saving locally:', error);
     }
@@ -412,11 +439,22 @@ export async function createReport(input: ReportInput): Promise<CreateReportResu
 }
 
 /**
+ * Optional DMF submission result data to include when creating a report.
+ */
+export interface DMFResultData {
+  confirmationNumber?: string;
+  objectId?: number;
+  submittedAt?: string;
+}
+
+/**
  * Create a report from HarvestReportInput (convenience method).
  * Automatically determines whether to use anonymous_user_id or user_id.
+ * Optionally includes DMF submission result data if the report was successfully submitted to DMF.
  */
 export async function createReportFromHarvestInput(
-  harvestInput: HarvestReportInput
+  harvestInput: HarvestReportInput,
+  dmfResult?: DMFResultData
 ): Promise<CreateReportResult> {
   // First, get the anonymous user (always exists)
   const anonymousUser = await getOrCreateAnonymousUser();
@@ -450,6 +488,27 @@ export async function createReportFromHarvestInput(
     // User is anonymous - use their anonymous_user_id
     console.log('📝 createReportFromHarvestInput: Creating report with anonymous_user_id:', anonymousUser.id);
     input = harvestInputToReportInput(harvestInput, undefined, anonymousUser.id);
+  }
+
+  // Include DMF result data if provided
+  if (dmfResult) {
+    input.dmfConfirmationNumber = dmfResult.confirmationNumber;
+    input.dmfObjectId = dmfResult.objectId;
+    input.dmfSubmittedAt = dmfResult.submittedAt;
+    input.dmfStatus = dmfResult.confirmationNumber ? 'submitted' : 'pending';
+  }
+
+  // If user is entering the raffle, get the current drawing ID
+  if (harvestInput.enterRaffle) {
+    try {
+      const currentDrawing = await fetchCurrentDrawing();
+      if (currentDrawing) {
+        input.rewardsDrawingId = currentDrawing.id;
+        console.log('🎁 Linking report to rewards drawing:', currentDrawing.id);
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not fetch current drawing for raffle entry:', error);
+    }
   }
 
   return createReport(input);
@@ -499,16 +558,25 @@ export async function getReports(): Promise<StoredReport[]> {
 
   if (connected) {
     try {
-      // Get anonymous user
+      // Get anonymous user (current device)
       const anonymousUser = await getOrCreateAnonymousUser();
       // Check if there's a rewards member
       const rewardsMember = await getRewardsMemberForAnonymousUser();
 
+      // For rewards members, use their stored anonymous_user_id (from when they signed up)
+      // This is important because the current device's anonymous_user_id might be different
+      // (e.g., if user cleared storage and signed back in)
+      const effectiveAnonymousUserId = rewardsMember?.anonymousUserId || anonymousUser.id;
+
+      console.log('🔍 getReports - Querying with userId:', rewardsMember?.id, 'anonymousUserId:', effectiveAnonymousUserId);
+
       // Fetch reports - for rewards members, get both their user_id and anonymous_user_id reports
       const reports = await fetchReportsFromSupabase(
         rewardsMember?.id,
-        anonymousUser.id
+        effectiveAnonymousUserId
       );
+
+      console.log('🔍 getReports - Found', reports.length, 'reports from Supabase');
 
       // Merge with local reports (in case some haven't synced)
       const localReports = await getLocalReports();
@@ -679,7 +747,24 @@ export async function linkReportsToUser(
     return { updated: 0, error: 'Not connected to Supabase' };
   }
 
+  console.log(`🔗 linkReportsToUser: Attempting to link reports with anonymous_user_id=${anonymousUserId} to user_id=${userId}`);
+
   try {
+    // First, check how many reports exist with this anonymous_user_id
+    const { data: existingReports, error: checkError } = await supabase
+      .from('harvest_reports')
+      .select('id, user_id, anonymous_user_id')
+      .eq('anonymous_user_id', anonymousUserId);
+
+    if (checkError) {
+      console.warn('⚠️ Failed to check existing reports:', checkError.message);
+    } else {
+      console.log(`🔗 linkReportsToUser: Found ${existingReports?.length || 0} reports with anonymous_user_id=${anonymousUserId}`);
+      existingReports?.forEach((r, i) => {
+        console.log(`  Report ${i + 1}: id=${r.id}, user_id=${r.user_id}, anonymous_user_id=${r.anonymous_user_id}`);
+      });
+    }
+
     // Update all reports with this anonymous_user_id to also have the user_id
     const { data, error } = await supabase
       .from('harvest_reports')
@@ -695,6 +780,12 @@ export async function linkReportsToUser(
 
     const updateCount = data?.length || 0;
     console.log(`✅ Linked ${updateCount} reports from anonymous user to rewards member`);
+
+    // Log the updated reports
+    if (data && data.length > 0) {
+      console.log('🔗 Updated report IDs:', data.map(r => r.id).join(', '));
+    }
+
     return { updated: updateCount };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

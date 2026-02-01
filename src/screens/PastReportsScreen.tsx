@@ -11,7 +11,6 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   Modal,
   ScrollView,
   ListRenderItem,
@@ -30,6 +29,7 @@ import { isTestMode } from "../config/appConfig";
 import ScreenLayout from "../components/ScreenLayout";
 import { useAllFishSpecies } from "../api/speciesApi";
 import { SCREEN_LABELS } from "../constants/screenLabels";
+import { PastReportsSkeletonLoader } from "../components/SkeletonLoader";
 
 // DMF services
 import {
@@ -709,14 +709,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         navigation={navigation}
         title={SCREEN_LABELS.pastReports.title}
         noScroll
-        loading={loading}
-        loadingComponent={
-          <>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading reports...</Text>
-          </>
-        }
-      />
+      >
+        <PastReportsSkeletonLoader />
+      </ScreenLayout>
     );
   }
 
