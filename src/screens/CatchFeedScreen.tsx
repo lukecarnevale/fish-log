@@ -38,6 +38,7 @@ import WaveBackground from '../components/WaveBackground';
 import TopAnglersSection from '../components/TopAnglersSection';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { CatchFeedSkeletonLoader } from '../components/SkeletonLoader';
+import { useAllFishSpecies } from '../api/speciesApi';
 
 // Use sample data for development (set to false when Supabase is ready)
 const USE_SAMPLE_DATA = false;
@@ -290,6 +291,138 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   // Angler profile modal state
   const [selectedAnglerId, setSelectedAnglerId] = useState<string | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Fetch species data for fallback images
+  const { data: allSpecies, isLoading: speciesLoading } = useAllFishSpecies();
+
+  // Debug: log when species data loads
+  useEffect(() => {
+    if (allSpecies) {
+      console.log('🐟 Species data loaded:', allSpecies.length, 'species');
+      // Log specific species we're interested in
+      const targetSpecies = allSpecies.filter(s =>
+        s.name?.toLowerCase().includes('weak') ||
+        s.name?.toLowerCase().includes('trout') ||
+        s.name?.toLowerCase().includes('seatrout') ||
+        s.name?.toLowerCase().includes('spot')
+      );
+      console.log('🎯 Target species found:', targetSpecies.map(s => ({
+        name: s.name,
+        hasImage: !!s.images?.primary,
+        commonNames: s.commonNames
+      })));
+    } else if (!speciesLoading) {
+      console.log('⚠️ Species data is empty or failed to load');
+    }
+  }, [allSpecies, speciesLoading]);
+
+  // Species name aliases for matching - all variations map to each other
+  const speciesAliases: Record<string, string[]> = {
+    // Weakfish / Gray Trout are the same species (Cynoscion regalis)
+    'weakfish': ['gray trout', 'grey trout', 'sea trout', 'squeteague'],
+    'gray trout': ['weakfish', 'grey trout', 'sea trout', 'squeteague'],
+    'grey trout': ['weakfish', 'gray trout', 'sea trout', 'squeteague'],
+    // Spotted Seatrout variations (Cynoscion nebulosus)
+    'spotted seatrout': ['speckled trout', 'specks', 'speck', 'seatrout', 'spotted sea trout'],
+    'speckled trout': ['spotted seatrout', 'specks', 'speck', 'seatrout', 'spotted sea trout'],
+    'specks': ['spotted seatrout', 'speckled trout', 'seatrout', 'speck', 'spotted sea trout'],
+    'speck': ['spotted seatrout', 'speckled trout', 'seatrout', 'specks', 'spotted sea trout'],
+    'seatrout': ['spotted seatrout', 'speckled trout', 'specks', 'speck', 'spotted sea trout'],
+    // Flounder variations
+    'flounder': ['southern flounder', 'summer flounder', 'fluke'],
+    'southern flounder': ['flounder', 'summer flounder', 'fluke'],
+    'summer flounder': ['flounder', 'southern flounder', 'fluke'],
+    // Red Drum variations
+    'red drum': ['redfish', 'channel bass', 'puppy drum', 'red'],
+    'redfish': ['red drum', 'channel bass', 'puppy drum'],
+    // Dolphinfish variations
+    'dolphinfish': ['mahi-mahi', 'mahi mahi', 'dorado', 'dolphin'],
+    'mahi-mahi': ['dolphinfish', 'mahi mahi', 'dorado', 'dolphin'],
+    'dolphin': ['dolphinfish', 'mahi-mahi', 'mahi mahi', 'dorado'],
+  };
+
+  // Create a lookup map from species name to image URL
+  const speciesImageMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (allSpecies) {
+      console.log('🐟 Building species image map from', allSpecies.length, 'species');
+      allSpecies.forEach((species) => {
+        // Log species that might be Weakfish or Spotted Seatrout
+        const nameLC = species.name?.toLowerCase() || '';
+        if (nameLC.includes('weak') || nameLC.includes('trout') || nameLC.includes('seatrout') || nameLC.includes('spot')) {
+          console.log('🔍 Found potential match:', {
+            name: species.name,
+            commonNames: species.commonNames,
+            hasImage: !!species.images?.primary,
+            imageUrl: species.images?.primary?.substring(0, 50) + '...'
+          });
+        }
+
+        if (species.images?.primary) {
+          const imageUrl = species.images.primary;
+          // Map by primary name
+          if (species.name) {
+            const lowerName = species.name.toLowerCase();
+            map.set(lowerName, imageUrl);
+            // Also add aliases for this species
+            const aliases = speciesAliases[lowerName];
+            if (aliases) {
+              aliases.forEach((alias) => map.set(alias, imageUrl));
+            }
+          }
+          // Also map by any additional common names
+          species.commonNames?.forEach((name) => {
+            if (name) {
+              const lowerName = name.toLowerCase();
+              map.set(lowerName, imageUrl);
+              // Also add aliases for common names
+              const aliases = speciesAliases[lowerName];
+              if (aliases) {
+                aliases.forEach((alias) => map.set(alias, imageUrl));
+              }
+            }
+          });
+        }
+      });
+      // Log all keys in the map for debugging
+      console.log('🗺️ Species image map keys:', Array.from(map.keys()).filter(k =>
+        k.includes('weak') || k.includes('trout') || k.includes('seatrout') || k.includes('spot')
+      ));
+    }
+    return map;
+  }, [allSpecies]);
+
+  // Helper to get species image URL for a species name
+  const getSpeciesImageUrl = useCallback((speciesName: string | undefined): string | undefined => {
+    if (!speciesName) return undefined;
+    let lowerName = speciesName.toLowerCase().trim();
+
+    // Extract base species name if it contains parentheses (e.g., "Spotted Seatrout (speckled trout)" -> "spotted seatrout")
+    // The report form uses this format: "Species Name (alternate name)"
+    const parenIndex = lowerName.indexOf('(');
+    if (parenIndex > 0) {
+      lowerName = lowerName.substring(0, parenIndex).trim();
+    }
+
+    let result = speciesImageMap.get(lowerName);
+
+    // If not found, try looking up by partial match for common variations
+    if (!result) {
+      // Try to find a key that contains this name or vice versa
+      for (const [key, url] of speciesImageMap.entries()) {
+        if (key.includes(lowerName) || lowerName.includes(key)) {
+          result = url;
+          break;
+        }
+      }
+    }
+
+    // Log lookups for problematic species
+    if (speciesName.toLowerCase().includes('weak') || speciesName.toLowerCase().includes('trout') || speciesName.toLowerCase().includes('seatrout') || speciesName.toLowerCase().includes('spot')) {
+      console.log('🔎 Looking up species image:', { original: speciesName, normalized: lowerName, found: !!result, mapSize: speciesImageMap.size });
+    }
+    return result;
+  }, [speciesImageMap]);
 
   // Scroll animation
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -580,8 +713,9 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       entry={item}
       onAnglerPress={handleAnglerPress}
       onLikePress={handleLikePress}
+      speciesImageUrl={getSpeciesImageUrl(item.species)}
     />
-  ), [handleAnglerPress, handleLikePress]);
+  ), [handleAnglerPress, handleLikePress, getSpeciesImageUrl]);
 
   const keyExtractor = useCallback((item: CatchFeedEntry) => item.id, []);
 

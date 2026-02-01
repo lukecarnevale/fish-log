@@ -29,6 +29,7 @@ import LicenseTypePicker from "../components/LicenseTypePicker";
 import ScreenLayout from "../components/ScreenLayout";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import { SCREEN_LABELS } from "../constants/screenLabels";
+import { getCurrentUser, updateCurrentUser } from "../services/userService";
 
 type FishingLicenseScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -138,6 +139,26 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
         wrcId: formData.licenseNumber,
       };
       await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+
+      // Sync license data to Supabase if user is signed in
+      const currentUser = await getCurrentUser();
+      if (currentUser?.id) {
+        try {
+          await updateCurrentUser({
+            firstName: formData.firstName || undefined,
+            lastName: formData.lastName || undefined,
+            hasLicense: true,
+            wrcId: formData.licenseNumber || undefined,
+            licenseType: formData.licenseType || undefined,
+            licenseIssueDate: formData.issueDate || undefined,
+            licenseExpiryDate: formData.expiryDate || undefined,
+          });
+          console.log('✅ License data synced to Supabase');
+        } catch (syncError) {
+          console.warn('Failed to sync license data to Supabase:', syncError);
+          // Continue anyway - local save was successful
+        }
+      }
 
       setLicense(formData);
       // Animate back to license view - slide down

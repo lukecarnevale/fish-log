@@ -36,6 +36,18 @@ export interface User {
 
   // Contact preferences
   phone: string | null;
+  wantsTextConfirmation: boolean;
+  wantsEmailConfirmation: boolean;
+
+  // License details (for DMF submissions)
+  licenseType: string | null;
+  licenseIssueDate: string | null;
+  licenseExpiryDate: string | null;
+
+  // Fishing preferences
+  primaryHarvestArea: string | null;
+  primaryFishingArea: string | null;
+  primaryFishingMethod: string | null;
 
   // Denormalized stats for quick access
   totalReports: number;
@@ -68,6 +80,14 @@ export interface UserInput {
   hasLicense?: boolean;
   wrcId?: string;
   phone?: string;
+  wantsTextConfirmation?: boolean;
+  wantsEmailConfirmation?: boolean;
+  licenseType?: string;
+  licenseIssueDate?: string;
+  licenseExpiryDate?: string;
+  primaryHarvestArea?: string;
+  primaryFishingArea?: string;
+  primaryFishingMethod?: string;
   rewardsOptedInAt?: string;
 }
 
@@ -164,6 +184,14 @@ export function transformUser(row: Record<string, unknown>): User {
     hasLicense: row.has_license as boolean,
     wrcId: row.wrc_id as string | null,
     phone: row.phone as string | null,
+    wantsTextConfirmation: (row.wants_text_confirmation as boolean) ?? false,
+    wantsEmailConfirmation: (row.wants_email_confirmation as boolean) ?? false,
+    licenseType: row.license_type as string | null,
+    licenseIssueDate: row.license_issue_date as string | null,
+    licenseExpiryDate: row.license_expiry_date as string | null,
+    primaryHarvestArea: row.primary_harvest_area as string | null,
+    primaryFishingArea: row.primary_fishing_area as string | null,
+    primaryFishingMethod: row.primary_fishing_method as string | null,
     totalReports: row.total_reports as number,
     totalFish: row.total_fish_reported as number,
     currentStreak: row.current_streak_days as number,

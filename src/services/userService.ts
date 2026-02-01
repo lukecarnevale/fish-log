@@ -290,6 +290,14 @@ async function updateUserInSupabase(userId: string, input: UserInput): Promise<U
   if (input.hasLicense !== undefined) updateData.has_license = input.hasLicense;
   if (input.wrcId !== undefined) updateData.wrc_id = input.wrcId || null;
   if (input.phone !== undefined) updateData.phone = input.phone || null;
+  if (input.wantsTextConfirmation !== undefined) updateData.wants_text_confirmation = input.wantsTextConfirmation;
+  if (input.wantsEmailConfirmation !== undefined) updateData.wants_email_confirmation = input.wantsEmailConfirmation;
+  if (input.licenseType !== undefined) updateData.license_type = input.licenseType || null;
+  if (input.licenseIssueDate !== undefined) updateData.license_issue_date = input.licenseIssueDate || null;
+  if (input.licenseExpiryDate !== undefined) updateData.license_expiry_date = input.licenseExpiryDate || null;
+  if (input.primaryHarvestArea !== undefined) updateData.primary_harvest_area = input.primaryHarvestArea || null;
+  if (input.primaryFishingArea !== undefined) updateData.primary_fishing_area = input.primaryFishingArea || null;
+  if (input.primaryFishingMethod !== undefined) updateData.primary_fishing_method = input.primaryFishingMethod || null;
 
   const { data, error } = await supabase
     .from('users')
@@ -433,6 +441,14 @@ export async function getCurrentUser(): Promise<User | null> {
     hasLicense: true,
     wrcId: null,
     phone: null,
+    wantsTextConfirmation: false,
+    wantsEmailConfirmation: false,
+    licenseType: null,
+    licenseIssueDate: null,
+    licenseExpiryDate: null,
+    primaryHarvestArea: null,
+    primaryFishingArea: null,
+    primaryFishingMethod: null,
     totalReports: 0,
     totalFish: 0,
     currentStreak: 0,
@@ -446,6 +462,8 @@ export async function getCurrentUser(): Promise<User | null> {
 
 /**
  * Update the current user's profile.
+ * Only updates Supabase if user is authenticated (rewards member).
+ * Anonymous device users only get cache updates.
  */
 export async function updateCurrentUser(input: UserInput): Promise<User> {
   const currentUser = await getCurrentUser();
@@ -454,15 +472,21 @@ export async function updateCurrentUser(input: UserInput): Promise<User> {
   }
 
   const connected = await isSupabaseConnected();
+  const authState = await getAuthState();
 
-  if (connected) {
+  // Only attempt Supabase update if user is authenticated (rewards member)
+  // Anonymous device users can't update due to RLS policies
+  if (connected && authState.isAuthenticated) {
     try {
       const updated = await updateUserInSupabase(currentUser.id, input);
       await cacheUser(updated);
+      console.log('✅ User profile updated in Supabase');
       return updated;
     } catch (error) {
       console.warn('⚠️ Supabase update failed, updating cache only:', error);
     }
+  } else if (connected && !authState.isAuthenticated) {
+    console.log('ℹ️ User not authenticated - profile saved locally only. Sign in to sync to cloud.');
   }
 
   // Update cached user locally

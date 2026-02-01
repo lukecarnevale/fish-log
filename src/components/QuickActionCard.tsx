@@ -73,12 +73,6 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
             {subtitle}
           </Text>
         )}
-        {/* Text badge - rendered below subtitle */}
-        {!disabled && renderTextBadge && (
-          <View style={styles.textBadgeContainer}>
-            {renderTextBadge()}
-          </View>
-        )}
       </View>
       <Feather
         name={disabled ? 'lock' : 'chevron-right'}
@@ -99,6 +93,13 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
           </View>
         )}
       </View>
+
+      {/* Text badge - positioned absolutely, rendered after image so it's on top */}
+      {!disabled && renderTextBadge && (
+        <View style={styles.textBadgeContainer}>
+          {renderTextBadge()}
+        </View>
+      )}
 
       {/* Overlay for disabled state */}
       {disabled && (
@@ -148,8 +149,10 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   textBadgeContainer: {
-    marginTop: 4,
-    alignSelf: 'flex-start',
+    position: 'absolute',
+    top: 54,
+    left: 16,
+    zIndex: 2,
   },
   title: {
     fontSize: 18,

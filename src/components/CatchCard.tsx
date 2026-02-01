@@ -27,6 +27,8 @@ interface CatchCardProps {
   onCardPress?: (entry: CatchFeedEntry) => void;
   onLikePress?: (entry: CatchFeedEntry) => void;
   compact?: boolean;
+  // Species image URL to show when user hasn't submitted their own photo
+  speciesImageUrl?: string;
 }
 
 const CatchCard: React.FC<CatchCardProps> = ({
@@ -35,6 +37,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
   onCardPress,
   onLikePress,
   compact = false,
+  speciesImageUrl,
 }) => {
   const relativeTime = formatRelativeTime(entry.createdAt);
   const speciesTheme = getSpeciesTheme(entry.species);
@@ -62,11 +65,19 @@ const CatchCard: React.FC<CatchCardProps> = ({
   if (compact) {
     return (
       <View style={styles.compactContainer}>
-        {/* Photo or placeholder */}
+        {/* Photo, species image, or placeholder */}
         <View style={styles.compactPhotoContainer}>
           {entry.photoUrl ? (
             <Image
               source={{ uri: entry.photoUrl }}
+              style={styles.compactPhoto}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+            />
+          ) : speciesImageUrl ? (
+            <Image
+              source={{ uri: speciesImageUrl }}
               style={styles.compactPhoto}
               contentFit="cover"
               transition={200}
@@ -144,6 +155,16 @@ const CatchCard: React.FC<CatchCardProps> = ({
         {entry.photoUrl ? (
           <Image
             source={{ uri: entry.photoUrl }}
+            style={styles.photo}
+            contentFit="cover"
+            transition={300}
+            cachePolicy="memory-disk"
+            placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+            placeholderContentFit="cover"
+          />
+        ) : speciesImageUrl ? (
+          <Image
+            source={{ uri: speciesImageUrl }}
             style={styles.photo}
             contentFit="cover"
             transition={300}
@@ -476,7 +497,8 @@ const arePropsEqual = (prevProps: CatchCardProps, nextProps: CatchCardProps): bo
     prevProps.entry.id === nextProps.entry.id &&
     prevProps.entry.likeCount === nextProps.entry.likeCount &&
     prevProps.entry.isLikedByCurrentUser === nextProps.entry.isLikedByCurrentUser &&
-    prevProps.compact === nextProps.compact
+    prevProps.compact === nextProps.compact &&
+    prevProps.speciesImageUrl === nextProps.speciesImageUrl
   );
 };
 
