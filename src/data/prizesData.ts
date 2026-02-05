@@ -5,7 +5,7 @@
 // Or import directly from: import { FALLBACK_PRIZES, FALLBACK_DRAWING } from './rewardsFallbackData';
 //
 
-import { Prize, PrizeDrawing, UserPrizeEntry } from '../types/prizes';
+import { Prize, RewardsDrawing as PrizeDrawing, UserRewardsEntry as UserPrizeEntry } from '../types/rewards';
 import {
   FALLBACK_PRIZES,
   FALLBACK_DRAWING,
@@ -33,6 +33,8 @@ export const activePrizeDrawing: PrizeDrawing = {
   description: FALLBACK_DRAWING.description,
   eligibilityRequirements: FALLBACK_DRAWING.eligibilityRequirements,
   prizes: samplePrizes,
+  quarter: FALLBACK_DRAWING.quarter,
+  year: FALLBACK_DRAWING.year,
   startDate: FALLBACK_DRAWING.startDate,
   endDate: FALLBACK_DRAWING.endDate,
   drawingDate: FALLBACK_DRAWING.drawingDate,
@@ -40,17 +42,7 @@ export const activePrizeDrawing: PrizeDrawing = {
 };
 
 /**
- * @deprecated Sample user entry for testing purposes only
+ * @deprecated Use UserRewardsEntry from useRewards() hook or Supabase directly
+ * This export is removed as the schema has changed significantly.
+ * See types/rewards.ts for the new UserRewardsEntry interface.
  */
-export const sampleUserEntry: UserPrizeEntry = {
-  userId: 'user123',
-  userName: 'John Smith',
-  drawings: [
-    {
-      drawingId: FALLBACK_DRAWING.id,
-      entriesCount: 1,
-      eligibleCatches: [],
-      isEligible: true,
-    },
-  ],
-};

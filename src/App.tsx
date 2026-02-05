@@ -1,6 +1,6 @@
 // App.tsx - Main component for the Fish Reporting App
 
-import React, { useEffect, useCallback } from "react";
+import React from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import {
   createStackNavigator,
@@ -15,13 +15,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Linking, Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 // Import Redux store
 import { store } from './store';
-import { fetchUserProfile } from './store/slices/userSlice';
-import { fetchLicense } from './store/slices/licenseSlice';
-import { fetchFishReports } from './store/slices/fishReportsSlice';
 
 // Import React Query client
 import { queryClient } from './api/queryClient';
@@ -32,16 +29,16 @@ import { RewardsProvider } from './contexts/RewardsContext';
 // Import Achievement context for displaying achievement notifications
 import { AchievementProvider } from './contexts/AchievementContext';
 
-// Import auth services for deep link handling
-import { isMagicLinkCallback, handleMagicLinkCallback, onAuthStateChange } from './services/authService';
-import { createRewardsMemberFromAuthUser } from './services/userService';
-import { getOrCreateAnonymousUser } from './services/anonymousUserService';
 
-// Import pending submission service for mid-auth recovery
-import { checkForPendingSubmission, clearPendingSubmission, completePendingSubmissionByEmail } from './services/pendingSubmissionService';
-
-// Import connectivity listener for auto-sync of queued reports
-import { startConnectivityListener } from './hooks';
+// Import app initialization hooks
+import {
+  useInitializeData,
+  useDeepLinkHandler,
+  useConnectivityMonitoring,
+  usePendingSubmissionRecovery,
+  useAuthStateListener,
+  useAnonymousUserInitialization,
+} from './hooks';
 
 // Import types
 import { RootStackParamList } from "./types";
@@ -112,203 +109,23 @@ const forNoFlickerAndroid: StackCardStyleInterpolator = ({ current, next, layout
 
 // Component to initialize data and listeners on app startup
 const AppInitializer: React.FC = () => {
-  /**
-   * Handle incoming deep links for magic link authentication.
-   */
-  const handleDeepLink = useCallback(async (url: string) => {
-    console.log('📱 Deep link received:', url);
+  // Initialize anonymous user on app startup
+  useAnonymousUserInitialization();
 
-    if (isMagicLinkCallback(url)) {
-      console.log('🔐 Processing magic link callback...');
+  // Check for pending submissions (mid-auth recovery)
+  usePendingSubmissionRecovery();
 
-      try {
-        const result = await handleMagicLinkCallback(url);
-        console.log('🔐 Magic link callback result:', { success: result.success, error: result.error });
+  // Load all initial data in parallel
+  useInitializeData();
 
-        if (result.success) {
-          console.log('✅ Magic link authenticated, creating rewards member...');
+  // Monitor connectivity and auto-sync queued reports
+  useConnectivityMonitoring();
 
-          try {
-            const memberResult = await createRewardsMemberFromAuthUser();
-            console.log('🔐 Create member result:', { success: memberResult.success, error: memberResult.error });
+  // Handle deep links for magic link authentication
+  useDeepLinkHandler();
 
-            if (memberResult.success) {
-              console.log('✅ Rewards member created:', memberResult.user?.email);
-              // Refresh user data in Redux (await to ensure store is updated before UI refresh)
-              await store.dispatch(fetchUserProfile());
-
-              // Complete any pending submission for this email
-              if (memberResult.user?.email) {
-                await completePendingSubmissionByEmail(memberResult.user.email);
-              }
-
-              // Build welcome message with claim info if applicable
-              let message = `You're now signed in as ${memberResult.user?.email}. Good luck in the quarterly drawing!`;
-
-              if (memberResult.claimedCatches && memberResult.claimedCatches > 0) {
-                const catchText = memberResult.claimedCatches === 1 ? 'catch' : 'catches';
-                message = `You're now signed in as ${memberResult.user?.email}.\n\n🎣 We linked ${memberResult.claimedCatches} previous ${catchText} to your account!`;
-              }
-
-              // Show welcome message to user
-              Alert.alert(
-                'Welcome to Rewards! 🎉',
-                message,
-                [{ text: 'Awesome!', style: 'default' }]
-              );
-            } else {
-              console.error('❌ Failed to create rewards member:', memberResult.error);
-              Alert.alert(
-                'Sign In Issue',
-                memberResult.error || 'There was a problem completing your sign up. Please try again.',
-                [{ text: 'OK' }]
-              );
-            }
-          } catch (memberError) {
-            console.error('❌ Exception creating rewards member:', memberError);
-            Alert.alert(
-              'Sign In Issue',
-              'There was a problem completing your sign up. Please try again.',
-              [{ text: 'OK' }]
-            );
-          }
-        } else {
-          console.error('❌ Magic link authentication failed:', result.error);
-          Alert.alert(
-            'Sign In Failed',
-            result.error || 'The sign-in link may have expired. Please request a new one.',
-            [{ text: 'OK' }]
-          );
-        }
-      } catch (error) {
-        console.error('❌ Exception handling magic link:', error);
-        Alert.alert(
-          'Sign In Failed',
-          'An unexpected error occurred. Please try again.',
-          [{ text: 'OK' }]
-        );
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    // Initialize anonymous user on app startup (creates in Supabase if needed)
-    getOrCreateAnonymousUser()
-      .then(() => console.log('✅ Anonymous user initialized'))
-      .catch((error) => console.warn('⚠️ Failed to initialize anonymous user:', error));
-
-    // Check for pending submissions (mid-auth recovery)
-    // But only if there's no deep link being processed (e.g., magic link auth)
-    const checkPendingSubmissionIfNoDeepLink = async () => {
-      try {
-        // First check if we're opening via a deep link (magic link auth)
-        const initialUrl = await Linking.getInitialURL();
-        if (initialUrl) {
-          console.log('📋 Skipping pending submission check - deep link being processed');
-          return; // Let the deep link handler deal with auth flow
-        }
-
-        const pending = await checkForPendingSubmission();
-        if (pending && pending.status === 'pending') {
-          console.log('📋 Found pending submission for:', pending.email);
-          // Show recovery prompt
-          Alert.alert(
-            'Continue Sign Up?',
-            `You have an unfinished rewards sign-up for ${pending.email}. Would you like to continue?`,
-            [
-              {
-                text: 'Dismiss',
-                style: 'cancel',
-                onPress: () => {
-                  clearPendingSubmission();
-                  console.log('📋 Pending submission dismissed by user');
-                },
-              },
-              {
-                text: 'Continue',
-                onPress: () => {
-                  // The user can continue by going to Profile tab and signing in
-                  // The pending auth data is already stored, so the magic link flow will use it
-                  console.log('📋 User chose to continue pending submission');
-                  Alert.alert(
-                    'Continue Sign Up',
-                    'Go to the Profile tab and tap "Sign In" to complete your rewards sign-up.',
-                    [{ text: 'OK' }]
-                  );
-                },
-              },
-            ]
-          );
-        }
-      } catch (error) {
-        console.warn('⚠️ Failed to check pending submissions:', error);
-      }
-    };
-    checkPendingSubmissionIfNoDeepLink();
-
-    // Load all initial data in parallel
-    Promise.all([
-      store.dispatch(fetchUserProfile()),
-      store.dispatch(fetchLicense()),
-      store.dispatch(fetchFishReports()),
-    ]).catch(error => {
-      console.error('Error loading initial data:', error);
-    });
-
-    // Start connectivity listener for auto-syncing queued harvest reports
-    // When the device comes back online, this will automatically sync any
-    // reports that were queued while offline
-    const unsubscribeConnectivity = startConnectivityListener((result) => {
-      if (result.synced > 0) {
-        console.log(`🎉 Auto-synced ${result.synced} queued harvest report(s)`);
-      }
-      if (result.failed > 0) {
-        console.log(`⚠️ ${result.failed} report(s) failed to sync, will retry later`);
-      }
-      if (result.expired > 0) {
-        console.log(`❌ ${result.expired} report(s) expired after max retries`);
-      }
-    });
-
-    // Handle deep links - check for initial URL (app opened via link)
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        handleDeepLink(url);
-      }
-    });
-
-    // Listen for deep links while app is running
-    const linkingSubscription = Linking.addEventListener('url', (event) => {
-      handleDeepLink(event.url);
-    });
-
-    // Listen for auth state changes (handles session restore, sign out, etc.)
-    const unsubscribeAuth = onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        console.log('🔐 Auth state: SIGNED_IN');
-        // User signed in - sync user data from Supabase and refresh
-        try {
-          const memberResult = await createRewardsMemberFromAuthUser();
-          if (memberResult.success) {
-            console.log('✅ User data synced from Supabase:', memberResult.user?.email);
-          }
-        } catch (error) {
-          console.warn('⚠️ Failed to sync user data on sign in:', error);
-        }
-        store.dispatch(fetchUserProfile());
-      } else if (event === 'SIGNED_OUT') {
-        console.log('🔐 Auth state: SIGNED_OUT');
-        // User signed out - could clear user data here if needed
-      }
-    });
-
-    // Cleanup listeners on unmount
-    return () => {
-      unsubscribeConnectivity();
-      linkingSubscription.remove();
-      unsubscribeAuth();
-    };
-  }, [handleDeepLink]);
+  // Listen for auth state changes
+  useAuthStateListener();
 
   return null;
 };

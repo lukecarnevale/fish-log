@@ -38,3 +38,29 @@ export {
   type SyncResult,
   type SubmitWithQueueResult,
 } from './offlineQueue';
+
+// User Profile Service
+export {
+  getCachedUser,
+  cacheUser,
+  getCachedStats,
+  cacheStats,
+  syncToUserProfile,
+  updateUserInSupabase,
+  fetchStatsFromSupabase,
+  getCurrentUser,
+  updateCurrentUser,
+  getUserStats,
+  getAllAchievements,
+  syncUserData,
+} from './userProfileService';
+
+// Rewards Conversion Service
+export {
+  convertToRewardsMember,
+  isRewardsMember,
+  getRewardsMemberForAnonymousUser,
+  linkEmailToUser,
+  createRewardsMemberFromAuthUser,
+  findRewardsMemberByAuthId,
+} from './rewardsConversionService';

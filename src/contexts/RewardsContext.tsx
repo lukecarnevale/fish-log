@@ -37,6 +37,13 @@ import { FALLBACK_CONFIG, FALLBACK_DRAWING } from '../data/rewardsFallbackData';
 import { getCurrentUserState } from '../services/anonymousUserService';
 import { getRewardsMemberForAnonymousUser } from '../services/userService';
 import { onAuthStateChange } from '../services/authService';
+import {
+  calculateDaysRemaining,
+  calculatePeriodProgress,
+  isWithinPeriod,
+  formatDate,
+  calculateDerivedValues,
+} from '../utils/rewards';
 
 // =============================================================================
 // Context Types
@@ -100,87 +107,6 @@ const defaultContextValue: RewardsContextValue = {
 
 const RewardsContext = createContext<RewardsContextValue>(defaultContextValue);
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Calculate days remaining until a date.
- */
-function calculateDaysRemaining(dateString: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const targetDate = new Date(dateString);
-  targetDate.setHours(0, 0, 0, 0);
-
-  const diffMs = targetDate.getTime() - today.getTime();
-  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-}
-
-/**
- * Calculate progress percentage through a period.
- */
-function calculatePeriodProgress(startDate: string, endDate: string): number {
-  const today = new Date();
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  const totalDuration = end.getTime() - start.getTime();
-  const elapsed = today.getTime() - start.getTime();
-
-  if (totalDuration <= 0) return 100;
-  return Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
-}
-
-/**
- * Check if current date is within a period.
- */
-function isWithinPeriod(startDate: string, endDate: string): boolean {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999);
-
-  return today >= start && today <= end;
-}
-
-/**
- * Format a date for display.
- */
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-/**
- * Calculate all derived values from rewards state.
- */
-function calculateDerivedValues(
-  drawing: RewardsDrawing | null,
-  userEntry: UserRewardsEntry | null
-): RewardsCalculated {
-  if (!drawing) {
-    return defaultCalculated;
-  }
-
-  return {
-    daysRemaining: calculateDaysRemaining(drawing.drawingDate),
-    isEligible: userEntry?.isEntered ?? false,
-    isPeriodActive: isWithinPeriod(drawing.startDate, drawing.endDate),
-    formattedDrawingDate: formatDate(drawing.drawingDate),
-    quarterDisplay: `Q${drawing.quarter} ${drawing.year}`,
-    periodProgress: calculatePeriodProgress(drawing.startDate, drawing.endDate),
-  };
-}
 
 // =============================================================================
 // Provider Component

@@ -40,9 +40,17 @@ export {
   BADGE_STORAGE_KEYS,
   markNewReportSubmitted,
   clearNewReportIndicator,
-  clearNewCatchesIndicator,
   hasNewReportSinceLastView,
 } from './badgeUtils';
 
 // Debounce utility
 export { debounce } from './debounce';
+
+// Rewards utilities
+export {
+  calculateDaysRemaining,
+  calculatePeriodProgress,
+  isWithinPeriod,
+  formatDate,
+  calculateDerivedValues,
+} from './rewards';
