@@ -44,6 +44,7 @@ export interface PendingAuth {
   lastName: string;
   phone?: string;
   zipCode?: string;
+  wrcId?: string;
   sentAt: string;
 }
 
@@ -57,7 +58,13 @@ export interface PendingAuth {
  */
 export async function sendMagicLink(
   email: string,
-  metadata?: { firstName?: string; lastName?: string; phone?: string }
+  metadata?: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    zipCode?: string;
+    wrcId?: string;
+  }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Get redirect URL at runtime (not module load) to ensure Expo linking is ready

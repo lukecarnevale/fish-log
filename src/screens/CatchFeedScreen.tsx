@@ -949,7 +949,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary, // Dark blue for status bar area visibility
   },
   container: {
     flex: 1,

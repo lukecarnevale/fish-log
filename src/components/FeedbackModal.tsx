@@ -33,9 +33,9 @@ interface FeedbackModalProps {
 
 const TYPE_CONFIG: Record<FeedbackType, { title: string; placeholder: string; icon: keyof typeof Feather.glyphMap }> = {
   feedback: {
-    title: 'Send Feedback',
-    placeholder: 'Tell us what you think about the app...',
-    icon: 'message-square',
+    title: 'Help & Feedback',
+    placeholder: 'Ask a question, share feedback, or let us know how we can help...',
+    icon: 'help-circle',
   },
   bug_report: {
     title: 'Report a Problem',
@@ -121,7 +121,7 @@ export function FeedbackModal({
             </View>
             <Text style={styles.title}>{displayTitle}</Text>
             <Text style={styles.subtitle}>
-              We value your input to make the app better
+              We're here to help and value your input
             </Text>
           </View>
 

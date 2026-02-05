@@ -16,6 +16,7 @@ import {
   ViewStyle,
   RefreshControl,
   ScrollViewProps,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -82,6 +83,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   if (loading && loadingComponent) {
     return (
       <SafeAreaView style={styles.container} edges={["left", "right"]}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
         <View style={styles.loadingContainer}>
           {loadingComponent}
         </View>
@@ -120,6 +122,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   if (noScroll) {
     return (
       <SafeAreaView style={styles.noScrollContainer} edges={["left", "right"]}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
         {renderHeader()}
         <View style={styles.noScrollContentWrapper}>
           <View style={[styles.noScrollContent, contentContainerStyle]}>
@@ -133,6 +136,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   // Scrollable layout with bounce areas
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
       <ScrollView
         ref={activeScrollRef}
         style={styles.scrollView}
@@ -168,7 +172,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.primary, // Dark background for status bar visibility
   },
   loadingContainer: {
     flex: 1,

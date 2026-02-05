@@ -35,6 +35,8 @@ interface RewardsPromptModalProps {
   initialLastName?: string;
   initialEmail?: string;
   initialPhone?: string;
+  initialZipCode?: string;
+  initialWrcId?: string;
   // If true, user opted into rewards during form - hide skip options
   requiresSignup?: boolean;
   // Report ID to link with pending submission (for mid-auth recovery)
@@ -51,6 +53,8 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
   initialLastName = '',
   initialEmail = '',
   initialPhone = '',
+  initialZipCode = '',
+  initialWrcId = '',
   requiresSignup = false,
   reportId,
 }) => {
@@ -182,6 +186,8 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim() || undefined,
+        zipCode: initialZipCode?.trim() || undefined,
+        wrcId: initialWrcId?.trim() || undefined,
         sentAt: new Date().toISOString(),
       });
 
@@ -190,6 +196,8 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim() || undefined,
+        zipCode: initialZipCode?.trim() || undefined,
+        wrcId: initialWrcId?.trim() || undefined,
       });
 
       if (result.success) {

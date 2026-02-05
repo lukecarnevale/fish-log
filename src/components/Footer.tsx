@@ -183,8 +183,7 @@ const Footer: React.FC<FooterProps> = ({
         {/* Legal Section */}
         <View style={styles.legalSection}>
           <Text style={styles.copyright}>
-            © {new Date().getFullYear()} North Carolina Department of
-            Environmental Quality. All rights reserved.
+            © {new Date().getFullYear()} Fish Log Co. All rights reserved.
           </Text>
           <View style={styles.legalLinks}>
             <TouchableOpacity onPress={onPrivacyPress} activeOpacity={0.7}>

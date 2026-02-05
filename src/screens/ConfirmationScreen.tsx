@@ -746,6 +746,8 @@ This report was submitted to the NC Division of Marine Fisheries.`;
         initialLastName={reportData.angler?.lastName || ''}
         initialEmail={reportData.angler?.email || ''}
         initialPhone={reportData.angler?.phone || ''}
+        initialZipCode={reportData.zipCode || ''}
+        initialWrcId={reportData.wrcId || ''}
         // If user opted into rewards during form, they must complete signup
         requiresSignup={!!reportData.enteredRaffle}
       />

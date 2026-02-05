@@ -41,6 +41,9 @@ import { isTestMode } from "../config/appConfig";
 // Rewards context
 import { useRewards } from "../contexts/RewardsContext";
 
+// ZIP code lookup
+import { useZipCodeLookup } from "../hooks/useZipCodeLookup";
+
 type ReportFormScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
   "ReportForm"
@@ -119,6 +122,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // Scroll animation for floating back button
   const scrollY = useRef(new Animated.Value(0)).current;
   const HEADER_HEIGHT = 100;
+
+  // Track scroll position for dynamic status bar style
+  const [statusBarStyle, setStatusBarStyle] = useState<'light-content' | 'dark-content'>('light-content');
+  const statusBarStyleRef = useRef(statusBarStyle);
+  statusBarStyleRef.current = statusBarStyle;
 
   // Floating back button animation - appears as user scrolls
   const floatingBackOpacity = scrollY.interpolate({
@@ -245,6 +253,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       phone: "",
     },
   });
+
+  // ZIP code lookup for city/state display feedback
+  const zipLookup = useZipCodeLookup(formData.zipCode);
 
   useEffect(() => {
     const loadUserData = async (): Promise<void> => {
@@ -1459,7 +1470,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   return (
     <View style={localStyles.screenContainer}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
 
       {/* Fixed Header - sits behind the scrolling content */}
       <View style={localStyles.fixedHeader}>
@@ -1533,6 +1544,17 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             useNativeDriver: true,
             listener: (e: any) => {
               currentScrollY.current = e.nativeEvent.contentOffset.y;
+
+              // Calculate threshold where light content covers the status bar area
+              const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 50;
+              const headerSpacerHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130;
+              const threshold = headerSpacerHeight - statusBarHeight - 24; // 24px buffer for rounded corners
+
+              const scrollPosition = e.nativeEvent.contentOffset.y;
+              const newStyle = scrollPosition > threshold ? 'dark-content' : 'light-content';
+              if (newStyle !== statusBarStyleRef.current) {
+                setStatusBarStyle(newStyle);
+              }
             }
           }
         )}
@@ -2356,25 +2378,49 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             </View>
 
             <Text style={[styles.label, { marginTop: 12 }]}>ZIP Code</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.zipCode}
-              onChangeText={(text) => {
-                const cleanedZip = text.replace(/\D/g, '').slice(0, 5);
-                setFormData({
-                  ...formData,
-                  zipCode: cleanedZip,
-                });
-                // Auto-save when complete 5-digit zip is entered
-                if (cleanedZip.length === 5 && cleanedZip !== initialLoadedValues.zipCode) {
-                  saveProfileField('zipCode', cleanedZip);
-                }
-              }}
-              placeholder="Enter your 5-digit ZIP code"
-              keyboardType="number-pad"
-              maxLength={5}
-              onFocus={scrollToCenter}
-            />
+            <View style={localStyles.zipInputRow}>
+              <TextInput
+                style={[styles.input, localStyles.zipInput]}
+                value={formData.zipCode}
+                onChangeText={(text) => {
+                  const cleanedZip = text.replace(/\D/g, '').slice(0, 5);
+                  setFormData({
+                    ...formData,
+                    zipCode: cleanedZip,
+                  });
+                  // Auto-save when complete 5-digit zip is entered
+                  if (cleanedZip.length === 5 && cleanedZip !== initialLoadedValues.zipCode) {
+                    saveProfileField('zipCode', cleanedZip);
+                  }
+                }}
+                placeholder="12345"
+                keyboardType="number-pad"
+                maxLength={5}
+                onFocus={scrollToCenter}
+              />
+              {/* ZIP code lookup feedback */}
+              {formData.zipCode?.length === 5 && (
+                <View style={localStyles.zipFeedback}>
+                  {zipLookup.isLoading && (
+                    <Text style={localStyles.zipFeedbackLoading}>Checking...</Text>
+                  )}
+                  {zipLookup.result && !zipLookup.isLoading && (
+                    <View style={localStyles.zipFeedbackSuccess}>
+                      <Feather name="check-circle" size={14} color="#28a745" />
+                      <Text style={localStyles.zipFeedbackSuccessText}>
+                        {zipLookup.result.city}, {zipLookup.result.stateAbbr}
+                      </Text>
+                    </View>
+                  )}
+                  {zipLookup.error && !zipLookup.isLoading && (
+                    <View style={localStyles.zipFeedbackWarning}>
+                      <Feather name="alert-circle" size={14} color="#ff9800" />
+                      <Text style={localStyles.zipFeedbackWarningText}>{zipLookup.error}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
           </>
         )}
 
@@ -2458,38 +2504,63 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             )}
 
             <Text style={styles.label}>ZIP Code <Text style={localStyles.requiredAsterisk}>*</Text></Text>
-            <TextInput
-              style={[
-                styles.input,
-                validationErrors.zipCode && localStyles.inputError,
-              ]}
-              value={formData.zipCode}
-              onChangeText={(text) => {
-                clearValidationError("zipCode");
-                const cleanedZip = text.replace(/\D/g, '').slice(0, 5);
-                setFormData({
-                  ...formData,
-                  zipCode: cleanedZip,
-                });
+            <View style={localStyles.zipInputRow}>
+              <TextInput
+                style={[
+                  styles.input,
+                  localStyles.zipInput,
+                  validationErrors.zipCode && localStyles.inputError,
+                ]}
+                value={formData.zipCode}
+                onChangeText={(text) => {
+                  clearValidationError("zipCode");
+                  const cleanedZip = text.replace(/\D/g, '').slice(0, 5);
+                  setFormData({
+                    ...formData,
+                    zipCode: cleanedZip,
+                  });
 
-                // Auto-save when complete 5-digit zip is entered
-                if (cleanedZip.length === 5 && cleanedZip !== initialLoadedValues.zipCode) {
-                  saveProfileField('zipCode', cleanedZip);
-                }
+                  // Auto-save when complete 5-digit zip is entered
+                  if (cleanedZip.length === 5 && cleanedZip !== initialLoadedValues.zipCode) {
+                    saveProfileField('zipCode', cleanedZip);
+                  }
 
-                // Auto-expand contact section when all required fields are filled (unlicensed)
-                const hasRequiredFields = formData.angler.firstName?.trim() &&
-                                          formData.angler.lastName?.trim() &&
-                                          cleanedZip.length === 5;
-                if (hasRequiredFields && !showContactSection) {
-                  setShowContactSection(true);
-                }
-              }}
-              placeholder="Enter your 5-digit ZIP code"
-              keyboardType="number-pad"
-              maxLength={5}
-              onFocus={scrollToCenter}
-            />
+                  // Auto-expand contact section when all required fields are filled (unlicensed)
+                  const hasRequiredFields = formData.angler.firstName?.trim() &&
+                                            formData.angler.lastName?.trim() &&
+                                            cleanedZip.length === 5;
+                  if (hasRequiredFields && !showContactSection) {
+                    setShowContactSection(true);
+                  }
+                }}
+                placeholder="12345"
+                keyboardType="number-pad"
+                maxLength={5}
+                onFocus={scrollToCenter}
+              />
+              {/* ZIP code lookup feedback */}
+              {formData.zipCode?.length === 5 && !validationErrors.zipCode && (
+                <View style={localStyles.zipFeedback}>
+                  {zipLookup.isLoading && (
+                    <Text style={localStyles.zipFeedbackLoading}>Checking...</Text>
+                  )}
+                  {zipLookup.result && !zipLookup.isLoading && (
+                    <View style={localStyles.zipFeedbackSuccess}>
+                      <Feather name="check-circle" size={14} color="#28a745" />
+                      <Text style={localStyles.zipFeedbackSuccessText}>
+                        {zipLookup.result.city}, {zipLookup.result.stateAbbr}
+                      </Text>
+                    </View>
+                  )}
+                  {zipLookup.error && !zipLookup.isLoading && (
+                    <View style={localStyles.zipFeedbackWarning}>
+                      <Feather name="alert-circle" size={14} color="#ff9800" />
+                      <Text style={localStyles.zipFeedbackWarningText}>{zipLookup.error}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
             {validationErrors.zipCode && (
               <Text style={localStyles.errorText}>{validationErrors.zipCode}</Text>
             )}
@@ -4059,6 +4130,47 @@ const localStyles = StyleSheet.create({
     color: "#e53935",
     marginTop: -8,
     marginBottom: 12,
+  },
+  // ZIP code input row layout
+  zipInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  zipInput: {
+    width: 100,
+    flex: 0,
+  },
+  // ZIP code lookup feedback styles
+  zipFeedback: {
+    flex: 1,
+    justifyContent: "center",
+    marginLeft: 4,
+  },
+  zipFeedbackLoading: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: "italic",
+  },
+  zipFeedbackSuccess: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  zipFeedbackSuccessText: {
+    fontSize: 13,
+    color: "#28a745",
+    fontWeight: "500",
+  },
+  zipFeedbackWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  zipFeedbackWarningText: {
+    fontSize: 13,
+    color: "#ff9800",
+    fontWeight: "500",
   },
   // Abandonment modal styles
   abandonModalOverlay: {

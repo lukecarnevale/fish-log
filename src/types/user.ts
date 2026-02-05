@@ -98,6 +98,7 @@ export interface ConvertToMemberInput {
   email: string;
   phone?: string;
   zipCode?: string;
+  wrcId?: string;
 }
 
 /**
