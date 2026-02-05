@@ -1,58 +1,36 @@
 // config/supabase.ts
 //
 // Supabase client configuration for Fish Log app.
-// This client is used for all Supabase interactions including
-// the Quarterly Rewards system and future features.
-//
 
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { env } from './env';
 
-// Supabase project configuration
-const SUPABASE_URL = 'https://qygvvgbateuorpxntdbq.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5Z3Z2Z2JhdGV1b3JweG50ZGJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMzY5NjMsImV4cCI6MjA4NDcxMjk2M30.L9bW1-qlVwEqm9IKBWinWXyXJ6LKsTFGa_hoUmQ8xKs';
-
-/**
- * Supabase client instance configured for React Native.
- * Uses AsyncStorage for session persistence.
- */
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false, // Required for React Native
+    detectSessionInUrl: false,
   },
 });
 
-/**
- * Check if Supabase is properly configured and reachable.
- * Useful for determining whether to use Supabase or fallback data.
- */
+/** Check if Supabase is properly configured and reachable */
 export async function isSupabaseConnected(): Promise<boolean> {
   try {
-    // Simple health check - try to query the rewards_config table
     const { error } = await supabase
       .from('rewards_config')
       .select('id')
       .limit(1)
       .single();
 
-    // PGRST116 means no rows found, which is fine - table exists
-    if (error && error.code !== 'PGRST116') {
-      console.warn('Supabase connection check failed:', error.message);
-      return false;
-    }
-
-    return true;
-  } catch (err) {
-    console.warn('Supabase not reachable:', err);
+    // PGRST116 = no rows found, which is fine - table exists
+    return !error || error.code === 'PGRST116';
+  } catch {
     return false;
   }
 }
 
-// Export configuration for reference
 export const supabaseConfig = {
-  url: SUPABASE_URL,
-  // Note: anon key is safe to expose - it only has public access
+  url: env.SUPABASE_URL,
 };

@@ -14,6 +14,7 @@ import {
 } from '../types/rewards';
 import { supabase, isSupabaseConnected } from '../config/supabase';
 import { FALLBACK_CONFIG, FALLBACK_DRAWING } from '../data/rewardsFallbackData';
+import { getPendingDrawingId, getPendingSubmission } from './pendingSubmissionService';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -565,6 +566,49 @@ export async function recordDrawingEntry(drawingId: string): Promise<void> {
     }
   } catch (error) {
     console.error('Failed to record drawing entry:', error);
+  }
+}
+
+/**
+ * Get a pending user's drawing entry from their pending submission.
+ * This is used to show "Already Entered" status for users who entered
+ * the drawing before completing authentication (pending state).
+ *
+ * @param drawingId - The current drawing ID to check against
+ * @returns UserRewardsEntry if pending user has entered this drawing, null otherwise
+ */
+export async function getPendingDrawingEntry(
+  drawingId: string
+): Promise<UserRewardsEntry | null> {
+  try {
+    // Check if there's a pending submission with a drawing entry
+    const pendingDrawingId = await getPendingDrawingId();
+
+    if (!pendingDrawingId || pendingDrawingId !== drawingId) {
+      return null;
+    }
+
+    // Get the full pending submission for the timestamp
+    const pendingSubmission = await getPendingSubmission();
+
+    if (!pendingSubmission) {
+      return null;
+    }
+
+    // Construct a UserRewardsEntry from the pending submission
+    return {
+      userId: 'pending',
+      drawingId: drawingId,
+      isEntered: true,
+      entryMethod: 'app',
+      enteredAt: pendingSubmission.createdAt,
+      associatedReportIds: pendingSubmission.formData?.harvestReportId
+        ? [pendingSubmission.formData.harvestReportId]
+        : [],
+    };
+  } catch (error) {
+    console.warn('Failed to get pending drawing entry:', error);
+    return null;
   }
 }
 

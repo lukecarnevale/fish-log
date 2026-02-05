@@ -73,6 +73,7 @@ const ACHIEVEMENT_COLORS: Record<string, string> = {
   reporting: '#43A047',
   species: '#1976D2',
   streak: '#FB8C00',
+  seasonal: '#00BCD4', // Cyan - for seasonal achievements
   special: '#8E24AA',
   default: '#FFD700', // Gold
 };
@@ -102,6 +103,7 @@ const ACHIEVEMENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   reporting: 'file-text',
   species: 'anchor',
   streak: 'zap',
+  seasonal: 'sun', // For seasonal achievements
   special: 'star',
   default: 'award',
 };
@@ -119,7 +121,7 @@ function getAchievementColor(code: string | undefined, category: string): string
 /**
  * Get the icon for an achievement based on its code, iconName, or category.
  */
-function getAchievementIcon(code: string | undefined, iconName: string | undefined, category: string): keyof typeof Feather.glyphMap {
+function getAchievementIcon(code: string | undefined, iconName: string | null | undefined, category: string): keyof typeof Feather.glyphMap {
   // First, try to use the iconName from the database
   if (iconName && iconName in Feather.glyphMap) {
     return iconName as keyof typeof Feather.glyphMap;

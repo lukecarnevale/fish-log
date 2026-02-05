@@ -1,57 +1,29 @@
 // config/appConfig.ts
 //
 // Application configuration for DMF submission modes and feature flags.
-// Controls whether the app submits to real DMF servers or runs in test mode.
-//
+// Mode is now determined by environment variables at build time.
 
-/**
- * Application mode determines whether submissions go to real DMF servers
- * or are mocked for development/testing.
- */
+import { env, isTestMode, isProductionMode, isProduction } from './env';
+
 export type AppMode = 'mock' | 'production';
 
-/**
- * Main application configuration
- */
 export const APP_CONFIG = {
-  /**
-   * Current application mode
-   *
-   * - 'mock': Submissions are logged to console, not sent to DMF (safe for development)
-   * - 'production': Submissions are sent to real NC DMF ArcGIS servers
-   *
-   * IMPORTANT: Change to 'production' only when ready for real submissions
-   */
-  mode: 'mock' as AppMode,
+  /** Current mode - derived from environment at build time */
+  get mode(): AppMode {
+    return env.DMF_MODE;
+  },
 
-  /**
-   * Feature flags to enable/disable functionality
-   */
   features: {
-    /** Enable raffle entry functionality */
     raffleEnabled: true,
-
-    /** Enable offline queue for submissions when no connectivity */
     offlineQueueEnabled: true,
-
-    /** Enable photo capture for catch verification */
     photoCaptureEnabled: true,
-
-    /** Show test mode indicator badge in UI */
-    showTestModeBadge: true,
+    showTestModeBadge: env.SHOW_TEST_MODE_BADGE,
   },
 
-  /**
-   * API endpoints
-   */
   endpoints: {
-    /** NC DMF ArcGIS Feature Service for harvest reporting */
-    dmfProduction: 'https://services2.arcgis.com/kCu40SDxsCGcuUWO/arcgis/rest/services/MandReportingData/FeatureServer/applyEdits',
+    dmfProduction: env.DMF_ENDPOINT,
   },
 
-  /**
-   * Storage keys for AsyncStorage
-   */
   storageKeys: {
     harvestQueue: '@harvest_queue',
     harvestHistory: '@harvest_history',
@@ -62,108 +34,46 @@ export const APP_CONFIG = {
     primaryFishingMethod: 'primaryFishingMethod',
   },
 
-  /**
-   * Limits and constraints
-   */
   limits: {
-    /** Maximum number of reports to keep in history */
     maxHistoryEntries: 100,
-
-    /** Maximum queue retry attempts before giving up */
     maxRetryAttempts: 3,
   },
 };
 
-/**
- * Check if the app is running in React Native development mode
- */
+// Re-export environment checks
+export { isTestMode, isProductionMode } from './env';
+
+/** Check if running in React Native development mode */
 export function isDevelopment(): boolean {
   return __DEV__;
 }
 
 /**
- * Check if the app is in test/mock mode (not submitting to real DMF)
- */
-export function isTestMode(): boolean {
-  return APP_CONFIG.mode === 'mock';
-}
-
-/**
- * Check if the app is in production mode (submitting to real DMF)
- */
-export function isProductionMode(): boolean {
-  return APP_CONFIG.mode === 'production';
-}
-
-/**
- * Switch application mode programmatically (internal use only).
- *
- * Use with caution - switching to production will send real data to DMF.
- * Prefer using `setAppModeWithWarning` for UI-driven mode changes.
- *
- * @param mode - The mode to switch to
+ * @deprecated Mode is now set at build time via environment variables.
+ * This function logs a warning and has no effect in production builds.
  */
 export function setAppMode(mode: AppMode): void {
-  APP_CONFIG.mode = mode;
+  if (isProduction()) {
+    console.warn('[appConfig] Cannot change mode at runtime in production builds');
+    return;
+  }
+  console.warn(`[appConfig] setAppMode is deprecated. Mode is set via EXPO_PUBLIC_DMF_MODE.`);
 }
 
-/**
- * Callback type for mode switch confirmation.
- */
 export type ModeChangeCallback = (confirmed: boolean) => void;
 
 /**
- * Switch application mode with a warning for production mode.
- *
- * When switching TO production mode, calls the `showWarning` callback
- * which should display a confirmation dialog. The mode is only changed
- * if the user confirms.
- *
- * @param mode - The mode to switch to
- * @param showWarning - Callback to show a confirmation dialog (receives callback for user response)
- * @returns Promise that resolves to true if mode was changed, false if cancelled
- *
- * @example
- * ```typescript
- * await setAppModeWithWarning('production', (onConfirm) => {
- *   Alert.alert(
- *     'Switch to Production Mode?',
- *     'This will send REAL data to NC DMF servers. Are you sure?',
- *     [
- *       { text: 'Cancel', onPress: () => onConfirm(false), style: 'cancel' },
- *       { text: 'Yes, Switch', onPress: () => onConfirm(true), style: 'destructive' },
- *     ]
- *   );
- * });
- * ```
+ * @deprecated Mode is now set at build time via environment variables.
  */
 export function setAppModeWithWarning(
   mode: AppMode,
   showWarning: (onConfirm: ModeChangeCallback) => void
 ): Promise<boolean> {
-  return new Promise((resolve) => {
-    // Switching to mock mode doesn't need a warning
-    if (mode === 'mock') {
-      APP_CONFIG.mode = mode;
-      resolve(true);
-      return;
-    }
-
-    // Switching to production mode needs confirmation
-    showWarning((confirmed) => {
-      if (confirmed) {
-        APP_CONFIG.mode = mode;
-        resolve(true);
-      } else {
-        resolve(false);
-      }
-    });
-  });
+  console.warn('[appConfig] setAppModeWithWarning is deprecated. Mode is set via EXPO_PUBLIC_DMF_MODE.');
+  return Promise.resolve(false);
 }
 
-/**
- * Get the current DMF endpoint based on app mode
- */
+/** Get the DMF endpoint */
 export function getDMFEndpoint(): string {
   return APP_CONFIG.endpoints.dmfProduction;
 }

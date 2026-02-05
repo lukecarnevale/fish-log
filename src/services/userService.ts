@@ -23,6 +23,7 @@ import { getOrCreateAnonymousUser, getAnonymousUser } from './anonymousUserServi
 import { getPendingAuth, clearPendingAuth, getCurrentAuthUser, getAuthState } from './authService';
 import { backfillUserStatsFromReports } from './statsService';
 import { getEnteredDrawingIds, enterRewardsDrawing, fetchCurrentDrawing } from './rewardsService';
+import { getPendingSubmission } from './pendingSubmissionService';
 
 // Note: linkReportsToUser is imported lazily to avoid circular dependency with reportsService
 
@@ -44,6 +45,18 @@ const STORAGE_KEYS = {
  */
 async function migrateLocalRewardsEntries(userId: string): Promise<number> {
   try {
+    // First, check for pending submission with a drawing entry
+    // This handles users who entered the drawing before completing auth
+    try {
+      const pendingSubmission = await getPendingSubmission();
+      if (pendingSubmission?.formData?.drawingId) {
+        await enterRewardsDrawing(userId, pendingSubmission.formData.drawingId);
+        console.log('🎁 Migrated pending drawing entry:', pendingSubmission.formData.drawingId);
+      }
+    } catch (pendingErr) {
+      console.warn('Failed to migrate pending drawing entry:', pendingErr);
+    }
+
     // Get locally stored drawing entries
     const localEntries = await getEnteredDrawingIds();
     if (localEntries.length === 0) {
@@ -296,7 +309,6 @@ async function updateUserInSupabase(userId: string, input: UserInput): Promise<U
   if (input.licenseIssueDate !== undefined) updateData.license_issue_date = input.licenseIssueDate || null;
   if (input.licenseExpiryDate !== undefined) updateData.license_expiry_date = input.licenseExpiryDate || null;
   if (input.primaryHarvestArea !== undefined) updateData.primary_harvest_area = input.primaryHarvestArea || null;
-  if (input.primaryFishingArea !== undefined) updateData.primary_fishing_area = input.primaryFishingArea || null;
   if (input.primaryFishingMethod !== undefined) updateData.primary_fishing_method = input.primaryFishingMethod || null;
 
   const { data, error } = await supabase
@@ -447,7 +459,6 @@ export async function getCurrentUser(): Promise<User | null> {
     licenseIssueDate: null,
     licenseExpiryDate: null,
     primaryHarvestArea: null,
-    primaryFishingArea: null,
     primaryFishingMethod: null,
     totalReports: 0,
     totalFish: 0,
@@ -744,14 +755,14 @@ export async function linkEmailToUser(email: string): Promise<{
 
     if (existingUser) {
       // Email exists - create merge request
+      // Note: Using correct DB column names (device_id, email)
+      // merge_token and expires_at will be added after DB migration
       const { data, error } = await supabase
         .from('device_merge_requests')
         .insert({
-          device_user_id: currentUser.id,
-          target_email: email.toLowerCase(),
+          device_id: currentUser.id,
+          email: email.toLowerCase(),
           status: 'pending',
-          merge_token: generateUUID(),
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
         })
         .select()
         .single();
