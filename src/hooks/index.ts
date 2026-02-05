@@ -9,3 +9,7 @@ export {
   type OfflineStatus,
   type UseOfflineStatusOptions,
 } from './useOfflineStatus';
+
+export {
+  useZipCodeLookup,
+} from './useZipCodeLookup';

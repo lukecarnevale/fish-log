@@ -48,3 +48,44 @@ export {
   type SpeciesCounts,
   type DMFSpeciesPayload,
 } from './species';
+
+// Screen labels
+export {
+  SCREEN_LABELS,
+  type ScreenLabelKey,
+} from './screenLabels';
+
+// Achievement mappings
+export {
+  ACHIEVEMENT_COLORS,
+  ACHIEVEMENT_ICONS,
+  getAchievementColor,
+  getAchievementIcon,
+} from './achievementMappings';
+
+// Species themes and colors
+export {
+  SPECIES_THEMES,
+  getSpeciesTheme,
+  getAllSpeciesThemes,
+  type SpeciesTheme,
+} from './speciesColors';
+
+// Species aliases
+export { SPECIES_ALIASES } from './speciesAliases';
+
+// FAQ data
+export {
+  MANDATORY_HARVEST_FAQS,
+  FULL_FAQ_URL,
+  type FaqItem,
+} from './faqData';
+
+// Sponsor data
+export {
+  SPONSORS,
+  type Sponsor,
+} from './sponsorsData';
+
+// UI constants
+export { HEADER_HEIGHT } from './ui';

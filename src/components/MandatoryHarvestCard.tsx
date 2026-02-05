@@ -17,6 +17,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../styles/common';
 import Svg, { Ellipse, Path, Circle } from 'react-native-svg';
+import { MANDATORY_HARVEST_FAQS, FULL_FAQ_URL } from '../constants/faqData';
 
 const HEADER_BG = '#0B548B';
 
@@ -174,84 +175,19 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
               style={styles.faqScrollView}
               showsVerticalScrollIndicator={false}
             >
-              {/* FAQ 1 */}
-              <View style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>What is Mandatory Harvest Reporting?</Text>
-                <Text style={styles.faqAnswer}>
-                  Beginning December 1, 2025, recreational anglers must report catches of red drum, flounder, spotted seatrout, striped bass, and weakfish. Commercial fishermen must also report all harvested fish regardless of sale status.
-                </Text>
-              </View>
-
-              {/* FAQ 2 */}
-              <View style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>Why is Mandatory Harvest Reporting happening?</Text>
-                <Text style={styles.faqAnswer}>
-                  The program aims to enhance fisheries management by collecting comprehensive harvest data to supplement existing commercial trip ticket reporting and recreational survey programs.
-                </Text>
-              </View>
-
-              {/* FAQ 3 */}
-              <View style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>Who has to participate?</Text>
-                <Text style={styles.faqAnswer}>
-                  Both recreational and commercial fishermen are impacted. Recreational anglers must report the five specified species, while commercial fishermen report personal consumption harvests through seafood dealers.
-                </Text>
-              </View>
-
-              {/* FAQ 4 */}
-              <View style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>Which waters does this apply to?</Text>
-                <Text style={styles.faqAnswer}>
-                  Requirements apply to coastal, joint, and adjacent inland fishing waters under Marine Fisheries Commission and Wildlife Resources Commission authority.
-                </Text>
-              </View>
-
-              {/* FAQ 5 */}
-              <View style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>What information must I report?</Text>
-                <Text style={styles.faqAnswer}>
-                  Recreational fishers report: license number (or name and zip code), harvest date, number of each species kept, harvest area, and gear type.
-                </Text>
-              </View>
-
-              {/* FAQ 6 */}
-              <View style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>When must I report my harvest?</Text>
-                <Text style={styles.faqAnswer}>
-                  Recreational fishers should report when harvest is complete (shore/dock arrival for boats). If you lack internet connection, record information and submit electronically by midnight the following day.
-                </Text>
-              </View>
-
-              {/* FAQ 7 */}
-              <View style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>Why these five fish species?</Text>
-                <Text style={styles.faqAnswer}>
-                  Red drum, flounder, spotted seatrout, striped bass, and weakfish are among the most targeted species in North Carolina's coastal and joint fishing waters.
-                </Text>
-              </View>
-
-              {/* FAQ 8 */}
-              <View style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>How will the law be enforced?</Text>
-                <Text style={styles.faqAnswer}>
-                  Enforcement phases over three years:{'\n'}• Dec 1, 2025 — Verbal warnings{'\n'}• Dec 1, 2026 — Warning tickets{'\n'}• Dec 1, 2027 — $35 infractions plus court fees
-                </Text>
-              </View>
-
-              {/* FAQ 9 */}
-              <View style={styles.faqItem}>
-                <Text style={styles.faqQuestion}>Do charter captains report for customers?</Text>
-                <Text style={styles.faqAnswer}>
-                  No. The law specifies individual anglers bear reporting responsibility at trip completion. Captains can obtain QR code stickers by contacting the Mandatory Harvest Reporting Team.
-                </Text>
-              </View>
+              {MANDATORY_HARVEST_FAQS.map((faq, index) => (
+                <View key={index} style={styles.faqItem}>
+                  <Text style={styles.faqQuestion}>{faq.question}</Text>
+                  <Text style={styles.faqAnswer}>{faq.answer}</Text>
+                </View>
+              ))}
 
               {/* Link to full FAQs */}
               <TouchableOpacity
                 style={styles.faqLinkButton}
                 onPress={() => {
                   setShowFaqModal(false);
-                  Linking.openURL("https://www.deq.nc.gov/about/divisions/marine-fisheries/science-and-statistics/mandatory-harvest-reporting/mandatory-harvest-reporting-faqs");
+                  Linking.openURL(FULL_FAQ_URL);
                 }}
                 activeOpacity={0.7}
               >
