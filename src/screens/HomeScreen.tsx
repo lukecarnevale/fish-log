@@ -47,6 +47,8 @@ import { SCREEN_LABELS } from "../constants/screenLabels";
 import { useAchievements } from "../contexts/AchievementContext";
 import { getAchievementColor, getAchievementIcon } from '../constants/achievementMappings';
 import { HEADER_HEIGHT } from '../constants/ui';
+import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
+import { usePulseAnimation } from '../hooks/usePulseAnimation';
 
 // Update the navigation type to be compatible with React Navigation v7
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
@@ -113,44 +115,19 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   const overlayOpacity = useRef<Animated.Value>(new Animated.Value(0)).current;
 
   // Scroll animation for collapsing header
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const { scrollY, floatingOpacity: floatingMenuOpacity, floatingTranslateXRight: floatingMenuTranslateX } = useFloatingHeaderAnimation();
 
   // Track scroll position for dynamic status bar style
   const [statusBarStyle, setStatusBarStyle] = useState<'light-content' | 'dark-content'>('light-content');
   const statusBarStyleRef = useRef(statusBarStyle);
   statusBarStyleRef.current = statusBarStyle;
 
-  // Floating menu button animation (snaps to side when scrolled)
-  const floatingMenuOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT * 0.5, HEADER_HEIGHT],
-    outputRange: [0, 0, 1],
-    extrapolate: 'clamp',
-  });
-
   // Pulsing animation for notification badge
-  const badgePulse = useRef(new Animated.Value(0)).current;
-
-  // Start pulsing animation when pendingAuth exists
-  useEffect(() => {
-    if (pendingAuth) {
-      const pulseAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(badgePulse, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: false, // Color interpolation requires native driver off
-          }),
-          Animated.timing(badgePulse, {
-            toValue: 0,
-            duration: 1000,
-            useNativeDriver: false,
-          }),
-        ])
-      );
-      pulseAnimation.start();
-      return () => pulseAnimation.stop();
-    }
-  }, [pendingAuth, badgePulse]);
+  const { pulseValue: badgePulse } = usePulseAnimation({
+    duration: 1000,
+    enabled: !!pendingAuth,
+    useNativeDriver: false,
+  });
 
   // Interpolate border color from white to red
   const badgeBorderColor = badgePulse.interpolate({
@@ -562,10 +539,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             {
               opacity: floatingMenuOpacity,
               transform: [{
-                translateX: floatingMenuOpacity.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [60, 0],
-                })
+                translateX: floatingMenuTranslateX,
               }]
             },
           ]}
