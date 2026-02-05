@@ -41,6 +41,8 @@ import { SCREEN_LABELS } from '../constants/screenLabels';
 import { HEADER_HEIGHT } from '../constants/ui';
 import { CatchFeedSkeletonLoader } from '../components/SkeletonLoader';
 import { useAllFishSpecies } from '../api/speciesApi';
+import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
+import { usePulseAnimation } from '../hooks/usePulseAnimation';
 
 // Use sample data for development (set to false when Supabase is ready)
 const USE_SAMPLE_DATA = false;
@@ -401,38 +403,11 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     return result;
   }, [speciesImageMap]);
 
-  // Scroll animation
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-
-  // Floating back button animation
-  const floatingBackOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT * 0.5, HEADER_HEIGHT],
-    outputRange: [0, 0, 1],
-    extrapolate: 'clamp',
-  });
+  // Scroll animation and floating header animation
+  const { scrollY, floatingOpacity: floatingBackOpacity, floatingTranslateXLeft: floatingBackTranslateX } = useFloatingHeaderAnimation();
 
   // Slow pulsing animation for Live dot
-  const livePulse = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const pulseAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(livePulse, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(livePulse, {
-          toValue: 0,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulseAnimation.start();
-    return () => pulseAnimation.stop();
-  }, [livePulse]);
+  const { pulseValue: livePulse } = usePulseAnimation({ duration: 1500 });
 
   // Opacity pulse for the live dot
   const liveDotOpacity = livePulse.interpolate({
@@ -793,10 +768,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
             {
               opacity: floatingBackOpacity,
               transform: [{
-                translateX: floatingBackOpacity.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-60, 0],
-                })
+                translateX: floatingBackTranslateX,
               }]
             },
           ]}

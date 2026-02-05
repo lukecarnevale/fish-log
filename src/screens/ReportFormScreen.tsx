@@ -28,6 +28,8 @@ import * as ImagePicker from "expo-image-picker";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HEADER_HEIGHT } from "../constants/ui";
+import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
+import { useToast } from '../hooks/useToast';
 import { RootStackParamList, FishReportData, UserProfile, FishingLicense } from "../types";
 import styles from "../styles/reportFormScreenStyles";
 import { colors } from "../styles/common";
@@ -121,19 +123,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Scroll animation for floating back button
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const { scrollY, floatingOpacity: floatingBackOpacity, floatingTranslateXLeft: floatingBackTranslateX } = useFloatingHeaderAnimation();
 
   // Track scroll position for dynamic status bar style
   const [statusBarStyle, setStatusBarStyle] = useState<'light-content' | 'dark-content'>('light-content');
   const statusBarStyleRef = useRef(statusBarStyle);
   statusBarStyleRef.current = statusBarStyle;
-
-  // Floating back button animation - appears as user scrolls
-  const floatingBackOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT * 0.5, HEADER_HEIGHT],
-    outputRange: [0, 0, 1],
-    extrapolate: 'clamp',
-  });
 
   // Keyboard height tracking for scroll-to-center behavior
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -194,37 +189,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     }, 100);
   }, [keyboardHeight]);
 
-  // Toast notification state
-  const [toastVisible, setToastVisible] = useState<boolean>(false);
-  const [toastTitle, setToastTitle] = useState<string>("");
-  const [toastSubtitle, setToastSubtitle] = useState<string>("");
-  const toastAnim = useRef(new Animated.Value(100)).current;
-
-  // Show toast notification
-  const showToast = (title: string, subtitle: string): void => {
-    setToastTitle(title);
-    setToastSubtitle(subtitle);
-    setToastVisible(true);
-    toastAnim.setValue(100);
-
-    Animated.spring(toastAnim, {
-      toValue: 0,
-      tension: 80,
-      friction: 10,
-      useNativeDriver: true,
-    }).start();
-
-    // Hide after 5 seconds
-    setTimeout(() => {
-      Animated.timing(toastAnim, {
-        toValue: 100,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        setToastVisible(false);
-      });
-    }, 5000);
-  };
+  // Toast notification
+  const toast = useToast();
 
   // Initial form state with types
   const [formData, setFormData] = useState<FormState>({
@@ -339,7 +305,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           if (effectiveWrcId) loadedItems.push("WRC ID");
 
           if (loadedItems.length > 0) {
-            showToast(
+            toast.show(
               "Profile Loaded",
               `Your ${loadedItems.join(", ")} ${loadedItems.length === 1 ? "has" : "have"} been added to the report.`
             );
@@ -1105,7 +1071,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setCatchPhoto(result.assets[0].uri);
         clearValidationError("photo");
-        showToast("Photo Captured", "Your catch photo has been saved");
+        toast.show("Photo Captured", "Your catch photo has been saved");
       }
     } catch (error) {
       // Camera not available (likely running on simulator)
@@ -1127,7 +1093,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               if (!libraryResult.canceled && libraryResult.assets && libraryResult.assets.length > 0) {
                 setCatchPhoto(libraryResult.assets[0].uri);
                 clearValidationError("photo");
-                showToast("Photo Selected", "Photo selected for testing (camera required in production)");
+                toast.show("Photo Selected", "Photo selected for testing (camera required in production)");
               }
             },
           },
@@ -1514,10 +1480,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           {
             opacity: floatingBackOpacity,
             transform: [{
-              translateX: floatingBackOpacity.interpolate({
-                inputRange: [0, 1],
-                outputRange: [-60, 0],
-              })
+              translateX: floatingBackTranslateX,
             }]
           },
         ]}
@@ -2828,7 +2791,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 <TouchableOpacity
                   onPress={() => {
                     setEnterRaffle(false);
-                    showToast("Rewards Entry Removed", "You can re-join anytime before submitting.");
+                    toast.show("Rewards Entry Removed", "You can re-join anytime before submitting.");
                   }}
                   style={localStyles.raffleRemoveButton}
                 >
@@ -2865,17 +2828,17 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       </Animated.ScrollView>
 
       {/* Toast Notification */}
-      {toastVisible && (
+      {toast.visible && (
         <Animated.View
           style={[
             localStyles.toast,
-            { transform: [{ translateY: toastAnim }] },
+            { transform: [{ translateY: toast.animValue }] },
           ]}
         >
           <Feather name="check-circle" size={24} color={colors.white} />
           <View style={localStyles.toastContent}>
-            <Text style={localStyles.toastTitle}>{toastTitle}</Text>
-            <Text style={localStyles.toastSubtitle}>{toastSubtitle}</Text>
+            <Text style={localStyles.toastTitle}>{toast.title}</Text>
+            <Text style={localStyles.toastSubtitle}>{toast.subtitle}</Text>
           </View>
         </Animated.View>
       )}
@@ -3136,7 +3099,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                     }
                     setEnterRaffle(true);
                     setShowRaffleModal(false);
-                    showToast("Rewards Entry Added", "You'll be entered in this quarter's drawing.");
+                    toast.show("Rewards Entry Added", "You'll be entered in this quarter's drawing.");
                   }}
                   disabled={!catchPhoto || !formData.angler.firstName?.trim() || !formData.angler.lastName?.trim() ||
                            !formData.angler.email?.trim() || !!validateEmail(formData.angler.email || "") ||
