@@ -5,16 +5,15 @@
 
 import React from "react";
 import {
-  Modal,
   View,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   StyleSheet,
   Linking,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "../styles/common";
+import AnimatedModal from "./AnimatedModal";
 
 interface WrcIdInfoModalProps {
   visible: boolean;
@@ -28,60 +27,42 @@ const WrcIdInfoModal: React.FC<WrcIdInfoModalProps> = ({ visible, onClose }) => 
   };
 
   return (
-    <Modal
-      transparent
-      animationType="fade"
+    <AnimatedModal
       visible={visible}
-      onRequestClose={onClose}
+      onClose={onClose}
+      scrollable={false}
+      containerStyle={styles.container}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
-            <View style={styles.content}>
-              <View style={styles.header}>
-                <Feather name="info" size={24} color={colors.primary} />
-                <Text style={styles.title}>WRC ID Lookup</Text>
-              </View>
-              <Text style={styles.text}>
-                Don't know your WRC ID or Customer ID? You can look it up online. Once entered, it will be saved for future reports.
-              </Text>
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleLookup}
-                activeOpacity={0.7}
-              >
-                <Feather name="external-link" size={18} color={colors.white} style={{ marginRight: 8 }} />
-                <Text style={styles.buttonText}>Look Up My ID</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={onClose}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.closeText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      <View style={styles.header}>
+        <Feather name="info" size={24} color={colors.primary} />
+        <Text style={styles.title}>WRC ID Lookup</Text>
+      </View>
+      <Text style={styles.text}>
+        Don't know your WRC ID or Customer ID? You can look it up online. Once entered, it will be saved for future reports.
+      </Text>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleLookup}
+        activeOpacity={0.7}
+      >
+        <Feather name="external-link" size={18} color={colors.white} style={{ marginRight: 8 }} />
+        <Text style={styles.buttonText}>Look Up My ID</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={onClose}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.closeText}>Close</Text>
+      </TouchableOpacity>
+    </AnimatedModal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  content: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 24,
-    width: "100%",
+  container: {
     maxWidth: 340,
+    borderRadius: 16,
   },
   header: {
     flexDirection: "row",
