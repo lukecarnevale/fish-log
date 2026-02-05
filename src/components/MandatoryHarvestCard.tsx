@@ -16,8 +16,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../styles/common';
-import Svg, { Ellipse, Path, Circle } from 'react-native-svg';
 import { MANDATORY_HARVEST_FAQS, FULL_FAQ_URL } from '../constants/faqData';
+import { FishIcon } from './icons/MandatoryHarvestIcons';
 
 const HEADER_BG = '#0B548B';
 
@@ -29,18 +29,6 @@ const species = [
   { name: 'Striped Bass', bodyColor: '#90A4AE', tailColor: '#546E7A', bgColor: '#ECEFF1' },
   { name: 'Weakfish', bodyColor: '#FFB74D', tailColor: '#F57C00', bgColor: '#FFF3E0' },
 ];
-
-// Fish icon component
-const FishIcon: React.FC<{ bodyColor: string; tailColor: string }> = ({
-  bodyColor,
-  tailColor,
-}) => (
-  <Svg width={26} height={18} viewBox="0 0 40 28">
-    <Ellipse cx={18} cy={14} rx={16} ry={8} fill={bodyColor} />
-    <Path d="M32 14 Q40 8 38 14 Q40 20 32 14" fill={tailColor} />
-    <Circle cx={6} cy={12} r={2} fill="white" />
-  </Svg>
-);
 
 interface MandatoryHarvestCardProps {
   onLearnMore?: () => void;
