@@ -296,26 +296,6 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   // Fetch species data for fallback images
   const { data: allSpecies, isLoading: speciesLoading } = useAllFishSpecies();
 
-  // Debug: log when species data loads
-  useEffect(() => {
-    if (allSpecies) {
-      console.log('🐟 Species data loaded:', allSpecies.length, 'species');
-      // Log specific species we're interested in
-      const targetSpecies = allSpecies.filter(s =>
-        s.name?.toLowerCase().includes('weak') ||
-        s.name?.toLowerCase().includes('trout') ||
-        s.name?.toLowerCase().includes('seatrout') ||
-        s.name?.toLowerCase().includes('spot')
-      );
-      console.log('🎯 Target species found:', targetSpecies.map(s => ({
-        name: s.name,
-        hasImage: !!s.images?.primary,
-        commonNames: s.commonNames
-      })));
-    } else if (!speciesLoading) {
-      console.log('⚠️ Species data is empty or failed to load');
-    }
-  }, [allSpecies, speciesLoading]);
 
   // Species name aliases for matching - all variations map to each other
   const speciesAliases = SPECIES_ALIASES;

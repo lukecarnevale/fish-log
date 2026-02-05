@@ -42,20 +42,6 @@ export async function clearNewReportIndicator(): Promise<void> {
   }
 }
 
-/**
- * Clear the "new catches" indicator.
- * Called when user views the Catch Feed screen.
- */
-export async function clearNewCatchesIndicator(): Promise<void> {
-  try {
-    await AsyncStorage.setItem(
-      BADGE_STORAGE_KEYS.lastViewedCatchFeed,
-      new Date().toISOString()
-    );
-  } catch (error) {
-    console.error('Error clearing new catches indicator:', error);
-  }
-}
 
 /**
  * Check if there's a new report since last viewing Past Reports.
