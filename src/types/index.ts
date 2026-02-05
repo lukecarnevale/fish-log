@@ -101,6 +101,8 @@ export interface FishReportData {
     longitude: number;
   };
   enteredRaffle?: string; // Raffle ID if user entered a raffle with this report
+  zipCode?: string; // Zip code for unlicensed anglers or profile data
+  wrcId?: string; // WRC ID / Customer ID from fishing license
   [key: string]: any;
 }
 

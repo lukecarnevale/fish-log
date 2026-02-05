@@ -202,6 +202,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Scroll animation for collapsing header
   const scrollY = useRef(new Animated.Value(0)).current;
 
+  // Track scroll position for dynamic status bar style
+  const [statusBarStyle, setStatusBarStyle] = useState<'light-content' | 'dark-content'>('light-content');
+  const statusBarStyleRef = useRef(statusBarStyle);
+  statusBarStyleRef.current = statusBarStyle;
+
   // Floating menu button animation (snaps to side when scrolled)
   const floatingMenuOpacity = scrollY.interpolate({
     inputRange: [0, HEADER_HEIGHT * 0.5, HEADER_HEIGHT],
@@ -560,7 +565,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   return (
     <View style={{flex: 1, backgroundColor: colors.primary}}>
       <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
       
       {/* Drawer Menu */}
       <DrawerMenu
@@ -680,7 +685,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         contentContainerStyle={localStyles.scrollViewContent}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          {
+            useNativeDriver: true,
+            listener: (event: any) => {
+              // Calculate threshold where light content covers the status bar area
+              // headerSpacer height minus status bar height (with buffer for rounded corners)
+              const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 50;
+              const headerSpacerHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130;
+              const threshold = headerSpacerHeight - statusBarHeight - 24; // 24px buffer for rounded corners
+
+              const scrollPosition = event.nativeEvent.contentOffset.y;
+              const newStyle = scrollPosition > threshold ? 'dark-content' : 'light-content';
+              if (newStyle !== statusBarStyleRef.current) {
+                setStatusBarStyle(newStyle);
+              }
+            },
+          }
         )}
         scrollEventThrottle={16}
       >

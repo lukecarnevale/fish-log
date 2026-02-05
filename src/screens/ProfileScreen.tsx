@@ -47,6 +47,7 @@ import {
 } from "../services/authService";
 import { isRewardsMember, getCurrentUser, updateCurrentUser, getUserStats } from "../services/userService";
 import { User, UserAchievement } from "../types/user";
+import { useZipCodeLookup } from "../hooks/useZipCodeLookup";
 
 // Achievement color mapping - specific colors for each achievement code
 const ACHIEVEMENT_COLORS: Record<string, string> = {
@@ -228,6 +229,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [formData, setFormData] = useState<UserProfile>({});
+
+  // ZIP code lookup for city/state display feedback
+  const zipLookup = useZipCodeLookup(formData.zipCode);
+
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [isPickerMounted, setIsPickerMounted] = useState<boolean>(false);
   const [datePickerKey, setDatePickerKey] = useState<number>(0);
@@ -1203,25 +1208,49 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>ZIP Code</Text>
-            <TextInput
-              ref={zipCodeInputRef}
-              style={[
-                styles.input,
-                validationErrors.zipCode ? styles.inputError : null,
-                { maxWidth: 120 }
-              ]}
-              value={formData.zipCode}
-              onChangeText={(text) => {
-                // Only allow digits, max 5
-                const digits = text.replace(/\D/g, '').slice(0, 5);
-                handleFieldChange('zipCode', digits);
-              }}
-              placeholder="12345"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="number-pad"
-              maxLength={5}
-              returnKeyType="done"
-            />
+            <View style={styles.zipInputRow}>
+              <TextInput
+                ref={zipCodeInputRef}
+                style={[
+                  styles.input,
+                  styles.zipInput,
+                  validationErrors.zipCode ? styles.inputError : null,
+                ]}
+                value={formData.zipCode}
+                onChangeText={(text) => {
+                  // Only allow digits, max 5
+                  const digits = text.replace(/\D/g, '').slice(0, 5);
+                  handleFieldChange('zipCode', digits);
+                }}
+                placeholder="12345"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="number-pad"
+                maxLength={5}
+                returnKeyType="done"
+              />
+              {/* ZIP code lookup feedback */}
+              {formData.zipCode?.length === 5 && !validationErrors.zipCode && (
+                <View style={styles.zipFeedback}>
+                  {zipLookup.isLoading && (
+                    <Text style={styles.zipFeedbackLoading}>Checking...</Text>
+                  )}
+                  {zipLookup.result && !zipLookup.isLoading && (
+                    <View style={styles.zipFeedbackSuccess}>
+                      <Feather name="check-circle" size={14} color="#28a745" />
+                      <Text style={styles.zipFeedbackSuccessText}>
+                        {zipLookup.result.city}, {zipLookup.result.stateAbbr}
+                      </Text>
+                    </View>
+                  )}
+                  {zipLookup.error && !zipLookup.isLoading && (
+                    <View style={styles.zipFeedbackWarning}>
+                      <Feather name="alert-circle" size={14} color="#ff9800" />
+                      <Text style={styles.zipFeedbackWarningText}>{zipLookup.error}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
             {validationErrors.zipCode && (
               <Text style={styles.errorText}>{validationErrors.zipCode}</Text>
             )}
@@ -1562,7 +1591,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             ) : (
               <TouchableOpacity
                 style={localStyles.joinRewardsButton}
-                onPress={() => setShowSignInForm(true)}
+                onPress={() => {
+                  // Pre-populate form fields with stored profile data
+                  setSignInEmail(profile.email || '');
+                  setSignInFirstName(profile.firstName || '');
+                  setSignInLastName(profile.lastName || '');
+                  setShowSignInForm(true);
+                }}
                 activeOpacity={0.7}
               >
                 <Feather name="user-plus" size={18} color={colors.white} />
@@ -1815,6 +1850,7 @@ const styles = StyleSheet.create({
   contentArea: {
     backgroundColor: colors.background,
     flexGrow: 1,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xl * 2,
   },
   // Header row containing back button and title
@@ -2167,6 +2203,47 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  // ZIP code input row layout
+  zipInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  zipInput: {
+    width: 100,
+    flex: 0,
+  },
+  // ZIP code lookup feedback styles
+  zipFeedback: {
+    flex: 1,
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  zipFeedbackLoading: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  zipFeedbackSuccess: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  zipFeedbackSuccessText: {
+    fontSize: 13,
+    color: '#28a745',
+    fontWeight: '500',
+  },
+  zipFeedbackWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  zipFeedbackWarningText: {
+    fontSize: 13,
+    color: '#ff9800',
+    fontWeight: '500',
   },
   textArea: {
     height: 100,
@@ -2643,6 +2720,7 @@ const localStyles = StyleSheet.create({
   },
   // Achievement section styles
   achievementsContainer: {
+    marginTop: spacing.md,
     gap: spacing.sm,
   },
   achievementCard: {

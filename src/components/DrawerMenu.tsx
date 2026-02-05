@@ -507,15 +507,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
 
           <MenuItem
             icon="help-circle"
-            label="Help"
-            onPress={() => Alert.alert("Help", "Help would open here")}
-            iconBgColor="#E8F5F4"
-            iconColor={colors.primary}
-          />
-
-          <MenuItem
-            icon="message-square"
-            label="Send Feedback"
+            label="Help & Feedback"
+            subtitle="Questions, issues, or suggestions"
             onPress={() => {
               onClose();
               onFeedbackPress?.('feedback');

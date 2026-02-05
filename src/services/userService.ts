@@ -931,6 +931,7 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
         last_name: pendingAuth?.lastName || authUser.user_metadata?.lastName || null,
         phone: pendingAuth?.phone || authUser.user_metadata?.phone || null,
         zip_code: pendingAuth?.zipCode || authUser.user_metadata?.zipCode || null,
+        wrc_id: pendingAuth?.wrcId || authUser.user_metadata?.wrcId || null,
         rewards_opted_in_at: new Date().toISOString(),
         has_license: true,
       })
@@ -957,6 +958,7 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
                 last_name: pendingAuth?.lastName || existingDeviceUser.lastName || null,
                 phone: pendingAuth?.phone || existingDeviceUser.phone || null,
                 zip_code: pendingAuth?.zipCode || existingDeviceUser.zipCode || null,
+                wrc_id: pendingAuth?.wrcId || existingDeviceUser.wrcId || null,
                 rewards_opted_in_at: new Date().toISOString(),
                 anonymous_user_id: anonymousUser?.id || existingDeviceUser.anonymousUserId || null,
               })
