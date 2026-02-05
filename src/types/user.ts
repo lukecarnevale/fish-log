@@ -46,7 +46,6 @@ export interface User {
 
   // Fishing preferences
   primaryHarvestArea: string | null;
-  primaryFishingArea: string | null;
   primaryFishingMethod: string | null;
 
   // Denormalized stats for quick access
@@ -86,7 +85,6 @@ export interface UserInput {
   licenseIssueDate?: string;
   licenseExpiryDate?: string;
   primaryHarvestArea?: string;
-  primaryFishingArea?: string;
   primaryFishingMethod?: string;
   rewardsOptedInAt?: string;
 }
@@ -127,16 +125,17 @@ export interface SpeciesStat {
 
 /**
  * Achievement definition.
+ * Note: category values match database constraint: 'milestone', 'streak', 'species', 'seasonal', 'special'
  */
 export interface Achievement {
   id: string;
   code: string;
   name: string;
   description: string;
-  iconName: string;
-  category: 'reporting' | 'species' | 'streak' | 'special';
-  requirement: Record<string, unknown>;
-  sortOrder: number;
+  iconName: string | null;
+  category: 'milestone' | 'streak' | 'species' | 'seasonal' | 'special';
+  requirement?: Record<string, unknown>;  // Optional - column doesn't exist in DB yet
+  sortOrder?: number;  // Optional - column doesn't exist in DB yet
   isActive: boolean;
 }
 
@@ -153,14 +152,15 @@ export interface UserAchievement {
 
 /**
  * Request to merge device user into email account.
+ * Note: Field names match database columns (device_id, email)
  */
 export interface DeviceMergeRequest {
   id: string;
-  deviceUserId: string;
-  targetEmail: string;
+  deviceId: string;  // Maps to device_id column
+  email: string;  // Maps to email column
   status: 'pending' | 'approved' | 'rejected' | 'completed';
-  mergeToken: string;
-  expiresAt: string;
+  mergeToken?: string;  // Optional until migration adds column
+  expiresAt?: string;  // Optional until migration adds column
   createdAt: string;
   completedAt: string | null;
 }
@@ -190,7 +190,6 @@ export function transformUser(row: Record<string, unknown>): User {
     licenseIssueDate: row.license_issue_date as string | null,
     licenseExpiryDate: row.license_expiry_date as string | null,
     primaryHarvestArea: row.primary_harvest_area as string | null,
-    primaryFishingArea: row.primary_fishing_area as string | null,
     primaryFishingMethod: row.primary_fishing_method as string | null,
     totalReports: row.total_reports as number,
     totalFish: row.total_fish_reported as number,
@@ -217,6 +216,7 @@ export function transformSpeciesStat(row: Record<string, unknown>): SpeciesStat 
 
 /**
  * Transform Supabase achievement row to Achievement type.
+ * Note: DB column is 'icon' not 'icon_name', and requirement/sort_order may not exist
  */
 export function transformAchievement(row: Record<string, unknown>): Achievement {
   return {
@@ -224,10 +224,10 @@ export function transformAchievement(row: Record<string, unknown>): Achievement 
     code: row.code as string,
     name: row.name as string,
     description: row.description as string,
-    iconName: row.icon_name as string,
+    iconName: (row.icon as string) || null,  // DB column is 'icon'
     category: row.category as Achievement['category'],
-    requirement: row.requirement as Record<string, unknown>,
-    sortOrder: row.sort_order as number,
+    requirement: row.requirement as Record<string, unknown> | undefined,
+    sortOrder: row.sort_order as number | undefined,
     isActive: row.is_active as boolean,
   };
 }

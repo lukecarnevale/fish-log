@@ -317,3 +317,69 @@ export async function clearPendingSubmission(): Promise<void> {
   await clearCachedSubmission();
   console.log('✅ Pending submission dismissed');
 }
+
+/**
+ * Update the pending submission with a drawing entry ID.
+ * Called when a pending user enters the quarterly rewards drawing.
+ * This persists the entry so it can be migrated after authentication.
+ */
+export async function updatePendingDrawingEntry(drawingId: string): Promise<boolean> {
+  const submission = await getPendingSubmission();
+
+  if (!submission) {
+    console.log('📦 No pending submission to update with drawing entry');
+    return false;
+  }
+
+  // Update form data with drawing ID
+  const updatedFormData = {
+    ...submission.formData,
+    drawingId,
+  };
+
+  const connected = await isSupabaseConnected();
+
+  if (connected && !submission.id.startsWith('local_')) {
+    try {
+      const { error } = await supabase
+        .from('pending_submissions')
+        .update({
+          form_data: updatedFormData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', submission.id);
+
+      if (error) {
+        console.warn('⚠️ Failed to update drawing entry in Supabase:', error.message);
+      } else {
+        console.log('✅ Pending drawing entry saved to Supabase:', drawingId);
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to update pending submission in Supabase:', error);
+    }
+  }
+
+  // Always update local cache
+  const updatedSubmission = {
+    ...submission,
+    formData: updatedFormData,
+  };
+  await cacheSubmission(updatedSubmission);
+  console.log('📱 Pending drawing entry saved locally:', drawingId);
+
+  return true;
+}
+
+/**
+ * Get the drawing ID from a pending submission, if one exists.
+ * Returns null if no pending submission or no drawing entry.
+ */
+export async function getPendingDrawingId(): Promise<string | null> {
+  const submission = await getPendingSubmission();
+
+  if (!submission) {
+    return null;
+  }
+
+  return submission.formData?.drawingId || null;
+}

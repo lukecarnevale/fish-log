@@ -28,7 +28,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (keep .env.development and .env.production in git)
+.env
+.env.local
 .env*.local
 
 # typescript

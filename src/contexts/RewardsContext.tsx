@@ -30,7 +30,9 @@ import {
   refreshRewardsData,
   checkForNewQuarter,
   setLastSeenDrawingId,
+  getPendingDrawingEntry,
 } from '../services/rewardsService';
+import { updatePendingDrawingEntry } from '../services/pendingSubmissionService';
 import { FALLBACK_CONFIG, FALLBACK_DRAWING } from '../data/rewardsFallbackData';
 import { getCurrentUserState } from '../services/anonymousUserService';
 import { getRewardsMemberForAnonymousUser } from '../services/userService';
@@ -258,7 +260,22 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
       const data = await fetchRewardsData(effectiveUserId);
       setConfig(data.config);
       setCurrentDrawing(data.currentDrawing);
-      setUserEntry(data.userEntry);
+
+      // If no user entry from Supabase and user is not authenticated,
+      // check for a pending drawing entry (user entered before completing auth)
+      let finalUserEntry = data.userEntry;
+      if (!data.userEntry && !effectiveUserId && data.currentDrawing) {
+        try {
+          const pendingEntry = await getPendingDrawingEntry(data.currentDrawing.id);
+          if (pendingEntry) {
+            console.log('🎫 Found pending drawing entry for unauthenticated user');
+            finalUserEntry = pendingEntry;
+          }
+        } catch (err) {
+          console.warn('Could not check pending drawing entry:', err);
+        }
+      }
+      setUserEntry(finalUserEntry);
     } catch (err) {
       console.error('Failed to load rewards data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load rewards');
@@ -380,8 +397,16 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
       }
 
       if (!effectiveUserId) {
-        // No rewards member - just record locally for anonymous user
+        // No rewards member - record locally for anonymous/pending user
         await recordDrawingEntry(currentDrawing.id);
+
+        // Also save to pending submission for migration after auth
+        try {
+          await updatePendingDrawingEntry(currentDrawing.id);
+        } catch (err) {
+          console.warn('Could not save pending drawing entry:', err);
+        }
+
         setEnteredDrawingIds((prev) => [...prev, currentDrawing.id]);
         setUserEntry({
           userId: 'local',

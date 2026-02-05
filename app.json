@@ -29,6 +29,12 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "74ddedce-1140-4116-b211-76e1a61e9bc0"
+      }
+    },
+    "owner": "lukecarnevale"
   }
 }

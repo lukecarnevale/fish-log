@@ -8,6 +8,7 @@ export interface PendingSubmissionFormData {
   lastName?: string;
   phone?: string;
   harvestReportId?: string; // If report was already submitted to DMF
+  drawingId?: string; // Track pending rewards entry for users who enter before completing auth
 }
 
 export interface PendingSubmission {
