@@ -6,8 +6,10 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase, isSupabaseConnected } from '../config/supabase';
+import { withConnection } from './base';
 import { FeedbackInput, Feedback, transformFeedback } from '../types/feedback';
-import { getDeviceId, getCurrentUser } from './userService';
+import { getDeviceId } from './userService';
+import { getCurrentUser } from './userProfileService';
 
 /**
  * Get app version from Expo constants.
@@ -148,23 +150,19 @@ export async function getMyFeedback(): Promise<Feedback[]> {
   const connected = await isSupabaseConnected();
   if (!connected) return [];
 
-  try {
-    const user = await getCurrentUser();
-    if (!user) return [];
+  const user = await getCurrentUser();
+  if (!user) return [];
 
-    const { data, error } = await supabase
-      .from('feedback')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+  const data = await withConnection(
+    async () =>
+      await supabase
+        .from('feedback')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false }),
+    'getMyFeedback',
+    []
+  );
 
-    if (error) {
-      console.warn('Failed to fetch feedback:', error.message);
-      return [];
-    }
-
-    return (data || []).map(transformFeedback);
-  } catch {
-    return [];
-  }
+  return (data || []).map(transformFeedback);
 }

@@ -1,5 +1,5 @@
 import { StyleSheet, Platform, Dimensions } from 'react-native';
-import { colors, spacing, borderRadius, shadows, typography } from './common';
+import { colors, spacing, borderRadius, shadows, typography, modals } from './common';
 
 export const styles = StyleSheet.create({
   safeArea: {
@@ -42,7 +42,7 @@ export const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -308,7 +308,7 @@ export const styles = StyleSheet.create({
   formCloseButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -501,30 +501,17 @@ export const styles = StyleSheet.create({
     ...typography.button,
     color: colors.white,
   },
-  // Date picker modal styles - matching ReportFormScreen
-  dateModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  // Date picker modal styles - uses common modal styles
+  dateModalOverlay: modals.overlay,
   dateModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
+    ...modals.content,
+    padding: spacing.lg,
   },
   dateModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   dateModalTitle: {
     fontSize: 20,
@@ -865,13 +852,13 @@ export const localStyles = StyleSheet.create({
   skeletonSubtitle: {
     width: 180,
     height: 12,
-    borderRadius: 4,
+    borderRadius: borderRadius.xs,
     backgroundColor: colors.border,
   },
   skeletonDescription: {
     width: '100%',
     height: 40,
-    borderRadius: 4,
+    borderRadius: borderRadius.xs,
     backgroundColor: colors.border,
     marginBottom: spacing.md,
   },
@@ -885,14 +872,14 @@ export const localStyles = StyleSheet.create({
   skeletonStatValue: {
     width: 40,
     height: 24,
-    borderRadius: 4,
+    borderRadius: borderRadius.xs,
     backgroundColor: colors.border,
     marginBottom: spacing.xxs,
   },
   skeletonStatLabel: {
     width: 50,
     height: 12,
-    borderRadius: 4,
+    borderRadius: borderRadius.xs,
     backgroundColor: colors.border,
   },
   // Achievement section styles

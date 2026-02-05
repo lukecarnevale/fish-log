@@ -54,3 +54,6 @@ export {
   formatDate,
   calculateDerivedValues,
 } from './rewards';
+
+// Cache utility
+export { createCache } from './cache';

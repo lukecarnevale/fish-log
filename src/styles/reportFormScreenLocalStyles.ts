@@ -1,6 +1,6 @@
 // styles/reportFormScreenLocalStyles.ts
 import { StyleSheet, Platform, Dimensions, StatusBar } from 'react-native';
-import { colors } from './common';
+import { colors, spacing, borderRadius, modals } from './common';
 
 export const localStyles = StyleSheet.create({
   // Label row with info icon
@@ -16,9 +16,9 @@ export const localStyles = StyleSheet.create({
     left: 20,
     right: 20,
     backgroundColor: "#28a745",
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     flexDirection: "row",
     alignItems: "center",
     shadowColor: "#000",
@@ -68,7 +68,7 @@ export const localStyles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -92,7 +92,7 @@ export const localStyles = StyleSheet.create({
     backgroundColor: '#ff9800',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     marginRight: 12,
   },
   testModeBadgeText: {
@@ -109,37 +109,23 @@ export const localStyles = StyleSheet.create({
   faqButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // FAQ Modal styles
-  faqModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
+  // FAQ Modal styles - uses common modal styles
+  faqModalOverlay: modals.overlay,
   faqModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    width: '100%',
+    ...modals.content,
     maxHeight: '85%',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
   },
   faqModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.08)',
   },
@@ -154,7 +140,7 @@ export const localStyles = StyleSheet.create({
     color: colors.textPrimary,
   },
   faqScrollView: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
   },
   faqItem: {
     paddingVertical: 14,
@@ -176,11 +162,11 @@ export const localStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.md,
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: spacing.md,
     backgroundColor: colors.primaryLight,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
   },
   faqLinkText: {
     fontSize: 14,
@@ -205,7 +191,7 @@ export const localStyles = StyleSheet.create({
     left: 16,
     zIndex: 100,
     backgroundColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -257,7 +243,7 @@ export const localStyles = StyleSheet.create({
     borderBottomRightRadius: 24,
     paddingTop: 8,
     paddingBottom: 24, // Extra padding for bottom rounded corners
-    marginBottom: 20, // Space below the card to show the rounded corners
+    marginBottom: spacing.lg, // Space below the card to show the rounded corners
     minHeight: Dimensions.get('window').height - 100,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
@@ -270,9 +256,9 @@ export const localStyles = StyleSheet.create({
   reportingTypeOption: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
+    padding: spacing.md,
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: 12,
@@ -309,12 +295,12 @@ export const localStyles = StyleSheet.create({
   countContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   countButton: {
     width: 44,
     height: 44,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     backgroundColor: colors.lightGray,
     alignItems: "center",
     justifyContent: "center",
@@ -330,7 +316,7 @@ export const localStyles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textPrimary,
     backgroundColor: colors.white,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -350,8 +336,8 @@ export const localStyles = StyleSheet.create({
   },
   optionalSection: {
     backgroundColor: colors.lightGray,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
     marginBottom: 8,
   },
   // Multiple lengths styles
@@ -373,7 +359,7 @@ export const localStyles = StyleSheet.create({
     flex: 1,
     height: 40,
     backgroundColor: colors.white,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 12,
@@ -391,7 +377,7 @@ export const localStyles = StyleSheet.create({
   licenseToggleContainer: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   licenseToggleButton: {
     flex: 1,
@@ -423,7 +409,7 @@ export const localStyles = StyleSheet.create({
   },
   nameInput: {
     flex: 1,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   // Multi-fish list styles
   fishListContainer: {
@@ -440,7 +426,7 @@ export const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.lightGray,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     marginBottom: 6,
     overflow: "hidden",
   },
@@ -472,11 +458,11 @@ export const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.primary,
     borderStyle: "dashed",
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     marginTop: 12,
     backgroundColor: "rgba(11, 84, 139, 0.05)",
   },
@@ -505,9 +491,9 @@ export const localStyles = StyleSheet.create({
     backgroundColor: "#fff9e6",
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 16,
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
     borderWidth: 1.5,
     borderColor: "#f0c14b",
   },
@@ -523,7 +509,7 @@ export const localStyles = StyleSheet.create({
   raffleIconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: borderRadius.xl,
     backgroundColor: colors.primaryLight,
     alignItems: "center",
     justifyContent: "center",
@@ -536,8 +522,8 @@ export const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     backgroundColor: "#e8f5e9",
-    padding: 12,
-    borderRadius: 8,
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
   },
   raffleEnteredText: {
     fontSize: 14,
@@ -563,7 +549,7 @@ export const localStyles = StyleSheet.create({
     fontSize: 14,
     color: colors.darkGray,
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   raffleButton: {
     flexDirection: "row",
@@ -605,7 +591,7 @@ export const localStyles = StyleSheet.create({
     backgroundColor: "#f0fdf4",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: borderRadius.sm,
     marginTop: 12,
     borderWidth: 1,
     borderColor: "#bbf7d0",
@@ -640,7 +626,7 @@ export const localStyles = StyleSheet.create({
   catchFeedPhoto: {
     width: "100%",
     height: 160,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     backgroundColor: colors.lightGray,
   },
   catchFeedPhotoActions: {
@@ -669,7 +655,7 @@ export const localStyles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.primary,
     borderStyle: "dashed",
-    paddingVertical: 16,
+    paddingVertical: spacing.md,
     gap: 8,
   },
   catchFeedAddPhotoText: {
@@ -677,31 +663,19 @@ export const localStyles = StyleSheet.create({
     fontWeight: "600",
     color: colors.primary,
   },
-  // Raffle modal styles
-  raffleModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  // Raffle modal styles - uses common modal styles
+  raffleModalOverlay: modals.overlay,
   raffleModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
+    ...modals.content,
     width: "90%",
     maxHeight: "85%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-    overflow: "hidden",
   },
   raffleModalScrollContent: {
-    padding: 24,
+    padding: spacing.lg,
   },
   raffleModalHeader: {
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   raffleModalIconContainer: {
     width: 64,
@@ -727,10 +701,10 @@ export const localStyles = StyleSheet.create({
   raffleModalText: {
     fontSize: 15,
     color: colors.darkGray,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   raffleModalList: {
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   raffleModalListItem: {
     flexDirection: "row",
@@ -748,7 +722,7 @@ export const localStyles = StyleSheet.create({
     fontSize: 13,
     color: colors.darkGray,
     fontStyle: "italic",
-    marginBottom: 20,
+    marginBottom: spacing.lg,
     textAlign: "center",
   },
   raffleModalButtonsRow: {
@@ -762,7 +736,7 @@ export const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     borderRadius: 10,
   },
   raffleModalPrimaryButton: {
@@ -793,7 +767,7 @@ export const localStyles = StyleSheet.create({
     zIndex: 1,
   },
   raffleModalSection: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -815,7 +789,7 @@ export const localStyles = StyleSheet.create({
   rafflePhoto: {
     width: "100%",
     height: 180,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     backgroundColor: colors.lightGray,
   },
   rafflePhotoActions: {
@@ -840,7 +814,7 @@ export const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primaryLight,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     borderWidth: 2,
     borderColor: colors.primary,
     borderStyle: "dashed",
@@ -885,7 +859,7 @@ export const localStyles = StyleSheet.create({
   catchPhoto: {
     width: "100%",
     height: 250,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     backgroundColor: colors.lightGray,
   },
   photoActions: {
@@ -898,8 +872,8 @@ export const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.sm,
     backgroundColor: colors.primaryLight,
   },
   photoRemoveButton: {
@@ -915,8 +889,8 @@ export const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#e8f5e9",
-    padding: 12,
-    borderRadius: 8,
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
     marginTop: 12,
   },
   photoSuccessText: {
@@ -932,7 +906,7 @@ export const localStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primaryLight,
     borderStyle: "dashed",
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     paddingVertical: 32,
     paddingHorizontal: 24,
     marginTop: 12,
@@ -1019,24 +993,12 @@ export const localStyles = StyleSheet.create({
     color: "#ff9800",
     fontWeight: "500",
   },
-  // Abandonment modal styles
-  abandonModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  // Abandonment modal styles - uses common modal styles
+  abandonModalOverlay: modals.overlay,
   abandonModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
+    ...modals.content,
     width: "85%",
-    padding: 24,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
   },
   abandonModalIconContainer: {
     width: 64,
@@ -1045,7 +1007,7 @@ export const localStyles = StyleSheet.create({
     backgroundColor: "#fff3e0",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   abandonModalTitle: {
     fontSize: 20,
@@ -1144,30 +1106,17 @@ export const localStyles = StyleSheet.create({
   saveButtonTextSaved: {
     color: colors.success,
   },
-  // Date picker modal styles
-  dateModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  // Date picker modal styles - uses common modal styles
+  dateModalOverlay: modals.overlay,
   dateModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
+    ...modals.content,
     width: "90%",
-    maxWidth: 400,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
   },
   dateModalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   dateModalTitle: {
     fontSize: 20,
@@ -1225,7 +1174,7 @@ export const localStyles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     borderRadius: 10,
     paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     marginTop: 20,
     borderWidth: 1,
     borderColor: "rgba(0, 102, 153, 0.1)",
@@ -1245,7 +1194,7 @@ export const localStyles = StyleSheet.create({
     borderRadius: 10,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
-    padding: 16,
+    padding: spacing.md,
     marginTop: -2,
     borderWidth: 1,
     borderTopWidth: 0,
@@ -1264,25 +1213,17 @@ export const localStyles = StyleSheet.create({
     lineHeight: 15,
     fontStyle: 'italic',
   },
-  // Area of Harvest Info Modal styles
-  areaInfoModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
+  // Area of Harvest Info Modal styles - uses common modal styles
+  areaInfoModalOverlay: modals.overlay,
   areaInfoModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 24,
+    ...modals.content,
     width: "100%",
     maxWidth: 340,
   },
   areaInfoModalHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   areaInfoModalTitle: {
     fontSize: 20,
@@ -1298,7 +1239,7 @@ export const localStyles = StyleSheet.create({
   },
   areaInfoModalButton: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     paddingVertical: 14,
     paddingHorizontal: 20,
     flexDirection: "row",
@@ -1316,9 +1257,9 @@ export const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     backgroundColor: colors.primaryLight,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
     gap: 10,
   },
   areaInfoModalTipText: {

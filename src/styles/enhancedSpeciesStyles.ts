@@ -1,6 +1,6 @@
 // styles/enhancedSpeciesStyles.ts
 import { StyleSheet, ViewStyle, TextStyle, ImageStyle } from 'react-native';
-import { colors, spacing, typography, borderRadius, shadows } from './common';
+import { colors, spacing, typography, borderRadius, shadows, modals } from './common';
 
 const enhancedSpeciesStyles = StyleSheet.create({
   // Container styles
@@ -170,7 +170,7 @@ const enhancedSpeciesStyles = StyleSheet.create({
   seasonDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: borderRadius.xs,
     marginRight: spacing.xxs,
   },
   seasonActive: {
@@ -294,7 +294,7 @@ const enhancedSpeciesStyles = StyleSheet.create({
   paginationDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: borderRadius.xs,
     backgroundColor: colors.white,
     opacity: 0.5,
     marginHorizontal: 4,
@@ -513,7 +513,7 @@ const enhancedSpeciesStyles = StyleSheet.create({
   chevronContainer: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: borderRadius.lg,
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -536,19 +536,9 @@ const enhancedSpeciesStyles = StyleSheet.create({
     color: colors.white,
   },
   
-  // Filter modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  filterModal: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
-    padding: spacing.lg,
-    ...shadows.large,
-  },
+  // Filter modal - uses modals.overlayBottomSheet from common
+  modalOverlay: modals.overlayBottomSheet,
+  filterModal: modals.contentBottomSheet,
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

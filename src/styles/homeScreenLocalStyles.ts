@@ -1,7 +1,7 @@
 // styles/homeScreenLocalStyles.ts
 
 import { StyleSheet, ViewStyle, TextStyle, Platform, StatusBar, Dimensions } from 'react-native';
-import { colors } from './common';
+import { colors, spacing, borderRadius } from './common';
 
 interface HomeScreenLocalStyles {
   fixedHeader: ViewStyle;
@@ -92,7 +92,7 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     right: 16,
     zIndex: 100,
     backgroundColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -100,7 +100,7 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     elevation: 5,
   },
   floatingMenuTouchable: {
-    padding: 12,
+    padding: spacing.sm,
   },
   footerContainer: {
     position: 'relative',
@@ -143,8 +143,8 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
   // Unified Welcome Card styles
   welcomeCard: {
     backgroundColor: colors.secondary,
-    borderRadius: 16,
-    marginHorizontal: 16,
+    borderRadius: borderRadius.lg,
+    marginHorizontal: spacing.md,
     marginBottom: 0, // License card has its own marginTop
     overflow: 'hidden',
     shadowColor: '#000',
@@ -156,7 +156,7 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
   welcomeGreeting: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: spacing.md,
   },
   welcomeGreetingIcon: {
     width: 44,
@@ -165,7 +165,7 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
   welcomeGreetingText: {
     flex: 1,
@@ -186,8 +186,8 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.95)',
-    padding: 12,
-    paddingHorizontal: 16,
+    padding: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   welcomeRewardsSectionWithGreeting: {
     borderTopWidth: 1,
@@ -200,7 +200,7 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     backgroundColor: colors.secondaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: spacing.xs,
   },
   welcomeRewardsContent: {
     flex: 1,
@@ -268,8 +268,8 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
   },
   // License card gradient styles
   licenseCardGradient: {
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
