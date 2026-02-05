@@ -1,6 +1,6 @@
 // styles/fishingLicenseScreenStyles.ts
 import { StyleSheet, Platform } from "react-native";
-import { colors, spacing, typography, borderRadius } from "./common";
+import { colors, spacing, typography, borderRadius, shadows, modals } from "./common";
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   formCloseButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: borderRadius.md,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -532,30 +532,17 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
   },
-  // Date picker modal styles - matching ReportFormScreen and ProfileScreen
-  dateModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  // Date picker modal styles - uses common modal styles
+  dateModalOverlay: modals.overlay,
   dateModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
+    ...modals.content,
+    padding: spacing.lg,
   },
   dateModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   dateModalTitle: {
     fontSize: 20,

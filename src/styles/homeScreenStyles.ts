@@ -387,7 +387,7 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
   menuItemIcon: {
     width: 32, // Slightly smaller icons
     height: 32,
-    borderRadius: 16,
+    borderRadius: borderRadius.lg,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',

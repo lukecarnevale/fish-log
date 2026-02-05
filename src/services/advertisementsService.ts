@@ -4,60 +4,20 @@
 // Falls back to local data if Supabase is unavailable.
 
 import { supabase, isSupabaseConnected } from '../config/supabase';
+import { withConnection } from './base';
 import { advertisements as localAdvertisements, Advertisement as LocalAdvertisement } from '../data/advertisementsData';
+import {
+  transformAdvertisement,
+  type Advertisement,
+  type AdPlacement,
+} from './transformers/advertisementTransformer';
 
 // =============================================================================
 // Types
 // =============================================================================
 
-/**
- * Advertisement placement locations in the app.
- */
-export type AdPlacement = 'home' | 'catch_feed' | 'past_reports' | 'more_menu' | 'profile';
-
-/**
- * Advertisement from the database.
- */
-export interface Advertisement {
-  id: string;
-  companyName: string;
-  promoText: string;
-  promoCode?: string;
-  linkUrl: string;
-  imageUrl: string;
-  isActive: boolean;
-  priority: number;
-  placements: AdPlacement[];
-  startDate?: string;
-  endDate?: string;
-  clickCount: number;
-  impressionCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
- * Transform a Supabase row to Advertisement type.
- */
-function transformAdvertisement(row: Record<string, unknown>): Advertisement {
-  return {
-    id: row.id as string,
-    companyName: row.company_name as string,
-    promoText: row.promo_text as string,
-    promoCode: row.promo_code as string | undefined,
-    linkUrl: row.link_url as string,
-    imageUrl: row.image_url as string,
-    isActive: row.is_active as boolean,
-    priority: row.priority as number,
-    placements: row.placements as AdPlacement[],
-    startDate: row.start_date as string | undefined,
-    endDate: row.end_date as string | undefined,
-    clickCount: row.click_count as number,
-    impressionCount: row.impression_count as number,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-  };
-}
+// Re-export types for backwards compatibility
+export type { Advertisement, AdPlacement };
 
 /**
  * Convert local advertisement to the new format.
@@ -161,23 +121,19 @@ export async function fetchAdvertisementById(id: string): Promise<Advertisement 
   const connected = await isSupabaseConnected();
 
   if (connected) {
-    try {
-      const { data, error } = await supabase
-        .from('advertisements')
-        .select('*')
-        .eq('id', id)
-        .single();
+    const result = await withConnection(
+      async () =>
+        await supabase
+          .from('advertisements')
+          .select('*')
+          .eq('id', id)
+          .single(),
+      `fetchAdvertisementById(${id})`,
+      null
+    );
 
-      if (error) {
-        console.warn('Error fetching advertisement:', error.message);
-        return null;
-      }
-
-      if (data) {
-        return transformAdvertisement(data as Record<string, unknown>);
-      }
-    } catch (error) {
-      console.warn('Failed to fetch advertisement from Supabase:', error);
+    if (result) {
+      return transformAdvertisement(result as Record<string, unknown>);
     }
   }
 
