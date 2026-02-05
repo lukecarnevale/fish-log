@@ -27,6 +27,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HEADER_HEIGHT } from "../constants/ui";
 import { RootStackParamList, FishReportData, UserProfile, FishingLicense } from "../types";
 import styles from "../styles/reportFormScreenStyles";
 import { colors } from "../styles/common";
@@ -121,7 +122,6 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // Scroll animation for floating back button
   const scrollY = useRef(new Animated.Value(0)).current;
-  const HEADER_HEIGHT = 100;
 
   // Track scroll position for dynamic status bar style
   const [statusBarStyle, setStatusBarStyle] = useState<'light-content' | 'dark-content'>('light-content');

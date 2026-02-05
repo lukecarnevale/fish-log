@@ -24,13 +24,13 @@ import { getPendingAuth, clearPendingAuth, getCurrentAuthUser, getAuthState } fr
 import { backfillUserStatsFromReports } from './statsService';
 import { getEnteredDrawingIds, enterRewardsDrawing, fetchCurrentDrawing } from './rewardsService';
 import { getPendingSubmission } from './pendingSubmissionService';
+import { generateUUID, getDeviceId } from '../utils/deviceId';
 
 // Note: linkReportsToUser is imported lazily to avoid circular dependency with reportsService
 
 // Storage keys
 const STORAGE_KEYS = {
   currentUser: '@current_user',
-  deviceId: '@device_id',
   userStats: '@user_stats',
   userProfile: 'userProfile', // Used by ProfileScreen
 } as const;
@@ -96,41 +96,8 @@ async function migrateLocalRewardsEntries(userId: string): Promise<number> {
   }
 }
 
-// =============================================================================
-// Device ID Management
-// =============================================================================
-
-/**
- * Get or create a unique device ID.
- */
-export async function getDeviceId(): Promise<string> {
-  try {
-    let deviceId = await AsyncStorage.getItem(STORAGE_KEYS.deviceId);
-
-    if (!deviceId) {
-      // Generate a UUID-like device ID
-      deviceId = generateUUID();
-      await AsyncStorage.setItem(STORAGE_KEYS.deviceId, deviceId);
-    }
-
-    return deviceId;
-  } catch (error) {
-    console.error('Failed to get device ID:', error);
-    // Return a temporary ID if storage fails
-    return generateUUID();
-  }
-}
-
-/**
- * Generate a UUID v4.
- */
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+// Re-export getDeviceId from the shared utility
+export { getDeviceId } from '../utils/deviceId';
 
 // =============================================================================
 // Local Storage Helpers
