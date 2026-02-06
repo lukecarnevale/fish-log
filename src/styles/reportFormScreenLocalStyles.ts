@@ -999,6 +999,9 @@ export const localStyles = StyleSheet.create({
     ...modals.content,
     width: "85%",
     alignItems: "center",
+    padding: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
   },
   abandonModalIconContainer: {
     width: 64,
@@ -1111,6 +1114,7 @@ export const localStyles = StyleSheet.create({
   dateModalContent: {
     ...modals.content,
     width: "90%",
+    padding: spacing.lg,
   },
   dateModalHeader: {
     flexDirection: "row",
@@ -1219,6 +1223,7 @@ export const localStyles = StyleSheet.create({
     ...modals.content,
     width: "100%",
     maxWidth: 340,
+    padding: spacing.lg,
   },
   areaInfoModalHeader: {
     flexDirection: "row",
