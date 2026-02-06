@@ -14,7 +14,7 @@ import {
 } from '../services/authService';
 import {
   createRewardsMemberFromAuthUser,
-} from '../services/userService';
+} from '../services/rewardsConversionService';
 import {
   completePendingSubmissionByEmail,
 } from '../services/pendingSubmissionService';

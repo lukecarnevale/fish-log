@@ -26,7 +26,7 @@ import Svg, { Path, Ellipse, Circle, G } from 'react-native-svg';
 import { RootStackParamList } from '../types';
 import { CatchFeedEntry, TopAngler } from '../types/catchFeed';
 import { fetchRecentCatches, fetchTopAnglers, likeCatch, unlikeCatch, enrichCatchesWithLikes, PaginatedCatchFeed } from '../services/catchFeedService';
-import { getRewardsMemberForAnonymousUser } from '../services/userService';
+import { getRewardsMemberForAnonymousUser } from '../services/rewardsConversionService';
 import { onAuthStateChange } from '../services/authService';
 import { SPECIES_ALIASES } from '../constants/speciesAliases';
 import { sampleCatchFeedEntries, sampleTopAnglers } from '../data/catchFeedData';

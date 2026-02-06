@@ -40,7 +40,8 @@ import {
   signOut,
   onAuthStateChange,
 } from "../services/authService";
-import { isRewardsMember, getCurrentUser, updateCurrentUser, getUserStats } from "../services/userService";
+import { getCurrentUser, updateCurrentUser, getUserStats } from "../services/userProfileService";
+import { isRewardsMember } from "../services/rewardsConversionService";
 import { User, UserAchievement } from "../types/user";
 import { useZipCodeLookup } from "../hooks/useZipCodeLookup";
 import { useFishingStats } from "../hooks/useFishingStats";
@@ -398,6 +399,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             lastName: formData.lastName || undefined,
             email: formData.email || undefined,
             phone: formData.phone || undefined,
+            dateOfBirth: formData.dateOfBirth || undefined,
             zipCode: formData.zipCode || undefined,
             hasLicense: formData.hasLicense,
             wrcId: formData.wrcId || undefined,

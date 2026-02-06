@@ -36,7 +36,8 @@ import {
   AppMode,
 } from "../config/appConfig";
 import { getPendingAuth, PendingAuth, onAuthStateChange } from "../services/authService";
-import { isRewardsMember, getCurrentUser, getUserStats } from "../services/userService";
+import { getCurrentUser, getUserStats } from "../services/userProfileService";
+import { isRewardsMember } from "../services/rewardsConversionService";
 import { UserAchievement } from "../types/user";
 import { BADGE_STORAGE_KEYS } from "../utils/badgeUtils";
 import { SCREEN_LABELS } from "../constants/screenLabels";
@@ -568,7 +569,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
                         );
                       })}
                     {userAchievements.length > 3 && (
-                      <View style={[localStyles.achievementIconBadge, localStyles.achievementCountBadge, { marginLeft: -8 }]}>
+                      <View key="achievement-overflow" style={[localStyles.achievementIconBadge, localStyles.achievementCountBadge, { marginLeft: -8 }]}>
                         <Text style={localStyles.achievementCountText}>+{userAchievements.length - 3}</Text>
                       </View>
                     )}

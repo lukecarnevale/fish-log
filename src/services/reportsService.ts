@@ -21,6 +21,7 @@ import { getOrCreateAnonymousUser } from './anonymousUserService';
 import { ensurePublicPhotoUrl, isLocalUri } from './photoUploadService';
 import { fetchCurrentDrawing, addReportToRewardsEntry } from './rewardsService';
 import { updateAllStatsAfterReport, AwardedAchievement } from './statsService';
+import { getDeviceId } from '../utils/deviceId';
 
 // Re-export for convenience
 export type { AwardedAchievement } from './statsService';
@@ -116,76 +117,163 @@ async function removeFromPendingSync(reportId: string): Promise<void> {
 // =============================================================================
 
 /**
- * Create a report in Supabase.
+ * Create a report in Supabase using the atomic RPC function.
  */
 async function createReportInSupabase(input: ReportInput): Promise<StoredReport> {
-  const { data, error } = await supabase
-    .from('harvest_reports')
-    .insert({
-      user_id: input.userId || null,
-      anonymous_user_id: input.anonymousUserId || null,
-      dmf_status: input.dmfStatus || 'pending',
-      dmf_confirmation_number: input.dmfConfirmationNumber || null,
-      dmf_object_id: input.dmfObjectId || null,
-      dmf_submitted_at: input.dmfSubmittedAt || null,
-      has_license: input.hasLicense,
-      wrc_id: input.wrcId || null,
-      first_name: input.firstName || null,
-      last_name: input.lastName || null,
-      zip_code: input.zipCode || null,
-      phone: input.phone || null,
-      email: input.email || null,
-      want_text_confirmation: input.wantTextConfirmation,
-      want_email_confirmation: input.wantEmailConfirmation,
-      harvest_date: input.harvestDate,
-      area_code: input.areaCode,
-      area_label: input.areaLabel || null,
-      used_hook_and_line: input.usedHookAndLine,
-      gear_code: input.gearCode || null,
-      gear_label: input.gearLabel || null,
-      red_drum_count: input.redDrumCount,
-      flounder_count: input.flounderCount,
-      spotted_seatrout_count: input.spottedSeatroutCount,
-      weakfish_count: input.weakfishCount,
-      striped_bass_count: input.stripedBassCount,
-      reporting_for: input.reportingFor,
-      family_count: input.familyCount || null,
-      notes: input.notes || null,
-      photo_url: input.photoUrl || null,
-      gps_latitude: input.gpsLatitude || null,
-      gps_longitude: input.gpsLongitude || null,
-      entered_rewards: input.enteredRewards || false,
-      rewards_drawing_id: input.rewardsDrawingId || null,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to create report: ${error.message}`);
-  }
-
-  const report = transformReport(data);
-
-  // Create fish entries if provided
-  if (input.fishEntries && input.fishEntries.length > 0) {
-    const fishEntriesData = input.fishEntries.map((entry) => ({
-      report_id: report.id,
+  // Prepare the input JSONB for the RPC function
+  const rpcInput = {
+    user_id: input.userId || null,
+    anonymous_user_id: input.anonymousUserId || null,
+    dmf_status: input.dmfStatus || 'pending',
+    dmf_confirmation_number: input.dmfConfirmationNumber || null,
+    dmf_object_id: input.dmfObjectId || null,
+    dmf_submitted_at: input.dmfSubmittedAt || null,
+    has_license: input.hasLicense,
+    wrc_id: input.wrcId || null,
+    first_name: input.firstName || null,
+    last_name: input.lastName || null,
+    zip_code: input.zipCode || null,
+    phone: input.phone || null,
+    email: input.email || null,
+    want_text_confirmation: input.wantTextConfirmation,
+    want_email_confirmation: input.wantEmailConfirmation,
+    harvest_date: input.harvestDate,
+    area_code: input.areaCode,
+    area_label: input.areaLabel || null,
+    used_hook_and_line: input.usedHookAndLine,
+    gear_code: input.gearCode || null,
+    gear_label: input.gearLabel || null,
+    red_drum_count: input.redDrumCount,
+    flounder_count: input.flounderCount,
+    spotted_seatrout_count: input.spottedSeatroutCount,
+    weakfish_count: input.weakfishCount,
+    striped_bass_count: input.stripedBassCount,
+    reporting_for: input.reportingFor,
+    family_count: input.familyCount || null,
+    notes: input.notes || null,
+    photo_url: input.photoUrl || null,
+    gps_latitude: input.gpsLatitude || null,
+    gps_longitude: input.gpsLongitude || null,
+    entered_rewards: input.enteredRewards || false,
+    rewards_drawing_id: input.rewardsDrawingId || null,
+    fish_entries: input.fishEntries?.map((entry) => ({
       species: entry.species,
       count: entry.count,
       lengths: entry.lengths || null,
       tag_number: entry.tagNumber || null,
-    }));
+    })) || [],
+  };
 
-    const { error: fishError } = await supabase
-      .from('fish_entries')
-      .insert(fishEntriesData);
+  // Use appropriate RPC function based on user type
+  if (input.userId) {
+    // Authenticated user
+    const { data, error } = await supabase.rpc('create_report_atomic', {
+      p_input: rpcInput,
+    });
 
-    if (fishError) {
-      console.warn('Failed to create fish entries:', fishError.message);
+    if (error) {
+      throw new Error(`Failed to create report: ${error.message}`);
     }
-  }
 
-  return report;
+    // Transform the response
+    const report: StoredReport = {
+      id: data.report_id,
+      userId: input.userId,
+      anonymousUserId: null,
+      dmfStatus: data.dmf_status || 'pending',
+      dmfConfirmationNumber: null,
+      dmfObjectId: null,
+      dmfSubmittedAt: null,
+      dmfError: null,
+      hasLicense: input.hasLicense,
+      wrcId: input.wrcId || null,
+      firstName: input.firstName || null,
+      lastName: input.lastName || null,
+      zipCode: input.zipCode || null,
+      phone: input.phone || null,
+      email: input.email || null,
+      wantTextConfirmation: input.wantTextConfirmation,
+      wantEmailConfirmation: input.wantEmailConfirmation,
+      harvestDate: input.harvestDate,
+      areaCode: input.areaCode,
+      areaLabel: input.areaLabel || null,
+      usedHookAndLine: input.usedHookAndLine,
+      gearCode: input.gearCode || null,
+      gearLabel: input.gearLabel || null,
+      redDrumCount: input.redDrumCount,
+      flounderCount: input.flounderCount,
+      spottedSeatroutCount: input.spottedSeatroutCount,
+      weakfishCount: input.weakfishCount,
+      stripedBassCount: input.stripedBassCount,
+      reportingFor: input.reportingFor,
+      familyCount: input.familyCount || null,
+      notes: input.notes || null,
+      photoUrl: input.photoUrl || null,
+      gpsLatitude: input.gpsLatitude || null,
+      gpsLongitude: input.gpsLongitude || null,
+      enteredRewards: input.enteredRewards || false,
+      rewardsDrawingId: input.rewardsDrawingId || null,
+      createdAt: data.created_at,
+      updatedAt: data.created_at,
+    };
+
+    return report;
+  } else {
+    // Anonymous user
+    const deviceId = await getDeviceId();
+    const { data, error } = await supabase.rpc('create_report_anonymous', {
+      p_device_id: deviceId,
+      p_input: rpcInput,
+    });
+
+    if (error) {
+      throw new Error(`Failed to create report: ${error.message}`);
+    }
+
+    // Transform the response
+    const report: StoredReport = {
+      id: data.report_id,
+      userId: null,
+      anonymousUserId: data.anonymous_user_id,
+      dmfStatus: data.dmf_status || 'pending',
+      dmfConfirmationNumber: null,
+      dmfObjectId: null,
+      dmfSubmittedAt: null,
+      dmfError: null,
+      hasLicense: input.hasLicense,
+      wrcId: input.wrcId || null,
+      firstName: input.firstName || null,
+      lastName: input.lastName || null,
+      zipCode: input.zipCode || null,
+      phone: input.phone || null,
+      email: input.email || null,
+      wantTextConfirmation: input.wantTextConfirmation,
+      wantEmailConfirmation: input.wantEmailConfirmation,
+      harvestDate: input.harvestDate,
+      areaCode: input.areaCode,
+      areaLabel: input.areaLabel || null,
+      usedHookAndLine: input.usedHookAndLine,
+      gearCode: input.gearCode || null,
+      gearLabel: input.gearLabel || null,
+      redDrumCount: input.redDrumCount,
+      flounderCount: input.flounderCount,
+      spottedSeatroutCount: input.spottedSeatroutCount,
+      weakfishCount: input.weakfishCount,
+      stripedBassCount: input.stripedBassCount,
+      reportingFor: input.reportingFor,
+      familyCount: input.familyCount || null,
+      notes: input.notes || null,
+      photoUrl: input.photoUrl || null,
+      gpsLatitude: input.gpsLatitude || null,
+      gpsLongitude: input.gpsLongitude || null,
+      enteredRewards: input.enteredRewards || false,
+      rewardsDrawingId: input.rewardsDrawingId || null,
+      createdAt: data.created_at,
+      updatedAt: data.created_at,
+    };
+
+    return report;
+  }
 }
 
 /**
@@ -217,32 +305,61 @@ async function updateDMFStatusInSupabase(
 
 /**
  * Fetch all reports for a user from Supabase.
- * Queries by user_id for rewards members, or anonymous_user_id for anonymous users.
+ * Uses RPC for anonymous users, direct query with RLS for authenticated users.
  */
 async function fetchReportsFromSupabase(
   userId?: string,
   anonymousUserId?: string
 ): Promise<StoredReport[]> {
-  let query = supabase.from('harvest_reports').select('*');
+  // For authenticated users, use RLS-protected direct query
+  if (userId && !anonymousUserId) {
+    const { data, error } = await supabase
+      .from('harvest_reports')
+      .select('*')
+      .eq('user_id', userId)
+      .order('harvest_date', { ascending: false });
 
+    if (error) {
+      throw new Error(`Failed to fetch reports: ${error.message}`);
+    }
+
+    return (data || []).map(transformReport);
+  }
+
+  // For rewards members with anonymous history, query both user_id and anonymous_user_id
   if (userId && anonymousUserId) {
-    // Get reports from both (for rewards members with history)
-    query = query.or(`user_id.eq.${userId},anonymous_user_id.eq.${anonymousUserId}`);
-  } else if (userId) {
-    query = query.eq('user_id', userId);
-  } else if (anonymousUserId) {
-    query = query.eq('anonymous_user_id', anonymousUserId);
-  } else {
-    return [];
+    const { data, error } = await supabase
+      .from('harvest_reports')
+      .select('*')
+      .or(`user_id.eq.${userId},anonymous_user_id.eq.${anonymousUserId}`)
+      .order('harvest_date', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch reports: ${error.message}`);
+    }
+
+    return (data || []).map(transformReport);
   }
 
-  const { data, error } = await query.order('harvest_date', { ascending: false });
+  // For anonymous users, use RPC function
+  if (anonymousUserId) {
+    const { data, error } = await supabase.rpc('get_reports_for_device', {
+      p_device_id: await getDeviceId(),
+    });
 
-  if (error) {
-    throw new Error(`Failed to fetch reports: ${error.message}`);
+    if (error) {
+      throw new Error(`Failed to fetch reports: ${error.message}`);
+    }
+
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    // Transform each report from the JSONB array
+    return data.map((report) => transformReport(report));
   }
 
-  return (data || []).map(transformReport);
+  return [];
 }
 
 /**

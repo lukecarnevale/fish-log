@@ -8,7 +8,7 @@ import Constants from 'expo-constants';
 import { supabase, isSupabaseConnected } from '../config/supabase';
 import { withConnection } from './base';
 import { FeedbackInput, Feedback, transformFeedback } from '../types/feedback';
-import { getDeviceId } from './userService';
+import { getDeviceId } from '../utils/deviceId';
 import { getCurrentUser } from './userProfileService';
 
 /**
@@ -29,7 +29,7 @@ function getPlatformInfo(): { platform: string; osVersion: string } {
 }
 
 /**
- * Submit feedback to Supabase.
+ * Submit feedback to Supabase using RPC function.
  */
 export async function submitFeedback(input: FeedbackInput): Promise<{
   success: boolean;
@@ -51,24 +51,24 @@ export async function submitFeedback(input: FeedbackInput): Promise<{
     const { platform, osVersion } = getPlatformInfo();
     const appVersion = getAppVersion();
 
-    const { data, error } = await supabase
-      .from('feedback')
-      .insert({
-        user_id: user?.id || null,
-        device_id: deviceId,
-        type: input.type,
-        subject: input.subject || null,
-        message: input.message,
-        email: input.email || null,
-        app_version: appVersion,
-        platform,
-        os_version: osVersion,
-        screen_name: input.screenName || null,
-        error_message: input.errorMessage || null,
-        status: 'new',
-      })
-      .select()
-      .single();
+    // Build the input JSONB for the RPC function
+    const rpcInput = {
+      user_id: user?.id || null,
+      device_id: deviceId,
+      type: input.type,
+      subject: input.subject || null,
+      message: input.message,
+      email: input.email || null,
+      app_version: appVersion,
+      platform,
+      os_version: osVersion,
+      screen_name: input.screenName || null,
+      error_message: input.errorMessage || null,
+    };
+
+    const { data, error } = await supabase.rpc('submit_feedback_rpc', {
+      p_input: rpcInput,
+    });
 
     if (error) {
       console.error('Failed to submit feedback:', error.message);
@@ -78,10 +78,10 @@ export async function submitFeedback(input: FeedbackInput): Promise<{
       };
     }
 
-    console.log('✅ Feedback submitted:', data.id);
+    console.log('✅ Feedback submitted:', data);
     return {
       success: true,
-      feedbackId: data.id,
+      feedbackId: data,
     };
   } catch (err) {
     console.error('Error submitting feedback:', err);

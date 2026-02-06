@@ -98,11 +98,15 @@ export async function syncToUserProfile(user: User): Promise<void> {
       email: user.email || profileData.email,
       phone: user.phone || profileData.phone,
       zipCode: user.zipCode || profileData.zipCode,
+      dateOfBirth: user.dateOfBirth || profileData.dateOfBirth,
       hasLicense: user.hasLicense ?? profileData.hasLicense,
       wrcId: user.wrcId || profileData.wrcId,
+      licenseNumber: user.licenseNumber || profileData.licenseNumber,
       profileImage: user.profileImageUrl || profileData.profileImage,
       preferredAreaCode: user.preferredAreaCode || profileData.preferredAreaCode,
       preferredAreaLabel: user.preferredAreaLabel || profileData.preferredAreaLabel,
+      primaryHarvestArea: user.primaryHarvestArea || profileData.primaryHarvestArea,
+      primaryFishingMethod: user.primaryFishingMethod || profileData.primaryFishingMethod,
     };
 
     await AsyncStorage.setItem(STORAGE_KEYS.userProfile, JSON.stringify(updatedProfile));
@@ -129,8 +133,10 @@ export async function updateUserInSupabase(userId: string, input: UserInput): Pr
   if (input.profileImageUrl !== undefined) updateData.profile_image_url = input.profileImageUrl || null;
   if (input.preferredAreaCode !== undefined) updateData.preferred_area_code = input.preferredAreaCode || null;
   if (input.preferredAreaLabel !== undefined) updateData.preferred_area_label = input.preferredAreaLabel || null;
+  if (input.dateOfBirth !== undefined) updateData.date_of_birth = input.dateOfBirth || null;
   if (input.hasLicense !== undefined) updateData.has_license = input.hasLicense;
   if (input.wrcId !== undefined) updateData.wrc_id = input.wrcId || null;
+  if (input.licenseNumber !== undefined) updateData.license_number = input.licenseNumber || null;
   if (input.phone !== undefined) updateData.phone = input.phone || null;
   if (input.wantsTextConfirmation !== undefined) updateData.wants_text_confirmation = input.wantsTextConfirmation;
   if (input.wantsEmailConfirmation !== undefined) updateData.wants_email_confirmation = input.wantsEmailConfirmation;
@@ -156,58 +162,58 @@ export async function updateUserInSupabase(userId: string, input: UserInput): Pr
 
 /**
  * Fetch user stats from Supabase.
+ * Uses the get_user_profile_stats RPC which returns all stats in a single call.
  */
 export async function fetchStatsFromSupabase(userId: string): Promise<UserStats> {
-  // Get species stats
-  const { data: speciesData, error: speciesError } = await supabase
-    .from('user_species_stats')
-    .select('*')
-    .eq('user_id', userId);
+  // Call get_user_profile_stats RPC
+  const { data: rpcResult, error: rpcError } = await supabase
+    .rpc('get_user_profile_stats', {
+      p_user_id: userId,
+    });
 
-  if (speciesError) {
-    console.warn('Failed to fetch species stats:', speciesError.message);
+  if (rpcError) {
+    throw new Error(`Failed to fetch user stats: ${rpcError.message}`);
   }
 
-  const speciesStats: SpeciesStat[] = (speciesData || []).map(transformSpeciesStat);
-
-  // Get user achievements with achievement details
-  const { data: achievementsData, error: achievementsError } = await supabase
-    .from('user_achievements')
-    .select(`
-      *,
-      achievements (*)
-    `)
-    .eq('user_id', userId);
-
-  if (achievementsError) {
-    console.warn('Failed to fetch achievements:', achievementsError.message);
+  if (!rpcResult) {
+    throw new Error('No stats returned from RPC');
   }
 
-  const achievements: UserAchievement[] = (achievementsData || [])
-    .map((row: Record<string, unknown>) => {
-      const achievementData = row.achievements as Record<string, unknown>;
-      if (!achievementData) return null;
-      return transformUserAchievement(row, transformAchievement(achievementData));
-    })
-    .filter((a): a is UserAchievement => a !== null);
+  // Transform species stats from the RPC result
+  const speciesStats: SpeciesStat[] = (rpcResult.speciesStats || []).map((stat: any) => {
+    return {
+      species: stat.species,
+      totalCount: stat.total_count || stat.totalCount || 0,
+      largestLength: stat.largest_length || stat.largestLength || null,
+      lastCaughtDate: stat.last_caught_at || stat.lastCaughtAt || null,
+    };
+  });
 
-  // Get user for denormalized stats
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('total_reports, total_fish_reported, current_streak_days, longest_streak_days, last_active_at')
-    .eq('id', userId)
-    .single();
-
-  if (userError) {
-    throw new Error(`Failed to fetch user stats: ${userError.message}`);
-  }
+  // Transform achievements from the RPC result
+  const achievements: UserAchievement[] = (rpcResult.achievements || []).map((ach: any) => {
+    return {
+      id: ach.id,
+      achievementId: ach.achievement_id || ach.achievementId,
+      earnedAt: ach.earned_at || ach.earnedAt,
+      progress: ach.progress || null,
+      achievement: {
+        id: ach.achievement_id || ach.achievementId,
+        code: ach.code,
+        name: ach.name,
+        description: ach.description,
+        category: ach.category,
+        iconName: ach.icon,
+        points: ach.points,
+      },
+    };
+  });
 
   return {
-    totalReports: userData.total_reports as number,
-    totalFish: userData.total_fish_reported as number,
-    currentStreak: userData.current_streak_days as number,
-    longestStreak: userData.longest_streak_days as number,
-    lastReportDate: userData.last_active_at as string | null,
+    totalReports: rpcResult.totalReports as number,
+    totalFish: rpcResult.totalFish as number,
+    currentStreak: rpcResult.currentStreak as number,
+    longestStreak: rpcResult.longestStreak as number,
+    lastReportDate: rpcResult.lastActiveAt as string | null,
     speciesStats,
     achievements,
   };

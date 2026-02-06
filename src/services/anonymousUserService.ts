@@ -59,20 +59,14 @@ async function cacheAnonymousUser(user: AnonymousUser): Promise<void> {
 // =============================================================================
 
 /**
- * Find anonymous user by device ID.
+ * Find anonymous user by device ID using RPC function.
  */
 async function findAnonymousUserByDeviceId(deviceId: string): Promise<AnonymousUser | null> {
-  const { data, error } = await supabase
-    .from('anonymous_users')
-    .select('*')
-    .eq('device_id', deviceId)
-    .limit(1)
-    .single();
+  const { data, error } = await supabase.rpc('get_anonymous_user', {
+    p_device_id: deviceId,
+  });
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // No user found
-    }
     throw new Error(`Failed to find anonymous user: ${error.message}`);
   }
 
@@ -80,20 +74,15 @@ async function findAnonymousUserByDeviceId(deviceId: string): Promise<AnonymousU
 }
 
 /**
- * Create a new anonymous user in Supabase.
+ * Create or update an anonymous user in Supabase using atomic upsert.
  */
 async function createAnonymousUserInSupabase(input: AnonymousUserInput): Promise<AnonymousUser> {
-  const { data, error } = await supabase
-    .from('anonymous_users')
-    .insert({
-      device_id: input.deviceId,
-      dismissed_rewards_prompt: input.dismissedRewardsPrompt ?? false,
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('upsert_anonymous_user', {
+    p_device_id: input.deviceId,
+  });
 
   if (error) {
-    throw new Error(`Failed to create anonymous user: ${error.message}`);
+    throw new Error(`Failed to create or update anonymous user: ${error.message}`);
   }
 
   return transformAnonymousUser(data);
@@ -101,11 +90,27 @@ async function createAnonymousUserInSupabase(input: AnonymousUserInput): Promise
 
 /**
  * Update anonymous user in Supabase.
+ * For dismiss_rewards_prompt, use the dedicated RPC function.
  */
 async function updateAnonymousUserInSupabase(
   userId: string,
   updates: Partial<AnonymousUserInput> & { lastActiveAt?: string }
 ): Promise<AnonymousUser> {
+  // If only dismissing rewards prompt, use the dedicated RPC function
+  if (updates.dismissedRewardsPrompt === true && updates.lastActiveAt === undefined) {
+    const deviceId = await getDeviceId();
+    const { data, error } = await supabase.rpc('dismiss_rewards_prompt', {
+      p_device_id: deviceId,
+    });
+
+    if (error) {
+      throw new Error(`Failed to update anonymous user: ${error.message}`);
+    }
+
+    return transformAnonymousUser(data);
+  }
+
+  // For other updates, fall back to direct update
   const updateData: Record<string, unknown> = {};
 
   if (updates.dismissedRewardsPrompt !== undefined) {
@@ -191,37 +196,15 @@ async function doGetOrCreateAnonymousUser(): Promise<AnonymousUser> {
 
   if (connected) {
     try {
-      let user = await findAnonymousUserByDeviceId(deviceId);
+      // Use upsert_anonymous_user which atomically creates or updates the user
+      let user = await createAnonymousUserInSupabase({ deviceId });
+      console.log('✅ Anonymous user ensured in Supabase');
 
-      if (!user) {
-        // Try to create new anonymous user
-        try {
-          user = await createAnonymousUserInSupabase({ deviceId });
-          console.log('✅ Created new anonymous user in Supabase');
-        } catch (createError) {
-          // If duplicate key error, user was created by another call - fetch it
-          const errorMessage = createError instanceof Error ? createError.message : '';
-          if (errorMessage.includes('duplicate key') || errorMessage.includes('device_id')) {
-            console.log('🔄 Anonymous user already exists, fetching...');
-            user = await findAnonymousUserByDeviceId(deviceId);
-          } else {
-            throw createError;
-          }
-        }
-      } else {
-        // Update last active timestamp
-        user = await updateAnonymousUserInSupabase(user.id, {
-          lastActiveAt: new Date().toISOString(),
-        });
-      }
-
-      // Cache the user if found
-      if (user) {
-        await cacheAnonymousUser(user);
-        return user;
-      }
+      // Cache the user
+      await cacheAnonymousUser(user);
+      return user;
     } catch (error) {
-      console.warn('⚠️ Supabase anonymous user fetch failed, using cache:', error);
+      console.warn('⚠️ Supabase anonymous user operation failed, using cache:', error);
     }
   }
 
