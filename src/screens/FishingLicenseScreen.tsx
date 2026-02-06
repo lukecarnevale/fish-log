@@ -227,13 +227,15 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   };
 
   // Helper to safely get a valid Date object from a date string
+  // Returns today's date for any invalid, empty, or epoch-era values
   const getValidDate = (dateString: string | undefined): Date => {
-    if (!dateString || dateString.trim() === '') {
+    if (!dateString || (typeof dateString === 'string' && dateString.trim() === '')) {
       return new Date();
     }
     const parsed = new Date(dateString);
-    // Check if the date is valid (not NaN)
-    if (isNaN(parsed.getTime())) {
+    // Check if the date is valid (not NaN) and not before year 2000
+    // (prevents epoch-era dates like Dec 31 1969 from appearing)
+    if (isNaN(parsed.getTime()) || parsed.getFullYear() < 2000) {
       return new Date();
     }
     return parsed;
@@ -424,10 +426,12 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               {isPickerMounted && (
                 <DateTimePicker
                   key={`license-${currentDateField}-picker-${datePickerKey}`}
-                  value={tempDate}
+                  value={tempDate instanceof Date && !isNaN(tempDate.getTime()) && tempDate.getFullYear() >= 2000 ? tempDate : new Date()}
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={onDateChange}
+                  minimumDate={new Date(2000, 0, 1)}
+                  maximumDate={currentDateField === 'issueDate' ? new Date() : new Date(2099, 11, 31)}
                   themeVariant="light"
                   style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
                 />
@@ -587,7 +591,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24 }}>
               <Text style={styles.modalTitle}>About Your Fishing License</Text>
               
               <Text style={styles.modalText}>

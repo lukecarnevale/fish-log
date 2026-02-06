@@ -15,7 +15,8 @@ import {
   transformFishEntry,
 } from '../types/report';
 import { HarvestReportInput } from '../types/harvestReport';
-import { getCurrentUser, getRewardsMemberForAnonymousUser } from './userService';
+import { getCurrentUser } from './userProfileService';
+import { getRewardsMemberForAnonymousUser } from './rewardsConversionService';
 import { getOrCreateAnonymousUser } from './anonymousUserService';
 import { ensurePublicPhotoUrl, isLocalUri } from './photoUploadService';
 import { fetchCurrentDrawing, addReportToRewardsEntry } from './rewardsService';

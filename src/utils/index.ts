@@ -17,3 +17,43 @@ export {
   getFieldError,
   hasFieldError,
 } from './validation';
+
+// Date utilities
+export {
+  formatRelativeTime,
+  formatMemberSince,
+  getCurrentQuarter,
+  getCurrentYear,
+  getQuarterStartDate,
+  getQuarterEndDate,
+  formatQuarterDisplay,
+} from './dateUtils';
+
+// Device ID utilities
+export {
+  generateUUID,
+  getDeviceId,
+} from './deviceId';
+
+// Badge utilities
+export {
+  BADGE_STORAGE_KEYS,
+  markNewReportSubmitted,
+  clearNewReportIndicator,
+  hasNewReportSinceLastView,
+} from './badgeUtils';
+
+// Debounce utility
+export { debounce } from './debounce';
+
+// Rewards utilities
+export {
+  calculateDaysRemaining,
+  calculatePeriodProgress,
+  isWithinPeriod,
+  formatDate,
+  calculateDerivedValues,
+} from './rewards';
+
+// Cache utility
+export { createCache } from './cache';
