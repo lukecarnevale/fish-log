@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     width: "90%",
     maxHeight: "80%",
-    padding: spacing.lg,
+    overflow: 'hidden',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
