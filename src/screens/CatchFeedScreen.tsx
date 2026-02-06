@@ -28,6 +28,7 @@ import { CatchFeedEntry, TopAngler } from '../types/catchFeed';
 import { fetchRecentCatches, fetchTopAnglers, likeCatch, unlikeCatch, enrichCatchesWithLikes, PaginatedCatchFeed } from '../services/catchFeedService';
 import { getRewardsMemberForAnonymousUser } from '../services/userService';
 import { onAuthStateChange } from '../services/authService';
+import { SPECIES_ALIASES } from '../constants/speciesAliases';
 import { sampleCatchFeedEntries, sampleTopAnglers } from '../data/catchFeedData';
 import { colors, spacing, borderRadius } from '../styles/common';
 import { getAllSpeciesThemes } from '../constants/speciesColors';
@@ -37,14 +38,14 @@ import BottomDrawer from '../components/BottomDrawer';
 import WaveBackground from '../components/WaveBackground';
 import TopAnglersSection from '../components/TopAnglersSection';
 import { SCREEN_LABELS } from '../constants/screenLabels';
+import { HEADER_HEIGHT } from '../constants/ui';
 import { CatchFeedSkeletonLoader } from '../components/SkeletonLoader';
 import { useAllFishSpecies } from '../api/speciesApi';
+import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
+import { usePulseAnimation } from '../hooks/usePulseAnimation';
 
 // Use sample data for development (set to false when Supabase is ready)
 const USE_SAMPLE_DATA = false;
-
-// Header height for scroll calculations
-const HEADER_HEIGHT = 100;
 
 type CatchFeedScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -295,51 +296,9 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   // Fetch species data for fallback images
   const { data: allSpecies, isLoading: speciesLoading } = useAllFishSpecies();
 
-  // Debug: log when species data loads
-  useEffect(() => {
-    if (allSpecies) {
-      console.log('🐟 Species data loaded:', allSpecies.length, 'species');
-      // Log specific species we're interested in
-      const targetSpecies = allSpecies.filter(s =>
-        s.name?.toLowerCase().includes('weak') ||
-        s.name?.toLowerCase().includes('trout') ||
-        s.name?.toLowerCase().includes('seatrout') ||
-        s.name?.toLowerCase().includes('spot')
-      );
-      console.log('🎯 Target species found:', targetSpecies.map(s => ({
-        name: s.name,
-        hasImage: !!s.images?.primary,
-        commonNames: s.commonNames
-      })));
-    } else if (!speciesLoading) {
-      console.log('⚠️ Species data is empty or failed to load');
-    }
-  }, [allSpecies, speciesLoading]);
 
   // Species name aliases for matching - all variations map to each other
-  const speciesAliases: Record<string, string[]> = {
-    // Weakfish / Gray Trout are the same species (Cynoscion regalis)
-    'weakfish': ['gray trout', 'grey trout', 'sea trout', 'squeteague'],
-    'gray trout': ['weakfish', 'grey trout', 'sea trout', 'squeteague'],
-    'grey trout': ['weakfish', 'gray trout', 'sea trout', 'squeteague'],
-    // Spotted Seatrout variations (Cynoscion nebulosus)
-    'spotted seatrout': ['speckled trout', 'specks', 'speck', 'seatrout', 'spotted sea trout'],
-    'speckled trout': ['spotted seatrout', 'specks', 'speck', 'seatrout', 'spotted sea trout'],
-    'specks': ['spotted seatrout', 'speckled trout', 'seatrout', 'speck', 'spotted sea trout'],
-    'speck': ['spotted seatrout', 'speckled trout', 'seatrout', 'specks', 'spotted sea trout'],
-    'seatrout': ['spotted seatrout', 'speckled trout', 'specks', 'speck', 'spotted sea trout'],
-    // Flounder variations
-    'flounder': ['southern flounder', 'summer flounder', 'fluke'],
-    'southern flounder': ['flounder', 'summer flounder', 'fluke'],
-    'summer flounder': ['flounder', 'southern flounder', 'fluke'],
-    // Red Drum variations
-    'red drum': ['redfish', 'channel bass', 'puppy drum', 'red'],
-    'redfish': ['red drum', 'channel bass', 'puppy drum'],
-    // Dolphinfish variations
-    'dolphinfish': ['mahi-mahi', 'mahi mahi', 'dorado', 'dolphin'],
-    'mahi-mahi': ['dolphinfish', 'mahi mahi', 'dorado', 'dolphin'],
-    'dolphin': ['dolphinfish', 'mahi-mahi', 'mahi mahi', 'dorado'],
-  };
+  const speciesAliases = SPECIES_ALIASES;
 
   // Create a lookup map from species name to image URL
   const speciesImageMap = useMemo(() => {
@@ -424,38 +383,11 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     return result;
   }, [speciesImageMap]);
 
-  // Scroll animation
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-
-  // Floating back button animation
-  const floatingBackOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT * 0.5, HEADER_HEIGHT],
-    outputRange: [0, 0, 1],
-    extrapolate: 'clamp',
-  });
+  // Scroll animation and floating header animation
+  const { scrollY, floatingOpacity: floatingBackOpacity, floatingTranslateXLeft: floatingBackTranslateX } = useFloatingHeaderAnimation();
 
   // Slow pulsing animation for Live dot
-  const livePulse = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const pulseAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(livePulse, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(livePulse, {
-          toValue: 0,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulseAnimation.start();
-    return () => pulseAnimation.stop();
-  }, [livePulse]);
+  const { pulseValue: livePulse } = usePulseAnimation({ duration: 1500 });
 
   // Opacity pulse for the live dot
   const liveDotOpacity = livePulse.interpolate({
@@ -816,10 +748,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
             {
               opacity: floatingBackOpacity,
               transform: [{
-                translateX: floatingBackOpacity.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-60, 0],
-                })
+                translateX: floatingBackTranslateX,
               }]
             },
           ]}

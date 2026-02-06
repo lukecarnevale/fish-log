@@ -18,7 +18,7 @@ import {
 } from './harvestReportService';
 import { createReportFromHarvestInput, getReports } from './reportsService';
 import type { AwardedAchievement } from './reportsService';
-import { getRewardsMemberForAnonymousUser } from './userService';
+import { getRewardsMemberForAnonymousUser } from './rewardsConversionService';
 
 // ============================================
 // STORAGE KEYS

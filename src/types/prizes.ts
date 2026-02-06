@@ -1,34 +1,8 @@
 // types/prizes.ts
-
-export interface Prize {
-  id: string;
-  name: string;
-  description: string;
-  imageUrl?: string;
-  value: string;
-  category: 'license' | 'gear' | 'apparel' | 'experience' | 'other';
-  sponsor?: string;
-}
-
-export interface PrizeDrawing {
-  id: string;
-  name: string;
-  description: string;
-  eligibilityRequirements: string[];
-  prizes: Prize[];
-  startDate: string;
-  endDate: string;
-  drawingDate: string;
-  isActive: boolean;
-}
-
-export interface UserPrizeEntry {
-  userId: string;
-  userName: string;
-  drawings: {
-    drawingId: string;
-    entriesCount: number;
-    eligibleCatches: string[]; // IDs of eligible catch reports
-    isEligible: boolean;
-  }[];
-}
+//
+// DEPRECATED: This file is maintained for backward compatibility only.
+// All type definitions have been consolidated into types/rewards.ts.
+// New code should import from types/rewards.ts directly.
+//
+// Re-exports for backward compatibility:
+export type { Prize, RewardsDrawing as PrizeDrawing, UserRewardsEntry as UserPrizeEntry } from './rewards';

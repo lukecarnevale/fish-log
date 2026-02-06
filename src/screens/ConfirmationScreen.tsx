@@ -15,9 +15,6 @@ import {
   Alert,
   Share,
   ActivityIndicator,
-  Animated,
-  PanResponder,
-  Dimensions,
   BackHandler,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
@@ -66,9 +63,6 @@ interface ConfirmationScreenProps {
   route: ConfirmationScreenRouteProp;
 }
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const DISMISS_THRESHOLD = 150; // How far to swipe before dismissing
-
 const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigation }) => {
   const { reportData } = route.params || { reportData: {} as FishReportData };
 
@@ -84,64 +78,16 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
   const [showRewardsPrompt, setShowRewardsPrompt] = useState(false);
   const [rewardsPromptChecked, setRewardsPromptChecked] = useState(false);
 
-  // Swipe-to-dismiss animation
-  const translateY = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-
   // Ref to track if dismissing (prevents multiple navigation attempts)
   const isDismissingRef = useRef(false);
 
-  // Close button handler - navigate directly (animation was unreliable)
+  // Close button handler
   const handleClose = () => {
     if (isDismissingRef.current) return;
     isDismissingRef.current = true;
-    console.log('❌ Close button pressed, navigating home directly');
-    // Use navigate instead of popToTop - same as "Return Home" button which works
+    console.log('❌ Close button pressed, navigating home');
     navigation.navigate("Home");
   };
-
-  // Pan responder for swipe-to-dismiss (keeping as secondary option)
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Only respond to downward swipes
-        return gestureState.dy > 10 && Math.abs(gestureState.dx) < Math.abs(gestureState.dy);
-      },
-      onPanResponderMove: (_, gestureState) => {
-        // Only allow downward movement
-        if (gestureState.dy > 0) {
-          translateY.setValue(gestureState.dy);
-          // Fade out as user swipes down
-          const newOpacity = Math.max(0, 1 - gestureState.dy / SCREEN_HEIGHT);
-          opacity.setValue(newOpacity);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > DISMISS_THRESHOLD && !isDismissingRef.current) {
-          // Just snap back - swipe dismiss is unreliable, use X button instead
-          console.log('👆 Swipe detected - snapping back (use X button to close)');
-        }
-        if (!isDismissingRef.current) {
-          // Snap back
-          Animated.parallel([
-            Animated.spring(translateY, {
-              toValue: 0,
-              useNativeDriver: true,
-              tension: 65,
-              friction: 11,
-            }),
-            Animated.spring(opacity, {
-              toValue: 1,
-              useNativeDriver: true,
-              tension: 65,
-              friction: 11,
-            }),
-          ]).start();
-        }
-      },
-    })
-  ).current;
 
   // Submit to DMF on mount
   useEffect(() => {
@@ -452,20 +398,15 @@ This report was submitted to the NC Division of Marine Fisheries.`;
   const statusTitle = submitResult?.queued ? "Report Queued" : "Report Submitted";
 
   return (
-    <Animated.View
+    <View
       style={[
         localStyles.screenContainer,
         { backgroundColor: headerColor },
-        {
-          transform: [{ translateY }],
-          opacity,
-        },
       ]}
     >
       {/* Modern Header with Close Button */}
       <View
         style={[localStyles.header, { backgroundColor: headerColor }]}
-        {...panResponder.panHandlers}
       >
         {/* Close button - positioned top right */}
         <TouchableOpacity
@@ -477,7 +418,6 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           <Feather name="x" size={24} color="rgba(255, 255, 255, 0.9)" />
         </TouchableOpacity>
 
-        <View style={localStyles.swipeIndicator} />
         <Text style={localStyles.headerTitle}>{statusTitle}</Text>
         {isTestMode() && (
           <View style={localStyles.testModeBadge}>
@@ -751,7 +691,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
         // If user opted into rewards during form, they must complete signup
         requiresSignup={!!reportData.enteredRaffle}
       />
-    </Animated.View>
+    </View>
   );
 };
 
@@ -872,11 +812,6 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
-  },
-  swipeHint: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.7)",
-    marginTop: 6,
   },
   testModeBadge: {
     backgroundColor: "#ff9800",

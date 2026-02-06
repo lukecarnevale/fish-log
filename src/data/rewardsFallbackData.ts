@@ -6,45 +6,13 @@
 //
 
 import { Prize, RewardsConfig, RewardsDrawing, Quarter } from '../types/rewards';
-
-/**
- * Get the current quarter (1-4) based on the current date.
- */
-export function getCurrentQuarter(): Quarter {
-  const month = new Date().getMonth(); // 0-11
-  return (Math.floor(month / 3) + 1) as Quarter;
-}
-
-/**
- * Get the current year.
- */
-export function getCurrentYear(): number {
-  return new Date().getFullYear();
-}
-
-/**
- * Get quarter start date.
- */
-export function getQuarterStartDate(quarter: Quarter, year: number): string {
-  const month = (quarter - 1) * 3; // 0, 3, 6, or 9
-  return `${year}-${String(month + 1).padStart(2, '0')}-01`;
-}
-
-/**
- * Get quarter end date (last day of the quarter).
- */
-export function getQuarterEndDate(quarter: Quarter, year: number): string {
-  const endMonth = quarter * 3; // 3, 6, 9, or 12
-  const lastDay = new Date(year, endMonth, 0).getDate();
-  return `${year}-${String(endMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-}
-
-/**
- * Format quarter display string (e.g., "Q1 2026").
- */
-export function formatQuarterDisplay(quarter: Quarter, year: number): string {
-  return `Q${quarter} ${year}`;
-}
+import {
+  getCurrentQuarter,
+  getCurrentYear,
+  getQuarterStartDate,
+  getQuarterEndDate,
+  formatQuarterDisplay,
+} from '../utils/dateUtils';
 
 /**
  * Default prizes available in the rewards program.
@@ -171,3 +139,6 @@ export const FALLBACK_DRAWING: RewardsDrawing = generateCurrentQuarterDrawing();
 
 // Update config with current drawing ID
 FALLBACK_CONFIG.currentDrawingId = FALLBACK_DRAWING.id;
+
+// Re-export date utilities for backward compatibility
+export { getCurrentQuarter, getCurrentYear, getQuarterStartDate, getQuarterEndDate, formatQuarterDisplay } from '../utils/dateUtils';

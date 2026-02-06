@@ -8,9 +8,7 @@ import {
   Image,
   Animated,
   TouchableWithoutFeedback,
-  Dimensions,
   StatusBar,
-  StyleSheet,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles, { menuWidth } from "../styles/homeScreenStyles";
+import { localStyles } from "../styles/homeScreenLocalStyles";
 import { RootStackParamList } from "../types";
 import { colors } from "../styles/common";
 import QuarterlyRewardsCard from "../components/QuarterlyRewardsCard";
@@ -27,7 +26,7 @@ import AdvertisementBanner from "../components/AdvertisementBanner";
 import MandatoryHarvestCard from "../components/MandatoryHarvestCard";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import FeedbackModal from "../components/FeedbackModal";
-import QuickActionGrid, { CardBadgeData } from "../components/QuickActionGrid";
+import QuickActionGrid from "../components/QuickActionGrid";
 import WaveBackground from "../components/WaveBackground";
 import WavyMenuIcon from "../components/WavyMenuIcon";
 import DrawerMenu from "../components/DrawerMenu";
@@ -39,98 +38,15 @@ import {
 import { getPendingAuth, PendingAuth, onAuthStateChange } from "../services/authService";
 import { isRewardsMember, getCurrentUser, getUserStats } from "../services/userService";
 import { UserAchievement } from "../types/user";
-import { getReportsSummary } from "../services/reportsService";
-import { fetchAllFishSpecies } from "../services/fishSpeciesService";
-import { fetchRecentCatches } from "../services/catchFeedService";
 import { BADGE_STORAGE_KEYS } from "../utils/badgeUtils";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 import { useAchievements } from "../contexts/AchievementContext";
-
-// Achievement color mapping - specific colors for each achievement code
-const ACHIEVEMENT_COLORS: Record<string, string> = {
-  // Special achievements
-  rewards_entered: '#9C27B0', // Purple
-  // Reporting milestones
-  first_report: '#4CAF50', // Green
-  reports_10: '#2E7D32', // Dark Green
-  reports_50: '#1B5E20', // Darker Green
-  reports_100: '#004D40', // Teal
-  // Photo achievements
-  photo_first: '#E91E63', // Pink
-  // Fish count achievements
-  fish_100: '#FF5722', // Deep Orange
-  fish_500: '#E64A19', // Dark Orange
-  // Streak achievements
-  streak_3: '#FF9800', // Orange
-  streak_7: '#F57C00', // Dark Orange
-  streak_30: '#EF6C00', // Darker Orange
-  // Species achievements
-  species_all_5: '#2196F3', // Blue
-  // Category fallbacks
-  milestone: '#4CAF50',
-  reporting: '#43A047',
-  species: '#1976D2',
-  streak: '#FB8C00',
-  seasonal: '#00BCD4', // Cyan - for seasonal achievements
-  special: '#8E24AA',
-  default: '#FFD700', // Gold
-};
-
-// Achievement icon mapping - specific icons for each achievement code
-const ACHIEVEMENT_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
-  // Special achievements
-  rewards_entered: 'gift',
-  // Reporting milestones
-  first_report: 'flag',
-  reports_10: 'trending-up',
-  reports_50: 'award',
-  reports_100: 'star',
-  // Photo achievements
-  photo_first: 'camera',
-  // Fish count achievements
-  fish_100: 'anchor',
-  fish_500: 'award',
-  // Streak achievements
-  streak_3: 'zap',
-  streak_7: 'zap',
-  streak_30: 'zap',
-  // Species achievements
-  species_all_5: 'list',
-  // Category fallbacks
-  milestone: 'award',
-  reporting: 'file-text',
-  species: 'anchor',
-  streak: 'zap',
-  seasonal: 'sun', // For seasonal achievements
-  special: 'star',
-  default: 'award',
-};
-
-/**
- * Get the color for an achievement based on its code or category.
- */
-function getAchievementColor(code: string | undefined, category: string): string {
-  if (code && ACHIEVEMENT_COLORS[code]) {
-    return ACHIEVEMENT_COLORS[code];
-  }
-  return ACHIEVEMENT_COLORS[category] || ACHIEVEMENT_COLORS.default;
-}
-
-/**
- * Get the icon for an achievement based on its code, iconName, or category.
- */
-function getAchievementIcon(code: string | undefined, iconName: string | null | undefined, category: string): keyof typeof Feather.glyphMap {
-  // First, try to use the iconName from the database
-  if (iconName && iconName in Feather.glyphMap) {
-    return iconName as keyof typeof Feather.glyphMap;
-  }
-  // Then try the code-specific icon
-  if (code && ACHIEVEMENT_ICONS[code]) {
-    return ACHIEVEMENT_ICONS[code];
-  }
-  // Fall back to category icon
-  return ACHIEVEMENT_ICONS[category] || ACHIEVEMENT_ICONS.default;
-}
+import { getAchievementColor, getAchievementIcon } from '../constants/achievementMappings';
+import { HEADER_HEIGHT } from '../constants/ui';
+import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
+import { usePulseAnimation } from '../hooks/usePulseAnimation';
+import { useBadgeData } from '../hooks/useBadgeData';
+import { BADGE_CACHE_TTL, badgeDataCache, PERSISTENT_CACHE_KEYS, NAUTICAL_GREETINGS } from './home/homeScreenConstants';
 
 // Update the navigation type to be compatible with React Navigation v7
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
@@ -139,31 +55,6 @@ interface HomeScreenProps {
   navigation: HomeScreenNavigationProp;
   route: { name: string; params?: any };
 }
-
-// Header height for scroll calculations
-const HEADER_HEIGHT = 100;
-
-// Cache for badge data to avoid refetching on every focus
-const BADGE_CACHE_TTL = 60000; // 1 minute
-let badgeDataCache: { data: CardBadgeData | null; timestamp: number } = {
-  data: null,
-  timestamp: 0,
-};
-
-// Persistent storage keys for cached data (faster initial render)
-const PERSISTENT_CACHE_KEYS = {
-  badgeData: 'homeScreen_badgeDataCache',
-  rewardsMember: 'homeScreen_rewardsMemberCache',
-  rewardsData: 'homeScreen_rewardsDataCache',
-};
-
-// Nautical greetings by time of day (moved outside component to avoid recreation)
-const NAUTICAL_GREETINGS = {
-  morning: ["Smooth sailing this morning", "Fair winds this morning", "Morning ahoy", "Clear skies ahead"],
-  afternoon: ["Afternoon on the high seas", "Steady as she goes this afternoon", "Fisherman's afternoon", "Tight lines this afternoon"],
-  evening: ["Evening tides", "Sunset fishing", "Evening on the water", "Dusk on the horizon"],
-  night: ["Starboard lights on", "Navigating by stars", "Night fishing", "Port lights on"],
-};
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Achievement notifications - flush any pending achievements when this screen gains focus
@@ -188,56 +79,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // User profile image for drawer menu
   const [profileImage, setProfileImage] = useState<string | null>(null);
   // Badge data for quick action cards
-  const [badgeData, setBadgeData] = useState<CardBadgeData>({
-    pastReportsCount: 0,
-    hasNewReport: false,
-    totalSpecies: 0,
-    newCatchesCount: 0,
-  });
+  const { badgeData, loadBadgeData, updateBadgeData } = useBadgeData();
   // User achievements for display
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const slideAnim = useRef<Animated.Value>(new Animated.Value(menuWidth)).current;
   const overlayOpacity = useRef<Animated.Value>(new Animated.Value(0)).current;
 
   // Scroll animation for collapsing header
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const { scrollY, floatingOpacity: floatingMenuOpacity, floatingTranslateXRight: floatingMenuTranslateX } = useFloatingHeaderAnimation();
 
   // Track scroll position for dynamic status bar style
   const [statusBarStyle, setStatusBarStyle] = useState<'light-content' | 'dark-content'>('light-content');
   const statusBarStyleRef = useRef(statusBarStyle);
   statusBarStyleRef.current = statusBarStyle;
 
-  // Floating menu button animation (snaps to side when scrolled)
-  const floatingMenuOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT * 0.5, HEADER_HEIGHT],
-    outputRange: [0, 0, 1],
-    extrapolate: 'clamp',
-  });
-
   // Pulsing animation for notification badge
-  const badgePulse = useRef(new Animated.Value(0)).current;
-
-  // Start pulsing animation when pendingAuth exists
-  useEffect(() => {
-    if (pendingAuth) {
-      const pulseAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(badgePulse, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: false, // Color interpolation requires native driver off
-          }),
-          Animated.timing(badgePulse, {
-            toValue: 0,
-            duration: 1000,
-            useNativeDriver: false,
-          }),
-        ])
-      );
-      pulseAnimation.start();
-      return () => pulseAnimation.stop();
-    }
-  }, [pendingAuth, badgePulse]);
+  const { pulseValue: badgePulse } = usePulseAnimation({
+    duration: 1000,
+    enabled: !!pendingAuth,
+    useNativeDriver: false,
+  });
 
   // Interpolate border color from white to red
   const badgeBorderColor = badgePulse.interpolate({
@@ -250,81 +111,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     inputRange: [0, 0.5, 1],
     outputRange: [1, 1.15, 1],
   });
-
-  // Load badge data with caching to avoid expensive refetches
-  const loadBadgeData = useCallback(async (forceRefresh = false) => {
-    const now = Date.now();
-
-    // Check memory cache first (fastest)
-    if (!forceRefresh && badgeDataCache.data && (now - badgeDataCache.timestamp) < BADGE_CACHE_TTL) {
-      setBadgeData(badgeDataCache.data);
-      return;
-    }
-
-    // Load from persistent cache immediately for optimistic UI (don't await)
-    if (!badgeDataCache.data) {
-      AsyncStorage.getItem(PERSISTENT_CACHE_KEYS.badgeData).then(cached => {
-        if (cached && !badgeDataCache.data) {
-          try {
-            const parsed = JSON.parse(cached);
-            setBadgeData(parsed);
-          } catch { /* ignore parse errors */ }
-        }
-      });
-    }
-
-    try {
-      // Parallelize ALL badge data fetches including catch feed
-      const [
-        reportsSummary,
-        lastViewedPastReports,
-        lastReportTimestamp,
-        speciesList,
-        lastViewedCatchFeed,
-        catchFeedResult,
-      ] = await Promise.all([
-        getReportsSummary(),
-        AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastViewedPastReports),
-        AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastReportTimestamp),
-        fetchAllFishSpecies(),
-        AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastViewedCatchFeed),
-        fetchRecentCatches({ forceRefresh: false }).catch(() => ({ entries: [] })),
-      ]);
-
-      const pastReportsCount = reportsSummary.totalReports;
-      const hasNewReport = lastReportTimestamp !== null &&
-        (lastViewedPastReports === null || lastReportTimestamp > lastViewedPastReports);
-      const totalSpecies = speciesList.length;
-
-      // Calculate new catches count
-      let newCatchesCount = 0;
-      const recentCatches = catchFeedResult.entries || [];
-      if (lastViewedCatchFeed) {
-        const lastViewedDate = new Date(lastViewedCatchFeed);
-        newCatchesCount = recentCatches.filter(
-          (catch_: any) => new Date(catch_.createdAt) > lastViewedDate
-        ).length;
-      } else {
-        newCatchesCount = Math.min(recentCatches.length, 10);
-      }
-
-      const newBadgeData = {
-        pastReportsCount,
-        hasNewReport,
-        totalSpecies,
-        newCatchesCount,
-      };
-
-      // Update memory cache
-      badgeDataCache = { data: newBadgeData, timestamp: now };
-      setBadgeData(newBadgeData);
-
-      // Persist to storage for next app launch (don't await)
-      AsyncStorage.setItem(PERSISTENT_CACHE_KEYS.badgeData, JSON.stringify(newBadgeData));
-    } catch (error) {
-      console.error('Error loading badge data:', error);
-    }
-  }, []);
 
   // Load user preferences and profile data
   useEffect(() => {
@@ -455,7 +241,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       focusUnsubscribe();
       authUnsubscribe?.();
     };
-  }, [navigation, flushPendingAchievements]);
+  }, [navigation, flushPendingAchievements, loadBadgeData]);
   
   // Memoized function to dismiss the info card
   const dismissInfoCard = useCallback(async () => {
@@ -547,12 +333,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     // Clear "new" indicators when visiting those screens and invalidate cache
     if (screenName === 'PastReports') {
       AsyncStorage.setItem(BADGE_STORAGE_KEYS.lastViewedPastReports, new Date().toISOString());
-      setBadgeData(prev => ({ ...prev, hasNewReport: false }));
+      updateBadgeData({ hasNewReport: false });
       // Invalidate badge cache so it refreshes on return
       badgeDataCache.timestamp = 0;
     } else if (screenName === 'CatchFeed') {
       AsyncStorage.setItem(BADGE_STORAGE_KEYS.lastViewedCatchFeed, new Date().toISOString());
-      setBadgeData(prev => ({ ...prev, newCatchesCount: 0 }));
+      updateBadgeData({ newCatchesCount: 0 });
       badgeDataCache.timestamp = 0;
     }
 
@@ -560,7 +346,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     setTimeout(() => {
       (navigation.navigate as (screen: keyof RootStackParamList) => void)(screenName);
     }, 0);
-  }, [closeMenu, navigation]);
+  }, [closeMenu, navigation, updateBadgeData]);
 
   return (
     <View style={{flex: 1, backgroundColor: colors.primary}}>
@@ -649,10 +435,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             {
               opacity: floatingMenuOpacity,
               transform: [{
-                translateX: floatingMenuOpacity.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [60, 0],
-                })
+                translateX: floatingMenuTranslateX,
               }]
             },
           ]}
@@ -879,255 +662,5 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     </View>
   );
 };
-
-// Local styles for the layered card effect
-const localStyles = StyleSheet.create({
-  fixedHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.primary,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 60,
-    paddingBottom: 20,
-    zIndex: 1, // Lower z-index so content can scroll over it
-  },
-  scrollView: {
-    flex: 1,
-    zIndex: 2, // Higher z-index so content scrolls over header
-  },
-  scrollViewContent: {
-    paddingBottom: 0,
-  },
-  headerSpacer: {
-    // Transparent spacer so the fixed header shows through
-    height: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
-    backgroundColor: 'transparent',
-  },
-  spacerMenuArea: {
-    // Position the touchable menu in the same spot as the fixed header's menu
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 60,
-    paddingRight: 16,
-  },
-  contentContainer: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 16,
-    minHeight: Dimensions.get('window').height,
-    // Shadow to make it look like it's floating above the header
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  floatingMenuButton: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 54,
-    right: 16,
-    zIndex: 100,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  floatingMenuTouchable: {
-    padding: 12,
-  },
-  footerContainer: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  footerBottomArea: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#0B548B', // Match footer navy background
-  },
-  hamburgerBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-  },
-  hamburgerBadgeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#FF6B6B',
-    borderWidth: 2,
-    borderColor: colors.white,
-  },
-  floatingBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-  },
-  floatingBadgeDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#FF6B6B',
-    borderWidth: 2,
-    borderColor: colors.white,
-  },
-  // Unified Welcome Card styles
-  welcomeCard: {
-    backgroundColor: colors.secondary,
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginBottom: 0, // License card has its own marginTop
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  welcomeGreeting: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  welcomeGreetingIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  welcomeGreetingText: {
-    flex: 1,
-  },
-  welcomeGreetingLine: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.white,
-    opacity: 0.9,
-  },
-  welcomeUserName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.white,
-    marginVertical: 2,
-  },
-  welcomeRewardsSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    padding: 12,
-    paddingHorizontal: 16,
-  },
-  welcomeRewardsSectionWithGreeting: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.3)',
-  },
-  welcomeRewardsIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.secondaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  welcomeRewardsContent: {
-    flex: 1,
-  },
-  welcomeRewardsTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  welcomeRewardsEmail: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  welcomeJoinRewards: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(200, 245, 245, 0.35)',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.4)',
-  },
-  welcomeJoinIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  welcomeJoinText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.white,
-  },
-  // Achievement icons in rewards section
-  achievementIconsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  achievementIconBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.95)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  achievementCountBadge: {
-    backgroundColor: colors.primary,
-  },
-  achievementCountText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  // License card gradient styles
-  licenseCardGradient: {
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  licenseTitleWhite: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: colors.white,
-    marginBottom: 2,
-  },
-  licenseSubtitleWhite: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.85)',
-  },
-});
 
 export default HomeScreen;

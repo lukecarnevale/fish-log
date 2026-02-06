@@ -7,6 +7,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, borderRadius, spacing } from '../styles/common';
+import { useSkeletonAnimation } from '../hooks/useSkeletonAnimation';
 
 interface SkeletonProps {
   width?: number | string;
@@ -24,24 +25,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   borderRadius: radius = borderRadius.sm,
   style,
 }) => {
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(shimmerAnim, {
-        toValue: 1,
-        duration: 1200,
-        useNativeDriver: true,
-      })
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [shimmerAnim]);
-
-  const translateX = shimmerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-200, 200],
-  });
+  const { translateX } = useSkeletonAnimation();
 
   return (
     <View
