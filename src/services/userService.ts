@@ -79,10 +79,12 @@ export async function createUserInSupabase(input: UserInput): Promise<User> {
       email: input.email?.toLowerCase() || null,
       first_name: input.firstName || null,
       last_name: input.lastName || null,
+      date_of_birth: input.dateOfBirth || null,
       zip_code: input.zipCode || null,
       profile_image_url: input.profileImageUrl || null,
       has_license: input.hasLicense ?? true,
       wrc_id: input.wrcId || null,
+      license_number: input.licenseNumber || null,
       phone: input.phone || null,
     })
     .select()
@@ -114,35 +116,5 @@ export async function clearUserCache(): Promise<void> {
   }
 }
 
-// =============================================================================
-// Re-exports for Backward Compatibility
-// =============================================================================
-
 // Re-export getDeviceId from the shared utility
 export { getDeviceId } from '../utils/deviceId';
-
-// Profile CRUD operations
-export {
-  getCachedUser,
-  cacheUser,
-  getCachedStats,
-  cacheStats,
-  syncToUserProfile,
-  updateUserInSupabase,
-  fetchStatsFromSupabase,
-  getCurrentUser,
-  updateCurrentUser,
-  getUserStats,
-  getAllAchievements,
-  syncUserData,
-} from './userProfileService';
-
-// Anonymous to rewards member conversion
-export {
-  convertToRewardsMember,
-  isRewardsMember,
-  getRewardsMemberForAnonymousUser,
-  linkEmailToUser,
-  createRewardsMemberFromAuthUser,
-  findRewardsMemberByAuthId,
-} from './rewardsConversionService';

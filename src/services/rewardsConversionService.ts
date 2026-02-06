@@ -95,7 +95,10 @@ async function migrateLocalRewardsEntries(userId: string): Promise<number> {
 
 /**
  * Convert an anonymous user to a rewards member.
- * Creates a new user record linked to the anonymous user's history.
+ * Uses the convert_to_rewards_member RPC which atomically:
+ * - Creates the user record
+ * - Links anonymous reports
+ * - Backfills stats from linked reports
  */
 export async function convertToRewardsMember(
   input: ConvertToMemberInput
@@ -114,75 +117,53 @@ export async function convertToRewardsMember(
 
     const deviceId = await getDeviceId();
 
-    // Check if user already exists with this anonymous_user_id
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('*')
-      .eq('anonymous_user_id', anonymousUser.id)
-      .limit(1)
-      .single();
+    // Call the convert_to_rewards_member RPC
+    const { data: rpcResult, error: rpcError } = await supabase
+      .rpc('convert_to_rewards_member', {
+        p_device_id: deviceId,
+        p_auth_id: null, // Will be set during auth flow if needed
+        p_email: input.email.toLowerCase(),
+        p_first_name: input.firstName,
+        p_last_name: input.lastName,
+        p_phone: input.phone || null,
+        p_zip_code: input.zipCode || null,
+        p_wrc_id: input.wrcId || null,
+        p_has_license: true,
+      });
 
-    if (existingUser) {
-      // User already converted - return existing user
-      const user = transformUser(existingUser);
-      await cacheUser(user);
-      return { success: true, user };
-    }
-
-    // Check if email already exists
-    const existingEmailUser = await findUserByEmail(input.email);
-    if (existingEmailUser) {
-      return { success: false, error: 'Email is already registered' };
-    }
-
-    // Create new rewards member
-    const { data, error } = await supabase
-      .from('users')
-      .insert({
-        device_id: deviceId,
-        anonymous_user_id: anonymousUser.id,
-        email: input.email.toLowerCase(),
-        first_name: input.firstName,
-        last_name: input.lastName,
-        phone: input.phone || null,
-        zip_code: input.zipCode || null,
-        rewards_opted_in_at: new Date().toISOString(),
-        has_license: true,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to create rewards member: ${error.message}`);
-    }
-
-    const user = transformUser(data);
-    await cacheUser(user);
-
-    // Link any anonymous reports to this user so they appear in Catch Feed
-    if (anonymousUser?.id) {
-      // Lazy import to avoid circular dependency
-      const { linkReportsToUser } = await import('./reportsService');
-      const linkResult = await linkReportsToUser(anonymousUser.id, user.id);
-
-      // Backfill stats from historical reports
-      if (linkResult.updated > 0) {
-        console.log(`🔄 Backfilling stats from ${linkResult.updated} linked reports...`);
-        // Clear catch feed cache so linked reports appear immediately
-        const { clearCatchFeedCache } = await import('./catchFeedService');
-        await clearCatchFeedCache();
-        console.log('🔄 Cleared catch feed cache after linking reports');
-        const backfillResult = await backfillUserStatsFromReports(user.id);
-        if (backfillResult.success) {
-          console.log(`✅ Backfilled: ${backfillResult.totalReports} reports, ${backfillResult.totalFish} fish`);
-          if (backfillResult.achievementsAwarded.length > 0) {
-            console.log(`🏆 Achievements unlocked: ${backfillResult.achievementsAwarded.map(a => a.name).join(', ')}`);
-          }
+    if (rpcError) {
+      // Check if user already exists
+      if (rpcError.message.includes('already_exists')) {
+        console.log('User already exists as rewards member');
+        // Try to fetch and return existing user
+        const existingUser = await findUserByEmail(input.email);
+        if (existingUser) {
+          await cacheUser(existingUser);
+          return { success: true, user: existingUser };
         }
       }
+      throw new Error(`Failed to create rewards member: ${rpcError.message}`);
     }
 
-    console.log('✅ Converted anonymous user to rewards member');
+    if (!rpcResult) {
+      throw new Error('No user returned from convert_to_rewards_member RPC');
+    }
+
+    // Fetch the created user record to get the full user object
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', rpcResult.user_id)
+      .single();
+
+    if (userError || !userData) {
+      throw new Error('Failed to fetch created user from database');
+    }
+
+    const user = transformUser(userData);
+    await cacheUser(user);
+
+    console.log(`✅ Converted anonymous user to rewards member (linked ${rpcResult.reports_linked} reports)`);
     return { success: true, user };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -415,95 +396,25 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
     console.log('🔄 createRewardsMemberFromAuthUser: Pending auth:', pendingAuth?.email || 'none');
     console.log('🔄 createRewardsMemberFromAuthUser: Anonymous user:', anonymousUser?.id || 'none', 'Device:', deviceId);
 
-    // Create the rewards member
-    console.log('🔄 createRewardsMemberFromAuthUser: Inserting new user into Supabase...');
-    const { data, error } = await supabase
-      .from('users')
-      .insert({
-        device_id: deviceId,
-        anonymous_user_id: anonymousUser?.id || null,
-        auth_id: authUser.id, // Link to Supabase auth user for RLS
-        email: authUser.email.toLowerCase(),
-        first_name: pendingAuth?.firstName || authUser.user_metadata?.firstName || null,
-        last_name: pendingAuth?.lastName || authUser.user_metadata?.lastName || null,
-        phone: pendingAuth?.phone || authUser.user_metadata?.phone || null,
-        zip_code: pendingAuth?.zipCode || authUser.user_metadata?.zipCode || null,
-        wrc_id: pendingAuth?.wrcId || authUser.user_metadata?.wrcId || null,
-        rewards_opted_in_at: new Date().toISOString(),
-        has_license: true,
-      })
-      .select()
-      .single();
+    // Use the convert_to_rewards_member RPC to atomically create user and link reports
+    console.log('🔄 createRewardsMemberFromAuthUser: Calling convert_to_rewards_member RPC...');
+    const { data: rpcResult, error: rpcError } = await supabase
+      .rpc('convert_to_rewards_member', {
+        p_device_id: deviceId,
+        p_auth_id: authUser.id, // Link to Supabase auth user for RLS
+        p_email: authUser.email.toLowerCase(),
+        p_first_name: pendingAuth?.firstName || authUser.user_metadata?.firstName || null,
+        p_last_name: pendingAuth?.lastName || authUser.user_metadata?.lastName || null,
+        p_phone: pendingAuth?.phone || authUser.user_metadata?.phone || null,
+        p_zip_code: pendingAuth?.zipCode || authUser.user_metadata?.zipCode || null,
+        p_wrc_id: pendingAuth?.wrcId || authUser.user_metadata?.wrcId || null,
+        p_has_license: true,
+      });
 
-    if (error) {
-      console.log('🔄 createRewardsMemberFromAuthUser: Insert constraint (upgrading existing user):', error.code);
-      // If unique constraint error, handle based on which constraint was violated
-      if (error.code === '23505') {
-        // Check if it's a device_id constraint (user exists from anonymous usage)
-        if (error.message.includes('device_id')) {
-          console.log('🔄 createRewardsMemberFromAuthUser: Device ID exists - upgrading existing user...');
-          // Find and update the existing user by device_id
-          const existingDeviceUser = await findUserByDeviceId(deviceId);
-          if (existingDeviceUser) {
-            // Update the existing user with email, rewards info, AND link to anonymous user
-            const { data: updatedData, error: updateError } = await supabase
-              .from('users')
-              .update({
-                auth_id: authUser.id, // Link to Supabase auth user for RLS
-                email: authUser.email.toLowerCase(),
-                first_name: pendingAuth?.firstName || existingDeviceUser.firstName || null,
-                last_name: pendingAuth?.lastName || existingDeviceUser.lastName || null,
-                phone: pendingAuth?.phone || existingDeviceUser.phone || null,
-                zip_code: pendingAuth?.zipCode || existingDeviceUser.zipCode || null,
-                wrc_id: pendingAuth?.wrcId || existingDeviceUser.wrcId || null,
-                rewards_opted_in_at: new Date().toISOString(),
-                anonymous_user_id: anonymousUser?.id || existingDeviceUser.anonymousUserId || null,
-              })
-              .eq('id', existingDeviceUser.id)
-              .select()
-              .single();
-
-            if (updateError) {
-              console.error('🔄 createRewardsMemberFromAuthUser: Update error:', updateError.message);
-              throw new Error(`Failed to upgrade user: ${updateError.message}`);
-            }
-
-            const updatedUser = transformUser(updatedData);
-            await cacheUser(updatedUser);
-            await syncToUserProfile(updatedUser);
-            await clearPendingAuth();
-
-            // Link any anonymous reports to this user so they appear in Catch Feed
-            let claimedCatches = 0;
-            if (anonymousUser?.id) {
-              // Lazy import to avoid circular dependency
-              const { linkReportsToUser } = await import('./reportsService');
-              const linkResult = await linkReportsToUser(anonymousUser.id, updatedUser.id);
-              claimedCatches = linkResult.updated;
-              if (claimedCatches > 0) {
-                console.log(`🎣 Linked ${claimedCatches} anonymous catches to user`);
-                // Clear catch feed cache so linked reports appear immediately
-                const { clearCatchFeedCache } = await import('./catchFeedService');
-                await clearCatchFeedCache();
-                console.log('🔄 Cleared catch feed cache after linking reports');
-                // Backfill stats from historical reports
-                const backfillResult = await backfillUserStatsFromReports(updatedUser.id);
-                if (backfillResult.success) {
-                  console.log(`✅ Backfilled: ${backfillResult.totalReports} reports, ${backfillResult.totalFish} fish`);
-                }
-              }
-            }
-
-            // Migrate local rewards entries to Supabase
-            await migrateLocalRewardsEntries(updatedUser.id);
-
-            console.log('✅ Upgraded existing device user to rewards member:', authUser.email);
-            return { success: true, user: updatedUser, claimedCatches };
-          }
-        }
-
-        // Email constraint - user already exists with this email
-        console.log('🔄 createRewardsMemberFromAuthUser: Email exists - finding existing user...');
+    if (rpcError) {
+      console.log('🔄 createRewardsMemberFromAuthUser: RPC error:', rpcError.message);
+      // If user already exists, fetch and return it
+      if (rpcError.message.includes('already_exists')) {
         const existingEmailUser = await findUserByEmail(authUser.email);
         if (existingEmailUser) {
           await cacheUser(existingEmailUser);
@@ -512,41 +423,42 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
           return { success: true, user: existingEmailUser };
         }
       }
-      throw new Error(`Failed to create rewards member: ${error.message}`);
+      throw new Error(`Failed to create rewards member: ${rpcError.message}`);
     }
 
-    console.log('🔄 createRewardsMemberFromAuthUser: User inserted successfully, transforming...');
-    const user = transformUser(data);
+    if (!rpcResult) {
+      throw new Error('No result returned from convert_to_rewards_member RPC');
+    }
+
+    // Fetch the created/updated user record
+    console.log('🔄 createRewardsMemberFromAuthUser: Fetching created user...');
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', rpcResult.user_id)
+      .single();
+
+    if (userError || !userData) {
+      throw new Error('Failed to fetch user after RPC execution');
+    }
+
+    const user = transformUser(userData);
     await cacheUser(user);
     await syncToUserProfile(user); // Sync to ProfileScreen's storage
     await clearPendingAuth();
 
-    // Link any anonymous reports to this user so they appear in Catch Feed
-    let claimedCatches = 0;
-    if (anonymousUser?.id) {
-      // Lazy import to avoid circular dependency
-      const { linkReportsToUser } = await import('./reportsService');
-      const linkResult = await linkReportsToUser(anonymousUser.id, user.id);
-      claimedCatches = linkResult.updated;
-      if (claimedCatches > 0) {
-        console.log(`🎣 Linked ${claimedCatches} anonymous catches to user`);
-        // Clear catch feed cache so linked reports appear immediately
-        const { clearCatchFeedCache } = await import('./catchFeedService');
-        await clearCatchFeedCache();
-        console.log('🔄 Cleared catch feed cache after linking reports');
-        // Backfill stats from historical reports
-        const backfillResult = await backfillUserStatsFromReports(user.id);
-        if (backfillResult.success) {
-          console.log(`✅ Backfilled: ${backfillResult.totalReports} reports, ${backfillResult.totalFish} fish`);
-        }
-      }
+    // Clear catch feed cache so linked reports appear immediately
+    if (rpcResult.reports_linked && rpcResult.reports_linked > 0) {
+      const { clearCatchFeedCache } = await import('./catchFeedService');
+      await clearCatchFeedCache();
+      console.log('🔄 Cleared catch feed cache after linking reports');
     }
 
     // Migrate local rewards entries to Supabase
     await migrateLocalRewardsEntries(user.id);
 
-    console.log('✅ Created rewards member from authenticated user:', authUser.email);
-    return { success: true, user, claimedCatches };
+    console.log(`✅ Created rewards member from authenticated user: ${authUser.email} (linked ${rpcResult.reports_linked} reports)`);
+    return { success: true, user, claimedCatches: rpcResult.reports_linked || 0 };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('❌ Failed to create rewards member from auth user:', error);

@@ -77,51 +77,47 @@ async function clearCachedSubmission(): Promise<void> {
 // =============================================================================
 
 /**
- * Create a pending submission in Supabase.
+ * Create a pending submission in Supabase using RPC function.
  */
 async function createInSupabase(
   input: PendingSubmissionInput
 ): Promise<PendingSubmission> {
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + EXPIRATION_DAYS);
-
-  const { data, error } = await supabase
-    .from('pending_submissions')
-    .insert({
-      device_id: input.deviceId,
-      email: input.email.toLowerCase(),
-      form_data: input.formData,
-      status: 'pending',
-      expires_at: expiresAt.toISOString(),
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('save_pending_submission', {
+    p_device_id: input.deviceId,
+    p_email: input.email.toLowerCase(),
+    p_form_data: input.formData,
+  });
 
   if (error) {
     throw new Error(`Failed to create pending submission: ${error.message}`);
   }
 
-  return transformPendingSubmission(data);
+  // Build the pending submission from the returned ID
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + EXPIRATION_DAYS);
+
+  const submission: PendingSubmission = {
+    id: data,
+    deviceId: input.deviceId,
+    email: input.email.toLowerCase(),
+    formData: input.formData,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    expiresAt: expiresAt.toISOString(),
+  };
+
+  return submission;
 }
 
 /**
- * Find pending submission by device ID.
+ * Find pending submission by device ID using RPC function.
  */
 async function findByDeviceId(deviceId: string): Promise<PendingSubmission | null> {
-  const { data, error } = await supabase
-    .from('pending_submissions')
-    .select('*')
-    .eq('device_id', deviceId)
-    .eq('status', 'pending')
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+  const { data, error } = await supabase.rpc('get_pending_submission', {
+    p_device_id: deviceId,
+  });
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // No rows found
-    }
     throw new Error(`Failed to find pending submission: ${error.message}`);
   }
 
@@ -306,10 +302,14 @@ export async function clearPendingSubmission(): Promise<void> {
 
     if (connected && !cached.id.startsWith('local_')) {
       try {
-        // Mark as expired rather than deleting
-        await updateStatusInSupabase(cached.id, 'expired');
+        // Use the RPC function to clear the submission
+        const { getDeviceId } = await import('../utils/deviceId');
+        const deviceId = await getDeviceId();
+        await supabase.rpc('clear_pending_submission', {
+          p_device_id: deviceId,
+        });
       } catch (error) {
-        console.warn('⚠️ Failed to expire in Supabase:', error);
+        console.warn('⚠️ Failed to clear in Supabase:', error);
       }
     }
   }

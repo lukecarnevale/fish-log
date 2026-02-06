@@ -39,47 +39,22 @@ export interface PaginatedCatchFeed {
 
 /**
  * Fetch recent catches from rewards-enrolled users with pagination.
- * Joins harvest_reports with users where rewards_opted_in_at is not null.
- * Also fetches fish_entries to get individual fish lengths.
+ * Uses the v_catch_feed view which pre-joins all data and aggregates fish entries.
  */
 async function fetchCatchesFromSupabase(
   limit: number = DEFAULT_PAGE_SIZE,
   offset: number = 0
 ): Promise<{ entries: CatchFeedEntry[]; hasMore: boolean }> {
-  // Query harvest_reports joined with users who have opted into rewards
-  // Also fetch fish_entries to get lengths
-  // Request one extra to determine if there are more results
+  // Query v_catch_feed view which already has:
+  // - filtered to rewards members
+  // - joined user data
+  // - aggregated fish entries as JSON
+  // - like counts pre-calculated
   const { data, error } = await supabase
-    .from('harvest_reports')
-    .select(`
-      id,
-      user_id,
-      photo_url,
-      area_label,
-      harvest_date,
-      created_at,
-      red_drum_count,
-      flounder_count,
-      spotted_seatrout_count,
-      weakfish_count,
-      striped_bass_count,
-      users!inner (
-        id,
-        first_name,
-        last_name,
-        profile_image_url,
-        rewards_opted_in_at
-      ),
-      fish_entries (
-        species,
-        count,
-        lengths,
-        tag_number
-      )
-    `)
-    .not('users.rewards_opted_in_at', 'is', null)
+    .from('v_catch_feed')
+    .select('*')
     .order('created_at', { ascending: false })
-    .range(offset, offset + limit); // Fetch limit + 1 to check for more
+    .range(offset, offset + limit);
 
   if (error) {
     throw new Error(`Failed to fetch catch feed: ${error.message}`);
@@ -93,52 +68,50 @@ async function fetchCatchesFromSupabase(
   const hasMore = data.length > limit;
   const resultsToProcess = hasMore ? data.slice(0, limit) : data;
 
-  // Transform to CatchFeedEntry - create ONE entry per report with all species
+  // Transform view rows to CatchFeedEntry
   const entries: CatchFeedEntry[] = [];
 
-  for (const report of resultsToProcess) {
-    // Type assertion for nested join data - Supabase returns single object for !inner joins
-    const user = (report.users as unknown) as {
-      id: string;
-      first_name: string | null;
-      last_name: string | null;
-      profile_image_url: string | null;
-      rewards_opted_in_at: string | null;
-    };
-
-    // Fish entries from the separate table (includes lengths)
-    const fishEntries = (report.fish_entries as unknown) as Array<{
-      species: string;
-      count: number;
-      lengths: string[] | null;
-      tag_number: string | null;
-    }> | null;
-
-    // Skip if user data is missing
-    if (!user || !user.id) continue;
-
-    const firstName = user.first_name || 'Anonymous';
-    const lastInitial = user.last_name ? `${user.last_name.charAt(0)}.` : '';
+  for (const row of resultsToProcess) {
+    // Extract user name info
+    const firstName = row.first_name || 'Anonymous';
+    const lastInitial = row.last_name ? `${row.last_name.charAt(0)}.` : '';
     const anglerName = `${firstName} ${lastInitial}`.trim();
 
-    let speciesList: SpeciesCatch[];
-
-    // Prefer fish_entries if available (has lengths), otherwise fall back to counts
-    if (fishEntries && fishEntries.length > 0) {
-      speciesList = fishEntries.map(fe => ({
+    // Parse fish entries from the JSON array in the view
+    let speciesList: SpeciesCatch[] = [];
+    if (row.fish_entries_json && Array.isArray(row.fish_entries_json)) {
+      speciesList = row.fish_entries_json.map((fe: any) => ({
         species: fe.species,
         count: fe.count,
         lengths: fe.lengths || undefined,
         tagNumber: fe.tag_number || undefined,
       }));
-    } else {
-      // Fallback: collect all species with count > 0 from aggregate counts
+    } else if (typeof row.fish_entries_json === 'string') {
+      // Handle JSON string if needed
+      try {
+        const parsed = JSON.parse(row.fish_entries_json);
+        if (Array.isArray(parsed)) {
+          speciesList = parsed.map((fe: any) => ({
+            species: fe.species,
+            count: fe.count,
+            lengths: fe.lengths || undefined,
+            tagNumber: fe.tag_number || undefined,
+          }));
+        }
+      } catch {
+        // Fall back to aggregate counts if JSON parsing fails
+        speciesList = [];
+      }
+    }
+
+    // Fallback: collect species from aggregate count columns
+    if (speciesList.length === 0) {
       const allSpecies = [
-        { species: 'Red Drum', count: report.red_drum_count },
-        { species: 'Southern Flounder', count: report.flounder_count },
-        { species: 'Spotted Seatrout', count: report.spotted_seatrout_count },
-        { species: 'Weakfish', count: report.weakfish_count },
-        { species: 'Striped Bass', count: report.striped_bass_count },
+        { species: 'Red Drum', count: row.red_drum_count },
+        { species: 'Southern Flounder', count: row.flounder_count },
+        { species: 'Spotted Seatrout', count: row.spotted_seatrout_count },
+        { species: 'Weakfish', count: row.weakfish_count },
+        { species: 'Striped Bass', count: row.striped_bass_count },
       ];
 
       speciesList = allSpecies
@@ -146,7 +119,7 @@ async function fetchCatchesFromSupabase(
         .map(s => ({ species: s.species, count: s.count as number }));
     }
 
-    // Skip reports with no fish (shouldn't happen, but just in case)
+    // Skip reports with no fish
     if (speciesList.length === 0) continue;
 
     // Calculate total fish count
@@ -157,18 +130,18 @@ async function fetchCatchesFromSupabase(
       s.count > max.count ? s : max, speciesList[0]);
 
     entries.push({
-      id: report.id,
-      userId: user.id,
+      id: row.report_id,
+      userId: row.user_id,
       anglerName,
-      anglerProfileImage: user.profile_image_url || undefined,
+      anglerProfileImage: row.profile_image_url || undefined,
       species: primarySpecies.species,
       speciesList,
       totalFish,
-      photoUrl: report.photo_url || undefined,
-      catchDate: report.harvest_date || report.created_at,
-      location: report.area_label || undefined,
-      createdAt: report.created_at,
-      likeCount: 0,
+      photoUrl: row.photo_url || undefined,
+      catchDate: row.harvest_date || row.created_at,
+      location: row.area_label || undefined,
+      createdAt: row.created_at,
+      likeCount: row.like_count || 0,
       isLikedByCurrentUser: false,
     });
   }
@@ -324,170 +297,65 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
 
 /**
  * Fetch top anglers for "This Week's Top Anglers" section.
- * Returns top anglers for: most catches, most species, and longest fish.
+ * Uses the get_leaderboard RPC to fetch aggregated stats for the past week.
  */
 async function fetchTopAnglersFromSupabase(): Promise<TopAngler[]> {
-  const topAnglers: TopAngler[] = [];
+  // Calculate days (7 days for "This Week")
+  const periodDays = 7;
+  const limit = 100; // Get top users, then find top by each metric
 
-  // Calculate date 7 days ago
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const oneWeekAgoISO = oneWeekAgo.toISOString();
+  // Call get_leaderboard RPC for the past week
+  const { data: leaderboardData, error } = await supabase
+    .rpc('get_leaderboard', {
+      p_period_days: periodDays,
+      p_limit: limit,
+    });
 
-  // Query harvest_reports from the past week with user data and fish entries
-  const { data: reportsData, error: reportsError } = await supabase
-    .from('harvest_reports')
-    .select(`
-      id,
-      user_id,
-      created_at,
-      fish_entries (
-        species,
-        count,
-        lengths
-      ),
-      users!inner (
-        id,
-        first_name,
-        last_name,
-        profile_image_url,
-        rewards_opted_in_at
-      )
-    `)
-    .not('users.rewards_opted_in_at', 'is', null)
-    .gte('created_at', oneWeekAgoISO)
-    .order('created_at', { ascending: false });
-
-  if (reportsError) {
-    console.error('Failed to fetch reports for top anglers:', reportsError);
+  if (error) {
+    console.error('Failed to fetch leaderboard for top anglers:', error);
     return [];
   }
 
-  if (!reportsData || reportsData.length === 0) {
+  if (!leaderboardData || leaderboardData.length === 0) {
     return [];
   }
-
-  // Aggregate data per user
-  interface UserStats {
-    userId: string;
-    firstName: string;
-    lastName: string;
-    profileImage: string | null;
-    totalFish: number;
-    speciesSet: Set<string>;
-    longestFish: number;
-  }
-
-  const userStatsMap = new Map<string, UserStats>();
-
-  for (const report of reportsData) {
-    const user = (report.users as unknown) as {
-      id: string;
-      first_name: string | null;
-      last_name: string | null;
-      profile_image_url: string | null;
-      rewards_opted_in_at: string | null;
-    };
-
-    if (!user || !user.id) continue;
-
-    const fishEntries = (report.fish_entries as unknown) as Array<{
-      species: string;
-      count: number;
-      lengths: string[] | null;
-    }> | null;
-
-    // Initialize user stats if not exists
-    if (!userStatsMap.has(user.id)) {
-      userStatsMap.set(user.id, {
-        userId: user.id,
-        firstName: user.first_name || 'Anonymous',
-        lastName: user.last_name || '',
-        profileImage: user.profile_image_url,
-        totalFish: 0,
-        speciesSet: new Set<string>(),
-        longestFish: 0,
-      });
-    }
-
-    const stats = userStatsMap.get(user.id)!;
-
-    // Process fish entries
-    if (fishEntries && fishEntries.length > 0) {
-      for (const entry of fishEntries) {
-        // Add to total fish count
-        stats.totalFish += entry.count;
-
-        // Track unique species
-        if (entry.species) {
-          stats.speciesSet.add(entry.species);
-        }
-
-        // Check for longest fish
-        if (entry.lengths && entry.lengths.length > 0) {
-          for (const lengthStr of entry.lengths) {
-            // Parse length string (may be "32" or "32.5" or "32 inches")
-            const length = parseFloat(lengthStr);
-            if (!isNaN(length) && length > stats.longestFish) {
-              stats.longestFish = length;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Convert to array for sorting
-  const userStatsArray = Array.from(userStatsMap.values());
 
   // Helper to format display name
-  const formatDisplayName = (firstName: string, lastName: string): string => {
+  const formatDisplayName = (firstName: string | null, lastName: string | null): string => {
+    const first = firstName || 'Anonymous';
     const lastInitial = lastName ? `${lastName.charAt(0)}.` : '';
-    return `${firstName} ${lastInitial}`.trim();
+    return `${first} ${lastInitial}`.trim();
   };
 
-  // Find top angler by catches
-  const topByCatches = userStatsArray.reduce((max, stats) =>
-    stats.totalFish > max.totalFish ? stats : max, userStatsArray[0]);
+  const topAnglers: TopAngler[] = [];
 
-  if (topByCatches && topByCatches.totalFish > 0) {
+  // Find top angler by total_fish (catches)
+  const topByCatches = leaderboardData.reduce((max, row) =>
+    (row.total_fish || 0) > (max.total_fish || 0) ? row : max);
+
+  if (topByCatches && topByCatches.total_fish && topByCatches.total_fish > 0) {
     topAnglers.push({
       type: 'catches',
-      userId: topByCatches.userId,
-      displayName: formatDisplayName(topByCatches.firstName, topByCatches.lastName),
-      profileImage: topByCatches.profileImage || undefined,
-      value: topByCatches.totalFish,
-      label: topByCatches.totalFish === 1 ? 'catch' : 'catches',
+      userId: topByCatches.user_id,
+      displayName: formatDisplayName(topByCatches.first_name, topByCatches.last_name),
+      profileImage: topByCatches.profile_image_url || undefined,
+      value: topByCatches.total_fish,
+      label: topByCatches.total_fish === 1 ? 'catch' : 'catches',
     });
   }
 
   // Find top angler by species variety
-  const topBySpecies = userStatsArray.reduce((max, stats) =>
-    stats.speciesSet.size > max.speciesSet.size ? stats : max, userStatsArray[0]);
+  const topBySpecies = leaderboardData.reduce((max, row) =>
+    (row.distinct_species || 0) > (max.distinct_species || 0) ? row : max);
 
-  if (topBySpecies && topBySpecies.speciesSet.size > 0) {
+  if (topBySpecies && topBySpecies.distinct_species && topBySpecies.distinct_species > 0) {
     topAnglers.push({
       type: 'species',
-      userId: topBySpecies.userId,
-      displayName: formatDisplayName(topBySpecies.firstName, topBySpecies.lastName),
-      profileImage: topBySpecies.profileImage || undefined,
-      value: topBySpecies.speciesSet.size,
-      label: topBySpecies.speciesSet.size === 1 ? 'species' : 'species',
-    });
-  }
-
-  // Find top angler by longest fish
-  const topByLength = userStatsArray.reduce((max, stats) =>
-    stats.longestFish > max.longestFish ? stats : max, userStatsArray[0]);
-
-  if (topByLength && topByLength.longestFish > 0) {
-    topAnglers.push({
-      type: 'length',
-      userId: topByLength.userId,
-      displayName: formatDisplayName(topByLength.firstName, topByLength.lastName),
-      profileImage: topByLength.profileImage || undefined,
-      value: `${topByLength.longestFish}"`,
-      label: 'longest',
+      userId: topBySpecies.user_id,
+      displayName: formatDisplayName(topBySpecies.first_name, topBySpecies.last_name),
+      profileImage: topBySpecies.profile_image_url || undefined,
+      value: topBySpecies.distinct_species,
+      label: topBySpecies.distinct_species === 1 ? 'species' : 'species',
     });
   }
 

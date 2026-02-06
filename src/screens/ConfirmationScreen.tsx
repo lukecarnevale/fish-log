@@ -45,7 +45,7 @@ import { markNewReportSubmitted } from "../utils/badgeUtils";
 import { clearCatchFeedCache } from "../services/catchFeedService";
 
 // User service for syncing profile to Supabase
-import { updateCurrentUser } from "../services/userService";
+import { updateCurrentUser } from "../services/userProfileService";
 import { UserInput } from "../types/user";
 
 type ConfirmationScreenNavigationProp = StackNavigationProp<
@@ -200,6 +200,13 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
           }
           if (reportData.waterbody || reportData.areaLabel) {
             profileUpdates.preferredAreaLabel = reportData.waterbody || reportData.areaLabel;
+            profileUpdates.primaryHarvestArea = reportData.waterbody || reportData.areaLabel;
+          }
+          // Save fishing method as primary default
+          if (reportData.usedHookAndLine !== undefined) {
+            profileUpdates.primaryFishingMethod = reportData.usedHookAndLine
+              ? 'Hook and Line'
+              : (reportData.gearLabel || reportData.gearCode || null);
           }
           if (reportData.angler?.firstName) {
             profileUpdates.firstName = reportData.angler.firstName;

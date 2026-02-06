@@ -30,9 +30,13 @@ export interface User {
   preferredAreaCode: string | null;
   preferredAreaLabel: string | null;
 
+  // Date of birth
+  dateOfBirth: string | null;
+
   // License info (cached for DMF submissions)
   hasLicense: boolean;
   wrcId: string | null;
+  licenseNumber: string | null;
 
   // Contact preferences
   phone: string | null;
@@ -76,8 +80,10 @@ export interface UserInput {
   profileImageUrl?: string;
   preferredAreaCode?: string;
   preferredAreaLabel?: string;
+  dateOfBirth?: string;
   hasLicense?: boolean;
   wrcId?: string;
+  licenseNumber?: string;
   phone?: string;
   wantsTextConfirmation?: boolean;
   wantsEmailConfirmation?: boolean;
@@ -182,8 +188,10 @@ export function transformUser(row: Record<string, unknown>): User {
     profileImageUrl: row.profile_image_url as string | null,
     preferredAreaCode: row.preferred_area_code as string | null,
     preferredAreaLabel: row.preferred_area_label as string | null,
+    dateOfBirth: row.date_of_birth as string | null,
     hasLicense: row.has_license as boolean,
     wrcId: row.wrc_id as string | null,
+    licenseNumber: row.license_number as string | null,
     phone: row.phone as string | null,
     wantsTextConfirmation: (row.wants_text_confirmation as boolean) ?? false,
     wantsEmailConfirmation: (row.wants_email_confirmation as boolean) ?? false,

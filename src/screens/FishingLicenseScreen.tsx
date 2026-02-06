@@ -29,7 +29,7 @@ import LicenseTypePicker from "../components/LicenseTypePicker";
 import ScreenLayout from "../components/ScreenLayout";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import { SCREEN_LABELS } from "../constants/screenLabels";
-import { getCurrentUser, updateCurrentUser } from "../services/userService";
+import { getCurrentUser, updateCurrentUser } from "../services/userProfileService";
 
 type FishingLicenseScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -148,7 +148,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             firstName: formData.firstName || undefined,
             lastName: formData.lastName || undefined,
             hasLicense: true,
-            wrcId: formData.licenseNumber || undefined,
+            licenseNumber: formData.licenseNumber || undefined,
             licenseType: formData.licenseType || undefined,
             licenseIssueDate: formData.issueDate || undefined,
             licenseExpiryDate: formData.expiryDate || undefined,

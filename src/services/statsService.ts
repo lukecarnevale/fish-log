@@ -7,12 +7,14 @@
 import { supabase, isSupabaseConnected } from '../config/supabase';
 import { StoredReport } from '../types/report';
 
-// Species mapping from report fields to display names
+// Species mapping from report fields to display names.
+// Full names must match what fish_entries.species stores (set by ReportFormScreen)
+// so that user_species_stats rows created by the DB trigger vs app code are consistent.
 const SPECIES_MAP: Record<string, string> = {
   redDrumCount: 'Red Drum',
   flounderCount: 'Flounder',
-  spottedSeatroutCount: 'Spotted Seatrout',
-  weakfishCount: 'Weakfish',
+  spottedSeatroutCount: 'Spotted Seatrout (speckled trout)',
+  weakfishCount: 'Weakfish (gray trout)',
   stripedBassCount: 'Striped Bass',
 };
 
@@ -526,31 +528,27 @@ export async function updateAllStatsAfterReport(
   achievementsAwarded: AwardedAchievement[];
   error?: string;
 }> {
-  console.log('📊 Updating stats for user:', userId);
+  console.log('📊 Checking achievements for user:', userId);
 
-  // Update species stats
-  const speciesResult = await updateSpeciesStats(userId, report);
-
-  // Update user denormalized stats
-  const userResult = await updateUserStats(userId, report);
+  // NOTE: Species stats and user denormalized stats are now handled by
+  // database triggers (update_species_stats, update_user_stats) which fire
+  // automatically when fish_entries / harvest_reports are inserted by the
+  // create_report_atomic / create_report_anonymous RPCs.
+  // Calling updateSpeciesStats() and updateUserStats() here would double-count.
 
   // Check and award achievements (pass report ID to associate with earned achievements)
   const achievementResult = await checkAndAwardAchievements(userId, report.id);
 
-  const allSuccess = speciesResult.success && userResult.success;
-
-  if (allSuccess) {
-    console.log('✅ All stats updated successfully');
-  } else {
-    console.warn('⚠️ Some stats failed to update');
+  if (achievementResult.awarded.length > 0) {
+    console.log('✅ Achievements checked, awarded:', achievementResult.awarded.length);
   }
 
   return {
-    success: allSuccess,
-    speciesStatsUpdated: speciesResult.success,
-    userStatsUpdated: userResult.success,
+    success: true,
+    speciesStatsUpdated: true,  // Handled by DB trigger
+    userStatsUpdated: true,      // Handled by DB trigger
     achievementsAwarded: achievementResult.awarded,
-    error: speciesResult.error || userResult.error || achievementResult.error,
+    error: achievementResult.error,
   };
 }
 

@@ -12,7 +12,7 @@ import {
 } from '../services/authService';
 import {
   createRewardsMemberFromAuthUser,
-} from '../services/userService';
+} from '../services/rewardsConversionService';
 
 /**
  * Hook for listening to auth state changes and syncing user data.

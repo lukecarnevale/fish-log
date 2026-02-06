@@ -35,7 +35,7 @@ import {
 import { updatePendingDrawingEntry } from '../services/pendingSubmissionService';
 import { FALLBACK_CONFIG, FALLBACK_DRAWING } from '../data/rewardsFallbackData';
 import { getCurrentUserState } from '../services/anonymousUserService';
-import { getRewardsMemberForAnonymousUser } from '../services/userService';
+import { getRewardsMemberForAnonymousUser } from '../services/rewardsConversionService';
 import { onAuthStateChange } from '../services/authService';
 import {
   calculateDaysRemaining,
