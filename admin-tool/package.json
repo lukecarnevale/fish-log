@@ -1,0 +1,24 @@
+{
+  "name": "fish-log-admin-tool",
+  "version": "1.0.0",
+  "description": "Admin CLI for Fish-Log Supabase development (uses service_role key)",
+  "private": true,
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "query": "ts-node src/index.ts query",
+    "seed": "ts-node src/index.ts seed",
+    "inspect": "ts-node src/index.ts inspect",
+    "test-rls": "ts-node src/index.ts test-rls"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.91.0",
+    "chalk": "^4.1.2",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  }
+}
