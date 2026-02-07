@@ -818,6 +818,16 @@ export async function syncPendingReports(): Promise<{
       await removeFromPendingSync(reportId);
       synced++;
 
+      // Update streak & check achievements for this synced report
+      if (supabaseReport.userId) {
+        try {
+          await updateAllStatsAfterReport(supabaseReport.userId, supabaseReport);
+          await addReportToRewardsEntry(supabaseReport.userId, supabaseReport.id);
+        } catch (statsError) {
+          console.warn('⚠️ Stats/achievements failed for synced report (non-critical):', statsError);
+        }
+      }
+
       console.log(`✅ Synced report ${reportId} -> ${supabaseReport.id}`);
     } catch (error) {
       console.warn(`⚠️ Failed to sync report ${reportId}:`, error);

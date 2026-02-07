@@ -479,10 +479,14 @@ export async function enterRewardsDrawing(
 }
 
 /**
- * Add a report ID to the user's existing rewards entry.
- * If the user is already entered in the drawing, appends the report ID.
- * If not entered, creates a new entry with the report ID.
- * Returns true if successful, false otherwise.
+ * Associate a report ID with the user's existing rewards entry.
+ *
+ * IMPORTANT: This only appends the report to an entry where the user has
+ * already explicitly opted in (`is_entered = true`). It will NOT create a
+ * new entry or auto-enter the user into the drawing — that must be done
+ * via `enterRewardsDrawing()` through an explicit user action.
+ *
+ * Returns true if the report was associated, false otherwise.
  */
 export async function addReportToRewardsEntry(
   userId: string,
@@ -496,8 +500,24 @@ export async function addReportToRewardsEntry(
       return false;
     }
 
-    // Add the report to the entry (creates entry if doesn't exist)
-    await enterRewardsDrawing(userId, currentDrawing.id, reportId);
+    // Only associate the report if the user has already entered this drawing
+    const existingEntry = await fetchUserEntryFromSupabase(userId, currentDrawing.id);
+    if (!existingEntry || !existingEntry.isEntered) {
+      return false;
+    }
+
+    // Append the report ID (avoid duplicates)
+    const existingIds = existingEntry.associatedReportIds || [];
+    if (existingIds.includes(reportId)) {
+      return true; // Already associated
+    }
+
+    const updatedEntry: UserRewardsEntry = {
+      ...existingEntry,
+      associatedReportIds: [...existingIds, reportId],
+    };
+
+    await upsertUserEntryToSupabase(updatedEntry);
     console.log(`📎 Report ${reportId} associated with rewards entry`);
     return true;
   } catch (error) {

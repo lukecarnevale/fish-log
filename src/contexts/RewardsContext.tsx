@@ -133,7 +133,8 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
   // Load rewards data on mount
   useEffect(() => {
     loadRewardsData();
-    loadEnteredDrawings();
+    // Legacy drawing IDs are loaded inside loadRewardsData via the
+    // authenticated-user check — no need to load them unconditionally here.
   }, [userId]);
 
   /**
@@ -202,6 +203,14 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
         }
       }
       setUserEntry(finalUserEntry);
+
+      // For authenticated users the Supabase userEntry is the source of truth;
+      // clear stale legacy IDs so they can't override it.
+      if (effectiveUserId) {
+        setEnteredDrawingIds([]);
+      } else {
+        await loadEnteredDrawings();
+      }
     } catch (err) {
       console.error('Failed to load rewards data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load rewards');
@@ -251,7 +260,14 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
       setConfig(data.config);
       setCurrentDrawing(data.currentDrawing);
       setUserEntry(data.userEntry);
-      await loadEnteredDrawings();
+
+      // For authenticated users, the Supabase userEntry is the source of truth —
+      // clear stale legacy IDs so they can't override it.
+      if (effectiveUserId) {
+        setEnteredDrawingIds([]);
+      } else {
+        await loadEnteredDrawings();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh');
     } finally {
@@ -361,13 +377,24 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
 
   /**
    * Check if user is entered in current drawing.
+   *
+   * Uses userEntry (from Supabase or pending state) as the primary source.
+   * Legacy enteredDrawingIds are only consulted for unauthenticated/local
+   * users to avoid stale data from a previous session showing "entered"
+   * for a new user.
    */
   const isEnteredInCurrentDrawing = useCallback((): boolean => {
     if (!currentDrawing) return false;
-    return (
-      userEntry?.isEntered === true ||
-      enteredDrawingIds.includes(currentDrawing.id)
-    );
+
+    // Primary check: Supabase-backed or pending entry
+    if (userEntry?.isEntered === true) return true;
+
+    // Fallback: legacy local IDs — only trust for non-authenticated (local) entries
+    if (userEntry?.userId === 'local' || userEntry?.userId === 'pending') {
+      return enteredDrawingIds.includes(currentDrawing.id);
+    }
+
+    return false;
   }, [currentDrawing, userEntry, enteredDrawingIds]);
 
   // Calculate derived values

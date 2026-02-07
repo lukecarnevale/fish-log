@@ -42,24 +42,14 @@ export async function updateSpeciesStats(
   }
 
   try {
-    // Build list of species to update
-    const updates: SpeciesStatUpdate[] = [];
-
-    if (report.redDrumCount > 0) {
-      updates.push({ species: 'Red Drum', count: report.redDrumCount, harvestDate: report.harvestDate });
-    }
-    if (report.flounderCount > 0) {
-      updates.push({ species: 'Flounder', count: report.flounderCount, harvestDate: report.harvestDate });
-    }
-    if (report.spottedSeatroutCount > 0) {
-      updates.push({ species: 'Spotted Seatrout', count: report.spottedSeatroutCount, harvestDate: report.harvestDate });
-    }
-    if (report.weakfishCount > 0) {
-      updates.push({ species: 'Weakfish', count: report.weakfishCount, harvestDate: report.harvestDate });
-    }
-    if (report.stripedBassCount > 0) {
-      updates.push({ species: 'Striped Bass', count: report.stripedBassCount, harvestDate: report.harvestDate });
-    }
+    // Build list of species to update using SPECIES_MAP as the single source of truth
+    const updates: SpeciesStatUpdate[] = Object.entries(SPECIES_MAP)
+      .filter(([field]) => (report[field as keyof StoredReport] as number) > 0)
+      .map(([field, species]) => ({
+        species,
+        count: report[field as keyof StoredReport] as number,
+        harvestDate: report.harvestDate,
+      }));
 
     if (updates.length === 0) {
       return { success: true }; // No species to update
@@ -311,6 +301,22 @@ export async function checkAndAwardAchievements(
       console.warn('Failed to count reports with photos:', photoCountError.message);
     }
 
+    // Check if user has actually entered a rewards drawing
+    let hasEnteredDrawing = false;
+    try {
+      const { count: entryCount, error: entryError } = await supabase
+        .from('user_rewards_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_entered', true);
+
+      if (!entryError) {
+        hasEnteredDrawing = (entryCount || 0) > 0;
+      }
+    } catch {
+      // Non-critical — default to false so the achievement won't fire incorrectly
+    }
+
     // Map to expected format for checkAchievementRequirement
     const userStats: ExtendedUserStats = {
       total_reports: user.total_reports || 0,
@@ -319,6 +325,7 @@ export async function checkAndAwardAchievements(
       longest_streak: user.longest_streak_days || 0,
       reports_with_photos: reportsWithPhotos || 0,
       is_rewards_member: !!user.rewards_opted_in_at,
+      has_entered_drawing: hasEnteredDrawing,
     };
 
     console.log('🏆 Checking achievements with stats:', {
@@ -452,6 +459,7 @@ interface ExtendedUserStats {
   longest_streak: number;
   reports_with_photos: number;
   is_rewards_member: boolean;
+  has_entered_drawing: boolean;
 }
 
 /**
@@ -466,9 +474,9 @@ function checkAchievementRequirement(
   // Handle achievements by their code
   // The database uses codes like "first_report", "reports_10", "streak_3", etc.
   switch (code) {
-    // Special achievements
+    // Special achievements — requires the user to have actually entered a drawing
     case 'rewards_entered':
-      return user.is_rewards_member && user.total_reports >= 1;
+      return user.has_entered_drawing;
 
     // Milestone achievements (reporting)
     case 'first_report':
@@ -499,9 +507,16 @@ function checkAchievementRequirement(
     case 'streak_30':
       return user.longest_streak >= 30;
 
-    // Species achievements
+    // Species achievements — names must match what the DB trigger stores
+    // (which comes from fish_entries.species, set by ReportFormScreen).
     case 'species_all_5':
-      const allSpecies = ['Red Drum', 'Flounder', 'Spotted Seatrout', 'Weakfish', 'Striped Bass'];
+      const allSpecies = [
+        'Red Drum',
+        'Flounder',
+        'Spotted Seatrout (speckled trout)',
+        'Weakfish (gray trout)',
+        'Striped Bass',
+      ];
       return allSpecies.every((s) => (speciesMap.get(s) || 0) > 0);
 
     default:
@@ -513,6 +528,84 @@ function checkAchievementRequirement(
 // =============================================================================
 // Main Update Function
 // =============================================================================
+
+/**
+ * Recalculate the user's streak after a new report.
+ *
+ * The DB trigger `update_user_stats` handles total_reports / total_fish but
+ * does NOT touch streak columns, and it sets `last_active_at = NOW()` which
+ * would make any comparison unreliable. Instead we derive the streak from
+ * the two most recent distinct harvest dates — this is resilient to trigger
+ * timing and always correct.
+ */
+async function updateStreak(userId: string): Promise<void> {
+  try {
+    // Fetch the two most recent distinct harvest dates for this user
+    const { data: recentDates, error: datesError } = await supabase
+      .from('harvest_reports')
+      .select('harvest_date')
+      .eq('user_id', userId)
+      .order('harvest_date', { ascending: false });
+
+    if (datesError || !recentDates || recentDates.length === 0) return;
+
+    // Deduplicate to distinct calendar days
+    const uniqueDays = [
+      ...new Set(recentDates.map((r) => r.harvest_date as string)),
+    ];
+
+    if (uniqueDays.length < 2) {
+      // First-ever report day — streak is 1
+      await supabase
+        .from('users')
+        .update({ current_streak_days: 1, longest_streak_days: 1 })
+        .eq('id', userId);
+      return;
+    }
+
+    // Get the current streak columns so we can compare
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('current_streak_days, longest_streak_days')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) return;
+
+    let currentStreak = user.current_streak_days || 1;
+    let longestStreak = user.longest_streak_days || 1;
+
+    const latest = new Date(uniqueDays[0]);
+    const previous = new Date(uniqueDays[1]);
+    latest.setHours(0, 0, 0, 0);
+    previous.setHours(0, 0, 0, 0);
+
+    const daysDiff = Math.floor(
+      (latest.getTime() - previous.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (daysDiff === 1) {
+      currentStreak += 1;
+    } else if (daysDiff > 1) {
+      currentStreak = 1;
+    }
+    // daysDiff === 0 should not happen (deduplicated), but if it does → no change
+
+    if (currentStreak > longestStreak) {
+      longestStreak = currentStreak;
+    }
+
+    await supabase
+      .from('users')
+      .update({
+        current_streak_days: currentStreak,
+        longest_streak_days: longestStreak,
+      })
+      .eq('id', userId);
+  } catch (error) {
+    console.warn('⚠️ Failed to update streak (non-critical):', error);
+  }
+}
 
 /**
  * Update all user statistics after a report is submitted.
@@ -528,13 +621,12 @@ export async function updateAllStatsAfterReport(
   achievementsAwarded: AwardedAchievement[];
   error?: string;
 }> {
-  console.log('📊 Checking achievements for user:', userId);
+  console.log('📊 Updating streak & checking achievements for user:', userId);
 
-  // NOTE: Species stats and user denormalized stats are now handled by
-  // database triggers (update_species_stats, update_user_stats) which fire
-  // automatically when fish_entries / harvest_reports are inserted by the
-  // create_report_atomic / create_report_anonymous RPCs.
-  // Calling updateSpeciesStats() and updateUserStats() here would double-count.
+  // NOTE: Species stats and user denormalized totals (total_reports,
+  // total_fish_reported) are handled by database triggers. However the
+  // triggers do NOT recalculate streaks, so we do that here.
+  await updateStreak(userId);
 
   // Check and award achievements (pass report ID to associate with earned achievements)
   const achievementResult = await checkAndAwardAchievements(userId, report.id);
@@ -641,15 +733,17 @@ export async function backfillUserStatsFromReports(
         });
       }
       if (spottedSeatrout > 0) {
-        const existing = speciesStats.get('Spotted Seatrout') || { count: 0, lastCaughtAt: harvestDate };
-        speciesStats.set('Spotted Seatrout', {
+        const key = SPECIES_MAP.spottedSeatroutCount; // 'Spotted Seatrout (speckled trout)'
+        const existing = speciesStats.get(key) || { count: 0, lastCaughtAt: harvestDate };
+        speciesStats.set(key, {
           count: existing.count + spottedSeatrout,
           lastCaughtAt: harvestDate > existing.lastCaughtAt ? harvestDate : existing.lastCaughtAt,
         });
       }
       if (weakfish > 0) {
-        const existing = speciesStats.get('Weakfish') || { count: 0, lastCaughtAt: harvestDate };
-        speciesStats.set('Weakfish', {
+        const key = SPECIES_MAP.weakfishCount; // 'Weakfish (gray trout)'
+        const existing = speciesStats.get(key) || { count: 0, lastCaughtAt: harvestDate };
+        speciesStats.set(key, {
           count: existing.count + weakfish,
           lastCaughtAt: harvestDate > existing.lastCaughtAt ? harvestDate : existing.lastCaughtAt,
         });

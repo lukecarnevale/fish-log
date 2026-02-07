@@ -469,6 +469,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // Ref to track if user has confirmed they want to abandon (allows navigation)
   const hasConfirmedAbandon = useRef<boolean>(false);
 
+  // Ref to track if form was successfully submitted (skip abandon guard on stack reset)
+  const hasNavigatedToConfirmation = useRef<boolean>(false);
+
   // State for WRC ID info modal
   const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
 
@@ -897,6 +900,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         return;
       }
 
+      // If form was submitted and we navigated to Confirmation, allow stack resets
+      if (hasNavigatedToConfirmation.current) {
+        return;
+      }
+
       // Check if there's form data to protect
       if (!hasFormDataRef.current()) {
         // No form data, allow navigation
@@ -1201,6 +1209,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       reportingFor: formData.reportingType === "myself_and_minors" ? "family" : "self",
       familyCount: formData.reportingType === "myself_and_minors" ? formData.totalPeopleCount : undefined,
     };
+
+    // Mark as submitted so beforeRemove guard won't block stack resets from Confirmation
+    hasNavigatedToConfirmation.current = true;
 
     // Navigate to the confirmation page
     navigation.navigate("Confirmation", { reportData });

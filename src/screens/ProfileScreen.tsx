@@ -42,6 +42,7 @@ import {
 } from "../services/authService";
 import { getCurrentUser, updateCurrentUser, getUserStats } from "../services/userProfileService";
 import { isRewardsMember } from "../services/rewardsConversionService";
+import { useRewards } from "../contexts/RewardsContext";
 import { User, UserAchievement } from "../types/user";
 import { useZipCodeLookup } from "../hooks/useZipCodeLookup";
 import { useFishingStats } from "../hooks/useFishingStats";
@@ -72,6 +73,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   // Load fishing stats using custom hook
   const { fishingStats, statsLoading } = useFishingStats();
+
+  // Rewards drawing entry status (from RewardsContext)
+  const { hasEnteredCurrentRaffle } = useRewards();
 
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
 
@@ -1168,7 +1172,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
 
             <Text style={localStyles.rewardsMemberDesc}>
-              You're entered in the quarterly drawing! Keep reporting your catches to earn more entries.
+              {hasEnteredCurrentRaffle
+                ? "You're entered in the quarterly drawing! Keep reporting your catches to earn more entries."
+                : "Submit a catch report and enter the quarterly drawing for a chance to win prizes!"}
             </Text>
 
             <TouchableOpacity

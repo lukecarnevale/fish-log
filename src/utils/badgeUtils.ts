@@ -3,6 +3,7 @@
 // Utility functions for managing badge notifications on quick action cards.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { badgeDataCache, PERSISTENT_CACHE_KEYS } from '../screens/home/homeScreenConstants';
 
 // Storage keys for badge tracking
 export const BADGE_STORAGE_KEYS = {
@@ -42,6 +43,24 @@ export async function clearNewReportIndicator(): Promise<void> {
   }
 }
 
+
+/**
+ * Invalidate both the in-memory and persistent badge data caches.
+ * Forces the next loadBadgeData() call to fetch fresh data instead of
+ * returning stale cached values. Also clears the AsyncStorage persistent
+ * cache to prevent stale optimistic data from causing UI flicker
+ * (the persistent cache is rebuilt on the next fresh fetch).
+ *
+ * Call this after any action that changes badge-relevant data
+ * (e.g., submitting a report, clearing the catch feed).
+ */
+export function invalidateBadgeCache(): void {
+  badgeDataCache.timestamp = 0;
+  badgeDataCache.data = null;
+  // Clear persistent cache so the optimistic load in useBadgeData
+  // doesn't inject stale data that triggers badge animation resets
+  AsyncStorage.removeItem(PERSISTENT_CACHE_KEYS.badgeData);
+}
 
 /**
  * Check if there's a new report since last viewing Past Reports.

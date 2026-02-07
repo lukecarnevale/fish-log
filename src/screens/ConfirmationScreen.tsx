@@ -16,6 +16,7 @@ import {
   Share,
   ActivityIndicator,
   BackHandler,
+  InteractionManager,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -39,7 +40,7 @@ import { shouldShowRewardsPrompt } from "../services/anonymousUserService";
 import { useAchievements } from "../contexts/AchievementContext";
 
 // Badge notification
-import { markNewReportSubmitted } from "../utils/badgeUtils";
+import { markNewReportSubmitted, invalidateBadgeCache } from "../utils/badgeUtils";
 
 // Catch feed cache
 import { clearCatchFeedCache } from "../services/catchFeedService";
@@ -86,7 +87,7 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
     if (isDismissingRef.current) return;
     isDismissingRef.current = true;
     console.log('❌ Close button pressed, navigating home');
-    navigation.navigate("Home");
+    navigation.reset({ index: 0, routes: [{ name: "Home" }] });
   };
 
   // Submit to DMF on mount
@@ -126,7 +127,7 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!isDismissingRef.current) {
         isDismissingRef.current = true;
-        navigation.navigate("Home");
+        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
       }
       return true; // Prevent default back behavior
     });
@@ -148,9 +149,11 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
 
       // Mark new report for badge notification (if submitted or queued)
       if (result.success || result.queued) {
-        markNewReportSubmitted();
+        await markNewReportSubmitted();
         // Clear catch feed cache so the new submission appears immediately
-        clearCatchFeedCache();
+        await clearCatchFeedCache();
+        // Invalidate the in-memory badge cache so HomeScreen fetches fresh data
+        invalidateBadgeCache();
 
         // Save preferred area to user profile for future reports
         if (reportData.areaCode || reportData.waterbody) {
@@ -390,7 +393,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
         </TouchableOpacity>
         <TouchableOpacity
           style={localStyles.homeButton}
-          onPress={() => navigation.navigate("Home")}
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: "Home" }] })}
           activeOpacity={0.8}
         >
           <Text style={localStyles.homeButtonText}>Return Home</Text>
@@ -609,7 +612,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
             {/* Primary Action - Return Home */}
             <TouchableOpacity
               style={localStyles.primaryButton}
-              onPress={() => navigation.navigate("Home")}
+              onPress={() => navigation.reset({ index: 0, routes: [{ name: "Home" }] })}
               activeOpacity={0.8}
             >
               <Feather name="home" size={20} color={colors.white} style={{ marginRight: 10 }} />
@@ -619,7 +622,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
             {/* Secondary Action - Submit Another */}
             <TouchableOpacity
               style={localStyles.secondaryActionButton}
-              onPress={() => navigation.navigate("ReportForm")}
+              onPress={() => navigation.reset({ index: 1, routes: [{ name: "Home" }, { name: "ReportForm" }] })}
               activeOpacity={0.8}
             >
               <Feather name="plus-circle" size={20} color={colors.primary} style={{ marginRight: 10 }} />
@@ -653,23 +656,33 @@ This report was submitted to the NC Division of Marine Fisheries.`;
               <TouchableOpacity
                 style={localStyles.quickActionButton}
                 onPress={() => {
-                  // Reset stack so back from PastReports goes to Home, not Confirmation
-                  navigation.dispatch(
-                    CommonActions.reset({
-                      index: 1,
-                      routes: [
-                        { name: "Home" },
-                        { name: "PastReports" },
-                      ],
-                    })
-                  );
+                  // Navigate with smooth slide-in animation instead of reset
+                  // (reset tears down the entire stack, causing a brief white flash
+                  // while HomeScreen re-renders behind the new PastReportsScreen)
+                  navigation.navigate('PastReports');
+                  // After the transition animation completes, silently remove
+                  // Confirmation and ReportForm so back goes to Home
+                  InteractionManager.runAfterInteractions(() => {
+                    navigation.dispatch(state => {
+                      const topRoute = state.routes[state.routes.length - 1];
+                      if (topRoute?.name !== 'PastReports') return state;
+                      const routes = state.routes.filter(
+                        r => r.name === 'Home' || r.name === 'PastReports'
+                      );
+                      return CommonActions.reset({
+                        ...state,
+                        routes,
+                        index: routes.length - 1,
+                      });
+                    });
+                  });
                 }}
                 activeOpacity={0.7}
               >
                 <View style={localStyles.quickActionIcon}>
                   <Feather name="clock" size={22} color={colors.primary} />
                 </View>
-                <Text style={localStyles.quickActionText}>History</Text>
+                <Text style={localStyles.quickActionText}>Past Reports</Text>
               </TouchableOpacity>
             </View>
           </View>

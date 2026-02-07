@@ -26,6 +26,7 @@ import AdvertisementBanner from "../components/AdvertisementBanner";
 import MandatoryHarvestCard from "../components/MandatoryHarvestCard";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import FeedbackModal from "../components/FeedbackModal";
+import AboutModal from "../components/AboutModal";
 import QuickActionGrid from "../components/QuickActionGrid";
 import WaveBackground from "../components/WaveBackground";
 import WavyMenuIcon from "../components/WavyMenuIcon";
@@ -70,6 +71,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Feedback modal state
   const [feedbackModalVisible, setFeedbackModalVisible] = useState<boolean>(false);
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('feedback');
+  const [aboutModalVisible, setAboutModalVisible] = useState<boolean>(false);
   // Track pending magic link auth for badge indicator
   const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
   // Track if user is a rewards member
@@ -648,6 +650,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             onPrivacyPress={() => navigation.navigate('LegalDocument', { type: 'privacy' })}
             onTermsPress={() => navigation.navigate('LegalDocument', { type: 'terms' })}
             onLicensesPress={() => navigation.navigate('LegalDocument', { type: 'licenses' })}
+            onContactPress={() => {
+              setFeedbackType('feedback');
+              setFeedbackModalVisible(true);
+            }}
+            onInfoPress={() => setAboutModalVisible(true)}
           />
         </View>
         </View>
@@ -658,6 +665,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         visible={feedbackModalVisible}
         onClose={() => setFeedbackModalVisible(false)}
         type={feedbackType}
+      />
+
+      {/* About Modal */}
+      <AboutModal
+        visible={aboutModalVisible}
+        onClose={() => setAboutModalVisible(false)}
       />
     </SafeAreaView>
     </View>
