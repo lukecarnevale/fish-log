@@ -54,6 +54,12 @@ export {
   type RewardsCalculated,
 } from './rewards';
 
+// Partner Types (Supabase)
+export {
+  type Partner,
+  transformPartner,
+} from './partner';
+
 // Legal Document Types
 export type LegalDocumentType = 'privacy' | 'terms' | 'licenses';
 

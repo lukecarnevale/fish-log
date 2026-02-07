@@ -25,7 +25,7 @@ import * as SecureStore from 'expo-secure-store';
 import { colors } from '../styles/common';
 import { RootStackParamList } from '../types';
 import { devConfig } from '../config/devConfig';
-import { setAppModeWithWarning, AppMode } from '../config/appConfig';
+import { setAppModeWithWarning, AppMode, APP_VERSION } from '../config/appConfig';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { AppLogoIcon, AnglerAvatarIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, MultipleFishIcon, LicenseCardIcon } from './icons/DrawerMenuIcons';
 
@@ -423,12 +423,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
 
         {/* Footer */}
         <View style={styles.menuFooter}>
-          <View style={styles.footerLinks}>
-            <Text style={styles.footerLink}>Privacy</Text>
-            <Text style={styles.footerLink}>Terms</Text>
-            <Text style={styles.footerLink}>About</Text>
-          </View>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={styles.versionText}>Version {APP_VERSION}</Text>
         </View>
 
       </SafeAreaView>
@@ -634,15 +629,6 @@ const styles = StyleSheet.create({
     paddingRight: 14 + BOUNCE_BUFFER, // Extra padding for bounce buffer
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-  },
-  footerLinks: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  footerLink: {
-    fontSize: 11,
-    color: '#888888',
   },
   versionText: {
     textAlign: 'center',

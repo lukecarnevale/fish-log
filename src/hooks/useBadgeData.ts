@@ -1,6 +1,6 @@
 // hooks/useBadgeData.ts
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CardBadgeData } from '../components/QuickActionGrid';
 import { BADGE_CACHE_TTL, badgeDataCache, PERSISTENT_CACHE_KEYS } from '../screens/home/homeScreenConstants';
@@ -23,6 +23,11 @@ export const useBadgeData = (): UseBadgeDataResult => {
     newCatchesCount: 0,
   });
 
+  // Guard against concurrent loadBadgeData calls (e.g., useEffect + focus
+  // listener both firing on mount) which cause duplicate fetches and
+  // intermediate state updates that trigger badge animation flicker.
+  const isLoadingRef = useRef(false);
+
   const loadBadgeData = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
 
@@ -31,6 +36,11 @@ export const useBadgeData = (): UseBadgeDataResult => {
       setBadgeData(badgeDataCache.data);
       return;
     }
+
+    // Prevent concurrent fetches — the first call handles the load,
+    // subsequent calls are no-ops until it completes
+    if (isLoadingRef.current && !forceRefresh) return;
+    isLoadingRef.current = true;
 
     // Load from persistent cache immediately for optimistic UI (don't await)
     if (!badgeDataCache.data) {
@@ -95,6 +105,8 @@ export const useBadgeData = (): UseBadgeDataResult => {
       AsyncStorage.setItem(PERSISTENT_CACHE_KEYS.badgeData, JSON.stringify(newBadgeData));
     } catch (error) {
       console.error('Error loading badge data:', error);
+    } finally {
+      isLoadingRef.current = false;
     }
   }, []);
 

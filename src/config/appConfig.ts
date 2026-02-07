@@ -4,6 +4,9 @@
 // Mode is now determined by environment variables at build time.
 
 import { env, isTestMode, isProductionMode, isProduction } from './env';
+import appJson from '../../app.json';
+
+export const APP_VERSION = appJson.expo.version;
 
 export type AppMode = 'mock' | 'production';
 

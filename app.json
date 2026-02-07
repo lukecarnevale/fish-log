@@ -2,7 +2,7 @@
   "expo": {
     "name": "fish-log",
     "slug": "fish-log",
-    "version": "1.0.0",
+    "version": "1.2.1",
     "scheme": "fishlog",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

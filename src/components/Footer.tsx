@@ -11,29 +11,30 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../styles/common';
-import { SPONSORS as sponsors } from '../constants/sponsorsData';
+import { APP_VERSION } from '../config/appConfig';
+import { usePartners } from '../hooks/usePartners';
 import { GhostFish, WaveTransition, FOOTER_BG } from './icons/FooterIcons';
 
 interface FooterProps {
   onPrivacyPress?: () => void;
   onTermsPress?: () => void;
   onLicensesPress?: () => void;
+  onContactPress?: () => void;
+  onInfoPress?: () => void;
 }
 
 const Footer: React.FC<FooterProps> = ({
   onPrivacyPress,
   onTermsPress,
   onLicensesPress,
+  onContactPress,
+  onInfoPress,
 }) => {
-  const handleSponsorPress = (url: string) => {
+  const { partners } = usePartners();
+
+  const handlePartnerPress = (url: string) => {
     Linking.openURL(url).catch((err) =>
       console.error('An error occurred', err)
-    );
-  };
-
-  const handleContactPress = () => {
-    Linking.openURL('mailto:contact@ncfishreport.gov').catch((err) =>
-      console.error('Could not open email app', err)
     );
   };
 
@@ -58,23 +59,23 @@ const Footer: React.FC<FooterProps> = ({
             scrollEventThrottle={16}
             decelerationRate="fast"
           >
-            {sponsors.map((sponsor) => (
+            {partners.map((partner) => (
               <TouchableOpacity
-                key={sponsor.id}
+                key={partner.id}
                 style={styles.partnerCard}
-                onPress={() => handleSponsorPress(sponsor.website)}
+                onPress={() => handlePartnerPress(partner.websiteUrl)}
                 activeOpacity={0.8}
               >
                 <View style={styles.partnerLogoContainer}>
                   <Image
-                    source={{ uri: sponsor.icon }}
+                    source={{ uri: partner.iconUrl }}
                     style={styles.partnerLogo}
                     resizeMode="contain"
                     defaultSource={require('../assets/icon.png')}
                   />
                 </View>
                 <Text style={styles.partnerName} numberOfLines={2}>
-                  {sponsor.name}
+                  {partner.name}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -91,13 +92,13 @@ const Footer: React.FC<FooterProps> = ({
         <View style={styles.actionsSection}>
           <TouchableOpacity
             style={styles.actionLink}
-            onPress={handleContactPress}
+            onPress={onContactPress}
           >
             <Feather name="mail" size={14} color="rgba(255,255,255,0.9)" />
             <Text style={styles.actionText}>Contact Us</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionLink}>
+          <TouchableOpacity style={styles.actionLink} onPress={onInfoPress}>
             <Feather name="info" size={14} color="rgba(255,255,255,0.9)" />
             <Text style={styles.actionText}>Info</Text>
           </TouchableOpacity>
@@ -121,7 +122,7 @@ const Footer: React.FC<FooterProps> = ({
               <Text style={styles.legalLink}>Licenses</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.version}>Version 1.8.9</Text>
+          <Text style={styles.version}>Version {APP_VERSION}</Text>
         </View>
       </View>
     </View>
