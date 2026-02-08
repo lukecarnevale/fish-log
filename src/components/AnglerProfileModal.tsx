@@ -4,7 +4,7 @@
 // and recent catches when tapping on an angler name in the Catch Feed.
 //
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,8 @@ import { AnglerProfile, formatMemberSince } from '../types/catchFeed';
 import { fetchAnglerProfile } from '../services/catchFeedService';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
 import { getSpeciesTheme } from '../constants/speciesColors';
+import { SPECIES_ALIASES } from '../constants/speciesAliases';
+import { useAllFishSpecies } from '../api/speciesApi';
 import CatchCard from './CatchCard';
 
 interface AnglerProfileModalProps {
@@ -42,6 +44,59 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
   const [profile, setProfile] = useState<AnglerProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch species data for fallback images (same as CatchFeedScreen)
+  const { data: allSpecies } = useAllFishSpecies();
+  const speciesAliases = SPECIES_ALIASES;
+
+  const speciesImageMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (allSpecies) {
+      allSpecies.forEach((species) => {
+        if (species.images?.primary) {
+          const imageUrl = species.images.primary;
+          if (species.name) {
+            const lowerName = species.name.toLowerCase();
+            map.set(lowerName, imageUrl);
+            const aliases = speciesAliases[lowerName];
+            if (aliases) {
+              aliases.forEach((alias) => map.set(alias, imageUrl));
+            }
+          }
+          species.commonNames?.forEach((name) => {
+            if (name) {
+              const lowerName = name.toLowerCase();
+              map.set(lowerName, imageUrl);
+              const aliases = speciesAliases[lowerName];
+              if (aliases) {
+                aliases.forEach((alias) => map.set(alias, imageUrl));
+              }
+            }
+          });
+        }
+      });
+    }
+    return map;
+  }, [allSpecies]);
+
+  const getSpeciesImageUrl = useCallback((speciesName: string | undefined): string | undefined => {
+    if (!speciesName) return undefined;
+    let lowerName = speciesName.toLowerCase().trim();
+    const parenIndex = lowerName.indexOf('(');
+    if (parenIndex > 0) {
+      lowerName = lowerName.substring(0, parenIndex).trim();
+    }
+    let result = speciesImageMap.get(lowerName);
+    if (!result) {
+      for (const [key, url] of speciesImageMap.entries()) {
+        if (key.includes(lowerName) || lowerName.includes(key)) {
+          result = url;
+          break;
+        }
+      }
+    }
+    return result;
+  }, [speciesImageMap]);
 
   // Animation values
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -220,7 +275,12 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
           <View style={styles.catchesSection}>
             <Text style={styles.sectionTitle}>Recent Catches</Text>
             {profile.recentCatches.map((entry) => (
-              <CatchCard key={entry.id} entry={entry} compact />
+              <CatchCard
+                key={entry.id}
+                entry={entry}
+                compact
+                speciesImageUrl={getSpeciesImageUrl(entry.species)}
+              />
             ))}
           </View>
         )}

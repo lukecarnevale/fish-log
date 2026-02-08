@@ -220,6 +220,15 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
           if (reportData.angler?.phone) {
             profileUpdates.phone = reportData.angler.phone;
           }
+          if (reportData.angler?.email) {
+            profileUpdates.email = reportData.angler.email;
+          }
+          if (reportData.wantTextConfirmation !== undefined) {
+            profileUpdates.wantsTextConfirmation = reportData.wantTextConfirmation;
+          }
+          if (reportData.wantEmailConfirmation !== undefined) {
+            profileUpdates.wantsEmailConfirmation = reportData.wantEmailConfirmation;
+          }
 
           // Only call updateCurrentUser if we have fields to update
           if (Object.keys(profileUpdates).length > 0) {

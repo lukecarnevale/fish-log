@@ -97,11 +97,16 @@ export async function syncToUserProfile(user: User): Promise<void> {
       lastName: user.lastName || profileData.lastName,
       email: user.email || profileData.email,
       phone: user.phone || profileData.phone,
+      wantTextConfirmation: user.wantsTextConfirmation ?? profileData.wantTextConfirmation,
+      wantEmailConfirmation: user.wantsEmailConfirmation ?? profileData.wantEmailConfirmation,
       zipCode: user.zipCode || profileData.zipCode,
       dateOfBirth: user.dateOfBirth || profileData.dateOfBirth,
       hasLicense: user.hasLicense ?? profileData.hasLicense,
       wrcId: user.wrcId || profileData.wrcId,
       licenseNumber: user.licenseNumber || profileData.licenseNumber,
+      licenseType: user.licenseType || profileData.licenseType,
+      licenseIssueDate: user.licenseIssueDate || profileData.licenseIssueDate,
+      licenseExpiryDate: user.licenseExpiryDate || profileData.licenseExpiryDate,
       profileImage: user.profileImageUrl || profileData.profileImage,
       preferredAreaCode: user.preferredAreaCode || profileData.preferredAreaCode,
       preferredAreaLabel: user.preferredAreaLabel || profileData.preferredAreaLabel,
@@ -113,6 +118,30 @@ export async function syncToUserProfile(user: User): Promise<void> {
     console.log('✅ User profile synced to AsyncStorage');
   } catch (error) {
     console.error('Failed to sync user profile:', error);
+  }
+}
+
+/**
+ * Read cached confirmation preferences from the form profile cache.
+ * The form stores these as wantTextConfirmation/wantEmailConfirmation (no 's'),
+ * but the User type uses wantsTextConfirmation/wantsEmailConfirmation (with 's').
+ * Returns mapped values matching the UserInput interface.
+ */
+export async function getCachedFormPreferences(): Promise<Pick<UserInput, 'wantsTextConfirmation' | 'wantsEmailConfirmation'>> {
+  try {
+    const cached = await AsyncStorage.getItem(STORAGE_KEYS.userProfile);
+    if (!cached) return {};
+    const profile = JSON.parse(cached);
+    const prefs: Pick<UserInput, 'wantsTextConfirmation' | 'wantsEmailConfirmation'> = {};
+    if (typeof profile.wantTextConfirmation === 'boolean') {
+      prefs.wantsTextConfirmation = profile.wantTextConfirmation;
+    }
+    if (typeof profile.wantEmailConfirmation === 'boolean') {
+      prefs.wantsEmailConfirmation = profile.wantEmailConfirmation;
+    }
+    return prefs;
+  } catch {
+    return {};
   }
 }
 
@@ -145,6 +174,7 @@ export async function updateUserInSupabase(userId: string, input: UserInput): Pr
   if (input.licenseExpiryDate !== undefined) updateData.license_expiry_date = input.licenseExpiryDate || null;
   if (input.primaryHarvestArea !== undefined) updateData.primary_harvest_area = input.primaryHarvestArea || null;
   if (input.primaryFishingMethod !== undefined) updateData.primary_fishing_method = input.primaryFishingMethod || null;
+  if (input.rewardsOptedInAt !== undefined) updateData.rewards_opted_in_at = input.rewardsOptedInAt || null;
 
   const { data, error } = await supabase
     .from('users')

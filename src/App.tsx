@@ -29,6 +29,9 @@ import { RewardsProvider } from './contexts/RewardsContext';
 // Import Achievement context for displaying achievement notifications
 import { AchievementProvider } from './contexts/AchievementContext';
 
+// Import Bulletin context for displaying app bulletins (closures, advisories, etc.)
+import { BulletinProvider } from './contexts/BulletinContext';
+
 
 // Import app initialization hooks
 import {
@@ -266,9 +269,11 @@ const App: React.FC = () => {
       <QueryClientProvider client={queryClient}>
         <RewardsProvider>
           <AchievementProvider>
-            <SafeAreaProvider>
-              <AppContent />
-            </SafeAreaProvider>
+            <BulletinProvider>
+              <SafeAreaProvider>
+                <AppContent />
+              </SafeAreaProvider>
+            </BulletinProvider>
           </AchievementProvider>
         </RewardsProvider>
       </QueryClientProvider>

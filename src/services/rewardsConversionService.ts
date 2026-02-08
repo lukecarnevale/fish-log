@@ -26,6 +26,7 @@ import {
   cacheUser,
   syncToUserProfile,
   updateUserInSupabase,
+  getCachedFormPreferences,
 } from './userProfileService';
 
 // =============================================================================
@@ -162,6 +163,17 @@ export async function convertToRewardsMember(
 
     const user = transformUser(userData);
     await cacheUser(user);
+
+    // Sync cached confirmation preferences to the new user record.
+    // These are stored locally by saveDMFPreferences but not included in the RPC.
+    const cachedPrefs = await getCachedFormPreferences();
+    if (Object.keys(cachedPrefs).length > 0) {
+      try {
+        await updateUserInSupabase(user.id, cachedPrefs);
+      } catch (prefError) {
+        console.warn('⚠️ Failed to sync confirmation preferences after conversion:', prefError);
+      }
+    }
 
     console.log(`✅ Converted anonymous user to rewards member (linked ${rpcResult.reports_linked} reports)`);
     return { success: true, user };
@@ -446,6 +458,17 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
     await cacheUser(user);
     await syncToUserProfile(user); // Sync to ProfileScreen's storage
     await clearPendingAuth();
+
+    // Sync cached confirmation preferences to the new user record.
+    // These are stored locally by saveDMFPreferences but not included in the RPC.
+    const cachedPrefs = await getCachedFormPreferences();
+    if (Object.keys(cachedPrefs).length > 0) {
+      try {
+        await updateUserInSupabase(user.id, cachedPrefs);
+      } catch (prefError) {
+        console.warn('⚠️ Failed to sync confirmation preferences after conversion:', prefError);
+      }
+    }
 
     // Clear catch feed cache so linked reports appear immediately
     if (rpcResult.reports_linked && rpcResult.reports_linked > 0) {
