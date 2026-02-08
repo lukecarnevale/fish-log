@@ -53,6 +53,7 @@ export {
   getUserStats,
   getAllAchievements,
   syncUserData,
+  getCachedFormPreferences,
 } from './userProfileService';
 
 // Rewards Conversion Service
@@ -64,3 +65,8 @@ export {
   createRewardsMemberFromAuthUser,
   findRewardsMemberByAuthId,
 } from './rewardsConversionService';
+
+// Bulletin Service (App Announcements)
+export {
+  fetchActiveBulletins,
+} from './bulletinService';

@@ -515,7 +515,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               <View style={[localStyles.welcomeGreeting, { position: 'relative', overflow: 'hidden' }]}>
                 <WaveBackground />
                 <View style={localStyles.welcomeGreetingIcon}>
-                  <Feather name="anchor" size={22} color={colors.white} />
+                  {profileImage ? (
+                    <Image
+                      source={{ uri: profileImage }}
+                      style={{ width: 44, height: 44, borderRadius: 22 }}
+                    />
+                  ) : (
+                    <Feather name="anchor" size={22} color={colors.white} />
+                  )}
                 </View>
                 <View style={[localStyles.welcomeGreetingText, { zIndex: 1 }]}>
                   <Text style={localStyles.welcomeGreetingLine}>{nauticalGreeting},</Text>
