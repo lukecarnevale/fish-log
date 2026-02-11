@@ -54,6 +54,11 @@ export interface SupabaseFishSpeciesRow {
   }[];
   is_active: boolean;
   sort_order: number;
+  harvest_status: string;
+  harvest_status_note: string | null;
+  harvest_status_effective_date: string | null;
+  harvest_status_expiration_date: string | null;
+  harvest_status_bulletin_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -118,6 +123,11 @@ export function transformFishSpecies(row: SupabaseFishSpeciesRow): EnhancedFishS
       winter: row.season_winter,
     },
     similarSpecies: row.similar_species || [],
+    harvestStatus: (row.harvest_status as EnhancedFishSpecies['harvestStatus']) ?? 'open',
+    harvestStatusNote: row.harvest_status_note ?? undefined,
+    harvestStatusEffectiveDate: row.harvest_status_effective_date ?? undefined,
+    harvestStatusExpirationDate: row.harvest_status_expiration_date ?? null,
+    harvestStatusBulletinId: row.harvest_status_bulletin_id ?? undefined,
   };
 }
 

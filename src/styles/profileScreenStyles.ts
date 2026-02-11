@@ -818,6 +818,58 @@ export const localStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  // Delete account section styles
+  deleteAccountSection: {
+    backgroundColor: '#FFF5F5',
+    borderColor: '#FF3B30',
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  deleteAccountHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  deleteAccountIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  deleteAccountTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FF3B30',
+  },
+  deleteAccountDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+    gap: 6,
+  },
+  deleteAccountButtonText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   // Skeleton loader styles
   skeletonSection: {
     backgroundColor: colors.lightGray,

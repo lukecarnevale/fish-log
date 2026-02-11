@@ -69,7 +69,7 @@ export type RootStackParamList = {
   ReportForm: undefined;
   Confirmation: { reportData: FishReportData };
   PastReports: undefined;
-  SpeciesInfo: { showRequiredOnly?: boolean } | undefined;
+  SpeciesInfo: { showRequiredOnly?: boolean; fromAlertBadge?: boolean } | undefined;
   LicenseDetails: undefined;
   CatchFeed: undefined;
   Profile: undefined;

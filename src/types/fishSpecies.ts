@@ -52,4 +52,11 @@ export interface EnhancedFishSpecies extends Omit<FishSpecies, 'regulations'> {
     name: string;
     differentiatingFeatures: string;
   }[];
+
+  // Harvest status (set by active bulletins — closures, restrictions)
+  harvestStatus: 'open' | 'closed' | 'catch_and_release' | 'restricted';
+  harvestStatusNote?: string;
+  harvestStatusEffectiveDate?: string;
+  harvestStatusExpirationDate?: string | null;
+  harvestStatusBulletinId?: string;
 }

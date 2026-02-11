@@ -32,6 +32,8 @@ import { AchievementProvider } from './contexts/AchievementContext';
 // Import Bulletin context for displaying app bulletins (closures, advisories, etc.)
 import { BulletinProvider } from './contexts/BulletinContext';
 
+// Import Species Alerts context for species-specific bulletins (closures, regulation changes)
+import { SpeciesAlertsProvider } from './contexts/SpeciesAlertsContext';
 
 // Import app initialization hooks
 import {
@@ -270,9 +272,11 @@ const App: React.FC = () => {
         <RewardsProvider>
           <AchievementProvider>
             <BulletinProvider>
-              <SafeAreaProvider>
-                <AppContent />
-              </SafeAreaProvider>
+              <SpeciesAlertsProvider>
+                <SafeAreaProvider>
+                  <AppContent />
+                </SafeAreaProvider>
+              </SpeciesAlertsProvider>
             </BulletinProvider>
           </AchievementProvider>
         </RewardsProvider>

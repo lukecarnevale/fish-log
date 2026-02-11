@@ -1,6 +1,6 @@
 // screens/ReportFormScreen.tsx
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Text,
   View,
@@ -43,6 +43,10 @@ import { isTestMode } from "../config/appConfig";
 // Rewards context
 import { useRewards } from "../contexts/RewardsContext";
 
+// Species data for harvest status
+import { useAllFishSpecies } from '../api/speciesApi';
+import { SpeciesListBulletinIndicator } from '../components/SpeciesListBulletinIndicator';
+
 // ZIP code lookup
 import { useZipCodeLookup } from "../hooks/useZipCodeLookup";
 
@@ -61,6 +65,9 @@ import FaqModal from './reportForm/FaqModal';
 import AreaInfoModal from './reportForm/AreaInfoModal';
 import RaffleEntryModal from './reportForm/RaffleEntryModal';
 
+
+// Species that require mandatory harvest reporting (matches SpeciesInfoScreen)
+const REPORT_SPECIES = ['Red Drum', 'Southern Flounder', 'Spotted Seatrout', 'Striped Bass', 'Weakfish'];
 
 const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // Safe area insets for bottom sheet padding on Android
@@ -146,6 +153,24 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // Toast notification
   const toast = useToast();
+
+  // Fetch species data for harvest status annotations
+  const { data: allSpecies = [] } = useAllFishSpecies();
+
+  const speciesPickerItems = useMemo(() => {
+    if (allSpecies.length === 0) {
+      return REPORT_SPECIES.map(name => ({ name, harvestStatus: 'open' as const }));
+    }
+    return REPORT_SPECIES.map(speciesName => {
+      const match = allSpecies.find(s =>
+        s.name === speciesName || s.name.includes(speciesName) || speciesName.includes(s.name)
+      );
+      return {
+        name: speciesName,
+        harvestStatus: match?.harvestStatus ?? 'open',
+      };
+    });
+  }, [allSpecies]);
 
   // Initial form state with types
   const [formData, setFormData] = useState<FormState>({
@@ -579,13 +604,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // Data for pickers
   const pickerData: PickerData = {
-    species: [
-      "Red Drum",
-      "Flounder",
-      "Spotted Seatrout (speckled trout)",
-      "Striped Bass",
-      "Weakfish (gray trout)",
-    ],
+    species: speciesPickerItems.map(s => s.name),
     // Use DMF area labels from constants
     waterbody: [...AREA_LABELS],
     // Use non-hook gear options from constants (for when hook & line is not used)
@@ -1235,7 +1254,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         data={pickerData[currentPicker as keyof PickerData]}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item }) => {
+          const isSpeciesPicker = currentPicker === 'species';
+          const speciesItem = isSpeciesPicker
+            ? speciesPickerItems.find(s => s.name === item)
+            : null;
           const isSelected = formData[currentPicker as keyof FormState] === item;
+
           return (
             <Pressable
               style={({ pressed }) => [
@@ -1246,10 +1270,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               onPress={() => handleSelection(item)}
               android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
             >
-              <Text style={[
-                styles.optionText,
-                isSelected && localStyles.optionTextSelected
-              ]}>{item}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+                <Text style={[
+                  styles.optionText,
+                  isSelected && localStyles.optionTextSelected
+                ]}>{item}</Text>
+                {speciesItem && speciesItem.harvestStatus !== 'open' && (
+                  <SpeciesListBulletinIndicator harvestStatus={speciesItem.harvestStatus} showLabels />
+                )}
+              </View>
               {isSelected && (
                 <Feather name="check" size={20} color={colors.primary} />
               )}
@@ -1272,28 +1301,38 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     label: string,
     field: keyof PickerData,
     required: boolean = false
-  ): React.ReactNode => (
-    <View>
-      <Text style={styles.label}>
-        {label} {required && <Text style={localStyles.requiredAsterisk}>*</Text>}
-      </Text>
-      <TouchableOpacity
-        style={styles.selectorButton}
-        onPress={() => openPicker(field, label)}
-      >
-        <Text
-          style={
-            formData[field as keyof FormState]
-              ? styles.selectorText
-              : styles.selectorPlaceholder
-          }
-        >
-          {String(formData[field as keyof FormState] || `Select ${label.toLowerCase()}`)}
+  ): React.ReactNode => {
+    const rawValue = formData[field as keyof FormState];
+    const speciesItem = field === 'species' && rawValue
+      ? speciesPickerItems.find(s => s.name === rawValue)
+      : null;
+
+    return (
+      <View>
+        <Text style={styles.label}>
+          {label} {required && <Text style={localStyles.requiredAsterisk}>*</Text>}
         </Text>
-        <Text style={styles.selectorArrow}>▼</Text>
-      </TouchableOpacity>
-    </View>
-  );
+        <TouchableOpacity
+          style={styles.selectorButton}
+          onPress={() => openPicker(field, label)}
+        >
+          {rawValue ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+              <Text style={styles.selectorText}>{String(rawValue)}</Text>
+              {speciesItem && speciesItem.harvestStatus !== 'open' && (
+                <SpeciesListBulletinIndicator harvestStatus={speciesItem.harvestStatus} showLabels />
+              )}
+            </View>
+          ) : (
+            <Text style={styles.selectorPlaceholder}>
+              {`Select ${label.toLowerCase()}`}
+            </Text>
+          )}
+          <Text style={styles.selectorArrow}>▼</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <View style={localStyles.screenContainer}>

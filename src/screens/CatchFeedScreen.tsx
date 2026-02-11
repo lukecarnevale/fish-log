@@ -33,6 +33,7 @@ import { sampleCatchFeedEntries, sampleTopAnglers } from '../data/catchFeedData'
 import { colors, spacing, borderRadius } from '../styles/common';
 import { getAllSpeciesThemes } from '../constants/speciesColors';
 import CatchCard from '../components/CatchCard';
+import FeedAdCard from '../components/FeedAdCard';
 import AnglerProfileModal from '../components/AnglerProfileModal';
 import BottomDrawer from '../components/BottomDrawer';
 import WaveBackground from '../components/WaveBackground';
@@ -43,6 +44,9 @@ import { CatchFeedSkeletonLoader } from '../components/SkeletonLoader';
 import { useAllFishSpecies } from '../api/speciesApi';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { usePulseAnimation } from '../hooks/usePulseAnimation';
+import { Advertisement } from '../services/transformers/advertisementTransformer';
+import { fetchAdvertisements } from '../services/advertisementsService';
+import { intersperseFeedAds, FeedItem } from '../utils/feedAdPlacer';
 
 // Use sample data for development (set to false when Supabase is ready)
 const USE_SAMPLE_DATA = false;
@@ -233,6 +237,7 @@ const FeedFooter: React.FC = () => (
 const PAGE_SIZE = 12;
 
 const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -241,6 +246,10 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   const [topAnglers, setTopAnglers] = useState<TopAngler[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [nextOffset, setNextOffset] = useState(0);
+
+  // Feed advertisements
+  const [feedAds, setFeedAds] = useState<Advertisement[]>([]);
+  const trackedImpressions = useRef(new Set<string>());
 
   // Get current user ID for like functionality (Supabase user ID)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -280,6 +289,19 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     return () => {
       unsubscribe();
     };
+  }, []);
+
+  // Fetch feed advertisements on mount
+  useEffect(() => {
+    const loadFeedAds = async () => {
+      try {
+        const { advertisements } = await fetchAdvertisements('catch_feed');
+        setFeedAds(advertisements);
+      } catch (err) {
+        console.warn('Failed to load feed ads:', err);
+      }
+    };
+    loadFeedAds();
   }, []);
 
   // Filter state
@@ -428,6 +450,11 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       return true;
     });
   }, [entries, selectedArea, selectedSpecies, showPhotosOnly]);
+
+  // Create mixed feed with ads interspersed
+  const feedItems = useMemo(() => {
+    return intersperseFeedAds(filteredEntries, feedAds);
+  }, [filteredEntries, feedAds]);
 
   // Load catch feed data (initial load or refresh)
   const loadFeed = useCallback(async (forceRefresh = false) => {
@@ -639,17 +666,30 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     </View>
   );
 
-  // Memoized renderItem for FlatList performance
-  const renderItem = useCallback(({ item }: { item: CatchFeedEntry }) => (
-    <CatchCard
-      entry={item}
-      onAnglerPress={handleAnglerPress}
-      onLikePress={handleLikePress}
-      speciesImageUrl={getSpeciesImageUrl(item.species)}
-    />
-  ), [handleAnglerPress, handleLikePress, getSpeciesImageUrl]);
+  // Memoized renderItem for FlatList performance - handles both catches and ads
+  const renderItem = useCallback(({ item }: { item: FeedItem }) => {
+    if (item.type === 'ad') {
+      return (
+        <FeedAdCard
+          ad={item.data}
+          trackedImpressions={trackedImpressions.current}
+        />
+      );
+    }
+    return (
+      <CatchCard
+        entry={item.data}
+        onAnglerPress={handleAnglerPress}
+        onLikePress={handleLikePress}
+        speciesImageUrl={getSpeciesImageUrl(item.data.species)}
+      />
+    );
+  }, [handleAnglerPress, handleLikePress, getSpeciesImageUrl]);
 
-  const keyExtractor = useCallback((item: CatchFeedEntry) => item.id, []);
+  const keyExtractor = useCallback((item: FeedItem, index: number) => {
+    if (item.type === 'ad') return `ad-${item.data.id}-${index}`;
+    return `catch-${item.data.id}`;
+  }, []);
 
   // Item separator component
   const ItemSeparator = useCallback(() => <View style={styles.separator} />, []);
@@ -702,7 +742,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   ), [topAnglers, selectedArea, selectedSpecies, showPhotosOnly]);
 
   const renderListFooter = useCallback(() => {
-    if (filteredEntries.length === 0) return null;
+    if (feedItems.length === 0) return null;
 
     // Show loading indicator when fetching more
     if (loadingMore) {
@@ -716,7 +756,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
     // Return empty spacer to allow scroll momentum
     return <View style={{ height: 20 }} />;
-  }, [filteredEntries.length, loadingMore, hasMore]);
+  }, [feedItems.length, loadingMore, hasMore]);
 
   // Empty component for FlatList when no data
   const renderEmptyComponent = useCallback(() => {
@@ -746,6 +786,9 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           style={[
             styles.floatingBackButton,
             {
+              top: Platform.OS === 'android'
+                ? (StatusBar.currentHeight || 0) + 12
+                : insets.top + 8,
               opacity: floatingBackOpacity,
               transform: [{
                 translateX: floatingBackTranslateX,
@@ -764,14 +807,14 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
         {/* Main FlatList - header scrolls with content (Instagram-style) */}
         <Animated.FlatList
-          data={filteredEntries}
+          data={feedItems}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           style={styles.flatList}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.flatListContent,
-            filteredEntries.length === 0 && styles.emptyListContent,
+            feedItems.length === 0 && styles.emptyListContent,
           ]}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -944,7 +987,6 @@ const styles = StyleSheet.create({
   // Floating back button - appears when header scrolls away
   floatingBackButton: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 52,
     left: 16,
     zIndex: 100,
     backgroundColor: colors.primary,

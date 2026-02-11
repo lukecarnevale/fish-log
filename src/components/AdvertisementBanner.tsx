@@ -21,6 +21,7 @@ import {
   Advertisement as RemoteAdvertisement,
   fetchAdvertisements,
   trackAdClick,
+  trackAdImpression,
   AdPlacement,
 } from '../services/advertisementsService';
 
@@ -106,6 +107,9 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   // State for fetched ads
   const [fetchedAds, setFetchedAds] = useState<DisplayAd[]>([]);
   const [isLoading, setIsLoading] = useState(!propAds && !useLocalOnly);
+
+  // Track which ads have already been counted for impressions this session
+  const trackedImpressions = useRef(new Set<string>());
 
   // Fetch ads from Supabase if no props and not using local only
   useEffect(() => {
@@ -213,6 +217,16 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
       startAutoRotate();
     }
   }, [isUserScrolling, startAutoRotate, originalAds.length]);
+
+  // Track impression when the visible ad changes (auto-rotation or manual scroll)
+  useEffect(() => {
+    if (originalAds.length === 0) return;
+    const currentAd = originalAds[currentIndex];
+    if (currentAd?.isRemote && !trackedImpressions.current.has(currentAd.id)) {
+      trackedImpressions.current.add(currentAd.id);
+      trackAdImpression(currentAd.id);
+    }
+  }, [currentIndex, originalAds]);
 
   // Don't render if loading or no ads available
   if (isLoading || originalAds.length === 0) {

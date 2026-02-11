@@ -27,6 +27,11 @@ import { Feather } from "@expo/vector-icons";
 import { colors } from "../styles/common";
 import ScreenLayout from "../components/ScreenLayout";
 import { SCREEN_LABELS } from "../constants/screenLabels";
+import { SpeciesListBulletinIndicator } from "../components/SpeciesListBulletinIndicator";
+import { SpeciesDetailBulletinBanner } from "../components/SpeciesDetailBulletinBanner";
+import { useSpeciesAlerts } from "../contexts/SpeciesAlertsContext";
+import { useBulletinsForSpecies } from "../api/speciesBulletinApi";
+import SpeciesFilterChips from "../components/SpeciesFilterChips";
 
 type SpeciesInfoScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -173,6 +178,25 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
   const { width: screenWidth } = Dimensions.get("window");
   const flatListRef = useRef<FlatList<EnhancedFishSpecies>>(null);
 
+  // Species alert seen-tracking (stops badge pulsing after user taps)
+  const { markSpeciesAlertSeen } = useSpeciesAlerts();
+
+  // Fetch bulletins for the selected species (only when it has an active status change)
+  const { data: speciesBulletins = [] } = useBulletinsForSpecies(
+    selectedSpecies?.harvestStatus !== 'open' ? selectedSpecies?.id ?? null : null
+  );
+
+  // Filter dropdown state — defaults off, activated by route param on each navigation
+  const [showUpdatesOnly, setShowUpdatesOnly] = useState<boolean>(false);
+  const [filtersExpanded, setFiltersExpanded] = useState<boolean>(false);
+
+  // Sync filters to route params on every navigation (handles re-entry correctly)
+  useEffect(() => {
+    const fromBadge = route.params?.fromAlertBadge ?? false;
+    setShowUpdatesOnly(fromBadge);
+    setFiltersExpanded(fromBadge);
+  }, [route.params?.fromAlertBadge]);
+
   // Animation for detail view
   const detailAnim = useRef(new Animated.Value(0)).current;
 
@@ -187,6 +211,9 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
       tension: 65,
       friction: 11,
     }).start();
+
+    // Mark species alerts as seen (stops badge pulsing)
+    markSpeciesAlertSeen(species.id);
   };
 
   // Handle closing detail view with animation
@@ -219,9 +246,18 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
   const { data: fishSpeciesData = [], isLoading, error } = useAllFishSpecies();
 
   // Filter species based on search query and tracked filter, then sort alphabetically
+  // Count species with active updates (from unfiltered data for badge)
+  const speciesWithUpdatesCount = fishSpeciesData.filter(
+    s => s.harvestStatus !== 'open'
+  ).length;
+
   const filteredSpecies = fishSpeciesData
     .filter((species) => {
-      // First check tracked filter
+      // Check updates filter
+      if (showUpdatesOnly && species.harvestStatus === 'open') {
+        return false;
+      }
+      // Check tracked filter
       if (showTrackedOnly && !HARVEST_TRACKED_SPECIES.includes(species.name)) {
         return false;
       }
@@ -246,17 +282,17 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
     filteredSpecies.map((species) => species.name.charAt(0).toUpperCase())
   );
 
+  // Ref to hold latest filteredSpecies for PanResponder (avoids stale closures)
+  const filteredSpeciesRef = useRef(filteredSpecies);
+  filteredSpeciesRef.current = filteredSpecies;
+
   // State for the active letter being touched
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
   const alphabetContainerRef = useRef<View>(null);
   const alphabetLayoutRef = useRef<{ y: number; height: number }>({ y: 0, height: 0 });
 
-  // Use refs to store latest values for PanResponder (avoids stale closure)
-  const filteredSpeciesRef = useRef(filteredSpecies);
+  // Use ref to store latest available letters for PanResponder (avoids stale closure)
   const availableLettersRef = useRef(availableLetters);
-
-  // Keep refs updated
-  filteredSpeciesRef.current = filteredSpecies;
   availableLettersRef.current = availableLetters;
 
   // Get letter from Y position within the alphabet container
@@ -324,11 +360,19 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
   // Render fish species item in the list
   const renderSpeciesItem: ListRenderItem<EnhancedFishSpecies> = ({ item }) => {
     const isRequiredSpecies = HARVEST_TRACKED_SPECIES.includes(item.name);
+    const isUpdatedSpecies = item.harvestStatus !== 'open';
+
+    const cardBorderStyle =
+      isRequiredSpecies && isUpdatedSpecies ? localStyles.requiredAndUpdatedCard
+      : isRequiredSpecies ? localStyles.requiredSpeciesCard
+      : isUpdatedSpecies ? localStyles.updatedSpeciesCard
+      : undefined;
+
     return (
     <TouchableOpacity
       style={[
         styles.speciesCard,
-        isRequiredSpecies && localStyles.requiredSpeciesCard,
+        cardBorderStyle,
       ]}
       onPress={() => handleSelectSpecies(item)}
       activeOpacity={0.7}
@@ -383,15 +427,22 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         
         {/* Regulation indicators */}
         {formatCompactRegulations(item.regulations)}
-        
+
+        {/* Bulletin indicators (closures, advisories) — reads directly from species data */}
+        {item.harvestStatus !== 'open' && (
+          <View style={{ marginTop: 4 }}>
+            <SpeciesListBulletinIndicator harvestStatus={item.harvestStatus} showLabels />
+          </View>
+        )}
+
         <Text style={styles.tapPrompt}>Tap for more info</Text>
       </View>
     </TouchableOpacity>
-  );
+    );
   };
 
   // Get text representation of active seasons
-  const getActiveSeasons = (seasons: any): string => {
+  const getActiveSeasons = (seasons: { spring: boolean; summer: boolean; fall: boolean; winter: boolean }): string => {
     const activeSeasons = [];
     if (seasons.spring) activeSeasons.push("Spring");
     if (seasons.summer) activeSeasons.push("Summer");
@@ -528,52 +579,112 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
     }).join(", ");
   };
   
+  // Format harvest status date for display
+  const formatStatusDate = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
   // Render regulations section
   const renderRegulations = () => {
     if (!selectedSpecies) return null;
-    
+
     const { regulations } = selectedSpecies;
-    
+    const isClosed = selectedSpecies.harvestStatus === 'closed';
+    const isRestricted = selectedSpecies.harvestStatus === 'restricted' || selectedSpecies.harvestStatus === 'catch_and_release';
+
     return (
       <View style={styles.regulationsBox}>
         <Text style={styles.regulationsTitle}>Fishing Regulations</Text>
-        
-        <View style={styles.regulationRow}>
-          <Feather name="maximize-2" size={24} color={colors.primary} style={styles.regulationIcon} />
-          <Text style={styles.regulationLabel}>Size Limit:</Text>
-          <Text style={styles.regulationValue}>
-            {formatSizeLimit(
-              regulations.sizeLimit.min,
-              regulations.sizeLimit.max,
-              regulations.sizeLimit.unit
-            )}
-          </Text>
-        </View>
-        
-        <View style={styles.regulationRow}>
-          <Feather name="package" size={24} color={colors.primary} style={styles.regulationIcon} />
-          <Text style={styles.regulationLabel}>Bag Limit:</Text>
-          <Text style={styles.regulationValue}>
-            {regulations.bagLimit
-              ? `${regulations.bagLimit} fish per person per day`
-              : "No bag limit"}
-          </Text>
-        </View>
-        
-        <View style={styles.regulationRow}>
-          <Feather name="calendar" size={24} color={colors.primary} style={styles.regulationIcon} />
-          <Text style={styles.regulationLabel}>Season:</Text>
-          <Text style={styles.regulationValue}>
-            {formatOpenSeasons(regulations.openSeasons)}
-          </Text>
-        </View>
-        
-        {regulations.specialRegulations && regulations.specialRegulations.length > 0 && (
-          <Text style={styles.regulationsNotes}>
-            {regulations.specialRegulations.join("\n")}
-          </Text>
+
+        {/* Harvest closure card — prominent, inside the regulations section */}
+        {isClosed && (
+          <View style={closureStyles.closureCard}>
+            <Feather name="alert-octagon" size={24} color={colors.white} />
+            <View style={closureStyles.closureContent}>
+              <Text style={closureStyles.closureTitle}>HARVEST CLOSED</Text>
+              {selectedSpecies.harvestStatusNote && (
+                <Text style={closureStyles.closureNote}>
+                  {selectedSpecies.harvestStatusNote}
+                </Text>
+              )}
+              {selectedSpecies.harvestStatusExpirationDate && (
+                <Text style={closureStyles.closureDate}>
+                  Until {formatStatusDate(selectedSpecies.harvestStatusExpirationDate)}
+                </Text>
+              )}
+            </View>
+          </View>
         )}
-        
+
+        {/* Harvest restriction card */}
+        {isRestricted && (
+          <View style={closureStyles.restrictionCard}>
+            <Feather name="alert-triangle" size={24} color={colors.white} />
+            <View style={closureStyles.closureContent}>
+              <Text style={closureStyles.closureTitle}>
+                {selectedSpecies.harvestStatus === 'catch_and_release'
+                  ? 'CATCH & RELEASE ONLY'
+                  : 'HARVEST RESTRICTED'}
+              </Text>
+              {selectedSpecies.harvestStatusNote && (
+                <Text style={closureStyles.closureNote}>
+                  {selectedSpecies.harvestStatusNote}
+                </Text>
+              )}
+              {selectedSpecies.harvestStatusExpirationDate && (
+                <Text style={closureStyles.closureDate}>
+                  Until {formatStatusDate(selectedSpecies.harvestStatusExpirationDate)}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Standard regulation rows (dimmed if closed to signal they're superseded) */}
+        <View style={isClosed ? { opacity: 0.5 } : undefined}>
+          <View style={styles.regulationRow}>
+            <Feather name="maximize-2" size={24} color={colors.primary} style={styles.regulationIcon} />
+            <Text style={styles.regulationLabel}>Size Limit:</Text>
+            <Text style={styles.regulationValue}>
+              {formatSizeLimit(
+                regulations.sizeLimit.min,
+                regulations.sizeLimit.max,
+                regulations.sizeLimit.unit
+              )}
+            </Text>
+          </View>
+
+          <View style={styles.regulationRow}>
+            <Feather name="package" size={24} color={colors.primary} style={styles.regulationIcon} />
+            <Text style={styles.regulationLabel}>Bag Limit:</Text>
+            <Text style={styles.regulationValue}>
+              {regulations.bagLimit
+                ? `${regulations.bagLimit} fish per person per day`
+                : "No bag limit"}
+            </Text>
+          </View>
+
+          <View style={styles.regulationRow}>
+            <Feather name="calendar" size={24} color={colors.primary} style={styles.regulationIcon} />
+            <Text style={styles.regulationLabel}>Season:</Text>
+            <Text style={styles.regulationValue}>
+              {formatOpenSeasons(regulations.openSeasons)}
+            </Text>
+          </View>
+
+          {regulations.specialRegulations && regulations.specialRegulations.length > 0 && (
+            <Text style={styles.regulationsNotes}>
+              {regulations.specialRegulations.join("\n")}
+            </Text>
+          )}
+        </View>
+
         <Text style={styles.regulationsFooter}>
           Always check current regulations at ncwildlife.org before fishing
         </Text>
@@ -677,6 +788,11 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
           </View>
 
           <View style={styles.detailInfo}>
+          {/* Bulletin banner (closures, advisories) — fetched via lightweight hook */}
+          <SpeciesDetailBulletinBanner
+            bulletins={speciesBulletins}
+          />
+
           <Text style={styles.detailName}>{selectedSpecies.name}</Text>
           <Text style={styles.detailScientific}>
             {selectedSpecies.scientificName}
@@ -776,7 +892,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
       noScroll
     >
       <View style={localStyles.container}>
-        {/* Floating sticky search bar with filter toggle */}
+        {/* Floating sticky search bar with collapsible filter dropdown */}
         <View style={localStyles.floatingSearchContainer}>
           <View style={localStyles.searchRow}>
             <TextInput
@@ -788,27 +904,43 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
             />
             <TouchableOpacity
               style={[
-                localStyles.filterToggle,
-                showTrackedOnly && localStyles.filterToggleActive,
+                localStyles.filtersToggleButton,
+                (showTrackedOnly || showUpdatesOnly) && localStyles.filtersToggleActive,
               ]}
-              onPress={() => setShowTrackedOnly(!showTrackedOnly)}
+              onPress={() => setFiltersExpanded(!filtersExpanded)}
               activeOpacity={0.7}
             >
+              <Feather name="filter" size={16} color={colors.primary} />
+              <Text style={localStyles.filtersToggleText}>Filters</Text>
               <Feather
-                name="file-text"
-                size={16}
-                color={showTrackedOnly ? colors.white : '#00897B'}
+                name={filtersExpanded ? 'chevron-up' : 'chevron-down'}
+                size={14}
+                color={colors.primary}
               />
-              <Text
-                style={[
-                  localStyles.filterToggleText,
-                  showTrackedOnly && localStyles.filterToggleTextActive,
-                ]}
-              >
-                Required
-              </Text>
             </TouchableOpacity>
           </View>
+          <SpeciesFilterChips
+            filters={[
+              {
+                key: 'required',
+                label: 'Required',
+                icon: 'file-text',
+                isActive: showTrackedOnly,
+                onToggle: () => setShowTrackedOnly(!showTrackedOnly),
+                color: '#00897B',
+              },
+              {
+                key: 'updates',
+                label: 'Updates',
+                icon: 'alert-circle',
+                isActive: showUpdatesOnly,
+                onToggle: () => setShowUpdatesOnly(!showUpdatesOnly),
+                count: speciesWithUpdatesCount,
+                color: colors.accent,
+              },
+            ]}
+            isExpanded={filtersExpanded}
+          />
         </View>
 
         {/* Species list - scrolls under the search bar */}
@@ -829,13 +961,6 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
               keyExtractor={(item) => item.id}
               contentContainerStyle={localStyles.listContent}
               showsVerticalScrollIndicator={false}
-              onScrollToIndexFailed={(info) => {
-                // Handle scroll failure by scrolling to approximate position
-                flatListRef.current?.scrollToOffset({
-                  offset: info.averageItemLength * info.index,
-                  animated: true,
-                });
-              }}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   {error ? (
@@ -918,7 +1043,6 @@ const localStyles = StyleSheet.create({
     gap: 8,
   },
   searchInput: {
-    // Add shadow to enhance floating effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -928,41 +1052,48 @@ const localStyles = StyleSheet.create({
   searchInputFlex: {
     flex: 1,
   },
-  filterToggle: {
+  filtersToggleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 12,
-    gap: 6,
+    gap: 4,
     borderWidth: 1.5,
-    borderColor: '#00897B', // Teal border to match active state
-    // Shadow to match search bar
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 8,
   },
-  filterToggleActive: {
-    backgroundColor: '#00897B', // Vibrant teal for clear visibility
-    borderColor: '#00897B',
+  filtersToggleActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  filtersToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
   },
   requiredSpeciesCard: {
     borderWidth: 2,
-    borderColor: '#00897B', // Same teal as the filter toggle
+    borderColor: '#00897B',
   },
-  filterToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#00897B', // Teal to match border
+  updatedSpeciesCard: {
+    borderWidth: 2,
+    borderColor: colors.accent,
   },
-  filterToggleTextActive: {
-    color: colors.white,
+  requiredAndUpdatedCard: {
+    borderWidth: 2,
+    borderTopColor: '#00897B',
+    borderLeftColor: '#00897B',
+    borderBottomColor: colors.accent,
+    borderRightColor: colors.accent,
   },
   listContent: {
-    paddingTop: 40, // Space for the floating search bar
+    paddingTop: 84, // Space for floating search bar + filter dropdown
     paddingHorizontal: 16,
     paddingBottom: 24,
     paddingRight: 32, // Extra space for alphabet sidebar
@@ -1035,6 +1166,59 @@ const localStyles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: colors.white,
+  },
+});
+
+// Styles for harvest closure / restriction cards within regulations section
+const closureStyles = StyleSheet.create({
+  closureCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.error,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 12,
+    shadowColor: colors.error,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  restrictionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warning,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 12,
+    shadowColor: colors.warning,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  closureContent: {
+    flex: 1,
+  },
+  closureTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.white,
+    letterSpacing: 0.5,
+  },
+  closureNote: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  closureDate: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
 
