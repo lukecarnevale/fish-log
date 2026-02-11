@@ -181,6 +181,29 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 /**
+ * Permanently delete the authenticated user's account and all associated data.
+ * Calls the delete_user_account RPC which cascade-deletes all user data
+ * and removes the auth record in a single transaction.
+ */
+export async function deleteAccount(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.rpc('delete_user_account');
+
+    if (error) {
+      console.error('Account deletion error:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Account deleted successfully');
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete account';
+    console.error('Account deletion error:', error);
+    return { success: false, error: message };
+  }
+}
+
+/**
  * Sign out the current user.
  */
 export async function signOut(): Promise<{ success: boolean; error?: string }> {

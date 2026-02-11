@@ -28,6 +28,7 @@ function transformBulletin(row: Record<string, unknown>): Bulletin {
     expirationDate: (row.expiration_date as string) ?? null,
     isActive: (row.is_active as boolean) ?? true,
     displayOrder: (row.display_order as number) ?? 0,
+    affectedSpeciesIds: (row.affected_species_ids as string[]) ?? [],
     createdAt: (row.created_at as string) ?? new Date().toISOString(),
     updatedAt: (row.updated_at as string) ?? new Date().toISOString(),
   };

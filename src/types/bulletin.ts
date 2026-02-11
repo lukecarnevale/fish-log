@@ -19,6 +19,8 @@ export interface Bulletin {
   expirationDate: string | null;
   isActive: boolean;
   displayOrder: number;
+  /** Species IDs affected by this bulletin. */
+  affectedSpeciesIds: string[];
   createdAt: string;
   updatedAt: string;
 }

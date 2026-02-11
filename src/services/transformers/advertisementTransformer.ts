@@ -20,6 +20,7 @@ export interface Advertisement {
   isActive: boolean;
   priority: number;
   placements: AdPlacement[];
+  location?: string;
   startDate?: string;
   endDate?: string;
   clickCount: number;
@@ -41,6 +42,7 @@ export interface SupabaseAdvertisement {
   is_active: boolean;
   priority: number;
   placements: AdPlacement[];
+  location?: string;
   start_date?: string;
   end_date?: string;
   click_count: number;
@@ -77,6 +79,7 @@ export function transformAdvertisement(row: Record<string, unknown>): Advertisem
     isActive: row.is_active as boolean,
     priority: row.priority as number,
     placements: row.placements as AdPlacement[],
+    location: row.location as string | undefined,
     startDate: row.start_date as string | undefined,
     endDate: row.end_date as string | undefined,
     clickCount: row.click_count as number,

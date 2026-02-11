@@ -329,7 +329,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   }, [menuOpen, slideAnim, overlayOpacity]);
 
   // Memoized navigation function
-  const navigateToScreen = useCallback((screenName: keyof RootStackParamList): void => {
+  const navigateToScreen = useCallback((screenName: keyof RootStackParamList, params?: Record<string, any>): void => {
     // Close the menu first if it's open
     closeMenu();
 
@@ -347,7 +347,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
     // Use setTimeout to separate navigation from touch event handling
     setTimeout(() => {
-      (navigation.navigate as (screen: keyof RootStackParamList) => void)(screenName);
+      if (params) {
+        (navigation.navigate as any)(screenName, params);
+      } else {
+        (navigation.navigate as (screen: keyof RootStackParamList) => void)(screenName);
+      }
     }, 0);
   }, [closeMenu, navigation, updateBadgeData]);
 

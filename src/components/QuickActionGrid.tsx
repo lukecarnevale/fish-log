@@ -3,7 +3,7 @@
 // 2x2 grid of quick action cards with fish illustrations.
 // Enhanced with playful notifications and counters on cards.
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import QuickActionCard from './QuickActionCard';
 import {
@@ -12,6 +12,8 @@ import {
   ActivityBadge,
   ActivityDots,
 } from './CardBadges';
+import { SpeciesAlertBadge } from './SpeciesAlertBadge';
+import { useAllFishSpecies } from '../api/speciesApi';
 import { RootStackParamList } from '../types';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 
@@ -35,7 +37,7 @@ export interface CardBadgeData {
 }
 
 interface QuickActionGridProps {
-  onNavigate: (screen: keyof RootStackParamList) => void;
+  onNavigate: (screen: keyof RootStackParamList, params?: Record<string, any>) => void;
   /** Whether the user is signed in (rewards member) */
   isSignedIn?: boolean;
   /** Badge data for cards */
@@ -47,6 +49,22 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
   isSignedIn = false,
   badgeData,
 }) => {
+  // Derive alert counts from species data (session-only badge — resets each app launch)
+  const { data: allSpecies = [] } = useAllFishSpecies();
+  const [alertsBadgeDismissed, setAlertsBadgeDismissed] = useState(false);
+  const closedSpecies = allSpecies.filter(s => s.harvestStatus === 'closed');
+  const restrictedSpecies = allSpecies.filter(s => s.harvestStatus === 'restricted' || s.harvestStatus === 'catch_and_release');
+  const totalClosures = alertsBadgeDismissed ? 0 : closedSpecies.length;
+  const totalAdvisories = alertsBadgeDismissed ? 0 : restrictedSpecies.length;
+  const totalSpeciesWithAlerts = totalClosures + totalAdvisories;
+
+  // Dismiss alert badge and navigate when tapping Species Guide card
+  const handleSpeciesGuidePress = useCallback(() => {
+    const hasAlerts = totalSpeciesWithAlerts > 0;
+    setAlertsBadgeDismissed(true);
+    onNavigate('SpeciesInfo', hasAlerts ? { fromAlertBadge: true } : undefined);
+  }, [onNavigate, totalSpeciesWithAlerts]);
+
   return (
     <View style={styles.container}>
       <View style={styles.row}>
@@ -94,7 +112,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
         />
       </View>
       <View style={styles.row}>
-        {/* Species Guide - Count badge */}
+        {/* Species Guide - Count badge + Alert badge */}
         <QuickActionCard
           title={SCREEN_LABELS.speciesGuide.title}
           subtitle={SCREEN_LABELS.speciesGuide.subtitle}
@@ -108,7 +126,15 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
             width: '120%',
             height: '120%',
           }}
-          onPress={() => onNavigate('SpeciesInfo')}
+          onPress={handleSpeciesGuidePress}
+          renderCornerBadge={totalSpeciesWithAlerts > 0 ? () => (
+            <SpeciesAlertBadge
+              closureCount={totalClosures}
+              advisoryCount={totalAdvisories}
+              totalSpeciesCount={totalSpeciesWithAlerts}
+              delay={400}
+            />
+          ) : undefined}
           renderBadges={badgeData ? () => (
             <>
               {/* Species count badge - bottom right of fish */}

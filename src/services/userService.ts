@@ -116,5 +116,24 @@ export async function clearUserCache(): Promise<void> {
   }
 }
 
+/**
+ * Clear all user-related data from local storage.
+ * Used during account deletion to ensure no user data persists locally.
+ */
+export async function clearAllUserData(): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.currentUser,
+      STORAGE_KEYS.userStats,
+      'userProfile',
+      'fishingLicense',
+      '@pending_auth',
+      '@catch_feed_cache',
+    ]);
+  } catch (error) {
+    console.error('Failed to clear all user data:', error);
+  }
+}
+
 // Re-export getDeviceId from the shared utility
 export { getDeviceId } from '../utils/deviceId';

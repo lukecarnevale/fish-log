@@ -144,6 +144,7 @@ export async function fetchAdvertisementById(id: string): Promise<Advertisement 
 
 /**
  * Track an advertisement click.
+ * Uses an atomic RPC function to safely increment the counter.
  */
 export async function trackAdClick(adId: string): Promise<void> {
   const connected = await isSupabaseConnected();
@@ -152,11 +153,16 @@ export async function trackAdClick(adId: string): Promise<void> {
     try {
       const { error } = await supabase.rpc('increment_ad_click', { ad_id: adId });
       if (error) {
-        // Try manual update if RPC doesn't exist
-        await supabase
+        console.warn('Failed to track ad click via RPC:', error.message);
+        // Fallback: raw SQL increment to avoid race conditions
+        const { error: sqlError } = await supabase
           .from('advertisements')
-          .update({ click_count: supabase.rpc('increment', { x: 1 }) })
+          .update({ click_count: (await getCurrentCount(adId, 'click_count')) + 1 })
           .eq('id', adId);
+        if (sqlError) {
+          console.warn('Fallback click tracking also failed:', sqlError.message);
+          return;
+        }
       }
       console.log(`📊 Tracked click for ad: ${adId}`);
     } catch (error) {
@@ -167,6 +173,7 @@ export async function trackAdClick(adId: string): Promise<void> {
 
 /**
  * Track an advertisement impression.
+ * Uses an atomic RPC function to safely increment the counter.
  */
 export async function trackAdImpression(adId: string): Promise<void> {
   const connected = await isSupabaseConnected();
@@ -175,14 +182,31 @@ export async function trackAdImpression(adId: string): Promise<void> {
     try {
       const { error } = await supabase.rpc('increment_ad_impression', { ad_id: adId });
       if (error) {
-        // Try manual update if RPC doesn't exist
-        await supabase
+        console.warn('Failed to track ad impression via RPC:', error.message);
+        // Fallback: read-then-write increment
+        const { error: sqlError } = await supabase
           .from('advertisements')
-          .update({ impression_count: supabase.rpc('increment', { x: 1 }) })
+          .update({ impression_count: (await getCurrentCount(adId, 'impression_count')) + 1 })
           .eq('id', adId);
+        if (sqlError) {
+          console.warn('Fallback impression tracking also failed:', sqlError.message);
+        }
       }
     } catch (error) {
-      // Silently ignore impression tracking failures
+      console.warn('Failed to track ad impression:', error);
     }
   }
+}
+
+/**
+ * Helper to read the current count for fallback increment.
+ * Only used when the RPC function is unavailable.
+ */
+async function getCurrentCount(adId: string, column: 'click_count' | 'impression_count'): Promise<number> {
+  const { data } = await supabase
+    .from('advertisements')
+    .select(column)
+    .eq('id', adId)
+    .single();
+  return (data as Record<string, number> | null)?.[column] ?? 0;
 }

@@ -38,9 +38,12 @@ import {
   storePendingAuth,
   PendingAuth,
   signOut,
+  deleteAccount,
   onAuthStateChange,
 } from "../services/authService";
 import { getCurrentUser, updateCurrentUser, getUserStats } from "../services/userProfileService";
+import { clearAllUserData } from "../services/userService";
+import { isSupabaseConnected } from "../config/supabase";
 import { isRewardsMember } from "../services/rewardsConversionService";
 import { useRewards } from "../contexts/RewardsContext";
 import { User, UserAchievement } from "../types/user";
@@ -92,6 +95,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [rewardsMember, setRewardsMember] = useState<boolean>(false);
   const [rewardsMemberUser, setRewardsMemberUser] = useState<User | null>(null);
   const [isSigningOut, setIsSigningOut] = useState<boolean>(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
 
   // State for sign-in flow (for non-members)
   const [showSignInForm, setShowSignInForm] = useState<boolean>(false);
@@ -648,6 +652,71 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     );
   };
 
+  // Handle account deletion
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account?',
+      'This will permanently delete your account and all associated data, including:\n\n' +
+        '\u2022 All harvest reports\n' +
+        '\u2022 Achievements and stats\n' +
+        '\u2022 Rewards entries\n' +
+        '\u2022 Profile information\n\n' +
+        'This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you sure?',
+              'Your account and all data will be permanently deleted. This cannot be reversed.',
+              [
+                { text: 'Go Back', style: 'cancel' },
+                {
+                  text: 'Permanently Delete',
+                  style: 'destructive',
+                  onPress: performAccountDeletion,
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const performAccountDeletion = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const connected = await isSupabaseConnected();
+      if (!connected) {
+        Alert.alert('No Connection', 'Account deletion requires an internet connection. Please try again when online.');
+        return;
+      }
+
+      const result = await deleteAccount();
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Failed to delete account. Please try again.');
+        return;
+      }
+
+      // Clear all local data
+      await clearAllUserData();
+      await signOut();
+
+      Alert.alert(
+        'Account Deleted',
+        'Your account and all associated data have been permanently deleted.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   // Format date for display
   const formatDate = (dateString?: string): string => {
     if (!dateString) return "";
@@ -1043,6 +1112,36 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             <Text style={styles.formSaveButtonText}>Save Profile</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Delete Account Section - Only show for authenticated rewards members */}
+        {rewardsMember && (
+          <View style={localStyles.deleteAccountSection}>
+            <View style={localStyles.deleteAccountHeader}>
+              <View style={localStyles.deleteAccountIcon}>
+                <Feather name="alert-triangle" size={18} color={colors.white} />
+              </View>
+              <Text style={localStyles.deleteAccountTitle}>Delete Account</Text>
+            </View>
+            <Text style={localStyles.deleteAccountDesc}>
+              Permanently delete your account and all associated data including harvest reports, achievements, and rewards entries.
+            </Text>
+            <TouchableOpacity
+              style={localStyles.deleteAccountButton}
+              onPress={handleDeleteAccount}
+              disabled={isDeletingAccount}
+              activeOpacity={0.7}
+            >
+              {isDeletingAccount ? (
+                <ActivityIndicator size="small" color="#FF3B30" />
+              ) : (
+                <>
+                  <Feather name="trash-2" size={16} color="#FF3B30" />
+                  <Text style={localStyles.deleteAccountButtonText}>Delete Account</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Date Picker Modal - matching ReportFormScreen pattern */}
         <Modal
@@ -1511,6 +1610,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       {rewardsMember && userAchievements.length > 0 && (
         <ProfileAchievements achievements={userAchievements} />
       )}
+
       </View>
       </ScrollView>
     </View>
