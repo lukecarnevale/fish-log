@@ -67,7 +67,6 @@ export async function fetchActiveBulletins(): Promise<Bulletin[]> {
       .from('app_bulletins')
       .select('*')
       .eq('is_active', true)
-      .or(`effective_date.is.null,effective_date.lte.${today}`)
       .or(`expiration_date.is.null,expiration_date.gte.${today}`)
       .order('display_order', { ascending: true });
 

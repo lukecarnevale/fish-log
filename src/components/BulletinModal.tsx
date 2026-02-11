@@ -47,6 +47,49 @@ interface BulletinModalProps {
   onDismiss: (bulletinId: string) => void;
 }
 
+/**
+ * Parses text and returns Text elements with tappable phone numbers and emails.
+ */
+const renderLinkedText = (text: string, baseStyle: object) => {
+  // Match phone numbers (e.g. 252-515-5638) and emails
+  const linkPattern = /([\w.-]+@[\w.-]+\.\w+|\d{3}[-.\s]?\d{3}[-.\s]?\d{4})/g;
+  const parts = text.split(linkPattern);
+
+  return (
+    <Text style={baseStyle}>
+      {parts.map((part, i) => {
+        const isEmail = /^[\w.-]+@[\w.-]+\.\w+$/.test(part);
+        const isPhone = /^\d{3}[-.\s]?\d{3}[-.\s]?\d{4}$/.test(part);
+
+        if (isEmail) {
+          return (
+            <Text
+              key={i}
+              style={{ color: colors.primary, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(`mailto:${part}`)}
+            >
+              {part}
+            </Text>
+          );
+        }
+        if (isPhone) {
+          const digits = part.replace(/\D/g, '');
+          return (
+            <Text
+              key={i}
+              style={{ color: colors.primary, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(`tel:${digits}`)}
+            >
+              {part}
+            </Text>
+          );
+        }
+        return <Text key={i}>{part}</Text>;
+      })}
+    </Text>
+  );
+};
+
 const BulletinModal: React.FC<BulletinModalProps> = ({
   visible,
   bulletin,
@@ -148,7 +191,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
                     key={index}
                     source={{ uri: url }}
                     style={styles.carouselImage}
-                    contentFit="cover"
+                    contentFit="contain"
                     cachePolicy="memory-disk"
                   />
                 ))}
@@ -173,7 +216,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
             <Image
               source={{ uri: bulletin.imageUrls[0] }}
               style={styles.singleImage}
-              contentFit="cover"
+              contentFit="contain"
               cachePolicy="memory-disk"
             />
           )}
@@ -181,9 +224,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
       )}
 
       {/* Description */}
-      {bulletin.description && (
-        <Text style={styles.description}>{bulletin.description}</Text>
-      )}
+      {bulletin.description && renderLinkedText(bulletin.description, styles.description)}
 
       {/* Notes callout */}
       {bulletin.notes && (
@@ -194,7 +235,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
             color={config.color}
             style={styles.notesIcon}
           />
-          <Text style={styles.notesText}>{bulletin.notes}</Text>
+          {renderLinkedText(bulletin.notes, styles.notesText)}
         </View>
       )}
 

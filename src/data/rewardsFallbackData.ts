@@ -100,8 +100,8 @@ export const FALLBACK_CONFIG: RewardsConfig = {
   currentDrawingId: null, // Will be set dynamically
   legalDisclaimer: 'NO PURCHASE OR HARVEST REPORT NECESSARY TO ENTER OR WIN. Open to legal residents of North Carolina, 18 years or older.',
   noPurchaseNecessaryText: 'No purchase or report necessary to enter.',
-  alternativeEntryText: 'Enter free at fishlog.app/enter or email rewards@fishlog.app',
-  winnerContactEmail: 'rewards@fishlog.app',
+  alternativeEntryText: 'Enter free at fishlogco.github.io or email fishlogco@gmail.com',
+  winnerContactEmail: 'fishlogco@gmail.com',
   updatedAt: new Date().toISOString(),
 };
 

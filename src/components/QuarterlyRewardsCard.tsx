@@ -13,6 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   Animated,
+  Linking,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -43,6 +44,48 @@ const CATEGORY_ICONS: Record<PrizeCategory, keyof typeof Feather.glyphMap> = {
   apparel: 'shopping-bag',
   experience: 'compass',
   other: 'gift',
+};
+
+/**
+ * Parses text and returns Text elements with tappable phone numbers and emails.
+ */
+const renderLinkedText = (text: string, baseStyle: object) => {
+  const linkPattern = /([\w.-]+@[\w.-]+\.\w+|\d{3}[-.\s]?\d{3}[-.\s]?\d{4})/g;
+  const parts = text.split(linkPattern);
+
+  return (
+    <Text style={baseStyle}>
+      {parts.map((part, i) => {
+        const isEmail = /^[\w.-]+@[\w.-]+\.\w+$/.test(part);
+        const isPhone = /^\d{3}[-.\s]?\d{3}[-.\s]?\d{4}$/.test(part);
+
+        if (isEmail) {
+          return (
+            <Text
+              key={i}
+              style={{ color: COLORS.primary, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(`mailto:${part}`)}
+            >
+              {part}
+            </Text>
+          );
+        }
+        if (isPhone) {
+          const digits = part.replace(/\D/g, '');
+          return (
+            <Text
+              key={i}
+              style={{ color: COLORS.primary, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(`tel:${digits}`)}
+            >
+              {part}
+            </Text>
+          );
+        }
+        return <Text key={i}>{part}</Text>;
+      })}
+    </Text>
+  );
 };
 
 function getPrizeIcon(category: PrizeCategory): keyof typeof Feather.glyphMap {
@@ -340,9 +383,10 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                   </Text>
                 </>
               )}
-              <Text style={styles.modalText}>
-                {config?.alternativeEntryText || 'No purchase or report necessary to enter.'}
-              </Text>
+              {renderLinkedText(
+                config?.alternativeEntryText || 'No purchase or report necessary to enter.',
+                styles.modalText,
+              )}
             </View>
 
             <View style={styles.modalSection}>
