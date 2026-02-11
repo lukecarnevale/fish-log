@@ -34,6 +34,9 @@ interface LegalDocumentScreenProps {
   route: LegalDocumentScreenRouteProp;
 }
 
+// Base URL for hosted legal documents (update when domain is configured)
+const WEBSITE_BASE_URL = 'https://fishlogco.github.io';
+
 // Document content configuration
 const DOCUMENTS: Record<LegalDocumentType, {
   title: string;
@@ -43,74 +46,78 @@ const DOCUMENTS: Record<LegalDocumentType, {
 }> = {
   privacy: {
     title: 'Privacy Policy',
-    lastUpdated: 'January 2025',
-    fullDocumentUrl: undefined, // TODO: Add hosted URL
+    lastUpdated: 'February 2026',
+    fullDocumentUrl: `${WEBSITE_BASE_URL}/privacy.html`,
     sections: [
       {
         title: 'Information We Collect',
-        content: 'We collect information you provide directly, including your name, email, phone number, profile photo, fishing license information, and catch data (species, locations, photos). We also collect device information and usage data automatically.',
+        content: 'We collect information you provide directly, including your name, email, phone number, date of birth, zip code, profile photo, fishing license information, and catch data (species, quantities, lengths, photos, harvest area, and fishing method).\n\nWe also collect certain information automatically: a unique device identifier generated on first launch, your device platform and OS version, and aggregated advertisement impression and click counts. We do not automatically collect your GPS location.',
       },
       {
         title: 'How We Use Your Information',
-        content: 'We use your information to provide harvest reporting services to NC DMF, manage your account, administer the rewards program, display catches in the community feed, and improve our services.',
+        content: 'We use your information to submit harvest reports to the NC Division of Marine Fisheries on your behalf, manage your Rewards Member account, administer the quarterly rewards program, display your catches in the community feed (Rewards Members only, showing first name and last initial), diagnose bugs and respond to feedback, and send confirmation messages if you opt in.',
       },
       {
         title: 'Information Sharing',
-        content: 'We share data with: Supabase (our database and storage provider), NC Division of Marine Fisheries (for harvest reporting), and other users (community feed posts, with your consent). We do not sell your personal information.',
+        content: 'We do not sell your personal information. We share data with: NC Division of Marine Fisheries (harvest report data submitted to their official reporting system), Supabase (our database, authentication, and storage provider), Zippopotam.us (your zip code is sent to this service for validation when you update your profile), and other Rewards Members (your catches may appear in the community feed with your first name and last initial).',
+      },
+      {
+        title: 'Data Retention & Deletion',
+        content: 'We retain your data for as long as your account is active. You can delete your account at any time from the app (Profile > Edit Profile > Delete Account) or by emailing fishlogco@gmail.com. Deletion permanently removes all your profile data, harvest reports, photos, achievements, rewards entries, and feed posts. Reports already submitted to NC DMF cannot be removed from their systems.',
       },
       {
         title: 'Your Rights',
-        content: 'You have the right to access, correct, or delete your personal data. California residents have additional rights under CCPA. European users have rights under GDPR. Contact us to exercise these rights.',
+        content: 'You have the right to access, correct, or delete your personal data at any time. California residents have additional rights under the CCPA. European users have rights under the GDPR. We do not discriminate against users who exercise their privacy rights. Contact us at fishlogco@gmail.com to exercise these rights.',
       },
       {
         title: "Children's Privacy",
-        content: 'This app is not intended for children under 13. We do not knowingly collect personal information from children under 13. If you believe we have collected such information, please contact us immediately.',
+        content: 'Fish Log is not directed at children under 13. We do not knowingly collect personal information from children under 13. The Rewards Member program requires users to be at least 18. Users between 13 and 17 may use the app for harvest reporting with parent or guardian consent. Contact us immediately if you believe a child under 13 has provided us with personal information.',
       },
       {
         title: 'Data Security',
-        content: 'We implement encryption, access controls, and secure authentication to protect your data. However, no method of transmission or storage is 100% secure.',
+        content: 'We implement encryption for data in transit (HTTPS), secure token storage using your device\'s secure storage system (Keychain/Keystore), and row-level security policies in our database. However, no method of transmission or storage is 100% secure.',
       },
     ],
   },
   terms: {
     title: 'Terms of Use',
-    lastUpdated: 'January 2025',
-    fullDocumentUrl: undefined, // TODO: Add hosted URL
+    lastUpdated: 'February 2026',
+    fullDocumentUrl: `${WEBSITE_BASE_URL}/terms.html`,
     sections: [
       {
         title: 'Agreement to Terms',
-        content: 'By using Fish Log, you agree to these Terms of Use. You must be at least 13 years old to use this app. If you are under 18, a parent or guardian must agree on your behalf.',
+        content: 'By using Fish Log, you agree to these Terms of Use. You must be at least 13 years old to use this app. If you are between 13 and 17, a parent or guardian must agree on your behalf. The Rewards Member program is open only to NC residents 18 years of age or older.',
       },
       {
         title: 'Account Responsibilities',
-        content: 'You are responsible for maintaining the security of your account and for all activities under your account. You must provide accurate information and keep it updated.',
+        content: 'You are responsible for maintaining the security of your account and for all activities under your account. You must provide accurate information and keep it updated. We authenticate Rewards Members via passwordless magic link email.',
       },
       {
         title: 'Harvest Reporting',
-        content: 'You are solely responsible for the accuracy of your harvest reports. This app assists with voluntary reporting but does not verify catch information or guarantee regulatory compliance. Always consult official NC DMF sources for current regulations.',
+        content: 'You are solely responsible for the accuracy of your harvest reports. Fish Log helps you submit reports to the NC Division of Marine Fisheries but does not verify catch information, species identification, or regulatory compliance. Fish Log does not guarantee successful transmission to NC DMF. Always consult official NC DMF sources for current regulations. Submitting false harvest reports may violate North Carolina law.',
       },
       {
         title: 'Rewards Program',
-        content: 'The quarterly rewards program is open to NC residents 18+. Entries are earned by submitting valid harvest reports. Winners are selected randomly and notified by email. We reserve the right to disqualify fraudulent entries.',
+        content: 'The quarterly rewards program is open to NC residents 18+. Entries are earned by submitting valid harvest reports. No purchase or report is necessary to enter or win — alternative free entry is available. Winners are selected randomly and notified by email. We reserve the right to disqualify fraudulent entries.',
       },
       {
         title: 'User Content',
-        content: 'You retain ownership of content you submit (photos, catch data). By submitting content, you grant us a license to display it in the app. Do not submit content that is false, illegal, offensive, or infringes on others\' rights.',
+        content: 'You retain ownership of content you submit (photos, catch data). By submitting content, you grant us a non-exclusive, royalty-free license to display it in the app and community feed. Rewards Members\' catches may appear in the feed showing first name and last initial. Do not submit content that is false, illegal, offensive, or infringes on others\' rights.',
       },
       {
         title: 'Disclaimers',
-        content: 'THE APP IS PROVIDED "AS IS" WITHOUT WARRANTIES. We do not guarantee uninterrupted service, accuracy of fishing information, or that the app is error-free. Use at your own risk.',
+        content: 'THE APP IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND. We do not guarantee uninterrupted service, accuracy of fishing information, successful report transmission, or error-free operation. Fish Log is not affiliated with, endorsed by, or operated by the NC Division of Marine Fisheries or any government agency.',
       },
       {
         title: 'Limitation of Liability',
-        content: 'To the maximum extent permitted by law, we are not liable for indirect, incidental, or consequential damages arising from your use of the app.',
+        content: 'To the maximum extent permitted by law, Fish Log Co. is not liable for indirect, incidental, special, consequential, or punitive damages, including loss of data, fines, penalties, or regulatory consequences, arising from your use of the app. These Terms are governed by the laws of the State of North Carolina.',
       },
     ],
   },
   licenses: {
     title: 'Open Source Licenses',
-    lastUpdated: 'January 2025',
-    fullDocumentUrl: undefined, // TODO: Add hosted URL
+    lastUpdated: 'February 2026',
+    fullDocumentUrl: undefined,
     sections: [
       {
         title: 'About This App',
@@ -160,7 +167,7 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
   };
 
   const handleContact = () => {
-    Linking.openURL('mailto:support@fishlog.app').catch((err) =>
+    Linking.openURL('mailto:fishlogco@gmail.com').catch((err) =>
       console.error('Failed to open email:', err)
     );
   };

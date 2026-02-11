@@ -92,26 +92,41 @@ const AnimatedModal: React.FC<AnimatedModalProps> = ({
     return <View style={styles.contentWrapper}>{children}</View>;
   };
 
-  // Main modal content
+  // Derive overlay opacity and slide from the same animated value so they stay in sync.
+  // The overlay and content card are siblings (not parent-child) so that the animated
+  // opacity on the overlay doesn't affect ScrollView rendering inside the card on Android.
+  const overlayOpacity = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
+  const contentTranslateY = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [slideDistance, 0],
+  });
+
+  // Main modal content — overlay and card are siblings to avoid Android scroll glitch
   const modalContent = (
     <View style={[styles.overlay, overlayStyle]}>
+      {/* Animated background scrim (no children — just a colored layer) */}
+      <Animated.View
+        style={[styles.overlayBackground, { opacity: overlayOpacity }]}
+        pointerEvents="none"
+      />
+
+      {/* Touchable overlay for dismissing */}
       <TouchableWithoutFeedback onPress={handleOverlayPress}>
         <View style={styles.overlayTouchable} />
       </TouchableWithoutFeedback>
 
+      {/* Content card — only transform, no opacity animation */}
       <Animated.View
         style={[
           styles.container,
           containerStyle,
           {
-            transform: [
-              {
-                translateY: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [slideDistance, 0],
-                }),
-              },
-            ],
+            opacity: overlayOpacity,
+            transform: [{ translateY: contentTranslateY }],
           },
         ]}
       >
@@ -124,7 +139,7 @@ const AnimatedModal: React.FC<AnimatedModalProps> = ({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onClose}
     >
       {avoidKeyboard ? (
@@ -147,10 +162,13 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
+  },
+  overlayBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   overlayTouchable: {
     ...StyleSheet.absoluteFillObject,

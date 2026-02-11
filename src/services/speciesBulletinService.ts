@@ -39,7 +39,6 @@ export async function fetchBulletinsForSpecies(
       .select('*')
       .contains('affected_species_ids', [speciesId])
       .eq('is_active', true)
-      .or(`effective_date.is.null,effective_date.lte.${today}`)
       .or(`expiration_date.is.null,expiration_date.gte.${today}`)
       .order('display_order', { ascending: true });
 
