@@ -29,9 +29,15 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.local
 .env*.local
+.env.production
 
 # typescript
 *.tsbuildinfo
 .claude/
 CLAUDE.md
+
+# docs markdown files (keep for context in local only)
+docs/*.md
