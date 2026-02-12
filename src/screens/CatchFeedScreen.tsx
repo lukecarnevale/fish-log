@@ -249,7 +249,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
   // Feed advertisements
   const [feedAds, setFeedAds] = useState<Advertisement[]>([]);
-  const trackedImpressions = useRef(new Set<string>());
+  const trackedImpressions = useRef(new Map<string, number>());
 
   // Get current user ID for like functionality (Supabase user ID)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);

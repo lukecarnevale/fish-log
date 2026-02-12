@@ -99,13 +99,20 @@ export async function fetchAdvertisements(
         console.log(`📢 Fetched ${ads.length} advertisements from Supabase`);
         return { advertisements: ads, fromCache: false };
       }
+
+      // Supabase query succeeded but returned 0 active ads — this is a valid
+      // "no active partnerships" state. Return empty so the UI hides the ad
+      // section cleanly instead of falling through to stale local data.
+      console.log('📢 No active advertisements in Supabase');
+      return { advertisements: [], fromCache: false };
     } catch (error) {
       console.warn('Failed to fetch advertisements from Supabase, using local data:', error);
     }
   }
 
-  // Fall back to local data
-  console.log('📢 Using local advertisement data');
+  // Fall back to local data only when Supabase is unreachable or errored.
+  // This ensures offline users still see sponsor content.
+  console.log('📢 Using local advertisement data (offline fallback)');
   const localAds = localAdvertisements
     .filter(ad => ad.isActive)
     .sort((a, b) => (a.priority || 99) - (b.priority || 99))

@@ -206,7 +206,6 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.white,
     marginHorizontal: spacing.lg,
     marginTop: spacing.lg,
-    marginBottom: spacing.lg,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     ...shadows.medium,

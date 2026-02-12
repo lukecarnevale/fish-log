@@ -15,27 +15,52 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import { colors, spacing } from '../styles/common';
 import { Advertisement } from '../services/transformers/advertisementTransformer';
 import { trackAdClick, trackAdImpression } from '../services/advertisementsService';
 import CatchInfoBadge from './CatchInfoBadge';
 
+// IAB/MRC viewability: ad must be on-screen 1 second before counting
+const VIEWABILITY_THRESHOLD_MS = 1_000;
+
 interface FeedAdCardProps {
   ad: Advertisement;
-  /** Set of ad IDs already tracked for impressions this session */
-  trackedImpressions?: Set<string>;
+  /** Map of ad IDs → last impression timestamp for cooldown deduplication */
+  trackedImpressions?: Map<string, number>;
 }
 
+const IMPRESSION_COOLDOWN_MS = 30_000; // 30 seconds
+
 const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
-  // Track impression once when the card mounts (becomes visible)
-  const hasTracked = useRef(false);
+  const isFocused = useIsFocused();
+  const viewabilityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track impression with 1-second viewability threshold and cooldown
   useEffect(() => {
-    if (!hasTracked.current && (!trackedImpressions || !trackedImpressions.has(ad.id))) {
-      hasTracked.current = true;
-      trackedImpressions?.add(ad.id);
-      trackAdImpression(ad.id);
+    if (viewabilityTimer.current) {
+      clearTimeout(viewabilityTimer.current);
+      viewabilityTimer.current = null;
     }
-  }, [ad.id, trackedImpressions]);
+
+    if (!isFocused) return;
+
+    viewabilityTimer.current = setTimeout(() => {
+      const now = Date.now();
+      const lastTracked = trackedImpressions?.get(ad.id);
+
+      if (!lastTracked || (now - lastTracked) > IMPRESSION_COOLDOWN_MS) {
+        trackedImpressions?.set(ad.id, now);
+        trackAdImpression(ad.id);
+      }
+    }, VIEWABILITY_THRESHOLD_MS);
+
+    return () => {
+      if (viewabilityTimer.current) {
+        clearTimeout(viewabilityTimer.current);
+      }
+    };
+  }, [ad.id, trackedImpressions, isFocused]);
 
   const handlePress = useCallback(async () => {
     trackAdClick(ad.id);

@@ -317,7 +317,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                          !!validatePhone(formData.angler.phone || "")}
               >
                 <Feather name="check" size={18} color={colors.white} />
-                <Text style={localStyles.raffleModalPrimaryButtonText}>Submit & Enter</Text>
+                <Text style={localStyles.raffleModalPrimaryButtonText}> Enter</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>

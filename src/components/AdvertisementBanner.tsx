@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
 import { Advertisement as LocalAdvertisement, getActiveAdvertisements } from '../data/advertisementsData';
 import {
@@ -33,6 +34,14 @@ const SNAP_WIDTH = CARD_WIDTH + CARD_GAP; // Width including gap for snapping
 
 // Auto-rotation interval in milliseconds
 const AUTO_ROTATE_INTERVAL = 5000;
+
+// Impression tracking: minimum time (ms) before the same ad can count as a new
+// impression. Prevents rapid screen-switching from inflating counts.
+const IMPRESSION_COOLDOWN_MS = 30_000; // 30 seconds
+
+// IAB/MRC viewability standard: ad must be on-screen for at least 1 continuous
+// second before it counts as a valid impression.
+const VIEWABILITY_THRESHOLD_MS = 1_000; // 1 second
 
 /**
  * Unified ad type that works with both local and remote ads.
@@ -108,8 +117,17 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   const [fetchedAds, setFetchedAds] = useState<DisplayAd[]>([]);
   const [isLoading, setIsLoading] = useState(!propAds && !useLocalOnly);
 
-  // Track which ads have already been counted for impressions this session
-  const trackedImpressions = useRef(new Set<string>());
+  // Screen focus state — used to only track impressions when the user can
+  // actually see the banner (not when the screen is behind another in the stack).
+  const isFocused = useIsFocused();
+
+  // Map of adId → timestamp of last recorded impression. Using a time-based
+  // approach (instead of a simple Set) lets us re-count impressions on return
+  // visits while still deduplicating rapid-fire events.
+  const impressionTimestamps = useRef(new Map<string, number>());
+
+  // Timer handle for the IAB 1-second viewability threshold
+  const viewabilityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch ads from Supabase if no props and not using local only
   useEffect(() => {
@@ -218,15 +236,48 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
     }
   }, [isUserScrolling, startAutoRotate, originalAds.length]);
 
-  // Track impression when the visible ad changes (auto-rotation or manual scroll)
+  // Clear cooldown timestamps when the screen regains focus so that returning
+  // to the home screen counts as a fresh set of impressions (standard behavior
+  // in top ad-supported apps like YouTube, Instagram, etc.).
   useEffect(() => {
-    if (originalAds.length === 0) return;
-    const currentAd = originalAds[currentIndex];
-    if (currentAd?.isRemote && !trackedImpressions.current.has(currentAd.id)) {
-      trackedImpressions.current.add(currentAd.id);
-      trackAdImpression(currentAd.id);
+    if (isFocused) {
+      impressionTimestamps.current.clear();
     }
-  }, [currentIndex, originalAds]);
+  }, [isFocused]);
+
+  // Track impression with IAB viewability: the ad must be visible (screen
+  // focused) for at least VIEWABILITY_THRESHOLD_MS continuous seconds, and the
+  // same ad can't be re-counted within IMPRESSION_COOLDOWN_MS.
+  useEffect(() => {
+    // Cancel any pending viewability timer when deps change
+    if (viewabilityTimer.current) {
+      clearTimeout(viewabilityTimer.current);
+      viewabilityTimer.current = null;
+    }
+
+    if (originalAds.length === 0 || !isFocused) return;
+
+    const currentAd = originalAds[currentIndex];
+    if (!currentAd?.isRemote) return;
+
+    // Start the 1-second viewability timer
+    viewabilityTimer.current = setTimeout(() => {
+      const now = Date.now();
+      const lastTracked = impressionTimestamps.current.get(currentAd.id);
+
+      if (!lastTracked || (now - lastTracked) > IMPRESSION_COOLDOWN_MS) {
+        impressionTimestamps.current.set(currentAd.id, now);
+        trackAdImpression(currentAd.id);
+      }
+    }, VIEWABILITY_THRESHOLD_MS);
+
+    return () => {
+      if (viewabilityTimer.current) {
+        clearTimeout(viewabilityTimer.current);
+        viewabilityTimer.current = null;
+      }
+    };
+  }, [currentIndex, originalAds, isFocused]);
 
   // Don't render if loading or no ads available
   if (isLoading || originalAds.length === 0) {

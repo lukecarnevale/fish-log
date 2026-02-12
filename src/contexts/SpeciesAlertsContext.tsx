@@ -73,8 +73,14 @@ export function SpeciesAlertsProvider({
     AsyncStorage.getItem(SEEN_ALERTS_KEY)
       .then((raw) => {
         if (raw) {
-          const ids: string[] = JSON.parse(raw);
-          setSeenAlertIds(new Set(ids));
+          try {
+            const ids: string[] = JSON.parse(raw);
+            if (Array.isArray(ids)) {
+              setSeenAlertIds(new Set(ids));
+            }
+          } catch {
+            // Corrupted storage data — start fresh
+          }
         }
       })
       .catch((error) => {

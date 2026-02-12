@@ -331,17 +331,32 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
   };
 
   // Render prize item (for single or first prize)
-  const renderPrizeItem = (prize: Prize) => (
-    <View style={styles.prizeItem}>
-      <View style={styles.prizeIllustration}>
-        {getPrizeIllustration(prize.category)}
+  const renderPrizeItem = (prize?: Prize) => {
+    if (!prize) {
+      return (
+        <View style={styles.prizeItem}>
+          <View style={styles.prizeIllustration}>
+            <GenericPrizeIllustration />
+          </View>
+          <View style={styles.prizeDetails}>
+            <Text style={styles.prizeName}>Prize TBD</Text>
+            <Text style={styles.prizeValue}>Check back soon!</Text>
+          </View>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.prizeItem}>
+        <View style={styles.prizeIllustration}>
+          {getPrizeIllustration(prize.category)}
+        </View>
+        <View style={styles.prizeDetails}>
+          <Text style={styles.prizeName}>{prize.name}</Text>
+          <Text style={styles.prizeValue}>{prize.value}</Text>
+        </View>
       </View>
-      <View style={styles.prizeDetails}>
-        <Text style={styles.prizeName}>{prize.name}</Text>
-        <Text style={styles.prizeValue}>{prize.value}</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   // Details Modal
   const renderDetailsModal = () => (
@@ -404,18 +419,24 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
 
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Prize List</Text>
-              {currentDrawing.prizes.map((prize) => (
-                <View key={prize.id} style={styles.modalPrizeItem}>
-                  <Feather
-                    name={getPrizeIcon(prize.category)}
-                    size={20}
-                    color={COLORS.primary}
-                  />
-                  <Text style={styles.modalPrizeText}>
-                    {prize.name} ({prize.value})
-                  </Text>
-                </View>
-              ))}
+              {currentDrawing.prizes && currentDrawing.prizes.length > 0 ? (
+                currentDrawing.prizes.map((prize) => (
+                  <View key={prize.id} style={styles.modalPrizeItem}>
+                    <Feather
+                      name={getPrizeIcon(prize.category)}
+                      size={20}
+                      color={COLORS.primary}
+                    />
+                    <Text style={styles.modalPrizeText}>
+                      {prize.name} ({prize.value})
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.modalText}>
+                  Prizes for this quarter will be announced soon.
+                </Text>
+              )}
             </View>
 
             <View style={styles.modalSection}>
@@ -582,7 +603,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             <Text style={styles.prizeSectionTitle}>
               Current Quarter Prize
             </Text>
-            {renderPrizeItem(currentDrawing.prizes[0])}
+            {renderPrizeItem(currentDrawing.prizes?.[0])}
           </View>
 
           {/* Notification Banner */}

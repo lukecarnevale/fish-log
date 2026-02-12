@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { FishingStats } from './profileScreen.types';
 import { styles, localStyles } from '../../styles/profileScreenStyles';
+import { Skeleton } from '../../components/SkeletonLoader';
 
 interface ProfileStatsProps {
   fishingStats: FishingStats;
@@ -16,16 +17,16 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ fishingStats, statsLoading 
         {statsLoading ? (
           <>
             <View style={styles.statCard}>
-              <View style={localStyles.skeletonStatValue} />
-              <View style={localStyles.skeletonStatLabel} />
+              <Skeleton width={40} height={24} style={{ marginBottom: 4 }} />
+              <Skeleton width={50} height={12} />
             </View>
             <View style={styles.statCard}>
-              <View style={localStyles.skeletonStatValue} />
-              <View style={localStyles.skeletonStatLabel} />
+              <Skeleton width={40} height={24} style={{ marginBottom: 4 }} />
+              <Skeleton width={50} height={12} />
             </View>
             <View style={styles.statCard}>
-              <View style={localStyles.skeletonStatValue} />
-              <View style={localStyles.skeletonStatLabel} />
+              <Skeleton width={40} height={24} style={{ marginBottom: 4 }} />
+              <Skeleton width={60} height={12} />
             </View>
           </>
         ) : (

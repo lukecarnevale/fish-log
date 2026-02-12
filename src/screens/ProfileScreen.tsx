@@ -879,7 +879,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {formData.hasLicense === true && (
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
-                <Text style={styles.inputLabel}>WRC ID / Customer ID *</Text>
+                <Text style={[styles.inputLabel, { marginBottom: 0 }]}>WRC ID / Customer ID *</Text>
                 <TouchableOpacity
                   onPress={() => setShowWrcIdInfoModal(true)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

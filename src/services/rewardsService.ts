@@ -279,6 +279,10 @@ async function fetchCurrentDrawingFromSupabase(): Promise<RewardsDrawing | null>
     .filter((p): p is Prize => p !== null)
     .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
+  if (prizes.length === 0) {
+    console.warn('No prizes found for drawing:', drawingData.id);
+  }
+
   return transformDrawing(drawingData, prizes);
 }
 

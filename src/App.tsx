@@ -23,6 +23,9 @@ import { store } from './store';
 // Import React Query client
 import { queryClient } from './api/queryClient';
 
+// Import Error Boundary
+import ErrorBoundary from './components/ErrorBoundary';
+
 // Import Rewards context
 import { RewardsProvider } from './contexts/RewardsContext';
 
@@ -267,21 +270,23 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <RewardsProvider>
-          <AchievementProvider>
-            <BulletinProvider>
-              <SpeciesAlertsProvider>
-                <SafeAreaProvider>
-                  <AppContent />
-                </SafeAreaProvider>
-              </SpeciesAlertsProvider>
-            </BulletinProvider>
-          </AchievementProvider>
-        </RewardsProvider>
-      </QueryClientProvider>
-    </Provider>
+    <ErrorBoundary>
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <RewardsProvider>
+            <AchievementProvider>
+              <BulletinProvider>
+                <SpeciesAlertsProvider>
+                  <SafeAreaProvider>
+                    <AppContent />
+                  </SafeAreaProvider>
+                </SpeciesAlertsProvider>
+              </BulletinProvider>
+            </AchievementProvider>
+          </RewardsProvider>
+        </QueryClientProvider>
+      </Provider>
+    </ErrorBoundary>
   );
 };
 
