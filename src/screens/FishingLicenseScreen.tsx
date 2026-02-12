@@ -30,6 +30,7 @@ import ScreenLayout from "../components/ScreenLayout";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 import { getCurrentUser, updateCurrentUser } from "../services/userProfileService";
+import { onAuthStateChange } from "../services/authService";
 
 type FishingLicenseScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -94,24 +95,42 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   };
 
   // Load license data from AsyncStorage
-  useEffect(() => {
-    const loadLicense = async () => {
-      try {
-        const savedLicense = await AsyncStorage.getItem("fishingLicense");
-        if (savedLicense) {
-          const parsedLicense = JSON.parse(savedLicense);
-          setLicense(parsedLicense);
-          setFormData(parsedLicense);
-        }
-      } catch (error) {
-        Alert.alert("Error", "Failed to load your fishing license");
-      } finally {
-        setLoading(false);
+  const loadLicense = async () => {
+    try {
+      const savedLicense = await AsyncStorage.getItem("fishingLicense");
+      if (savedLicense) {
+        const parsedLicense = JSON.parse(savedLicense);
+        setLicense(parsedLicense);
+        setFormData(parsedLicense);
       }
-    };
-    
+    } catch (error) {
+      Alert.alert("Error", "Failed to load your fishing license");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadLicense();
-  }, []);
+
+    // Refresh data when screen comes into focus (e.g. after editing profile)
+    const focusUnsubscribe = navigation.addListener('focus', () => {
+      loadLicense();
+    });
+
+    // Refresh after auth sign-in so Supabase-synced license data appears
+    const authUnsubscribe = onAuthStateChange((event, _session) => {
+      if (event === 'SIGNED_IN') {
+        // Delay to allow syncToUserProfile to complete writing fishingLicense
+        setTimeout(() => loadLicense(), 1500);
+      }
+    });
+
+    return () => {
+      focusUnsubscribe();
+      authUnsubscribe?.();
+    };
+  }, [navigation]);
   
   // Save license data to AsyncStorage
   const saveLicense = async () => {

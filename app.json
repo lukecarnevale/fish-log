@@ -44,7 +44,8 @@
           "cameraPermission": "Fish Log needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
           "photosPermission": "Fish Log needs access to your photo library to select photos of your catch for harvest reports and your profile picture."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

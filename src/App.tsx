@@ -15,7 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Platform } from 'react-native';
+import { Platform, View, Text, StyleSheet } from 'react-native';
 
 // Import Redux store
 import { store } from './store';
@@ -37,6 +37,10 @@ import { BulletinProvider } from './contexts/BulletinContext';
 
 // Import Species Alerts context for species-specific bulletins (closures, regulation changes)
 import { SpeciesAlertsProvider } from './contexts/SpeciesAlertsContext';
+
+// Import Supabase config check
+import { isSupabaseConfigured } from './config/supabase';
+import { env } from './config/env';
 
 // Import app initialization hooks
 import {
@@ -134,6 +138,7 @@ const AppInitializer: React.FC = () => {
 
   // Listen for auth state changes
   useAuthStateListener();
+
 
   return null;
 };
@@ -268,7 +273,61 @@ const AppContent: React.FC = () => {
   );
 };
 
+/** Fallback screen shown when Supabase credentials are missing at build time */
+const ConfigErrorScreen: React.FC = () => (
+  <View style={configErrorStyles.container}>
+    <Feather name="alert-circle" size={64} color={colors.primary} />
+    <Text style={configErrorStyles.title}>Configuration Error</Text>
+    <Text style={configErrorStyles.message}>
+      Supabase credentials were not found in this build.{'\n\n'}
+      EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set in eas.json under the build profile's "env" section.
+    </Text>
+    <Text style={configErrorStyles.detail}>
+      URL: {env.SUPABASE_URL || '(missing)'}{'\n'}
+      Key: {env.SUPABASE_ANON_KEY ? 'present' : '(missing)'}
+    </Text>
+  </View>
+);
+
+const configErrorStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 32,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  message: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 22,
+  },
+  detail: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    textAlign: 'center',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+});
+
 const App: React.FC = () => {
+  if (!isSupabaseConfigured) {
+    return <ConfigErrorScreen />;
+  }
+
   return (
     <ErrorBoundary>
       <Provider store={store}>

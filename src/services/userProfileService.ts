@@ -18,6 +18,7 @@ import {
   transformAchievement,
   transformUserAchievement,
 } from '../types/user';
+import { FishingLicense } from '../types';
 import { getAuthState } from './authService';
 import { backfillUserStatsFromReports } from './statsService';
 import { findUserByDeviceId, findUserByEmail, createUserInSupabase } from './userService';
@@ -115,6 +116,30 @@ export async function syncToUserProfile(user: User): Promise<void> {
     };
 
     await AsyncStorage.setItem(STORAGE_KEYS.userProfile, JSON.stringify(updatedProfile));
+
+    // Also sync license data to the fishingLicense key (used by FishingLicenseScreen).
+    // Merge with existing local data to avoid overwriting locally-entered values with nulls.
+    const existingLicense = await AsyncStorage.getItem('fishingLicense');
+    const licenseData: FishingLicense = existingLicense ? JSON.parse(existingLicense) : {};
+    const updatedLicense: FishingLicense = {
+      ...licenseData,
+      firstName: user.firstName || licenseData.firstName,
+      lastName: user.lastName || licenseData.lastName,
+      licenseNumber: user.licenseNumber || licenseData.licenseNumber,
+      licenseType: user.licenseType || licenseData.licenseType,
+      // Map User field names to FishingLicense field names
+      issueDate: user.licenseIssueDate || licenseData.issueDate,
+      expiryDate: user.licenseExpiryDate || licenseData.expiryDate,
+    };
+
+    // Only write if there's meaningful license data to store
+    const hasLicenseData = updatedLicense.licenseNumber || updatedLicense.licenseType
+      || updatedLicense.firstName || updatedLicense.lastName;
+    if (hasLicenseData) {
+      await AsyncStorage.setItem('fishingLicense', JSON.stringify(updatedLicense));
+      console.log('✅ Fishing license synced to AsyncStorage');
+    }
+
     console.log('✅ User profile synced to AsyncStorage');
   } catch (error) {
     console.error('Failed to sync user profile:', error);
