@@ -2509,7 +2509,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         ) : (
           <>
             <Text style={localStyles.raffleDescription}>
-              Report your catch to be entered into our quarterly drawing.{'\n'}Or enter free at fishlog.app/enter
+              Report your catch to be entered into our quarterly drawing.
             </Text>
 
             {enterRaffle ? (
@@ -2523,7 +2523,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 <View style={localStyles.privacyAssurance}>
                   <Feather name="lock" size={14} color={colors.success} style={{ marginRight: 6 }} />
                   <Text style={localStyles.privacyAssuranceText}>
-                    Your info, photos & location stay private—never shared or sold. No BS.
+                    Your catch & profile will be shared on Catch Feed, but all user data NEVER leaves the app. We really don't like people who sell user data. They are bilge scum.
                   </Text>
                 </View>
                 <TouchableOpacity

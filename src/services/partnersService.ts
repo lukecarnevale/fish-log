@@ -26,6 +26,7 @@ const CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
 
 let memoryCache: Partner[] | null = null;
 let memoryCacheTimestamp = 0;
+let memoryCacheIsAuthoritative = false;
 
 // =============================================================================
 // Static Fallback
@@ -107,6 +108,8 @@ async function fetchPartnersFromSupabase(): Promise<Partner[]> {
 export interface PartnersResult {
   partners: Partner[];
   source: 'memory' | 'cache' | 'network' | 'fallback';
+  /** True when the authoritative source (Supabase) was reachable. */
+  isAuthoritative: boolean;
 }
 
 /**
@@ -122,41 +125,44 @@ export interface PartnersResult {
  */
 export async function fetchPartners(): Promise<PartnersResult> {
   // Tier 1: In-memory cache
-  if (memoryCache && Date.now() - memoryCacheTimestamp < CACHE_DURATION_MS) {
-    return { partners: memoryCache, source: 'memory' };
+  if (memoryCache !== null && Date.now() - memoryCacheTimestamp < CACHE_DURATION_MS) {
+    return { partners: memoryCache, source: 'memory', isAuthoritative: memoryCacheIsAuthoritative };
   }
 
-  // Tier 2: AsyncStorage cache
+  // Tier 2: AsyncStorage cache (may include a cached empty array from Supabase)
   const cached = await getCachedPartners();
-  if (cached && cached.length > 0) {
+  if (cached !== null) {
     // Populate memory cache
     memoryCache = cached;
     memoryCacheTimestamp = Date.now();
+    memoryCacheIsAuthoritative = true; // cached data originally came from Supabase
 
     // Kick off a background refresh (fire-and-forget)
     refreshPartnersInBackground();
 
-    return { partners: cached, source: 'cache' };
+    return { partners: cached, source: 'cache', isAuthoritative: true };
   }
 
   // Tier 3: Network fetch
   try {
     const partners = await fetchPartnersFromSupabase();
-    if (partners.length > 0) {
-      memoryCache = partners;
-      memoryCacheTimestamp = Date.now();
-      await savePartnersToCache(partners);
-      return { partners, source: 'network' };
-    }
+    // Always accept the Supabase result — even an empty array is valid
+    // (it means there are intentionally no active partnerships).
+    memoryCache = partners;
+    memoryCacheTimestamp = Date.now();
+    memoryCacheIsAuthoritative = true;
+    await savePartnersToCache(partners);
+    return { partners, source: 'network', isAuthoritative: true };
   } catch (error) {
     console.warn('⚠️ Supabase partners fetch failed:', error);
   }
 
-  // Tier 4: Static fallback
+  // Tier 4: Static fallback (only when Supabase is unreachable)
   const fallback = getStaticFallback();
   memoryCache = fallback;
   memoryCacheTimestamp = Date.now();
-  return { partners: fallback, source: 'fallback' };
+  memoryCacheIsAuthoritative = false;
+  return { partners: fallback, source: 'fallback', isAuthoritative: false };
 }
 
 /**
@@ -166,11 +172,12 @@ export async function fetchPartners(): Promise<PartnersResult> {
 async function refreshPartnersInBackground(): Promise<void> {
   try {
     const partners = await fetchPartnersFromSupabase();
-    if (partners.length > 0) {
-      memoryCache = partners;
-      memoryCacheTimestamp = Date.now();
-      await savePartnersToCache(partners);
-    }
+    // Always accept the Supabase result (even empty) so stale partner
+    // data gets cleared when partnerships end.
+    memoryCache = partners;
+    memoryCacheTimestamp = Date.now();
+    memoryCacheIsAuthoritative = true;
+    await savePartnersToCache(partners);
   } catch {
     // Silent failure — cached data is still valid
   }
@@ -182,6 +189,7 @@ async function refreshPartnersInBackground(): Promise<void> {
 export async function refreshPartners(): Promise<PartnersResult> {
   memoryCache = null;
   memoryCacheTimestamp = 0;
+  memoryCacheIsAuthoritative = false;
 
   try {
     await AsyncStorage.multiRemove([STORAGE_KEY, STORAGE_TIMESTAMP_KEY]);
@@ -198,6 +206,7 @@ export async function refreshPartners(): Promise<PartnersResult> {
 export async function clearPartnersCache(): Promise<void> {
   memoryCache = null;
   memoryCacheTimestamp = 0;
+  memoryCacheIsAuthoritative = false;
 
   try {
     await AsyncStorage.multiRemove([STORAGE_KEY, STORAGE_TIMESTAMP_KEY]);

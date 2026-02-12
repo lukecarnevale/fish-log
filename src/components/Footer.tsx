@@ -49,38 +49,40 @@ const Footer: React.FC<FooterProps> = ({
         <GhostFish style={styles.fishLeft} width={80} height={50} />
         <GhostFish style={styles.fishRight} width={60} height={40} flip />
 
-        {/* Partners Section - Scrollable Carousel */}
-        <View style={styles.partnersSection}>
-          <Text style={styles.partnersLabel}>Our Partners</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.partnersCarousel}
-            scrollEventThrottle={16}
-            decelerationRate="fast"
-          >
-            {partners.map((partner) => (
-              <TouchableOpacity
-                key={partner.id}
-                style={styles.partnerCard}
-                onPress={() => handlePartnerPress(partner.websiteUrl)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.partnerLogoContainer}>
-                  <Image
-                    source={{ uri: partner.iconUrl }}
-                    style={styles.partnerLogo}
-                    resizeMode="contain"
-                    defaultSource={require('../assets/icon.png')}
-                  />
-                </View>
-                <Text style={styles.partnerName} numberOfLines={2}>
-                  {partner.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        {/* Partners Section - only render when there are active partners */}
+        {partners.length > 0 && (
+          <View style={styles.partnersSection}>
+            <Text style={styles.partnersLabel}>Our Partners</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.partnersCarousel}
+              scrollEventThrottle={16}
+              decelerationRate="fast"
+            >
+              {partners.map((partner) => (
+                <TouchableOpacity
+                  key={partner.id}
+                  style={styles.partnerCard}
+                  onPress={() => handlePartnerPress(partner.websiteUrl)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.partnerLogoContainer}>
+                    <Image
+                      source={{ uri: partner.iconUrl }}
+                      style={styles.partnerLogo}
+                      resizeMode="contain"
+                      defaultSource={require('../assets/icon.png')}
+                    />
+                  </View>
+                  <Text style={styles.partnerName} numberOfLines={2}>
+                    {partner.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* App Branding */}
         <View style={styles.brandingSection}>

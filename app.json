@@ -14,7 +14,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fishlog.app"
+      "bundleIdentifier": "com.fishlog.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Fish Log needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
+        "NSPhotoLibraryUsageDescription": "Fish Log needs access to your photo library to select photos of your catch for harvest reports and your profile picture."
+      }
     },
     "jsEngine": "hermes",
     "android": {
@@ -28,7 +33,14 @@
       "favicon": "./assets/icon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Fish Log needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
+          "photosPermission": "Fish Log needs access to your photo library to select photos of your catch for harvest reports and your profile picture."
+        }
+      ]
     ],
     "extra": {
       "eas": {

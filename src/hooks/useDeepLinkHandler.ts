@@ -112,11 +112,15 @@ export function useDeepLinkHandler() {
 
   useEffect(() => {
     // Handle deep links - check for initial URL (app opened via link)
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        handleDeepLink(url);
-      }
-    });
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) {
+          handleDeepLink(url);
+        }
+      })
+      .catch((error) => {
+        console.warn('Failed to get initial URL:', error);
+      });
 
     // Listen for deep links while app is running
     const linkingSubscription = Linking.addEventListener('url', (event) => {

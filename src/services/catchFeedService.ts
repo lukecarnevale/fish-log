@@ -330,7 +330,7 @@ async function fetchTopAnglersFromSupabase(): Promise<TopAngler[]> {
   const topAnglers: TopAngler[] = [];
 
   // Find top angler by total_fish (catches)
-  const topByCatches = leaderboardData.reduce((max, row) =>
+  const topByCatches = leaderboardData.reduce((max: typeof leaderboardData[number], row: typeof leaderboardData[number]) =>
     (row.total_fish || 0) > (max.total_fish || 0) ? row : max);
 
   if (topByCatches && topByCatches.total_fish && topByCatches.total_fish > 0) {
@@ -345,7 +345,7 @@ async function fetchTopAnglersFromSupabase(): Promise<TopAngler[]> {
   }
 
   // Find top angler by species variety
-  const topBySpecies = leaderboardData.reduce((max, row) =>
+  const topBySpecies = leaderboardData.reduce((max: typeof leaderboardData[number], row: typeof leaderboardData[number]) =>
     (row.distinct_species || 0) > (max.distinct_species || 0) ? row : max);
 
   if (topBySpecies && topBySpecies.distinct_species && topBySpecies.distinct_species > 0) {
