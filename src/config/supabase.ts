@@ -2,11 +2,26 @@
 //
 // Supabase client configuration for Fish Log app.
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { env } from './env';
 
-export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+/** Whether Supabase credentials were provided at build time */
+export const isSupabaseConfigured = Boolean(env.SUPABASE_URL && env.SUPABASE_ANON_KEY);
+
+if (!isSupabaseConfigured) {
+  console.error(
+    'Supabase credentials missing! EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set.',
+    `URL present: ${Boolean(env.SUPABASE_URL)}, Key present: ${Boolean(env.SUPABASE_ANON_KEY)}`
+  );
+}
+
+// Use a placeholder URL when credentials are missing to prevent createClient from crashing.
+// All queries will fail gracefully instead of the app white-screening.
+const safeUrl = env.SUPABASE_URL || 'https://placeholder.supabase.co';
+const safeKey = env.SUPABASE_ANON_KEY || 'placeholder-key';
+
+export const supabase: SupabaseClient = createClient(safeUrl, safeKey, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,

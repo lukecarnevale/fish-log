@@ -6,6 +6,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
   Image,
   Alert,
@@ -85,6 +86,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // State for WRC ID info modal
   const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
 
+  // State for enlarged photo preview
+  const [showPhotoPreview, setShowPhotoPreview] = useState<boolean>(false);
+
   // State for pending magic link auth
   const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
   const [pendingAuthEmail, setPendingAuthEmail] = useState<string>('');
@@ -115,16 +119,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // Animation for transitioning between view/edit modes
   const slideAnim = useRef(new Animated.Value(0)).current;
   const screenHeight = Dimensions.get('window').height;
-
-  // Request permission for image picker
-  useEffect(() => {
-    (async () => {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to set profile pictures!');
-      }
-    })();
-  }, []);
 
   // Load profile data from AsyncStorage (merge with fishingLicense data)
   useEffect(() => {
@@ -241,6 +235,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // Function to pick an image from gallery
   const pickImage = async () => {
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Camera roll permissions are needed to change your profile picture.');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -1219,7 +1219,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.profileImageContainer}
-            onPress={pickImage}
+            onPress={() => setShowPhotoPreview(true)}
             activeOpacity={0.8}
           >
             {profile.profileImage ? (
@@ -1627,8 +1627,61 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {renderProfileForm()}
         </Animated.View>
       )}
+
+      {/* Photo preview modal */}
+      <Modal
+        visible={showPhotoPreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPhotoPreview(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowPhotoPreview(false)}>
+          <View style={photoPreviewStyles.overlay}>
+            <View style={photoPreviewStyles.imageContainer}>
+              {profile.profileImage ? (
+                <Image
+                  source={{ uri: profile.profileImage }}
+                  style={photoPreviewStyles.image}
+                />
+              ) : (
+                <View style={photoPreviewStyles.avatarFallback}>
+                  <AnglerAvatarIcon size={200} />
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 };
+
+const photoPreviewStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageContainer: {
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
 
 export default ProfileScreen;
