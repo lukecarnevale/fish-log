@@ -3,7 +3,7 @@
 // 2x2 grid of quick action cards with fish illustrations.
 // Enhanced with playful notifications and counters on cards.
 
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import QuickActionCard from './QuickActionCard';
 import {
@@ -14,6 +14,7 @@ import {
 } from './CardBadges';
 import { SpeciesAlertBadge } from './SpeciesAlertBadge';
 import { useAllFishSpecies } from '../api/speciesApi';
+import { useSpeciesAlerts } from '../contexts/SpeciesAlertsContext';
 import { RootStackParamList } from '../types';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 
@@ -49,21 +50,39 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
   isSignedIn = false,
   badgeData,
 }) => {
-  // Derive alert counts from species data (session-only badge — resets each app launch)
+  // Derive alert counts from species data, filtering out badge-acknowledged alerts
   const { data: allSpecies = [] } = useAllFishSpecies();
-  const [alertsBadgeDismissed, setAlertsBadgeDismissed] = useState(false);
-  const closedSpecies = allSpecies.filter(s => s.harvestStatus === 'closed');
-  const restrictedSpecies = allSpecies.filter(s => s.harvestStatus === 'restricted' || s.harvestStatus === 'catch_and_release');
-  const totalClosures = alertsBadgeDismissed ? 0 : closedSpecies.length;
-  const totalAdvisories = alertsBadgeDismissed ? 0 : restrictedSpecies.length;
-  const totalSpeciesWithAlerts = totalClosures + totalAdvisories;
+  const { acknowledgeBadgeAlerts, isBadgeAlertAcknowledged } = useSpeciesAlerts();
 
-  // Dismiss alert badge and navigate when tapping Species Guide card
+  const closedSpecies = useMemo(
+    () => allSpecies.filter(s => s.harvestStatus === 'closed'),
+    [allSpecies]
+  );
+  const restrictedSpecies = useMemo(
+    () => allSpecies.filter(s => s.harvestStatus === 'restricted' || s.harvestStatus === 'catch_and_release'),
+    [allSpecies]
+  );
+
+  // Only count species not yet acknowledged on the badge
+  const unacknowledgedClosed = useMemo(
+    () => closedSpecies.filter(s => !isBadgeAlertAcknowledged(s.id)),
+    [closedSpecies, isBadgeAlertAcknowledged]
+  );
+  const unacknowledgedRestricted = useMemo(
+    () => restrictedSpecies.filter(s => !isBadgeAlertAcknowledged(s.id)),
+    [restrictedSpecies, isBadgeAlertAcknowledged]
+  );
+  const totalSpeciesWithAlerts = unacknowledgedClosed.length + unacknowledgedRestricted.length;
+
+  // Acknowledge all alerted species on the badge and navigate
   const handleSpeciesGuidePress = useCallback(() => {
     const hasAlerts = totalSpeciesWithAlerts > 0;
-    setAlertsBadgeDismissed(true);
+    if (hasAlerts) {
+      const alertedIds = [...closedSpecies, ...restrictedSpecies].map(s => s.id);
+      acknowledgeBadgeAlerts(alertedIds);
+    }
     onNavigate('SpeciesInfo', hasAlerts ? { fromAlertBadge: true } : undefined);
-  }, [onNavigate, totalSpeciesWithAlerts]);
+  }, [onNavigate, totalSpeciesWithAlerts, closedSpecies, restrictedSpecies, acknowledgeBadgeAlerts]);
 
   return (
     <View style={styles.container}>
@@ -129,8 +148,8 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
           onPress={handleSpeciesGuidePress}
           renderCornerBadge={totalSpeciesWithAlerts > 0 ? () => (
             <SpeciesAlertBadge
-              closureCount={totalClosures}
-              advisoryCount={totalAdvisories}
+              closureCount={unacknowledgedClosed.length}
+              advisoryCount={unacknowledgedRestricted.length}
               totalSpeciesCount={totalSpeciesWithAlerts}
               delay={400}
             />

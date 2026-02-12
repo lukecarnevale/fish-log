@@ -555,6 +555,47 @@ export async function isUserEntered(
 }
 
 /**
+ * Get rewards entry status by device ID using SECURITY DEFINER RPC.
+ * Works without an active auth session, bypassing RLS.
+ * Used as a fallback after logout when normal queries are blocked.
+ */
+export async function getRewardsStatusByDevice(
+  deviceId: string
+): Promise<UserRewardsEntry | null> {
+  const available = await isSupabaseAvailable();
+  if (!available) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('get_rewards_status_by_device', {
+      p_device_id: deviceId,
+    });
+
+    if (error) {
+      console.warn('Failed to get rewards status by device:', error.message);
+      return null;
+    }
+
+    if (!data || !data.found || !data.has_entered) {
+      return null;
+    }
+
+    return {
+      userId: data.user_id,
+      drawingId: data.drawing_id,
+      isEntered: true,
+      entryMethod: data.entry_method || 'app',
+      enteredAt: data.entered_at || undefined,
+      associatedReportIds: data.associated_report_ids || [],
+    };
+  } catch (error) {
+    console.warn('Error getting rewards status by device:', error);
+    return null;
+  }
+}
+
+/**
  * Get the list of drawings the user has entered.
  * For backward compatibility with existing enteredRaffles storage.
  */

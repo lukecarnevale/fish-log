@@ -353,6 +353,9 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
         <View style={styles.prizeDetails}>
           <Text style={styles.prizeName}>{prize.name}</Text>
           <Text style={styles.prizeValue}>{prize.value}</Text>
+          {prize.sponsor ? (
+            <Text style={styles.prizeSponsor}>Sponsored by {prize.sponsor}</Text>
+          ) : null}
         </View>
       </View>
     );
@@ -906,6 +909,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.navyDark,
+  },
+  prizeSponsor: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
 
   // Notification Banner
