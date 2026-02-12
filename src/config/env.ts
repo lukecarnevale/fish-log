@@ -17,7 +17,6 @@ export const env = {
     'https://services2.arcgis.com/kCu40SDxsCGcuUWO/arcgis/rest/services/MandReportingData/FeatureServer/applyEdits',
   // Default to false (safe fallback = production mode) - development builds override via EAS
   SHOW_DEVELOPER_TOOLS: process.env.EXPO_PUBLIC_SHOW_DEVELOPER_TOOLS === 'true',
-  SHOW_SAMPLE_REPORTS: process.env.EXPO_PUBLIC_SHOW_SAMPLE_REPORTS === 'true',
   SHOW_TEST_MODE_BADGE: process.env.EXPO_PUBLIC_SHOW_TEST_MODE_BADGE === 'true',
   // Provided by EAS Secrets at build time — no hardcoded fallbacks
   SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
