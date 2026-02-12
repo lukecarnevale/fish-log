@@ -38,3 +38,6 @@ yarn-error.*
 *.tsbuildinfo
 .claude/
 CLAUDE.md
+
+# docs markdown files (keep for context in local only)
+docs/*.md
