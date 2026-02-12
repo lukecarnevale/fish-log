@@ -16,6 +16,9 @@ import {
   submitHarvestReport,
   generateConfirmationNumber,
 } from './harvestReportService';
+import { createReportFromHarvestInput, getReports } from './reportsService';
+import type { AwardedAchievement } from './reportsService';
+import { getRewardsMemberForAnonymousUser } from './rewardsConversionService';
 
 // ============================================
 // STORAGE KEYS
@@ -347,13 +350,90 @@ export async function addToHistory(report: AddToHistoryInput): Promise<void> {
  *
  * Returns reports with harvestDate as ISO strings.
  * Sorted by submission date (newest first).
+ * For signed-in users, also fetches reports from Supabase.
  *
  * @returns Array of submitted reports
  */
 export async function getHistory(): Promise<SubmittedReport[]> {
   try {
-    const data = await AsyncStorage.getItem(HISTORY_KEY);
-    return data ? JSON.parse(data) : [];
+    // First, get local history
+    const localData = await AsyncStorage.getItem(HISTORY_KEY);
+    const localHistory: SubmittedReport[] = localData ? JSON.parse(localData) : [];
+
+    // Try to fetch from Supabase for signed-in users
+    try {
+      const rewardsMember = await getRewardsMemberForAnonymousUser();
+      if (rewardsMember) {
+        console.log('🔍 getHistory - Fetching reports from Supabase for rewards member');
+        const supabaseReports = await getReports();
+
+        console.log('🔍 getHistory - Total reports from Supabase:', supabaseReports.length);
+
+        // Convert StoredReports to SubmittedReport format
+        // Include all reports, using report ID as fallback confirmation number if DMF number is missing
+        const supabaseHistory: SubmittedReport[] = supabaseReports
+          .map((r, index) => ({
+            hasLicense: r.hasLicense,
+            wrcId: r.wrcId || undefined,
+            firstName: r.firstName || undefined,
+            lastName: r.lastName || undefined,
+            zipCode: r.zipCode || undefined,
+            wantTextConfirmation: r.wantTextConfirmation,
+            phone: r.phone || undefined,
+            wantEmailConfirmation: r.wantEmailConfirmation,
+            email: r.email || undefined,
+            harvestDate: r.harvestDate,
+            redDrumCount: r.redDrumCount,
+            flounderCount: r.flounderCount,
+            spottedSeatroutCount: r.spottedSeatroutCount,
+            weakfishCount: r.weakfishCount,
+            stripedBassCount: r.stripedBassCount,
+            areaCode: r.areaCode,
+            areaLabel: r.areaLabel || undefined,
+            usedHookAndLine: r.usedHookAndLine,
+            gearCode: r.gearCode || undefined,
+            gearLabel: r.gearLabel || undefined,
+            reportingFor: r.reportingFor,
+            familyCount: r.familyCount || undefined,
+            userId: r.userId || undefined,
+            enterRaffle: r.enteredRewards,
+            catchPhoto: r.photoUrl || undefined,
+            notes: r.notes || undefined,
+            gpsCoordinates: r.gpsLatitude && r.gpsLongitude
+              ? { latitude: r.gpsLatitude, longitude: r.gpsLongitude }
+              : undefined,
+            // Use DMF confirmation number, or generate a unique fallback from report ID
+            confirmationNumber: r.dmfConfirmationNumber || `RPT-${r.id?.substring(0, 8)?.toUpperCase() || index}`,
+            objectId: r.dmfObjectId || undefined,
+            submittedAt: r.dmfSubmittedAt || r.createdAt,
+            raffleEntered: r.enteredRewards,
+            raffleId: r.rewardsDrawingId || undefined,
+          }));
+
+        // Deduplicate by confirmation number (in case of any duplicates)
+        const seen = new Set<string>();
+        const dedupedHistory = supabaseHistory.filter(r => {
+          if (seen.has(r.confirmationNumber)) {
+            return false;
+          }
+          seen.add(r.confirmationNumber);
+          return true;
+        });
+
+        // Sort by submittedAt (newest first)
+        dedupedHistory.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+
+        // For signed-in users, use Supabase as source of truth (replace local cache entirely)
+        await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(dedupedHistory));
+
+        console.log(`✅ getHistory - Loaded ${dedupedHistory.length} reports from Supabase`);
+        return dedupedHistory;
+      }
+    } catch (error) {
+      console.warn('⚠️ getHistory - Failed to fetch from Supabase, using local only:', error);
+    }
+
+    return localHistory;
   } catch (error) {
     console.error('Failed to get history:', error);
     return [];
@@ -409,6 +489,8 @@ export interface SubmitWithQueueResult {
   confirmationNumber?: string;
   /** DMF object ID (only if successfully submitted) */
   objectId?: number;
+  /** Achievements unlocked by this submission */
+  achievementsAwarded?: AwardedAchievement[];
   /** Error message if failed and not queued */
   error?: string;
 }
@@ -428,11 +510,11 @@ export interface SubmitWithQueueResult {
 export async function submitWithQueueFallback(
   input: HarvestReportInput
 ): Promise<SubmitWithQueueResult> {
-  // Attempt submission
+  // Attempt submission to DMF
   const result = await submitHarvestReport(input);
 
   if (result.success) {
-    // Save to history
+    // Save to local history
     await addToHistory({
       ...input,
       harvestDate: input.harvestDate.toISOString(),
@@ -441,17 +523,53 @@ export async function submitWithQueueFallback(
       submittedAt: new Date().toISOString(),
     });
 
+    // Also save to Supabase (for anonymous user tracking and rewards)
+    // Include the DMF confirmation data so it's stored in Supabase
+    let achievementsAwarded: AwardedAchievement[] | undefined;
+    try {
+      const supabaseResult = await createReportFromHarvestInput(input, {
+        confirmationNumber: result.confirmationNumber,
+        objectId: result.objectId,
+        submittedAt: new Date().toISOString(),
+      });
+      if (supabaseResult.success) {
+        console.log('✅ Report saved to Supabase with DMF confirmation:', result.confirmationNumber);
+        achievementsAwarded = supabaseResult.achievementsAwarded;
+        if (achievementsAwarded && achievementsAwarded.length > 0) {
+          console.log('🏆 Achievements unlocked:', achievementsAwarded.map(a => a.name).join(', '));
+        }
+      } else {
+        console.warn('⚠️ Failed to save report to Supabase:', supabaseResult.error);
+      }
+    } catch (error) {
+      console.warn('⚠️ Supabase save error:', error);
+      // Don't fail the overall submission - DMF is the primary system
+    }
+
     return {
       success: true,
       queued: false,
       confirmationNumber: result.confirmationNumber,
       objectId: result.objectId,
+      achievementsAwarded,
     };
   }
 
   // Submission failed - check if we should queue
   if (result.queued || APP_CONFIG.features.offlineQueueEnabled) {
     const localConfirmation = await addToQueue(input);
+
+    // Still save to Supabase even if DMF failed (for user tracking and rewards)
+    try {
+      const supabaseResult = await createReportFromHarvestInput(input);
+      if (supabaseResult.success) {
+        console.log('✅ Queued report saved to Supabase:', supabaseResult.report.id);
+      } else {
+        console.warn('⚠️ Failed to save queued report to Supabase:', supabaseResult.error);
+      }
+    } catch (error) {
+      console.warn('⚠️ Supabase save error for queued report:', error);
+    }
 
     return {
       success: false,

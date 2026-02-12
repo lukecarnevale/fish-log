@@ -1,26 +1,52 @@
 // App.tsx - Main component for the Fish Reporting App
 
-import React, { useEffect } from "react";
+import React from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
-import { createStackNavigator, TransitionPresets } from "@react-navigation/stack";
+import {
+  createStackNavigator,
+  TransitionPresets,
+  TransitionSpecs,
+  HeaderStyleInterpolators,
+} from "@react-navigation/stack";
+import type { StackCardStyleInterpolator } from "@react-navigation/stack";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "./styles/common";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { Platform } from 'react-native';
 
 // Import Redux store
 import { store } from './store';
-import { fetchUserProfile } from './store/slices/userSlice';
-import { fetchLicense } from './store/slices/licenseSlice';
-import { fetchFishReports } from './store/slices/fishReportsSlice';
 
 // Import React Query client
 import { queryClient } from './api/queryClient';
 
-// Import connectivity listener for auto-sync of queued reports
-import { startConnectivityListener } from './hooks';
+// Import Error Boundary
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Import Rewards context
+import { RewardsProvider } from './contexts/RewardsContext';
+
+// Import Achievement context for displaying achievement notifications
+import { AchievementProvider } from './contexts/AchievementContext';
+
+// Import Bulletin context for displaying app bulletins (closures, advisories, etc.)
+import { BulletinProvider } from './contexts/BulletinContext';
+
+// Import Species Alerts context for species-specific bulletins (closures, regulation changes)
+import { SpeciesAlertsProvider } from './contexts/SpeciesAlertsContext';
+
+// Import app initialization hooks
+import {
+  useInitializeData,
+  useDeepLinkHandler,
+  useConnectivityMonitoring,
+  usePendingSubmissionRecovery,
+  useAuthStateListener,
+  useAnonymousUserInitialization,
+} from './hooks';
 
 // Import types
 import { RootStackParamList } from "./types";
@@ -32,8 +58,9 @@ import ConfirmationScreen from "./screens/ConfirmationScreen";
 import PastReportsScreen from "./screens/PastReportsScreen";
 import SpeciesInfoScreen from "./screens/SpeciesInfoScreen";
 import FishingLicenseScreen from "./screens/FishingLicenseScreen";
-import LeaderboardScreen from "./screens/LeaderboardScreen";
+import CatchFeedScreen from "./screens/CatchFeedScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import LegalDocumentScreen from "./screens/LegalDocumentScreen";
 
 // Import styles
 import { navigationStyles } from "./styles/navigationStyles";
@@ -43,8 +70,8 @@ const AppTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    primary: navigationStyles.screenOptions.headerStyle.backgroundColor,
-    background: navigationStyles.screenOptions.cardStyle.backgroundColor,
+    primary: (navigationStyles.screenOptions.headerStyle as { backgroundColor: string })?.backgroundColor ?? '#0B548B',
+    background: (navigationStyles.screenOptions.cardStyle as { backgroundColor: string })?.backgroundColor ?? '#E5F4FF',
     card: '#FFFFFF',
     text: '#263238',
     border: '#BBDEFB',
@@ -53,38 +80,60 @@ const AppTheme = {
 
 const Stack = createStackNavigator<RootStackParamList>();
 
+/**
+ * Custom Android card style interpolator that prevents flicker during back navigation.
+ * The key is to keep the current screen fully visible until the incoming screen covers it.
+ */
+const forNoFlickerAndroid: StackCardStyleInterpolator = ({ current, next, layouts }) => {
+  const translateX = current.progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [layouts.screen.width, 0],
+  });
+
+  const overlayOpacity = current.progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.5],
+  });
+
+  // When this screen is being covered by another screen (next exists)
+  // Keep it fully visible (opacity 1) to prevent flicker
+  const cardOpacity = next
+    ? next.progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 1], // Always fully visible when being covered
+      })
+    : 1;
+
+  return {
+    cardStyle: {
+      transform: [{ translateX }],
+      opacity: cardOpacity,
+    },
+    overlayStyle: {
+      opacity: overlayOpacity,
+    },
+  };
+};
+
 // Component to initialize data and listeners on app startup
 const AppInitializer: React.FC = () => {
-  useEffect(() => {
-    // Load all initial data in parallel
-    Promise.all([
-      store.dispatch(fetchUserProfile()),
-      store.dispatch(fetchLicense()),
-      store.dispatch(fetchFishReports()),
-    ]).catch(error => {
-      console.error('Error loading initial data:', error);
-    });
+  // Initialize anonymous user on app startup
+  useAnonymousUserInitialization();
 
-    // Start connectivity listener for auto-syncing queued harvest reports
-    // When the device comes back online, this will automatically sync any
-    // reports that were queued while offline
-    const unsubscribeConnectivity = startConnectivityListener((result) => {
-      if (result.synced > 0) {
-        console.log(`🎉 Auto-synced ${result.synced} queued harvest report(s)`);
-      }
-      if (result.failed > 0) {
-        console.log(`⚠️ ${result.failed} report(s) failed to sync, will retry later`);
-      }
-      if (result.expired > 0) {
-        console.log(`❌ ${result.expired} report(s) expired after max retries`);
-      }
-    });
+  // Check for pending submissions (mid-auth recovery)
+  usePendingSubmissionRecovery();
 
-    // Cleanup listener on unmount
-    return () => {
-      unsubscribeConnectivity();
-    };
-  }, []);
+  // Load all initial data in parallel
+  useInitializeData();
+
+  // Monitor connectivity and auto-sync queued reports
+  useConnectivityMonitoring();
+
+  // Handle deep links for magic link authentication
+  useDeepLinkHandler();
+
+  // Listen for auth state changes
+  useAuthStateListener();
 
   return null;
 };
@@ -93,7 +142,7 @@ const AppContent: React.FC = () => {
   return (
     <NavigationContainer theme={AppTheme} linking={{
       // Define app linking configuration for React Navigation v7
-      prefixes: [],
+      prefixes: ['fishlog://'],
       config: {
         screens: {
           Home: 'home',
@@ -101,9 +150,10 @@ const AppContent: React.FC = () => {
           PastReports: 'my-reports',
           SpeciesInfo: 'species',
           LicenseDetails: 'license',
-          Leaderboard: 'leaderboard',
+          CatchFeed: 'catchfeed',
           Profile: 'profile',
           Confirmation: 'confirmation',
+          LegalDocument: 'legal/:type',
         },
       },
     }}>
@@ -113,22 +163,39 @@ const AppContent: React.FC = () => {
         initialRouteName="Home"
         screenOptions={{
           ...navigationStyles.screenOptions,
-          headerBackTitle: '', // Empty string to hide the text
-          headerBackTitleVisible: false, // This explicitly hides the back title
+          headerBackButtonDisplayMode: 'minimal', // Hide back button title in v7
           headerLeftContainerStyle: { paddingLeft: 16 }, // Give the back button more padding
           headerBackImage: ({ tintColor }) => (
-            <Feather 
-              name="chevron-left" 
-              size={30} 
-              color={tintColor || colors.white} 
+            <Feather
+              name="chevron-left"
+              size={30}
+              color={tintColor || colors.white}
               style={{ marginLeft: 4 }}
             />
           ),
-          // Make sure transitions are working properly with React Navigation v7
-          ...TransitionPresets.SlideFromRightIOS,
+          // Platform-specific transitions to prevent Android flicker
+          ...(Platform.OS === 'ios'
+            ? TransitionPresets.SlideFromRightIOS
+            : {
+                // Android-specific settings to prevent flicker
+                cardStyleInterpolator: forNoFlickerAndroid,
+                transitionSpec: {
+                  open: TransitionSpecs.TransitionIOSSpec,
+                  close: TransitionSpecs.TransitionIOSSpec,
+                },
+                headerStyleInterpolator: HeaderStyleInterpolators.forSlideLeft,
+                gestureDirection: 'horizontal',
+                // Critical: these prevent the flicker on Android
+                cardOverlayEnabled: true,
+                cardShadowEnabled: false,
+                // Keep previous screen mounted during transition
+                detachPreviousScreen: false,
+                freezeOnBlur: false,
+              }
+          ),
           gestureEnabled: true,
-          gestureDirection: 'horizontal',
-          animationEnabled: true,
+          // Ensure card background matches app theme to prevent white flash
+          cardStyle: { backgroundColor: colors.primary },
         }}
       >
           <Stack.Screen
@@ -151,6 +218,7 @@ const AppContent: React.FC = () => {
             component={ConfirmationScreen}
             options={{
               headerShown: false,
+              gestureEnabled: false, // Disable nav gesture - custom pan responder handles dismiss
             }}
           />
           <Stack.Screen
@@ -175,8 +243,8 @@ const AppContent: React.FC = () => {
             }}
           />
           <Stack.Screen
-            name="Leaderboard"
-            component={LeaderboardScreen}
+            name="CatchFeed"
+            component={CatchFeedScreen}
             options={{
               headerShown: false,
             }}
@@ -188,6 +256,13 @@ const AppContent: React.FC = () => {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="LegalDocument"
+            component={LegalDocumentScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
         </Stack.Navigator>
       </NavigationContainer>
   );
@@ -195,13 +270,23 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <AppContent />
-        </SafeAreaProvider>
-      </QueryClientProvider>
-    </Provider>
+    <ErrorBoundary>
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <RewardsProvider>
+            <AchievementProvider>
+              <BulletinProvider>
+                <SpeciesAlertsProvider>
+                  <SafeAreaProvider>
+                    <AppContent />
+                  </SafeAreaProvider>
+                </SpeciesAlertsProvider>
+              </BulletinProvider>
+            </AchievementProvider>
+          </RewardsProvider>
+        </QueryClientProvider>
+      </Provider>
+    </ErrorBoundary>
   );
 };
 

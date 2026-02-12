@@ -85,6 +85,7 @@ export const SPECIES_DISPLAY_NAMES: readonly string[] = [
 const DISPLAY_NAME_TO_ID: Record<string, string> = {
   "Red Drum": "red_drum",
   "Flounder": "flounder",
+  "Southern Flounder": "flounder",
   "Spotted Seatrout (speckled trout)": "spotted_seatrout",
   "Spotted Seatrout": "spotted_seatrout",
   "Striped Bass": "striped_bass",

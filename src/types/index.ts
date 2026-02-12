@@ -16,16 +16,64 @@ export {
   createEmptyHarvestReportInput,
 } from './harvestReport';
 
+// User Types (Supabase)
+export {
+  type User,
+  type UserInput,
+  type UserStats,
+  type SpeciesStat,
+  type Achievement,
+  type UserAchievement,
+  type DeviceMergeRequest,
+  transformUser,
+  transformSpeciesStat,
+  transformAchievement,
+  transformUserAchievement,
+} from './user';
+
+// Stored Report Types (Supabase)
+export {
+  type StoredReport,
+  type StoredFishEntry,
+  type ReportInput,
+  type DMFStatusUpdate,
+  transformReport,
+  transformFishEntry,
+  getTotalFishCount,
+  getSpeciesBreakdown,
+} from './report';
+
+// Rewards Types (Supabase)
+export {
+  type Prize,
+  type RewardsDrawing,
+  type RewardsConfig,
+  type UserRewardsEntry,
+  type Quarter,
+  type RewardsState,
+  type RewardsCalculated,
+} from './rewards';
+
+// Partner Types (Supabase)
+export {
+  type Partner,
+  transformPartner,
+} from './partner';
+
+// Legal Document Types
+export type LegalDocumentType = 'privacy' | 'terms' | 'licenses';
+
 // Navigation Types
 export type RootStackParamList = {
   Home: undefined;
   ReportForm: undefined;
   Confirmation: { reportData: FishReportData };
   PastReports: undefined;
-  SpeciesInfo: undefined;
+  SpeciesInfo: { showRequiredOnly?: boolean; fromAlertBadge?: boolean } | undefined;
   LicenseDetails: undefined;
-  Leaderboard: undefined;
+  CatchFeed: undefined;
   Profile: undefined;
+  LegalDocument: { type: LegalDocumentType };
 };
 
 // Fish Report Types
@@ -59,6 +107,8 @@ export interface FishReportData {
     longitude: number;
   };
   enteredRaffle?: string; // Raffle ID if user entered a raffle with this report
+  zipCode?: string; // Zip code for unlicensed anglers or profile data
+  wrcId?: string; // WRC ID / Customer ID from fishing license
   [key: string]: any;
 }
 
@@ -96,6 +146,14 @@ export interface UserProfile {
   // Contact info
   email?: string;
   phone?: string;
+
+  // DMF notification preferences
+  wantTextConfirmation?: boolean;
+  wantEmailConfirmation?: boolean;
+
+  // Preferred area of harvest (pre-fills report form)
+  preferredAreaCode?: string;
+  preferredAreaLabel?: string;
 
   // Profile customization
   profileImage?: string;

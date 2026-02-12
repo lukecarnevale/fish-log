@@ -2,7 +2,8 @@
 import { FishSpecies } from './index';
 
 // Enhanced Fish Species interface with additional fields from FishRules app
-export interface EnhancedFishSpecies extends FishSpecies {
+// Using Omit to exclude 'regulations' from FishSpecies since we have a different structure
+export interface EnhancedFishSpecies extends Omit<FishSpecies, 'regulations'> {
   commonNames: string[];
   images: {
     primary: string;
@@ -51,4 +52,11 @@ export interface EnhancedFishSpecies extends FishSpecies {
     name: string;
     differentiatingFeatures: string;
   }[];
+
+  // Harvest status (set by active bulletins — closures, restrictions)
+  harvestStatus: 'open' | 'closed' | 'catch_and_release' | 'restricted';
+  harvestStatusNote?: string;
+  harvestStatusEffectiveDate?: string;
+  harvestStatusExpirationDate?: string | null;
+  harvestStatusBulletinId?: string;
 }

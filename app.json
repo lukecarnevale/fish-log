@@ -2,32 +2,51 @@
   "expo": {
     "name": "fish-log",
     "slug": "fish-log",
-    "version": "1.0.0",
+    "version": "1.2.1",
+    "scheme": "fishlog",
     "orientation": "portrait",
-    "icon": "./src/assets/icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./src/assets/splash.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fishlog.app"
+      "bundleIdentifier": "com.fishlog.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Fish Log needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
+        "NSPhotoLibraryUsageDescription": "Fish Log needs access to your photo library to select photos of your catch for harvest reports and your profile picture."
+      }
     },
     "jsEngine": "hermes",
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.fishlog.app"
     },
     "web": {
-      "favicon": "./src/assets/favicon.png"
+      "favicon": "./assets/icon.png"
     },
     "plugins": [
-      "expo-font"
-    ]
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Fish Log needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
+          "photosPermission": "Fish Log needs access to your photo library to select photos of your catch for harvest reports and your profile picture."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "74ddedce-1140-4116-b211-76e1a61e9bc0"
+      }
+    },
+    "owner": "lukecarnevale"
   }
 }
