@@ -31,7 +31,9 @@ import {
   checkForNewQuarter,
   setLastSeenDrawingId,
   getPendingDrawingEntry,
+  getRewardsStatusByDevice,
 } from '../services/rewardsService';
+import { getDeviceId } from '../utils/deviceId';
 import { updatePendingDrawingEntry } from '../services/pendingSubmissionService';
 import { FALLBACK_CONFIG, FALLBACK_DRAWING } from '../data/rewardsFallbackData';
 import { getCurrentUserState } from '../services/anonymousUserService';
@@ -202,6 +204,21 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
           console.warn('Could not check pending drawing entry:', err);
         }
       }
+
+      // If still no entry, try device-based lookup via SECURITY DEFINER RPC.
+      // This handles the post-logout case where RLS blocks normal queries.
+      if (!finalUserEntry && !effectiveUserId && data.currentDrawing) {
+        try {
+          const deviceId = await getDeviceId();
+          const deviceEntry = await getRewardsStatusByDevice(deviceId);
+          if (deviceEntry) {
+            console.log('📱 Found rewards entry via device ID lookup');
+            finalUserEntry = deviceEntry;
+          }
+        } catch (err) {
+          console.warn('Could not check device rewards status:', err);
+        }
+      }
       setUserEntry(finalUserEntry);
 
       // For authenticated users the Supabase userEntry is the source of truth;
@@ -259,7 +276,23 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
       const data = await refreshRewardsData(effectiveUserId);
       setConfig(data.config);
       setCurrentDrawing(data.currentDrawing);
-      setUserEntry(data.userEntry);
+
+      // If no entry and no effective user ID, try device-based lookup via
+      // SECURITY DEFINER RPC (handles post-logout case where RLS blocks queries)
+      let finalUserEntry = data.userEntry;
+      if (!data.userEntry && !effectiveUserId && data.currentDrawing) {
+        try {
+          const deviceId = await getDeviceId();
+          const deviceEntry = await getRewardsStatusByDevice(deviceId);
+          if (deviceEntry) {
+            console.log('📱 Found rewards entry via device ID lookup (refresh)');
+            finalUserEntry = deviceEntry;
+          }
+        } catch (err) {
+          console.warn('Could not check device rewards status during refresh:', err);
+        }
+      }
+      setUserEntry(finalUserEntry);
 
       // For authenticated users, the Supabase userEntry is the source of truth —
       // clear stale legacy IDs so they can't override it.
@@ -296,7 +329,7 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
     };
   }, [refresh]);
 
-  // Refresh rewards data when user signs in
+  // Refresh rewards data when user signs in or out
   useEffect(() => {
     const authUnsubscribe = onAuthStateChange((event, _session) => {
       if (event === 'SIGNED_IN') {
@@ -305,6 +338,13 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
         setTimeout(() => {
           refresh();
         }, 2000);
+      } else if (event === 'SIGNED_OUT') {
+        console.log('🔄 RewardsContext - Refreshing after sign out...');
+        // Short delay to let session fully clear, then refresh
+        // with device-based fallback to preserve rewards status
+        setTimeout(() => {
+          refresh();
+        }, 500);
       }
     });
 

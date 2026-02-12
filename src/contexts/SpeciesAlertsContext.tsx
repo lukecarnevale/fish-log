@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // =============================================================================
 
 const SEEN_ALERTS_KEY = '@species_seen_alert_ids';
+const BADGE_ACKNOWLEDGED_KEY = '@species_badge_acknowledged_ids';
 
 // =============================================================================
 // Context Types
@@ -37,12 +38,21 @@ interface SpeciesAlertsContextValue {
 
   /** Check if a species' alerts have been seen. */
   hasSeenAlert: (speciesId: string) => boolean;
+
+  /** Acknowledge alerted species for the quick action card badge.
+   *  Badge only reappears when new species IDs appear in the alert set. */
+  acknowledgeBadgeAlerts: (speciesIds: string[]) => Promise<void>;
+
+  /** Check if a species alert has been acknowledged on the badge. */
+  isBadgeAlertAcknowledged: (speciesId: string) => boolean;
 }
 
 const defaultContextValue: SpeciesAlertsContextValue = {
   markSpeciesAlertSeen: async () => {},
   markAllSpeciesAlertsSeen: async () => {},
   hasSeenAlert: () => false,
+  acknowledgeBadgeAlerts: async () => {},
+  isBadgeAlertAcknowledged: () => false,
 };
 
 // =============================================================================
@@ -63,18 +73,22 @@ export function SpeciesAlertsProvider({
   children,
 }: SpeciesAlertsProviderProps): React.ReactElement {
   const [seenAlertIds, setSeenAlertIds] = useState<Set<string>>(new Set());
+  const [badgeAcknowledgedIds, setBadgeAcknowledgedIds] = useState<Set<string>>(new Set());
   const hasLoaded = useRef(false);
 
-  // Load "seen" IDs from AsyncStorage on mount
+  // Load persisted state from AsyncStorage on mount
   useEffect(() => {
     if (hasLoaded.current) return;
     hasLoaded.current = true;
 
-    AsyncStorage.getItem(SEEN_ALERTS_KEY)
-      .then((raw) => {
-        if (raw) {
+    Promise.all([
+      AsyncStorage.getItem(SEEN_ALERTS_KEY),
+      AsyncStorage.getItem(BADGE_ACKNOWLEDGED_KEY),
+    ])
+      .then(([seenRaw, badgeRaw]) => {
+        if (seenRaw) {
           try {
-            const ids: string[] = JSON.parse(raw);
+            const ids: string[] = JSON.parse(seenRaw);
             if (Array.isArray(ids)) {
               setSeenAlertIds(new Set(ids));
             }
@@ -82,9 +96,19 @@ export function SpeciesAlertsProvider({
             // Corrupted storage data — start fresh
           }
         }
+        if (badgeRaw) {
+          try {
+            const ids: string[] = JSON.parse(badgeRaw);
+            if (Array.isArray(ids)) {
+              setBadgeAcknowledgedIds(new Set(ids));
+            }
+          } catch {
+            // Corrupted storage data — start fresh
+          }
+        }
       })
       .catch((error) => {
-        console.warn('Failed to load seen species alerts:', error);
+        console.warn('Failed to load species alerts state:', error);
       });
   }, []);
 
@@ -132,10 +156,38 @@ export function SpeciesAlertsProvider({
     [seenAlertIds]
   );
 
+  const acknowledgeBadgeAlerts = useCallback(
+    async (speciesIds: string[]) => {
+      if (speciesIds.length === 0) return;
+      const newAcknowledged = new Set(badgeAcknowledgedIds);
+      speciesIds.forEach((id) => newAcknowledged.add(id));
+      setBadgeAcknowledgedIds(newAcknowledged);
+
+      try {
+        await AsyncStorage.setItem(
+          BADGE_ACKNOWLEDGED_KEY,
+          JSON.stringify([...newAcknowledged])
+        );
+      } catch (error) {
+        console.warn('Failed to save badge acknowledged alerts:', error);
+      }
+    },
+    [badgeAcknowledgedIds]
+  );
+
+  const isBadgeAlertAcknowledged = useCallback(
+    (speciesId: string): boolean => {
+      return badgeAcknowledgedIds.has(speciesId);
+    },
+    [badgeAcknowledgedIds]
+  );
+
   const contextValue: SpeciesAlertsContextValue = {
     markSpeciesAlertSeen,
     markAllSpeciesAlertsSeen,
     hasSeenAlert,
+    acknowledgeBadgeAlerts,
+    isBadgeAlertAcknowledged,
   };
 
   return (

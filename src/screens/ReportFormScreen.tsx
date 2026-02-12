@@ -2503,7 +2503,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           <View style={localStyles.raffleEnteredMessage}>
             <Feather name="award" size={18} color={colors.success} />
             <Text style={localStyles.raffleEnteredText}>
-              You're entered in this quarter's drawing. Selected contributors will be notified at the end of {currentRewards.name.split(' ')[0]}.
+              You're entered in this quarter's drawing. Selected contributors will be notified via email once the drawing period ends.
             </Text>
           </View>
         ) : (
