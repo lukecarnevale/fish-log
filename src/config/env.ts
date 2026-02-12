@@ -19,15 +19,13 @@ export const env = {
     'EXPO_PUBLIC_DMF_ENDPOINT',
     'https://services2.arcgis.com/kCu40SDxsCGcuUWO/arcgis/rest/services/MandReportingData/FeatureServer/applyEdits'
   ),
-  // Default to true (safe fallback = dev mode) - production builds override via EAS
-  SHOW_DEVELOPER_TOOLS: getBoolEnv('EXPO_PUBLIC_SHOW_DEVELOPER_TOOLS', true),
-  SHOW_SAMPLE_REPORTS: getBoolEnv('EXPO_PUBLIC_SHOW_SAMPLE_REPORTS', true),
-  SHOW_TEST_MODE_BADGE: getBoolEnv('EXPO_PUBLIC_SHOW_TEST_MODE_BADGE', true),
-  SUPABASE_URL: getEnv('EXPO_PUBLIC_SUPABASE_URL', 'https://qygvvgbateuorpxntdbq.supabase.co'),
-  SUPABASE_ANON_KEY: getEnv(
-    'EXPO_PUBLIC_SUPABASE_ANON_KEY',
-    '***REDACTED_SUPABASE_KEY***'
-  ),
+  // Default to false (safe fallback = production mode) - development builds override via EAS
+  SHOW_DEVELOPER_TOOLS: getBoolEnv('EXPO_PUBLIC_SHOW_DEVELOPER_TOOLS', false),
+  SHOW_SAMPLE_REPORTS: getBoolEnv('EXPO_PUBLIC_SHOW_SAMPLE_REPORTS', false),
+  SHOW_TEST_MODE_BADGE: getBoolEnv('EXPO_PUBLIC_SHOW_TEST_MODE_BADGE', false),
+  // Provided by EAS Secrets at build time — no hardcoded fallbacks
+  SUPABASE_URL: getEnv('EXPO_PUBLIC_SUPABASE_URL', ''),
+  SUPABASE_ANON_KEY: getEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY', ''),
 } as const;
 
 // Environment checks

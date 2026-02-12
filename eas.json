@@ -26,6 +26,7 @@
       }
     },
     "production": {
+      "distribution": "store",
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
@@ -37,6 +38,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+      }
+    }
   }
 }
