@@ -29,7 +29,6 @@ import { fetchRecentCatches, fetchTopAnglers, likeCatch, unlikeCatch, enrichCatc
 import { getRewardsMemberForAnonymousUser } from '../services/rewardsConversionService';
 import { onAuthStateChange } from '../services/authService';
 import { SPECIES_ALIASES } from '../constants/speciesAliases';
-import { sampleCatchFeedEntries, sampleTopAnglers } from '../data/catchFeedData';
 import { colors, spacing, borderRadius } from '../styles/common';
 import { getAllSpeciesThemes } from '../constants/speciesColors';
 import CatchCard from '../components/CatchCard';
@@ -47,9 +46,6 @@ import { usePulseAnimation } from '../hooks/usePulseAnimation';
 import { Advertisement } from '../services/transformers/advertisementTransformer';
 import { fetchAdvertisements } from '../services/advertisementsService';
 import { intersperseFeedAds, FeedItem } from '../utils/feedAdPlacer';
-
-// Use sample data for development (set to false when Supabase is ready)
-const USE_SAMPLE_DATA = false;
 
 type CatchFeedScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -461,30 +457,18 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     try {
       setError(null);
 
-      let feedData: CatchFeedEntry[];
-      let anglersData: TopAngler[];
+      // Fetch catches and top anglers in parallel
+      const [catchResult, topAnglersResult] = await Promise.all([
+        fetchRecentCatches({ forceRefresh, limit: PAGE_SIZE, offset: 0 }),
+        fetchTopAnglers(),
+      ]);
 
-      if (USE_SAMPLE_DATA) {
-        await new Promise<void>((resolve) => setTimeout(resolve, 500));
-        feedData = sampleCatchFeedEntries;
-        anglersData = sampleTopAnglers;
-        setHasMore(false);
-        setNextOffset(feedData.length);
-      } else {
-        // Fetch catches and top anglers in parallel
-        const [catchResult, topAnglersResult] = await Promise.all([
-          fetchRecentCatches({ forceRefresh, limit: PAGE_SIZE, offset: 0 }),
-          fetchTopAnglers(),
-        ]);
-
-        feedData = catchResult.entries;
-        // Enrich with like data
-        feedData = await enrichCatchesWithLikes(feedData, currentUserId ?? undefined);
-        setHasMore(catchResult.hasMore);
-        setNextOffset(catchResult.nextOffset);
-        // Use top anglers from Supabase (falls back to empty if no data)
-        anglersData = topAnglersResult.length > 0 ? topAnglersResult : sampleTopAnglers;
-      }
+      let feedData = catchResult.entries;
+      // Enrich with like data
+      feedData = await enrichCatchesWithLikes(feedData, currentUserId ?? undefined);
+      setHasMore(catchResult.hasMore);
+      setNextOffset(catchResult.nextOffset);
+      const anglersData = topAnglersResult;
 
       setEntries(feedData);
       setTopAnglers(anglersData);
@@ -506,8 +490,8 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
   // Load more catches (pagination)
   const loadMore = useCallback(async () => {
-    // Don't load more if already loading, no more data, or using sample data
-    if (loadingMore || !hasMore || USE_SAMPLE_DATA || loading) {
+    // Don't load more if already loading or no more data
+    if (loadingMore || !hasMore || loading) {
       return;
     }
 
