@@ -1,6 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FishSpecies } from '../models/schemas';
-import persistedStorage from '../utils/storage/persistedStorage';
+import { useQuery } from '@tanstack/react-query';
+import { EnhancedFishSpecies } from '../types/fishSpecies';
+import {
+  fetchAllFishSpecies,
+  fetchFishSpeciesById,
+  searchFishSpecies,
+} from '../services/fishSpeciesService';
 
 // Cache keys for queries
 export const QUERY_KEYS = {
@@ -12,35 +16,19 @@ export const QUERY_KEYS = {
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Get all fish species
+ * Get all fish species from Supabase
  */
-export const fetchAllSpecies = async (): Promise<FishSpecies[]> => {
-  // In a real app, this would be an API call
-  // For now, we'll use static data loaded from a local import
-  const speciesData = require('../data/fishSpeciesData');
-  return speciesData;
-};
+export const fetchAllSpecies = fetchAllFishSpecies;
 
 /**
- * Get a species by ID
+ * Get a species by ID from Supabase
  */
-export const fetchSpeciesById = async (id: string): Promise<FishSpecies | null> => {
-  const allSpecies = await fetchAllSpecies();
-  return allSpecies.find(species => species.id === id) || null;
-};
+export const fetchSpeciesById = fetchFishSpeciesById;
 
 /**
- * Search species by name
+ * Search species by name from Supabase
  */
-export const searchSpeciesByName = async (query: string): Promise<FishSpecies[]> => {
-  const allSpecies = await fetchAllSpecies();
-  const lowerQuery = query.toLowerCase();
-  
-  return allSpecies.filter(species => 
-    species.name.toLowerCase().includes(lowerQuery) || 
-    species.scientificName.toLowerCase().includes(lowerQuery)
-  );
-};
+export const searchSpeciesByName = searchFishSpecies;
 
 // React Query hooks for easy component integration
 
@@ -50,22 +38,7 @@ export const searchSpeciesByName = async (query: string): Promise<FishSpecies[]>
 export const useAllFishSpecies = () => {
   return useQuery({
     queryKey: [QUERY_KEYS.FISH_SPECIES],
-    queryFn: async () => {
-      // First try to get from cache
-      const cachedData = await persistedStorage.getItem<FishSpecies[]>(QUERY_KEYS.FISH_SPECIES);
-      
-      if (cachedData) {
-        return cachedData;
-      }
-      
-      // If no cache, fetch fresh data
-      const freshData = await fetchAllSpecies();
-      
-      // Cache the data
-      await persistedStorage.setItem(QUERY_KEYS.FISH_SPECIES, freshData, { ttl: ONE_DAY * 7 });
-      
-      return freshData;
-    },
+    queryFn: fetchAllFishSpecies,
     staleTime: ONE_DAY, // Consider data fresh for a day
   });
 };
@@ -76,7 +49,7 @@ export const useAllFishSpecies = () => {
 export const useFishSpeciesById = (id: string) => {
   return useQuery({
     queryKey: QUERY_KEYS.FISH_SPECIES_BY_ID(id),
-    queryFn: () => fetchSpeciesById(id),
+    queryFn: () => fetchFishSpeciesById(id),
     enabled: !!id, // Only run if ID is provided
   });
 };
@@ -87,7 +60,7 @@ export const useFishSpeciesById = (id: string) => {
 export const useSearchFishSpecies = (query: string) => {
   return useQuery({
     queryKey: [QUERY_KEYS.FISH_SPECIES, 'search', query],
-    queryFn: () => searchSpeciesByName(query),
+    queryFn: () => searchFishSpecies(query),
     enabled: query.length > 2, // Only search when query is at least 3 characters
   });
 };

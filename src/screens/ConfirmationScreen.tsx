@@ -4,7 +4,7 @@
 // Handles actual DMF submission, displays confirmation number, and provides copy/share.
 //
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Text,
   View,
@@ -15,11 +15,14 @@ import {
   Alert,
   Share,
   ActivityIndicator,
+  BackHandler,
+  InteractionManager,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RouteProp, CommonActions } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles from "../styles/confirmationScreenStyles";
 import { RootStackParamList, FishReportData, HarvestReportInput } from "../types";
 import { colors, spacing, borderRadius, typography } from "../styles/common";
@@ -28,6 +31,23 @@ import { colors, spacing, borderRadius, typography } from "../styles/common";
 import { submitWithQueueFallback, SubmitWithQueueResult } from "../services/offlineQueue";
 import { aggregateFishEntries } from "../constants/species";
 import { isTestMode } from "../config/appConfig";
+
+// Rewards prompt
+import RewardsPromptModal from "../components/RewardsPromptModal";
+import { shouldShowRewardsPrompt } from "../services/anonymousUserService";
+
+// Achievement notifications
+import { useAchievements } from "../contexts/AchievementContext";
+
+// Badge notification
+import { markNewReportSubmitted, invalidateBadgeCache } from "../utils/badgeUtils";
+
+// Catch feed cache
+import { clearCatchFeedCache } from "../services/catchFeedService";
+
+// User service for syncing profile to Supabase
+import { updateCurrentUser } from "../services/userProfileService";
+import { UserInput } from "../types/user";
 
 type ConfirmationScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -47,15 +67,73 @@ interface ConfirmationScreenProps {
 const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigation }) => {
   const { reportData } = route.params || { reportData: {} as FishReportData };
 
+  // Achievement notifications
+  const { queueAchievementsForLater } = useAchievements();
+
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(true);
   const [submitResult, setSubmitResult] = useState<SubmitWithQueueResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Rewards prompt state
+  const [showRewardsPrompt, setShowRewardsPrompt] = useState(false);
+  const [rewardsPromptChecked, setRewardsPromptChecked] = useState(false);
+
+  // Ref to track if dismissing (prevents multiple navigation attempts)
+  const isDismissingRef = useRef(false);
+
+  // Close button handler
+  const handleClose = () => {
+    if (isDismissingRef.current) return;
+    isDismissingRef.current = true;
+    console.log('❌ Close button pressed, navigating home');
+    navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+  };
+
   // Submit to DMF on mount
   useEffect(() => {
     submitToDMF();
   }, []);
+
+  // Check if rewards prompt should be shown after successful submission
+  useEffect(() => {
+    const checkRewardsPrompt = async () => {
+      // Only check once, and only after submission completes successfully
+      if (rewardsPromptChecked || isSubmitting || submitError) return;
+      if (!submitResult?.success && !submitResult?.queued) return;
+
+      setRewardsPromptChecked(true);
+
+      try {
+        const shouldShow = await shouldShowRewardsPrompt();
+        console.log('🎁 shouldShowRewardsPrompt result:', shouldShow);
+        if (shouldShow) {
+          console.log('🎁 Showing rewards prompt');
+          setShowRewardsPrompt(true);
+        } else {
+          console.log('🎁 Not showing rewards prompt (user already a member or dismissed)');
+        }
+      } catch (error) {
+        console.error('Error checking rewards prompt:', error);
+      }
+    };
+
+    checkRewardsPrompt();
+  }, [isSubmitting, submitResult, submitError, rewardsPromptChecked]);
+
+  // Prevent Android back button from going back to the form
+  // Instead, navigate to Home (same as pressing "Return Home" button)
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!isDismissingRef.current) {
+        isDismissingRef.current = true;
+        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+      }
+      return true; // Prevent default back behavior
+    });
+
+    return () => backHandler.remove();
+  }, [navigation]);
 
   const submitToDMF = async () => {
     setIsSubmitting(true);
@@ -68,6 +146,108 @@ const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigati
       // Submit via the offline-aware service
       const result = await submitWithQueueFallback(harvestInput);
       setSubmitResult(result);
+
+      // Mark new report for badge notification (if submitted or queued)
+      if (result.success || result.queued) {
+        await markNewReportSubmitted();
+        // Clear catch feed cache so the new submission appears immediately
+        await clearCatchFeedCache();
+        // Invalidate the in-memory badge cache so HomeScreen fetches fresh data
+        invalidateBadgeCache();
+
+        // Save preferred area to user profile for future reports
+        if (reportData.areaCode || reportData.waterbody) {
+          try {
+            const existingProfile = await AsyncStorage.getItem("userProfile");
+            const profileData = existingProfile ? JSON.parse(existingProfile) : {};
+            const updatedProfile = {
+              ...profileData,
+              preferredAreaCode: reportData.areaCode || profileData.preferredAreaCode,
+              preferredAreaLabel: reportData.waterbody || reportData.areaLabel || profileData.preferredAreaLabel,
+            };
+            await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+            console.log("✅ Preferred area saved to profile:", updatedProfile.preferredAreaLabel);
+          } catch (areaError) {
+            console.warn("Failed to save preferred area:", areaError);
+          }
+        }
+
+        // Sync profile fields to Supabase users table
+        try {
+          const profileUpdates: UserInput = {};
+
+          // Debug: Log what's in reportData for profile fields
+          console.log("🔄 Profile sync - reportData fields:", {
+            zipCode: reportData.zipCode,
+            wrcId: reportData.wrcId,
+            hasLicense: reportData.hasLicense,
+            areaCode: reportData.areaCode,
+            waterbody: reportData.waterbody,
+            anglerFirstName: reportData.angler?.firstName,
+            anglerLastName: reportData.angler?.lastName,
+            anglerPhone: reportData.angler?.phone,
+          });
+
+          // Add fields from report data if they exist
+          if (reportData.zipCode) {
+            profileUpdates.zipCode = reportData.zipCode;
+          }
+          if (reportData.wrcId) {
+            profileUpdates.wrcId = reportData.wrcId;
+          }
+          if (reportData.hasLicense !== undefined) {
+            profileUpdates.hasLicense = reportData.hasLicense;
+          }
+          if (reportData.areaCode) {
+            profileUpdates.preferredAreaCode = reportData.areaCode;
+          }
+          if (reportData.waterbody || reportData.areaLabel) {
+            profileUpdates.preferredAreaLabel = reportData.waterbody || reportData.areaLabel;
+            profileUpdates.primaryHarvestArea = reportData.waterbody || reportData.areaLabel;
+          }
+          // Save fishing method as primary default
+          if (reportData.usedHookAndLine !== undefined) {
+            profileUpdates.primaryFishingMethod = reportData.usedHookAndLine
+              ? 'Hook and Line'
+              : (reportData.gearLabel || reportData.gearCode || null);
+          }
+          if (reportData.angler?.firstName) {
+            profileUpdates.firstName = reportData.angler.firstName;
+          }
+          if (reportData.angler?.lastName) {
+            profileUpdates.lastName = reportData.angler.lastName;
+          }
+          if (reportData.angler?.phone) {
+            profileUpdates.phone = reportData.angler.phone;
+          }
+          if (reportData.angler?.email) {
+            profileUpdates.email = reportData.angler.email;
+          }
+          if (reportData.wantTextConfirmation !== undefined) {
+            profileUpdates.wantsTextConfirmation = reportData.wantTextConfirmation;
+          }
+          if (reportData.wantEmailConfirmation !== undefined) {
+            profileUpdates.wantsEmailConfirmation = reportData.wantEmailConfirmation;
+          }
+
+          // Only call updateCurrentUser if we have fields to update
+          if (Object.keys(profileUpdates).length > 0) {
+            console.log("🔄 Profile updates to sync:", profileUpdates);
+            await updateCurrentUser(profileUpdates);
+            console.log("✅ Profile synced to Supabase:", Object.keys(profileUpdates).join(", "));
+          } else {
+            console.log("⚠️ No profile fields to sync (all empty)");
+          }
+        } catch (syncError) {
+          console.warn("Failed to sync profile to Supabase:", syncError);
+          // Don't fail the submission if sync fails - data is already in local storage
+        }
+      }
+
+      // Queue achievement notifications to show after navigating to HomeScreen
+      if (result.achievementsAwarded && result.achievementsAwarded.length > 0) {
+        queueAchievementsForLater(result.achievementsAwarded);
+      }
 
       if (!result.success && !result.queued) {
         setSubmitError(result.error || "Submission failed");
@@ -222,7 +402,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
         </TouchableOpacity>
         <TouchableOpacity
           style={localStyles.homeButton}
-          onPress={() => navigation.navigate("Home")}
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: "Home" }] })}
           activeOpacity={0.8}
         >
           <Text style={localStyles.homeButtonText}>Return Home</Text>
@@ -237,9 +417,26 @@ This report was submitted to the NC Division of Marine Fisheries.`;
   const statusTitle = submitResult?.queued ? "Report Queued" : "Report Submitted";
 
   return (
-    <View style={[localStyles.screenContainer, { backgroundColor: headerColor }]}>
-      {/* Modern Header */}
-      <View style={[localStyles.header, { backgroundColor: headerColor }]}>
+    <View
+      style={[
+        localStyles.screenContainer,
+        { backgroundColor: headerColor },
+      ]}
+    >
+      {/* Modern Header with Close Button */}
+      <View
+        style={[localStyles.header, { backgroundColor: headerColor }]}
+      >
+        {/* Close button - positioned top right */}
+        <TouchableOpacity
+          style={localStyles.closeButton}
+          onPress={handleClose}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Feather name="x" size={24} color="rgba(255, 255, 255, 0.9)" />
+        </TouchableOpacity>
+
         <Text style={localStyles.headerTitle}>{statusTitle}</Text>
         {isTestMode() && (
           <View style={localStyles.testModeBadge}>
@@ -389,15 +586,15 @@ This report was submitted to the NC Division of Marine Fisheries.`;
             )}
           </View>
 
-          {/* Raffle Status */}
+          {/* Rewards Status */}
           {reportData.enteredRaffle && (
             <View style={localStyles.raffleBox}>
               <View style={localStyles.raffleHeader}>
                 <Feather name="gift" size={20} color={colors.primary} />
-                <Text style={localStyles.raffleTitle}>Raffle Entry</Text>
+                <Text style={localStyles.raffleTitle}>Rewards Entry</Text>
               </View>
               <Text style={localStyles.raffleText}>
-                You've been entered into the monthly raffle! Winners will be contacted via the email/phone provided.
+                You've been entered into the quarterly rewards drawing! Selected contributors will be contacted via email.
               </Text>
             </View>
           )}
@@ -424,7 +621,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
             {/* Primary Action - Return Home */}
             <TouchableOpacity
               style={localStyles.primaryButton}
-              onPress={() => navigation.navigate("Home")}
+              onPress={() => navigation.reset({ index: 0, routes: [{ name: "Home" }] })}
               activeOpacity={0.8}
             >
               <Feather name="home" size={20} color={colors.white} style={{ marginRight: 10 }} />
@@ -434,7 +631,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
             {/* Secondary Action - Submit Another */}
             <TouchableOpacity
               style={localStyles.secondaryActionButton}
-              onPress={() => navigation.navigate("ReportForm")}
+              onPress={() => navigation.reset({ index: 1, routes: [{ name: "Home" }, { name: "ReportForm" }] })}
               activeOpacity={0.8}
             >
               <Feather name="plus-circle" size={20} color={colors.primary} style={{ marginRight: 10 }} />
@@ -468,28 +665,61 @@ This report was submitted to the NC Division of Marine Fisheries.`;
               <TouchableOpacity
                 style={localStyles.quickActionButton}
                 onPress={() => {
-                  // Reset stack so back from PastReports goes to Home, not Confirmation
-                  navigation.dispatch(
-                    CommonActions.reset({
-                      index: 1,
-                      routes: [
-                        { name: "Home" },
-                        { name: "PastReports" },
-                      ],
-                    })
-                  );
+                  // Navigate with smooth slide-in animation instead of reset
+                  // (reset tears down the entire stack, causing a brief white flash
+                  // while HomeScreen re-renders behind the new PastReportsScreen)
+                  navigation.navigate('PastReports');
+                  // After the transition animation completes, silently remove
+                  // Confirmation and ReportForm so back goes to Home
+                  InteractionManager.runAfterInteractions(() => {
+                    navigation.dispatch(state => {
+                      const topRoute = state.routes[state.routes.length - 1];
+                      if (topRoute?.name !== 'PastReports') return state;
+                      const routes = state.routes.filter(
+                        r => r.name === 'Home' || r.name === 'PastReports'
+                      );
+                      return CommonActions.reset({
+                        ...state,
+                        routes,
+                        index: routes.length - 1,
+                      });
+                    });
+                  });
                 }}
                 activeOpacity={0.7}
               >
                 <View style={localStyles.quickActionIcon}>
                   <Feather name="clock" size={22} color={colors.primary} />
                 </View>
-                <Text style={localStyles.quickActionText}>History</Text>
+                <Text style={localStyles.quickActionText}>Past Reports</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </ScrollView>
+
+      {/* Rewards Prompt Modal */}
+      <RewardsPromptModal
+        visible={showRewardsPrompt}
+        onClose={() => setShowRewardsPrompt(false)}
+        onJoinSuccess={() => {
+          setShowRewardsPrompt(false);
+          Alert.alert(
+            "Welcome to Rewards!",
+            "You're now a member of the Quarterly Rewards Program. Good luck in the drawing!",
+            [{ text: "Awesome!", style: "default" }]
+          );
+        }}
+        // Pre-fill from report data
+        initialFirstName={reportData.angler?.firstName || ''}
+        initialLastName={reportData.angler?.lastName || ''}
+        initialEmail={reportData.angler?.email || ''}
+        initialPhone={reportData.angler?.phone || ''}
+        initialZipCode={reportData.zipCode || ''}
+        initialWrcId={reportData.wrcId || ''}
+        // If user opted into rewards during form, they must complete signup
+        requiresSignup={!!reportData.enteredRaffle}
+      />
     </View>
   );
 };
@@ -582,16 +812,35 @@ const localStyles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.success,
-    paddingTop: 60,
+    paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
     alignItems: "center",
+  },
+  swipeIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
+    borderRadius: 3,
+    marginBottom: 12,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
     color: colors.white,
     letterSpacing: 0.3,
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
   },
   testModeBadge: {
     backgroundColor: "#ff9800",

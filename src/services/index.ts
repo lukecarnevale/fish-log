@@ -9,12 +9,10 @@ export {
   generateConfirmationNumber,
   transformToDMFPayload,
   submitToDMF,
-  mockSubmitToDMF,
   submitHarvestReport,
   previewDMFPayload,
   checkRequiredDMFFields,
   type ConfirmationNumberParts,
-  type MockSubmitOptions,
 } from './harvestReportService';
 
 // Offline Queue Service
@@ -38,3 +36,35 @@ export {
   type SyncResult,
   type SubmitWithQueueResult,
 } from './offlineQueue';
+
+// User Profile Service
+export {
+  getCachedUser,
+  cacheUser,
+  getCachedStats,
+  cacheStats,
+  syncToUserProfile,
+  updateUserInSupabase,
+  fetchStatsFromSupabase,
+  getCurrentUser,
+  updateCurrentUser,
+  getUserStats,
+  getAllAchievements,
+  syncUserData,
+  getCachedFormPreferences,
+} from './userProfileService';
+
+// Rewards Conversion Service
+export {
+  convertToRewardsMember,
+  isRewardsMember,
+  getRewardsMemberForAnonymousUser,
+  linkEmailToUser,
+  createRewardsMemberFromAuthUser,
+  findRewardsMemberByAuthId,
+} from './rewardsConversionService';
+
+// Bulletin Service (App Announcements)
+export {
+  fetchActiveBulletins,
+} from './bulletinService';

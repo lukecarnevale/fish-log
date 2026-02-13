@@ -1,6 +1,6 @@
 // screens/ReportFormScreen.tsx
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Text,
   View,
@@ -14,85 +14,65 @@ import {
   Animated,
   Dimensions,
   TouchableWithoutFeedback,
+  Pressable,
   Image,
   Linking,
+  Keyboard,
+  Platform,
+  StatusBar,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import { StackNavigationProp } from "@react-navigation/stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { HEADER_HEIGHT } from "../constants/ui";
+import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
+import { useToast } from '../hooks/useToast';
 import { RootStackParamList, FishReportData, UserProfile, FishingLicense } from "../types";
 import styles from "../styles/reportFormScreenStyles";
 import { colors } from "../styles/common";
+import WrcIdInfoModal from "../components/WrcIdInfoModal";
+import BottomDrawer from "../components/BottomDrawer";
 
 // DMF constants
 import { AREA_LABELS, getAreaCodeFromLabel } from "../constants/areaOptions";
 import { NON_HOOK_GEAR_LABELS, getGearCodeFromLabel } from "../constants/gearOptions";
 import { isTestMode } from "../config/appConfig";
 
-type ReportFormScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
-  "ReportForm"
->;
+// Rewards context
+import { useRewards } from "../contexts/RewardsContext";
 
-interface ReportFormScreenProps {
-  navigation: ReportFormScreenNavigationProp;
-}
+// Species data for harvest status
+import { useAllFishSpecies } from '../api/speciesApi';
+import { SpeciesListBulletinIndicator } from '../components/SpeciesListBulletinIndicator';
 
-// Define types for individual fish entry
-interface FishEntry {
-  species: string;
-  count: number;
-  lengths: string[]; // Array of lengths, one per fish
-  tagNumber?: string;
-}
+// ZIP code lookup
+import { useZipCodeLookup } from "../hooks/useZipCodeLookup";
 
-// Reporting type options
-type ReportingType = "myself" | "myself_and_minors" | null;
+// Extracted types
+import { FishEntry, ReportingType, FormState, PickerData, ReportFormScreenProps } from './reportForm/reportForm.types';
 
-// Define types for our form fields
-interface FormState {
-  // Reporting type
-  reportingType: ReportingType;
-  totalPeopleCount: number;
-  // Fish info
-  species: string;
-  count: number;
-  lengths: string[]; // Array of lengths for each fish
-  tagNumber: string;
-  // Trip details
-  waterbody: string;
-  date: Date;
-  // DMF gear/method fields
-  usedHookAndLine: boolean;
-  gearType: string; // Only used when usedHookAndLine is false
-  // DMF confirmation preferences
-  wantTextConfirmation: boolean;
-  wantEmailConfirmation: boolean;
-  // Identity (loaded from profile)
-  hasLicense: boolean;
-  wrcId: string;
-  zipCode: string;
-  // Angler info
-  angler: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-  };
-}
+// Extracted validation utilities
+import { validateEmail, validatePhone, formatPhoneNumber } from '../utils/formValidation';
 
-interface PickerData {
-  species: string[];
-  waterbody: string[];
-  gearType: string[];
-  [key: string]: string[];
-}
+// Extracted local styles
+import { localStyles } from '../styles/reportFormScreenLocalStyles';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+// Extracted modal components
+import AbandonConfirmModal from './reportForm/AbandonConfirmModal';
+import FaqModal from './reportForm/FaqModal';
+import AreaInfoModal from './reportForm/AreaInfoModal';
+import RaffleEntryModal from './reportForm/RaffleEntryModal';
+
+
+// Species that require mandatory harvest reporting (matches SpeciesInfoScreen)
+const REPORT_SPECIES = ['Red Drum', 'Southern Flounder', 'Spotted Seatrout', 'Striped Bass', 'Weakfish'];
 
 const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
+  // Safe area insets for bottom sheet padding on Android
+  const insets = useSafeAreaInsets();
+
   // State for multiple fish entries
   const [fishEntries, setFishEntries] = useState<FishEntry[]>([]);
   const [currentFishIndex, setCurrentFishIndex] = useState<number | null>(null);
@@ -100,44 +80,97 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // State for showing optional fish details
   const [showOptionalDetails, setShowOptionalDetails] = useState<boolean>(false);
 
-  // Animation for modal drawer
-  const drawerAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const overlayAnim = useRef(new Animated.Value(0)).current;
 
   // Refs for scrolling
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Toast notification state
-  const [toastVisible, setToastVisible] = useState<boolean>(false);
-  const [toastTitle, setToastTitle] = useState<string>("");
-  const [toastSubtitle, setToastSubtitle] = useState<string>("");
-  const toastAnim = useRef(new Animated.Value(100)).current;
+  // Scroll animation for floating back button
+  const { scrollY, floatingOpacity: floatingBackOpacity, floatingTranslateXLeft: floatingBackTranslateX } = useFloatingHeaderAnimation();
 
-  // Show toast notification
-  const showToast = (title: string, subtitle: string): void => {
-    setToastTitle(title);
-    setToastSubtitle(subtitle);
-    setToastVisible(true);
-    toastAnim.setValue(100);
+  // Track scroll position for dynamic status bar style
+  const [statusBarStyle, setStatusBarStyle] = useState<'light-content' | 'dark-content'>('light-content');
+  const statusBarStyleRef = useRef(statusBarStyle);
+  statusBarStyleRef.current = statusBarStyle;
 
-    Animated.spring(toastAnim, {
-      toValue: 0,
-      tension: 80,
-      friction: 10,
-      useNativeDriver: true,
-    }).start();
+  // Keyboard height tracking for scroll-to-center behavior
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const currentScrollY = useRef(0);
 
-    // Hide after 5 seconds
+  // Track keyboard show/hide for scroll-to-center
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardShowListener = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const keyboardHideListener = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      keyboardShowListener.remove();
+      keyboardHideListener.remove();
+    };
+  }, []);
+
+  // Scroll to center the focused input in the visible area
+  const scrollToCenter = useCallback((event: { target: unknown }) => {
+    const target = event.target;
+    if (!scrollViewRef.current || !target) return;
+
+    // Small delay to ensure keyboard is shown and layout is stable
     setTimeout(() => {
-      Animated.timing(toastAnim, {
-        toValue: 100,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        setToastVisible(false);
-      });
-    }, 5000);
-  };
+      // Use measureInWindow to get absolute position on screen
+      (target as any).measureInWindow(
+        (_x: number, y: number, _width: number, height: number) => {
+          if (y === undefined) return; // measureInWindow failed
+
+          const windowHeight = Dimensions.get('window').height;
+          const headerHeight = 120; // Approximate header height
+          const estimatedKeyboardHeight = keyboardHeight || 300;
+
+          // Calculate visible area between header and keyboard
+          const visibleTop = headerHeight;
+          const visibleBottom = windowHeight - estimatedKeyboardHeight;
+          const visibleCenter = (visibleTop + visibleBottom) / 2;
+
+          // Current position of input center on screen
+          const inputCenterOnScreen = y + height / 2;
+
+          // How much we need to scroll to center the input
+          const scrollAdjustment = inputCenterOnScreen - visibleCenter;
+          const targetScrollY = currentScrollY.current + scrollAdjustment;
+
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, targetScrollY),
+            animated: true,
+          });
+        }
+      );
+    }, 100);
+  }, [keyboardHeight]);
+
+  // Toast notification
+  const toast = useToast();
+
+  // Fetch species data for harvest status annotations
+  const { data: allSpecies = [] } = useAllFishSpecies();
+
+  const speciesPickerItems = useMemo(() => {
+    if (allSpecies.length === 0) {
+      return REPORT_SPECIES.map(name => ({ name, harvestStatus: 'open' as const }));
+    }
+    return REPORT_SPECIES.map(speciesName => {
+      const match = allSpecies.find(s =>
+        s.name === speciesName || s.name.includes(speciesName) || speciesName.includes(s.name)
+      );
+      return {
+        name: speciesName,
+        harvestStatus: match?.harvestStatus ?? 'open',
+      };
+    });
+  }, [allSpecies]);
 
   // Initial form state with types
   const [formData, setFormData] = useState<FormState>({
@@ -167,6 +200,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     },
   });
 
+  // ZIP code lookup for city/state display feedback
+  const zipLookup = useZipCodeLookup(formData.zipCode);
+
   useEffect(() => {
     const loadUserData = async (): Promise<void> => {
       try {
@@ -179,7 +215,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
         const profile: UserProfile | null = profileData ? JSON.parse(profileData) : null;
         const license: FishingLicense | null = licenseData ? JSON.parse(licenseData) : null;
-        const primaryArea = primaryAreaData || null;
+        // Use primaryHarvestArea if set, otherwise fall back to preferredAreaLabel from profile
+        const primaryArea = primaryAreaData || profile?.preferredAreaLabel || null;
 
         // Track if we have a saved primary area
         if (primaryArea) {
@@ -225,6 +262,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               hasLicense: profile?.hasLicense ?? true,
               wrcId: effectiveWrcId || prevData.wrcId,
               zipCode: profile?.zipCode || prevData.zipCode,
+              // Load DMF notification preferences from profile
+              wantTextConfirmation: profile?.wantTextConfirmation ?? prevData.wantTextConfirmation,
+              wantEmailConfirmation: profile?.wantEmailConfirmation ?? prevData.wantEmailConfirmation,
               angler: {
                 ...prevData.angler,
                 firstName: profile?.firstName || license?.firstName || prevData.angler.firstName,
@@ -245,10 +285,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           if (effectiveWrcId) loadedItems.push("WRC ID");
 
           if (loadedItems.length > 0) {
-            showToast(
+            toast.show(
               "Profile Loaded",
               `Your ${loadedItems.join(", ")} ${loadedItems.length === 1 ? "has" : "have"} been added to the report.`
             );
+          }
+
+          // Auto-expand contact section if email or phone is pre-filled
+          if (profile?.email || profile?.phone) {
+            setShowContactSection(true);
           }
         }
       } catch (error) {
@@ -286,13 +331,16 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         const existingData = await AsyncStorage.getItem("userProfile");
         const profile = existingData ? JSON.parse(existingData) : {};
 
-        // Update profile with angler info
+        // Update profile with angler info and DMF preferences
         const updatedProfile = {
           ...profile,
           firstName: formData.angler.firstName || profile.firstName,
           lastName: formData.angler.lastName || profile.lastName,
           email: formData.angler.email || profile.email,
           phone: formData.angler.phone || profile.phone,
+          zipCode: formData.zipCode || profile.zipCode,
+          wantTextConfirmation: formData.wantTextConfirmation,
+          wantEmailConfirmation: formData.wantEmailConfirmation,
         };
 
         await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
@@ -338,6 +386,47 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     }
   };
 
+  // Auto-save DMF notification preferences to profile
+  const saveDMFPreferences = async (
+    textPref: boolean,
+    emailPref: boolean
+  ): Promise<void> => {
+    try {
+      const existingData = await AsyncStorage.getItem("userProfile");
+      const profile = existingData ? JSON.parse(existingData) : {};
+
+      const updatedProfile = {
+        ...profile,
+        wantTextConfirmation: textPref,
+        wantEmailConfirmation: emailPref,
+      };
+
+      await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+    } catch (error) {
+      console.error("Error saving DMF preferences:", error);
+    }
+  };
+
+  // Auto-save a single profile field (for fields like zip code)
+  const saveProfileField = async (
+    fieldName: string,
+    value: string
+  ): Promise<void> => {
+    try {
+      const existingData = await AsyncStorage.getItem("userProfile");
+      const profile = existingData ? JSON.parse(existingData) : {};
+
+      const updatedProfile = {
+        ...profile,
+        [fieldName]: value,
+      };
+
+      await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+    } catch (error) {
+      console.error(`Error saving ${fieldName}:`, error);
+    }
+  };
+
   // State for primary area of harvest
   const [saveAsPrimaryArea, setSaveAsPrimaryArea] = useState<boolean>(false);
   const [hasSavedPrimaryArea, setHasSavedPrimaryArea] = useState<boolean>(false);
@@ -368,13 +457,23 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     zipCode: "",
   });
 
-  // State for raffle entry
+  // State for rewards entry (local UI state)
   const [enterRaffle, setEnterRaffle] = useState<boolean>(false);
   const [showRaffleModal, setShowRaffleModal] = useState<boolean>(false);
-  const [hasEnteredCurrentRaffle, setHasEnteredCurrentRaffle] = useState<boolean>(false);
-  const [enteredRaffles, setEnteredRaffles] = useState<string[]>([]);
 
-  // State for photo capture (required for raffle entry)
+  // Animation for raffle modal content slide-up
+  const raffleModalSlideAnim = useRef(new Animated.Value(0)).current;
+
+  // Get rewards data from centralized context
+  const {
+    currentDrawing,
+    config: rewardsConfig,
+    calculated: rewardsCalculated,
+    hasEnteredCurrentRaffle,
+    enterDrawing,
+  } = useRewards();
+
+  // State for photo capture (required for rewards entry)
   const [catchPhoto, setCatchPhoto] = useState<string | null>(null);
 
   // State for inline validation errors
@@ -392,74 +491,120 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // State for abandonment modal
   const [showAbandonModal, setShowAbandonModal] = useState<boolean>(false);
 
-  // Get current raffle info (could be fetched from API in production)
-  const getCurrentRaffle = () => {
-    const now = new Date();
-    const month = now.toLocaleString('default', { month: 'long' });
-    const year = now.getFullYear();
-    const raffleId = `${year}-${now.getMonth() + 1}`; // e.g., "2026-1" for January 2026
-    const raffleName = `${month} ${year} Raffle`;
-    const endDate = new Date(year, now.getMonth() + 1, 0); // Last day of current month
+  // Ref to track if user has confirmed they want to abandon (allows navigation)
+  const hasConfirmedAbandon = useRef<boolean>(false);
 
-    return {
-      id: raffleId,
-      name: raffleName,
-      endDate: endDate,
-      daysRemaining: Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
-    };
+  // Ref to track if form was successfully submitted (skip abandon guard on stack reset)
+  const hasNavigatedToConfirmation = useRef<boolean>(false);
+
+  // State for WRC ID info modal
+  const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
+
+  // State for Area of Harvest info modal
+  const [showAreaInfoModal, setShowAreaInfoModal] = useState<boolean>(false);
+
+  // State for FAQ modal
+  const [showFaqModal, setShowFaqModal] = useState<boolean>(false);
+
+  // State for collapsible contact section in Angler Information
+  const [showContactSection, setShowContactSection] = useState<boolean>(false);
+  const contactSectionAnim = useRef(new Animated.Value(0)).current;
+
+  // Toggle contact section with animation
+  const toggleContactSection = () => {
+    const toValue = showContactSection ? 0 : 1;
+    setShowContactSection(!showContactSection);
+    Animated.timing(contactSectionAnim, {
+      toValue,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
   };
 
-  const currentRaffle = getCurrentRaffle();
-
-  // Load entered raffles from storage
+  // Animate raffle modal content slide-up when modal opens
   useEffect(() => {
-    const loadEnteredRaffles = async () => {
-      try {
-        const storedRaffles = await AsyncStorage.getItem("enteredRaffles");
-        if (storedRaffles) {
-          const raffles = JSON.parse(storedRaffles) as string[];
-          setEnteredRaffles(raffles);
-          // Check if user has already entered current raffle
-          if (raffles.includes(currentRaffle.id)) {
-            setHasEnteredCurrentRaffle(true);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading entered raffles:", error);
-      }
-    };
-    loadEnteredRaffles();
-  }, [currentRaffle.id]);
+    if (showRaffleModal) {
+      // Reset to starting position (off-screen below)
+      raffleModalSlideAnim.setValue(0);
+      // Animate to final position
+      Animated.spring(raffleModalSlideAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    }
+  }, [showRaffleModal, raffleModalSlideAnim]);
 
-  // Save raffle entry
+  // State for raffle modal inline validation
+  const [raffleValidationErrors, setRaffleValidationErrors] = useState<{
+    email?: string;
+    phone?: string;
+  }>({});
+
+  // Animation refs for auto-toggle checkboxes
+  const emailCheckboxAnim = useRef(new Animated.Value(1)).current;
+  const phoneCheckboxAnim = useRef(new Animated.Value(1)).current;
+  const licenseCheckboxAnim = useRef(new Animated.Value(1)).current;
+  const profileSaveAnim = useRef(new Animated.Value(1)).current;
+  const primaryAreaCheckboxAnim = useRef(new Animated.Value(1)).current;
+
+  // Track if email/phone checkboxes were just auto-toggled to prevent re-animating
+  const emailAutoToggled = useRef(false);
+  const phoneAutoToggled = useRef(false);
+
+  // Pulse animation for auto-toggled checkboxes
+  const pulseCheckbox = (animValue: Animated.Value) => {
+    // Brief delay so user sees the toggle happen
+    setTimeout(() => {
+      Animated.sequence([
+        Animated.timing(animValue, {
+          toValue: 1.15,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animValue, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 100);
+  };
+
+  // Email validation helper
+
+  // Derived rewards info from context (with fallback for backward compatibility)
+  const currentRewards = {
+    id: currentDrawing?.id || '',
+    name: currentDrawing?.name || 'Quarterly Rewards',
+    endDate: currentDrawing ? new Date(currentDrawing.drawingDate) : new Date(),
+    daysRemaining: rewardsCalculated.daysRemaining,
+  };
+
+  // Save rewards entry using context
   const saveRaffleEntry = async () => {
     try {
-      const updatedRaffles = [...enteredRaffles, currentRaffle.id];
-      await AsyncStorage.setItem("enteredRaffles", JSON.stringify(updatedRaffles));
-      setEnteredRaffles(updatedRaffles);
-      setHasEnteredCurrentRaffle(true);
+      await enterDrawing();
       setEnterRaffle(true);
       setShowRaffleModal(false);
     } catch (error) {
-      console.error("Error saving raffle entry:", error);
+      console.error("Error saving rewards entry:", error);
     }
   };
 
   // State for modal visibility
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [isPickerMounted, setIsPickerMounted] = useState<boolean>(false);
+  const [datePickerKey, setDatePickerKey] = useState<number>(0);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [currentPicker, setCurrentPicker] = useState<string>("");
   const [currentPickerLabel, setCurrentPickerLabel] = useState<string>("");
 
   // Data for pickers
   const pickerData: PickerData = {
-    species: [
-      "Red Drum",
-      "Flounder",
-      "Spotted Seatrout (speckled trout)",
-      "Striped Bass",
-      "Weakfish (gray trout)",
-    ],
+    species: speciesPickerItems.map(s => s.name),
     // Use DMF area labels from constants
     waterbody: [...AREA_LABELS],
     // Use non-hook gear options from constants (for when hook & line is not used)
@@ -471,51 +616,52 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     setCurrentPicker(pickerType as string);
     setCurrentPickerLabel(label);
     setModalVisible(true);
-    // Animate drawer sliding up and overlay fading in
-    Animated.parallel([
-      Animated.timing(overlayAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.spring(drawerAnim, {
-        toValue: 0,
-        tension: 65,
-        friction: 11,
-        useNativeDriver: true,
-      }),
-    ]).start();
   };
 
-  // Function to close modal with animation
+  // Function to close modal - BottomDrawer handles animations
   const closePicker = (): void => {
-    Animated.parallel([
-      Animated.timing(overlayAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(drawerAnim, {
-        toValue: SCREEN_HEIGHT,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setModalVisible(false);
-    });
+    setModalVisible(false);
   };
 
   // Function to handle selection in modal
   const handleSelection = (item: string): void => {
     setFormData({ ...formData, [currentPicker]: item });
     closePicker();
+
+    // Auto-toggle "Save as primary area" when selecting a new waterbody
+    if (currentPicker === "waterbody" && item !== initialLoadedValues.waterbody && !saveAsPrimaryArea && !hasSavedPrimaryArea) {
+      setSaveAsPrimaryArea(true);
+      pulseCheckbox(primaryAreaCheckboxAnim);
+    }
   };
 
   const handleDateChange = (event: any, selectedDate?: Date): void => {
-    // Don't auto-close on iOS with inline display - user will press Done
-    if (selectedDate) {
-      setFormData({ ...formData, date: selectedDate });
+    if (Platform.OS === 'android') {
+      // Android native picker: close modal and apply date if OK was pressed
+      if (event.type === 'set' && selectedDate) {
+        setFormData({ ...formData, date: selectedDate });
+      }
+      // Close the modal for both OK and Cancel
+      closeDatePicker();
+    } else {
+      // iOS spinner: just update temp date, user confirms with Done button
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
     }
+  };
+
+  // Confirm date selection and close picker
+  const confirmDateSelection = (): void => {
+    setFormData({ ...formData, date: tempDate });
+    closeDatePicker();
+  };
+
+  // Close date picker with delayed unmount to prevent flash
+  const closeDatePicker = (): void => {
+    setShowDatePicker(false);
+    // Delay unmounting the picker until after modal fade animation
+    setTimeout(() => setIsPickerMounted(false), 300);
   };
 
   // Helper to get current fish data from form
@@ -556,9 +702,22 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   };
 
   // Helper to update a specific length in the array
+  // Sanitizes input to only allow numbers and one decimal point
   const updateLength = (index: number, value: string): void => {
+    // Remove any character that's not a digit or decimal point
+    let sanitized = value.replace(/[^0-9.]/g, '');
+
+    // Ensure only one decimal point
+    const decimalCount = (sanitized.match(/\./g) || []).length;
+    if (decimalCount > 1) {
+      // Keep only the first decimal point
+      const firstDecimalIndex = sanitized.indexOf('.');
+      sanitized = sanitized.slice(0, firstDecimalIndex + 1) +
+                  sanitized.slice(firstDecimalIndex + 1).replace(/\./g, '');
+    }
+
     const newLengths = [...formData.lengths];
-    newLengths[index] = value;
+    newLengths[index] = sanitized;
     setFormData({ ...formData, lengths: newLengths });
   };
 
@@ -710,6 +869,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     );
   };
 
+  // Ref to hold the latest hasFormData check (for beforeRemove listener)
+  const hasFormDataRef = useRef<() => boolean>(() => false);
+
   // Check if user has entered any data in the form (beyond pre-loaded profile data)
   const hasFormData = (): boolean => {
     // Check reporting type - this is always user input
@@ -745,6 +907,65 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     return false;
   };
 
+  // Keep the ref updated with the latest hasFormData function
+  hasFormDataRef.current = hasFormData;
+
+  // Intercept back navigation (including swipe gesture) to show abandonment modal
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      // If user has confirmed abandon, allow navigation
+      if (hasConfirmedAbandon.current) {
+        hasConfirmedAbandon.current = false; // Reset for next time
+        return;
+      }
+
+      // If form was submitted and we navigated to Confirmation, allow stack resets
+      if (hasNavigatedToConfirmation.current) {
+        return;
+      }
+
+      // Check if there's form data to protect
+      if (!hasFormDataRef.current()) {
+        // No form data, allow navigation
+        return;
+      }
+
+      // Prevent default behavior (leaving the screen)
+      e.preventDefault();
+
+      // Show the abandonment modal
+      setShowAbandonModal(true);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  // Disable swipe gesture when there's form data to protect
+  // This prevents the visual "swipe out" animation from starting before we can show the modal
+  useEffect(() => {
+    const hasData = hasFormDataRef.current();
+    navigation.setOptions({
+      gestureEnabled: !hasData,
+    });
+  }, [
+    navigation,
+    formData.reportingType,
+    formData.species,
+    formData.waterbody,
+    formData.usedHookAndLine,
+    formData.gearType,
+    formData.angler.firstName,
+    formData.angler.lastName,
+    formData.angler.email,
+    formData.angler.phone,
+    formData.wrcId,
+    formData.zipCode,
+    fishEntries.length,
+    catchPhoto,
+    enterRaffle,
+    initialLoadedValues,
+  ]);
+
   // Handle back button press with abandonment check
   const handleBackPress = (): void => {
     if (hasFormData()) {
@@ -778,7 +999,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setCatchPhoto(result.assets[0].uri);
         clearValidationError("photo");
-        showToast("Photo Captured", "Your catch photo has been saved");
+        toast.show("Photo Captured", "Your catch photo has been saved");
       }
     } catch (error) {
       // Camera not available (likely running on simulator)
@@ -800,7 +1021,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               if (!libraryResult.canceled && libraryResult.assets && libraryResult.assets.length > 0) {
                 setCatchPhoto(libraryResult.assets[0].uri);
                 clearValidationError("photo");
-                showToast("Photo Selected", "Photo selected for testing (camera required in production)");
+                toast.show("Photo Selected", "Photo selected for testing (camera required in production)");
               }
             },
           },
@@ -816,17 +1037,6 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // Format phone number as user types
   // DMF requires xxx-xxx-xxxx format (with dashes, no parentheses)
-  const formatPhoneNumber = (text: string): string => {
-    const digitsOnly = text.replace(/\D/g, "");
-    if (digitsOnly.length <= 3) {
-      return digitsOnly;
-    } else if (digitsOnly.length <= 6) {
-      return `${digitsOnly.slice(0, 3)}-${digitsOnly.slice(3)}`;
-    } else {
-      return `${digitsOnly.slice(0, 3)}-${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`;
-    }
-  };
-
   // Clear a specific validation error when field is edited
   const clearValidationError = (field: keyof typeof validationErrors) => {
     if (validationErrors[field]) {
@@ -925,6 +1135,62 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       saveRaffleEntry();
     }
 
+    // Auto-save user preferences if toggles are enabled
+    // This ensures data persists even if user didn't explicitly tap save buttons
+    const saveUserPreferences = async () => {
+      try {
+        // Save primary area of harvest
+        if (saveAsPrimaryArea && formData.waterbody) {
+          await AsyncStorage.setItem("primaryHarvestArea", formData.waterbody);
+        }
+
+        // Save angler info to profile
+        if (saveAnglerInfo) {
+          const existingData = await AsyncStorage.getItem("userProfile");
+          const profile = existingData ? JSON.parse(existingData) : {};
+          const updatedProfile = {
+            ...profile,
+            firstName: formData.angler.firstName || profile.firstName,
+            lastName: formData.angler.lastName || profile.lastName,
+            email: formData.angler.email || profile.email,
+            phone: formData.angler.phone || profile.phone,
+            zipCode: formData.zipCode || profile.zipCode,
+          };
+          await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+        }
+
+        // Save WRC ID to license and profile
+        if (saveLicenseNumber && formData.wrcId) {
+          // Save to license
+          const licenseData = await AsyncStorage.getItem("fishingLicense");
+          const license: FishingLicense = licenseData ? JSON.parse(licenseData) : {};
+          const updatedLicense: FishingLicense = {
+            ...license,
+            licenseNumber: formData.wrcId,
+            firstName: license.firstName || formData.angler.firstName,
+            lastName: license.lastName || formData.angler.lastName,
+          };
+          await AsyncStorage.setItem("fishingLicense", JSON.stringify(updatedLicense));
+
+          // Also save WRC ID to profile
+          const profileData = await AsyncStorage.getItem("userProfile");
+          const profile = profileData ? JSON.parse(profileData) : {};
+          const updatedProfile = {
+            ...profile,
+            wrcId: formData.wrcId,
+            hasLicense: true,
+          };
+          await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
+        }
+      } catch (error) {
+        console.error("Error saving user preferences:", error);
+        // Don't block form submission on save failure
+      }
+    };
+
+    // Save preferences before navigating (fire and forget)
+    saveUserPreferences();
+
     // Build report data (includes both legacy fields and DMF-specific fields)
     const reportData: FishReportData = {
       // Use first fish's data for primary fields
@@ -943,7 +1209,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       fishEntries: allFish,
       fishCount: totalFishCount,
       // Include raffle entry status and photo
-      enteredRaffle: enterRaffle && !hasEnteredCurrentRaffle ? currentRaffle.id : undefined,
+      enteredRaffle: enterRaffle && !hasEnteredCurrentRaffle ? currentRewards.id : undefined,
       photo: catchPhoto || undefined,
       // DMF-specific fields for harvest report submission
       hasLicense: formData.hasLicense,
@@ -963,175 +1229,244 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       familyCount: formData.reportingType === "myself_and_minors" ? formData.totalPeopleCount : undefined,
     };
 
+    // Mark as submitted so beforeRemove guard won't block stack resets from Confirmation
+    hasNavigatedToConfirmation.current = true;
+
     // Navigate to the confirmation page
     navigation.navigate("Confirmation", { reportData });
   };
 
   // Render the selection modal
   const renderSelectionModal = (): React.ReactNode => (
-    <Modal
-      animationType="none"
-      transparent={true}
+    <BottomDrawer
       visible={modalVisible}
-      onRequestClose={closePicker}
+      onClose={closePicker}
+      maxHeight="80%"
     >
-      <View style={localStyles.modalWrapper}>
-        {/* Animated overlay */}
-        <TouchableWithoutFeedback onPress={closePicker}>
-          <Animated.View
-            style={[
-              localStyles.modalOverlay,
-              { opacity: overlayAnim },
-            ]}
-          />
-        </TouchableWithoutFeedback>
-
-        {/* Animated drawer */}
-        <Animated.View
-          style={[
-            localStyles.modalDrawer,
-            { transform: [{ translateY: drawerAnim }] },
-          ]}
-        >
-          <View style={localStyles.modalHandle} />
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select {currentPickerLabel}</Text>
-            <TouchableOpacity onPress={closePicker}>
-              <Text style={styles.closeButton}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-
-          <FlatList
-            data={pickerData[currentPicker as keyof PickerData]}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => {
-              const isSelected = formData[currentPicker as keyof FormState] === item;
-              return (
-                <TouchableOpacity
-                  style={[
-                    styles.optionItem,
-                    isSelected && localStyles.optionItemSelected
-                  ]}
-                  onPress={() => handleSelection(item)}
-                >
-                  <Text style={[
-                    styles.optionText,
-                    isSelected && localStyles.optionTextSelected
-                  ]}>{item}</Text>
-                  {isSelected && (
-                    <Feather name="check" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              );
-            }}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-            contentContainerStyle={{ paddingBottom: 34 }}
-            scrollEnabled={pickerData[currentPicker as keyof PickerData]?.length > 8}
-          />
-        </Animated.View>
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>Select {currentPickerLabel}</Text>
+        <TouchableOpacity onPress={closePicker}>
+          <Text style={styles.closeButton}>Cancel</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      <FlatList
+        data={pickerData[currentPicker as keyof PickerData]}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item }) => {
+          const isSpeciesPicker = currentPicker === 'species';
+          const speciesItem = isSpeciesPicker
+            ? speciesPickerItems.find(s => s.name === item)
+            : null;
+          const isSelected = formData[currentPicker as keyof FormState] === item;
+
+          return (
+            <Pressable
+              style={({ pressed }) => [
+                styles.optionItem,
+                isSelected && localStyles.optionItemSelected,
+                pressed && { opacity: 0.7 }
+              ]}
+              onPress={() => handleSelection(item)}
+              android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+                <Text style={[
+                  styles.optionText,
+                  isSelected && localStyles.optionTextSelected
+                ]}>{item}</Text>
+                {speciesItem && speciesItem.harvestStatus !== 'open' && (
+                  <SpeciesListBulletinIndicator harvestStatus={speciesItem.harvestStatus} showLabels />
+                )}
+              </View>
+              {isSelected && (
+                <Feather name="check" size={20} color={colors.primary} />
+              )}
+            </Pressable>
+          );
+        }}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        contentContainerStyle={{ paddingBottom: 34 }}
+        scrollEnabled={pickerData[currentPicker as keyof PickerData]?.length > 8}
+        removeClippedSubviews={false}
+      />
+    </BottomDrawer>
   );
 
   // Render the abandonment confirmation modal
-  const renderAbandonModal = (): React.ReactNode => (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={showAbandonModal}
-      onRequestClose={() => setShowAbandonModal(false)}
-    >
-      <View style={localStyles.abandonModalOverlay}>
-        <View style={localStyles.abandonModalContent}>
-          <View style={localStyles.abandonModalIconContainer}>
-            <Feather name="alert-circle" size={32} color={colors.warning} />
-          </View>
-          <Text style={localStyles.abandonModalTitle}>Discard Report?</Text>
-          <Text style={localStyles.abandonModalText}>
-            You have unsaved information. Are you sure you want to leave? Your progress will be lost.
-          </Text>
-          <View style={localStyles.abandonModalButtons}>
-            <TouchableOpacity
-              style={localStyles.abandonModalCancelButton}
-              onPress={() => setShowAbandonModal(false)}
-              activeOpacity={0.7}
-            >
-              <Text style={localStyles.abandonModalCancelText}>Keep Editing</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={localStyles.abandonModalDiscardButton}
-              onPress={() => {
-                setShowAbandonModal(false);
-                navigation.goBack();
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={localStyles.abandonModalDiscardText}>Discard</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+
 
   // Render the input field for picker-style data
   const renderPickerField = (
     label: string,
     field: keyof PickerData,
     required: boolean = false
-  ): React.ReactNode => (
-    <View>
-      <Text style={styles.label}>
-        {label} {required && "*"}
-      </Text>
-      <TouchableOpacity
-        style={styles.selectorButton}
-        onPress={() => openPicker(field, label)}
-      >
-        <Text
-          style={
-            formData[field as keyof FormState]
-              ? styles.selectorText
-              : styles.selectorPlaceholder
-          }
-        >
-          {String(formData[field as keyof FormState] || `Select ${label.toLowerCase()}`)}
+  ): React.ReactNode => {
+    const rawValue = formData[field as keyof FormState];
+    const speciesItem = field === 'species' && rawValue
+      ? speciesPickerItems.find(s => s.name === rawValue)
+      : null;
+
+    return (
+      <View>
+        <Text style={styles.label}>
+          {label} {required && <Text style={localStyles.requiredAsterisk}>*</Text>}
         </Text>
-        <Text style={styles.selectorArrow}>▼</Text>
-      </TouchableOpacity>
-    </View>
-  );
+        <TouchableOpacity
+          style={styles.selectorButton}
+          onPress={() => openPicker(field, label)}
+        >
+          {rawValue ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+              <Text style={styles.selectorText}>{String(rawValue)}</Text>
+              {speciesItem && speciesItem.harvestStatus !== 'open' && (
+                <SpeciesListBulletinIndicator harvestStatus={speciesItem.harvestStatus} showLabels />
+              )}
+            </View>
+          ) : (
+            <Text style={styles.selectorPlaceholder}>
+              {`Select ${label.toLowerCase()}`}
+            </Text>
+          )}
+          <Text style={styles.selectorArrow}>▼</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <View style={localStyles.screenContainer}>
-      {/* Modern Header */}
-      <View style={localStyles.header}>
-        <TouchableOpacity
-          style={localStyles.backButton}
-          onPress={handleBackPress}
-          activeOpacity={0.7}
-        >
-          <Feather name="arrow-left" size={24} color={colors.white} />
-        </TouchableOpacity>
-        <View style={localStyles.headerTitleContainer}>
-          <Text style={localStyles.headerTitleText}>Report Catch</Text>
+      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
+
+      {/* Fixed Header - sits behind the scrolling content */}
+      <View style={localStyles.fixedHeader}>
+        <View style={localStyles.headerContent}>
+          <TouchableOpacity
+            style={localStyles.backButton}
+            onPress={handleBackPress}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather name="arrow-left" size={24} color={colors.white} />
+          </TouchableOpacity>
+
+          <View style={localStyles.headerTextContainer}>
+            <Text style={localStyles.headerTitle}>Report Catch</Text>
+            <Text style={localStyles.headerSubtitle}>NC Mandatory Harvest Report</Text>
+          </View>
+
           {/* TEST MODE badge - shows when not submitting to real DMF */}
           {isTestMode() && (
             <View style={localStyles.testModeBadge}>
-              <Text style={localStyles.testModeBadgeText}>TEST MODE</Text>
+              <Text style={localStyles.testModeBadgeText}>TEST</Text>
             </View>
           )}
+
+          {/* FAQ Button */}
+          <TouchableOpacity
+            style={localStyles.faqButton}
+            onPress={() => setShowFaqModal(true)}
+            activeOpacity={0.7}
+          >
+            <Feather name="help-circle" size={22} color={colors.white} />
+          </TouchableOpacity>
         </View>
-        <View style={localStyles.headerSpacer} />
       </View>
 
-      <ScrollView
+      {/* Floating back button - appears when scrolling */}
+      <Animated.View
+        style={[
+          localStyles.floatingBackButton,
+          {
+            opacity: floatingBackOpacity,
+            transform: [{
+              translateX: floatingBackTranslateX,
+            }]
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={handleBackPress}
+          style={localStyles.floatingBackTouchable}
+          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+        >
+          <Feather name="arrow-left" size={22} color={colors.white} />
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Scrollable content - slides over the header */}
+      <Animated.ScrollView
         ref={scrollViewRef}
         style={localStyles.scrollView}
         contentContainerStyle={localStyles.scrollViewContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          {
+            useNativeDriver: true,
+            listener: (e: any) => {
+              currentScrollY.current = e.nativeEvent.contentOffset.y;
+
+              // Calculate threshold where light content covers the status bar area
+              const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 50;
+              const headerSpacerHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130;
+              const threshold = headerSpacerHeight - statusBarHeight - 24; // 24px buffer for rounded corners
+
+              const scrollPosition = e.nativeEvent.contentOffset.y;
+              const newStyle = scrollPosition > threshold ? 'dark-content' : 'light-content';
+              if (newStyle !== statusBarStyleRef.current) {
+                setStatusBarStyle(newStyle);
+              }
+            }
+          }
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* Header spacer - transparent area that lets header show through */}
+        <View style={localStyles.headerSpacerArea}>
+          <View style={localStyles.spacerButtonsRow}>
+            <TouchableOpacity
+              onPress={handleBackPress}
+              style={localStyles.spacerBackButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={{ width: 40, height: 40 }} />
+            </TouchableOpacity>
+
+            <View style={{ flex: 1 }} />
+
+            {/* Spacer for TEST badge if visible */}
+            {isTestMode() && <View style={{ width: 50 }} />}
+
+            {/* FAQ button touchable area in spacer */}
+            <TouchableOpacity
+              onPress={() => setShowFaqModal(true)}
+              style={localStyles.spacerFaqButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={{ width: 40, height: 40 }} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Content container - the light blue card that slides over */}
+        <View style={localStyles.contentContainer}>
       {renderSelectionModal()}
-      {renderAbandonModal()}
+      <AbandonConfirmModal
+        visible={showAbandonModal}
+        onKeepEditing={() => setShowAbandonModal(false)}
+        onDiscard={() => {
+          setShowAbandonModal(false);
+          hasConfirmedAbandon.current = true;
+          navigation.goBack();
+        }}
+      />
+      <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
+
+      <FaqModal visible={showFaqModal} onClose={() => setShowFaqModal(false)} />
+
+      <AreaInfoModal visible={showAreaInfoModal} onClose={() => setShowAreaInfoModal(false)} />
 
       {/* Reporting Type Section */}
       <View style={styles.section}>
@@ -1168,7 +1503,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         {/* Show people count picker when reporting for minors */}
         {formData.reportingType === "myself_and_minors" && (
           <View style={localStyles.peopleCountSection}>
-            <Text style={styles.label}>How many total people are you reporting for? *</Text>
+            <Text style={styles.label}>How many total people are you reporting for? <Text style={localStyles.requiredAsterisk}>*</Text></Text>
             <View style={localStyles.countContainer}>
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1184,6 +1519,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   const num = parseInt(text) || 2;
                   setFormData({ ...formData, totalPeopleCount: Math.max(2, num) });
                 }}
+                onFocus={scrollToCenter}
               />
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1209,7 +1545,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         {/* Show count field only after species is selected */}
         {formData.species && (
           <>
-            <Text style={styles.label}>Number Harvested *</Text>
+            <Text style={styles.label}>Number Harvested <Text style={localStyles.requiredAsterisk}>*</Text></Text>
             <View style={localStyles.countContainer}>
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1222,6 +1558,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 keyboardType="number-pad"
                 value={String(formData.count)}
                 onChangeText={(text) => handleCountChange(parseInt(text) || 1)}
+                onFocus={scrollToCenter}
               />
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1261,6 +1598,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                     value={formData.lengths[0] || ""}
                     onChangeText={(text) => updateLength(0, text)}
                     placeholder="Enter the length"
+                    onFocus={scrollToCenter}
                   />
                 ) : (
                   // Multiple fish - numbered inputs
@@ -1274,6 +1612,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                           value={length}
                           onChangeText={(text) => updateLength(index, text)}
                           placeholder={`Fish ${index + 1}`}
+                          onFocus={scrollToCenter}
                         />
                       </View>
                     ))}
@@ -1286,6 +1625,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   value={formData.tagNumber}
                   onChangeText={(text) => setFormData({ ...formData, tagNumber: text })}
                   placeholder="Enter tag number if fish is tagged"
+                  onFocus={scrollToCenter}
                 />
               </View>
             )}
@@ -1298,25 +1638,29 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             <Text style={localStyles.fishListTitle}>
               Saved Fish ({fishEntries.reduce((sum, f) => sum + f.count, 0)} total)
             </Text>
-            {fishEntries.map((fish, index) => (
-              <View
-                key={index}
-                style={[
-                  localStyles.fishChip,
-                  currentFishIndex === index && localStyles.fishChipActive,
-                ]}
-              >
-                <TouchableOpacity
-                  style={localStyles.fishChipContent}
-                  onPress={() => handleSelectFish(index)}
+            {fishEntries.map((fish, index) => {
+              const isSelected = currentFishIndex === index;
+              return (
+                <View
+                  key={`fish-${index}-${isSelected ? 'active' : 'inactive'}`}
+                  style={[
+                    localStyles.fishChip,
+                    isSelected && localStyles.fishChipActive,
+                  ]}
                 >
-                  <Text style={localStyles.fishChipText}>
-                    {fish.count}x {fish.species}
-                    {fish.lengths.length > 0 && fish.lengths.some(l => l)
-                      ? ` (${fish.lengths.filter(l => l).join('", ')}${fish.lengths.filter(l => l).length > 0 ? '"' : ''})`
-                      : ""}
-                  </Text>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={localStyles.fishChipContent}
+                    onPress={() => handleSelectFish(index)}
+                  >
+                    <Text
+                      style={isSelected ? localStyles.fishChipTextActive : localStyles.fishChipText}
+                    >
+                      {fish.count}x {fish.species}
+                      {fish.lengths.length > 0 && fish.lengths.some(l => l)
+                        ? ` (${fish.lengths.filter(l => l).join('", ')}${fish.lengths.filter(l => l).length > 0 ? '"' : ''})`
+                        : ""}
+                    </Text>
+                  </TouchableOpacity>
                 <TouchableOpacity
                   style={localStyles.fishChipRemove}
                   onPress={() => handleRemoveFish(index)}
@@ -1325,7 +1669,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   <Feather name="x" size={14} color={colors.darkGray} />
                 </TouchableOpacity>
               </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -1342,6 +1687,52 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             </Text>
           </TouchableOpacity>
         )}
+
+        {/* CatchFeed photo option - only show for signed-in rewards members */}
+        {hasEnteredCurrentRaffle && (formData.species || fishEntries.length > 0) && (
+          <View style={localStyles.catchFeedPhotoSection}>
+            <Text style={localStyles.catchFeedPhotoLabel}>
+              <Feather name="camera" size={14} color={colors.primary} /> Add Photo for Catch Feed
+            </Text>
+            <Text style={localStyles.catchFeedPhotoDesc}>
+              Share your catch with the community (optional)
+            </Text>
+
+            {catchPhoto ? (
+              <View style={localStyles.catchFeedPhotoContainer}>
+                <Image
+                  source={{ uri: catchPhoto }}
+                  style={localStyles.catchFeedPhoto}
+                  resizeMode="cover"
+                />
+                <View style={localStyles.catchFeedPhotoActions}>
+                  <TouchableOpacity
+                    style={localStyles.catchFeedPhotoActionButton}
+                    onPress={handleTakePhoto}
+                  >
+                    <Feather name="camera" size={16} color={colors.primary} />
+                    <Text style={localStyles.catchFeedPhotoActionText}>Retake</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={localStyles.catchFeedPhotoActionButton}
+                    onPress={handleRemovePhoto}
+                  >
+                    <Feather name="trash-2" size={16} color={colors.error} />
+                    <Text style={[localStyles.catchFeedPhotoActionText, { color: colors.error }]}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={localStyles.catchFeedAddPhotoButton}
+                onPress={handleTakePhoto}
+              >
+                <Feather name="camera" size={20} color={colors.primary} />
+                <Text style={localStyles.catchFeedAddPhotoText}>Take Photo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
       )}
 
@@ -1349,22 +1740,32 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       {/* Only show Harvest Details after fish info is complete (species selected or fish entries exist) */}
       {formData.reportingType && (formData.species || fishEntries.length > 0) && (
       <View style={styles.section}>
-        <View style={localStyles.sectionHeaderWithIcon}>
-          <Text style={styles.sectionTitle}>Harvest Details</Text>
+        <Text style={styles.sectionTitle}>Harvest Details</Text>
+
+        <View style={localStyles.labelRow}>
+          <Text style={styles.label}>Area of Harvest <Text style={localStyles.requiredAsterisk}>*</Text></Text>
           <TouchableOpacity
-            onPress={() => Linking.openURL("https://experience.arcgis.com/experience/dc745a4de8344e40b5855b9e9130d0c1")}
-            style={localStyles.mapIconButton}
-            activeOpacity={0.7}
+            onPress={() => setShowAreaInfoModal(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Feather name="map" size={24} color={colors.primary} />
+            <Feather name="info" size={18} color={colors.primary} />
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.label}>Area of Harvest *</Text>
-        <Text style={localStyles.helperText}>
-          Select the waterbody where you harvested the majority of your fish.
-        </Text>
-        {renderPickerField("Area of Harvest", "waterbody", false)}
+        <TouchableOpacity
+          style={styles.selectorButton}
+          onPress={() => openPicker("waterbody", "Area of Harvest")}
+        >
+          <Text
+            style={
+              formData.waterbody
+                ? styles.selectorText
+                : styles.selectorPlaceholder
+            }
+          >
+            {String(formData.waterbody || "Select area of harvest")}
+          </Text>
+          <Text style={styles.selectorArrow}>▼</Text>
+        </TouchableOpacity>
 
         {/* Save as primary area checkbox - only show after area is selected */}
         {formData.waterbody && (
@@ -1373,14 +1774,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             onPress={() => handlePrimaryAreaToggle(!saveAsPrimaryArea)}
             activeOpacity={0.7}
           >
-            <View style={[
+            <Animated.View style={[
               localStyles.checkbox,
-              saveAsPrimaryArea && localStyles.checkboxChecked
+              saveAsPrimaryArea && localStyles.checkboxChecked,
+              { transform: [{ scale: primaryAreaCheckboxAnim }] }
             ]}>
               {saveAsPrimaryArea && (
                 <Feather name="check" size={14} color={colors.white} />
               )}
-            </View>
+            </Animated.View>
             <Text style={localStyles.checkboxLabel}>
               {hasSavedPrimaryArea && saveAsPrimaryArea
                 ? "Saved as my primary area"
@@ -1389,10 +1791,16 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.label}>Date of Harvest *</Text>
+        <Text style={styles.label}>Date of Harvest <Text style={localStyles.requiredAsterisk}>*</Text></Text>
         <TouchableOpacity
           style={styles.datePickerButton}
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => {
+            // Initialize tempDate with current formData.date
+            setTempDate(formData.date);
+            setDatePickerKey(prev => prev + 1);
+            setIsPickerMounted(true);
+            setShowDatePicker(true);
+          }}
         >
           <Feather name="calendar" size={18} color={colors.primary} style={{ marginRight: 8 }} />
           <Text style={styles.dateText}>
@@ -1410,40 +1818,45 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           visible={showDatePicker}
           transparent={true}
           animationType="fade"
-          onRequestClose={() => setShowDatePicker(false)}
+          onRequestClose={closeDatePicker}
         >
-          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-            <View style={localStyles.dateModalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={localStyles.dateModalContent}>
-                  <View style={localStyles.dateModalHeader}>
-                    <Text style={localStyles.dateModalTitle}>Select Date</Text>
-                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Feather name="x" size={24} color={colors.darkGray} />
-                    </TouchableOpacity>
-                  </View>
-                  <DateTimePicker
-                    value={formData.date}
-                    mode="date"
-                    display="inline"
-                    onChange={handleDateChange}
-                    maximumDate={new Date()}
-                    style={localStyles.datePickerInline}
-                  />
-                  <TouchableOpacity
-                    style={localStyles.dateModalConfirmButton}
-                    onPress={() => setShowDatePicker(false)}
-                  >
-                    <Text style={localStyles.dateModalConfirmText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableWithoutFeedback>
+          <View style={localStyles.dateModalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeDatePicker}
+            />
+            <View style={localStyles.dateModalContent}>
+              <View style={localStyles.dateModalHeader}>
+                <Text style={localStyles.dateModalTitle}>Select Date</Text>
+                <TouchableOpacity onPress={closeDatePicker}>
+                  <Feather name="x" size={24} color={colors.darkGray} />
+                </TouchableOpacity>
+              </View>
+              {isPickerMounted && (
+                <DateTimePicker
+                  key={`report-date-picker-${datePickerKey}`}
+                  value={tempDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                  maximumDate={new Date()}
+                  themeVariant="light"
+                  style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
+                />
+              )}
+              <TouchableOpacity
+                style={localStyles.dateModalConfirmButton}
+                onPress={confirmDateSelection}
+              >
+                <Text style={localStyles.dateModalConfirmText}>Done</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableWithoutFeedback>
+          </View>
         </Modal>
 
         {/* Hook & Line Selection */}
-        <Text style={styles.label}>Did you use Hook & Line? *</Text>
+        <Text style={styles.label}>Did you use Hook & Line? <Text style={localStyles.requiredAsterisk}>*</Text></Text>
         <View style={localStyles.licenseToggleContainer}>
           <TouchableOpacity
             style={[
@@ -1495,7 +1908,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         <Text style={styles.sectionTitle}>Angler Information</Text>
 
         {/* License Question - Required for DMF submission */}
-        <Text style={styles.label}>Do you have a NC Fishing License? *</Text>
+        <Text style={styles.label}>Do you have a NC Fishing License? <Text style={localStyles.requiredAsterisk}>*</Text></Text>
         <View style={localStyles.licenseToggleContainer}>
           <TouchableOpacity
             style={[
@@ -1543,7 +1956,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         {/* Show WRC ID if licensed (required), or Name + ZIP if unlicensed (required) */}
         {formData.hasLicense === true && (
           <>
-            <Text style={styles.label}>WRC ID / Customer ID *</Text>
+            <View style={localStyles.labelRow}>
+              <Text style={styles.label}>WRC ID / Customer ID <Text style={localStyles.requiredAsterisk}>*</Text></Text>
+              <TouchableOpacity
+                onPress={() => setShowWrcIdInfoModal(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Feather name="info" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={[
                 styles.input,
@@ -1552,18 +1973,35 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               value={formData.wrcId}
               onChangeText={(text) => {
                 clearValidationError("wrcId");
+                const wasEmpty = !formData.wrcId?.trim();
+                const isNew = text.trim() !== "" && text !== initialLoadedValues.wrcId;
+                const shouldAutoToggle = isNew && wasEmpty && !saveLicenseNumber && !hasSavedLicenseNumber;
+
                 setFormData({
                   ...formData,
                   wrcId: text,
                 });
-                // Reset the save toggle if user changes the value
+
+                // Auto-toggle save checkbox when entering new WRC ID
+                if (shouldAutoToggle) {
+                  setSaveLicenseNumber(true);
+                  pulseCheckbox(licenseCheckboxAnim);
+                }
+
+                // Reset the save toggle if user changes the value after saving
                 if (hasSavedLicenseNumber && text !== initialLoadedValues.wrcId) {
                   setHasSavedLicenseNumber(false);
                   setSaveLicenseNumber(false);
                 }
+
+                // Auto-expand contact section when required field (WRC ID) is filled
+                if (text.trim() && !showContactSection) {
+                  setShowContactSection(true);
+                }
               }}
               placeholder="Enter your WRC ID or Customer ID"
               autoCapitalize="characters"
+              onFocus={scrollToCenter}
             />
             {validationErrors.wrcId && (
               <Text style={localStyles.errorText}>{validationErrors.wrcId}</Text>
@@ -1576,14 +2014,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 onPress={() => handleSaveLicenseNumber(!saveLicenseNumber)}
                 activeOpacity={0.7}
               >
-                <View style={[
+                <Animated.View style={[
                   localStyles.checkbox,
-                  saveLicenseNumber && localStyles.checkboxChecked
+                  saveLicenseNumber && localStyles.checkboxChecked,
+                  { transform: [{ scale: licenseCheckboxAnim }] }
                 ]}>
                   {saveLicenseNumber && (
                     <Feather name="check" size={14} color={colors.white} />
                   )}
-                </View>
+                </Animated.View>
                 <Text style={localStyles.checkboxLabel}>
                   {hasSavedLicenseNumber && saveLicenseNumber
                     ? "Saved to My License"
@@ -1591,12 +2030,104 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
             )}
+
+            {/* Name and ZIP for licensed anglers (same as DMF form) */}
+            <Text style={[styles.label, { marginTop: 16 }]}>Name</Text>
+            <View style={localStyles.nameRow}>
+              <TextInput
+                style={[styles.input, localStyles.nameInput]}
+                value={formData.angler.firstName}
+                onChangeText={(text) => {
+                  const wasEmpty = !formData.angler.firstName?.trim();
+                  const isNew = text.trim() !== "" && text !== initialLoadedValues.firstName;
+                  const shouldAutoToggleSave = isNew && wasEmpty && !saveAnglerInfo;
+
+                  setFormData({
+                    ...formData,
+                    angler: { ...formData.angler, firstName: text },
+                  });
+
+                  if (shouldAutoToggleSave) {
+                    setSaveAnglerInfo(true);
+                    pulseCheckbox(profileSaveAnim);
+                  }
+                }}
+                placeholder="First"
+                onFocus={scrollToCenter}
+              />
+              <TextInput
+                style={[styles.input, localStyles.nameInput]}
+                value={formData.angler.lastName}
+                onChangeText={(text) => {
+                  const wasEmpty = !formData.angler.lastName?.trim();
+                  const isNew = text.trim() !== "" && text !== initialLoadedValues.lastName;
+                  const shouldAutoToggleSave = isNew && wasEmpty && !saveAnglerInfo;
+
+                  setFormData({
+                    ...formData,
+                    angler: { ...formData.angler, lastName: text },
+                  });
+
+                  if (shouldAutoToggleSave) {
+                    setSaveAnglerInfo(true);
+                    pulseCheckbox(profileSaveAnim);
+                  }
+                }}
+                placeholder="Last"
+                onFocus={scrollToCenter}
+              />
+            </View>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>ZIP Code</Text>
+            <View style={localStyles.zipInputRow}>
+              <TextInput
+                style={[styles.input, localStyles.zipInput]}
+                value={formData.zipCode}
+                onChangeText={(text) => {
+                  const cleanedZip = text.replace(/\D/g, '').slice(0, 5);
+                  setFormData({
+                    ...formData,
+                    zipCode: cleanedZip,
+                  });
+                  // Auto-save when complete 5-digit zip is entered
+                  if (cleanedZip.length === 5 && cleanedZip !== initialLoadedValues.zipCode) {
+                    saveProfileField('zipCode', cleanedZip);
+                  }
+                }}
+                placeholder="12345"
+                keyboardType="number-pad"
+                maxLength={5}
+                onFocus={scrollToCenter}
+              />
+              {/* ZIP code lookup feedback */}
+              {formData.zipCode?.length === 5 && (
+                <View style={localStyles.zipFeedback}>
+                  {zipLookup.isLoading && (
+                    <Text style={localStyles.zipFeedbackLoading}>Checking...</Text>
+                  )}
+                  {zipLookup.result && !zipLookup.isLoading && (
+                    <View style={localStyles.zipFeedbackSuccess}>
+                      <Feather name="check-circle" size={14} color="#28a745" />
+                      <Text style={localStyles.zipFeedbackSuccessText}>
+                        {zipLookup.result.city}, {zipLookup.result.stateAbbr}
+                      </Text>
+                    </View>
+                  )}
+                  {zipLookup.error && !zipLookup.isLoading && (
+                    <View style={localStyles.zipFeedbackWarning}>
+                      <Feather name="alert-circle" size={14} color="#ff9800" />
+                      <Text style={localStyles.zipFeedbackWarningText}>{zipLookup.error}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
           </>
         )}
 
         {formData.hasLicense === false && (
           <>
-            <Text style={styles.label}>Name *</Text>
+            <Text style={styles.label}>Name <Text style={localStyles.requiredAsterisk}>*</Text></Text>
             <View style={localStyles.nameRow}>
               <TextInput
                 style={[
@@ -1607,12 +2138,30 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 value={formData.angler.firstName}
                 onChangeText={(text) => {
                   clearValidationError("firstName");
+                  const wasEmpty = !formData.angler.firstName?.trim();
+                  const isNew = text.trim() !== "" && text !== initialLoadedValues.firstName;
+                  const shouldAutoToggleSave = isNew && wasEmpty && !saveAnglerInfo;
+
                   setFormData({
                     ...formData,
                     angler: { ...formData.angler, firstName: text },
                   });
+
+                  if (shouldAutoToggleSave) {
+                    setSaveAnglerInfo(true);
+                    pulseCheckbox(profileSaveAnim);
+                  }
+
+                  // Auto-expand contact section when all required fields are filled (unlicensed)
+                  const hasRequiredFields = text.trim() &&
+                                            formData.angler.lastName?.trim() &&
+                                            formData.zipCode?.length === 5;
+                  if (hasRequiredFields && !showContactSection) {
+                    setShowContactSection(true);
+                  }
                 }}
                 placeholder="First"
+                onFocus={scrollToCenter}
               />
               <TextInput
                 style={[
@@ -1623,12 +2172,30 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 value={formData.angler.lastName}
                 onChangeText={(text) => {
                   clearValidationError("lastName");
+                  const wasEmpty = !formData.angler.lastName?.trim();
+                  const isNew = text.trim() !== "" && text !== initialLoadedValues.lastName;
+                  const shouldAutoToggleSave = isNew && wasEmpty && !saveAnglerInfo;
+
                   setFormData({
                     ...formData,
                     angler: { ...formData.angler, lastName: text },
                   });
+
+                  if (shouldAutoToggleSave) {
+                    setSaveAnglerInfo(true);
+                    pulseCheckbox(profileSaveAnim);
+                  }
+
+                  // Auto-expand contact section when all required fields are filled (unlicensed)
+                  const hasRequiredFields = formData.angler.firstName?.trim() &&
+                                            text.trim() &&
+                                            formData.zipCode?.length === 5;
+                  if (hasRequiredFields && !showContactSection) {
+                    setShowContactSection(true);
+                  }
                 }}
                 placeholder="Last"
+                onFocus={scrollToCenter}
               />
             </View>
             {(validationErrors.firstName || validationErrors.lastName) && (
@@ -1637,105 +2204,238 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               </Text>
             )}
 
-            <Text style={styles.label}>ZIP Code *</Text>
-            <TextInput
-              style={[
-                styles.input,
-                validationErrors.zipCode && localStyles.inputError,
-              ]}
-              value={formData.zipCode}
-              onChangeText={(text) => {
-                clearValidationError("zipCode");
-                setFormData({
-                  ...formData,
-                  zipCode: text.replace(/\D/g, '').slice(0, 5),
-                });
-              }}
-              placeholder="Enter your 5-digit ZIP code"
-              keyboardType="number-pad"
-              maxLength={5}
-            />
+            <Text style={styles.label}>ZIP Code <Text style={localStyles.requiredAsterisk}>*</Text></Text>
+            <View style={localStyles.zipInputRow}>
+              <TextInput
+                style={[
+                  styles.input,
+                  localStyles.zipInput,
+                  validationErrors.zipCode && localStyles.inputError,
+                ]}
+                value={formData.zipCode}
+                onChangeText={(text) => {
+                  clearValidationError("zipCode");
+                  const cleanedZip = text.replace(/\D/g, '').slice(0, 5);
+                  setFormData({
+                    ...formData,
+                    zipCode: cleanedZip,
+                  });
+
+                  // Auto-save when complete 5-digit zip is entered
+                  if (cleanedZip.length === 5 && cleanedZip !== initialLoadedValues.zipCode) {
+                    saveProfileField('zipCode', cleanedZip);
+                  }
+
+                  // Auto-expand contact section when all required fields are filled (unlicensed)
+                  const hasRequiredFields = formData.angler.firstName?.trim() &&
+                                            formData.angler.lastName?.trim() &&
+                                            cleanedZip.length === 5;
+                  if (hasRequiredFields && !showContactSection) {
+                    setShowContactSection(true);
+                  }
+                }}
+                placeholder="12345"
+                keyboardType="number-pad"
+                maxLength={5}
+                onFocus={scrollToCenter}
+              />
+              {/* ZIP code lookup feedback */}
+              {formData.zipCode?.length === 5 && !validationErrors.zipCode && (
+                <View style={localStyles.zipFeedback}>
+                  {zipLookup.isLoading && (
+                    <Text style={localStyles.zipFeedbackLoading}>Checking...</Text>
+                  )}
+                  {zipLookup.result && !zipLookup.isLoading && (
+                    <View style={localStyles.zipFeedbackSuccess}>
+                      <Feather name="check-circle" size={14} color="#28a745" />
+                      <Text style={localStyles.zipFeedbackSuccessText}>
+                        {zipLookup.result.city}, {zipLookup.result.stateAbbr}
+                      </Text>
+                    </View>
+                  )}
+                  {zipLookup.error && !zipLookup.isLoading && (
+                    <View style={localStyles.zipFeedbackWarning}>
+                      <Feather name="alert-circle" size={14} color="#ff9800" />
+                      <Text style={localStyles.zipFeedbackWarningText}>{zipLookup.error}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
             {validationErrors.zipCode && (
               <Text style={localStyles.errorText}>{validationErrors.zipCode}</Text>
             )}
           </>
         )}
 
-        {/* Optional contact fields for DMF confirmations */}
-        <Text style={[styles.label, { marginTop: 16 }]}>Email (optional)</Text>
-        <TextInput
-          style={[styles.input, validationErrors.email && localStyles.inputError]}
-          value={formData.angler.email}
-          onChangeText={(text) => {
-            clearValidationError("email");
-            setFormData({
-              ...formData,
-              angler: { ...formData.angler, email: text },
-            });
-          }}
-          placeholder="Your email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        {validationErrors.email && (
-          <Text style={localStyles.errorText}>{validationErrors.email}</Text>
-        )}
+        {/* Collapsible contact section for DMF confirmations */}
+        <TouchableOpacity
+          style={localStyles.contactSectionToggle}
+          onPress={toggleContactSection}
+          activeOpacity={0.7}
+        >
+          <View style={localStyles.contactSectionToggleLeft}>
+            <Feather name="mail" size={18} color={colors.primary} />
+            <Text style={localStyles.contactSectionToggleText}>
+              Get Confirmation
+            </Text>
+          </View>
+          <Feather
+            name={showContactSection ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
 
-        {/* Email confirmation checkbox - DMF will send email confirmation */}
-        {formData.angler.email && (
-          <TouchableOpacity
-            style={localStyles.checkboxRow}
-            onPress={() => setFormData({ ...formData, wantEmailConfirmation: !formData.wantEmailConfirmation })}
-            activeOpacity={0.7}
-          >
-            <View style={[
-              localStyles.checkbox,
-              formData.wantEmailConfirmation && localStyles.checkboxChecked
-            ]}>
-              {formData.wantEmailConfirmation && (
-                <Feather name="check" size={14} color={colors.white} />
-              )}
-            </View>
-            <Text style={localStyles.checkboxLabel}>Send email confirmation from NC DMF</Text>
-          </TouchableOpacity>
-        )}
+        {/* Expandable contact fields */}
+        {showContactSection && (
+          <View style={localStyles.contactSectionContent}>
+            <Text style={localStyles.contactSectionHint}>
+              Receive confirmation from NC DMF via email or text (optional)
+            </Text>
 
-        <Text style={styles.label}>Phone (optional)</Text>
-        <TextInput
-          style={[styles.input, validationErrors.phone && localStyles.inputError]}
-          value={formData.angler.phone}
-          onChangeText={(text) => {
-            clearValidationError("phone");
-            setFormData({
-              ...formData,
-              angler: { ...formData.angler, phone: formatPhoneNumber(text) },
-            });
-          }}
-          placeholder="555-555-5555"
-          keyboardType="phone-pad"
-          maxLength={12}
-        />
-        {validationErrors.phone && (
-          <Text style={localStyles.errorText}>{validationErrors.phone}</Text>
-        )}
+            <Text style={[styles.label, { marginTop: 12 }]}>Email</Text>
+            <TextInput
+              style={[styles.input, validationErrors.email && localStyles.inputError]}
+              value={formData.angler.email}
+              onChangeText={(text) => {
+                clearValidationError("email");
+                // Auto-select email confirmation when user enters email
+                const hasEmail = text.trim().length > 0;
+                const wasEmpty = !formData.angler.email?.trim();
+                const shouldAutoToggleEmail = hasEmail && wasEmpty && !formData.wantEmailConfirmation;
+                const isNewEmail = text.trim() !== "" && text !== initialLoadedValues.email;
+                const shouldAutoToggleSave = isNewEmail && !saveAnglerInfo;
 
-        {/* Text confirmation checkbox - DMF will send text confirmation */}
-        {formData.angler.phone && (
-          <TouchableOpacity
-            style={localStyles.checkboxRow}
-            onPress={() => setFormData({ ...formData, wantTextConfirmation: !formData.wantTextConfirmation })}
-            activeOpacity={0.7}
-          >
-            <View style={[
-              localStyles.checkbox,
-              formData.wantTextConfirmation && localStyles.checkboxChecked
-            ]}>
-              {formData.wantTextConfirmation && (
-                <Feather name="check" size={14} color={colors.white} />
-              )}
-            </View>
-            <Text style={localStyles.checkboxLabel}>Send text confirmation from NC DMF</Text>
-          </TouchableOpacity>
+                const newEmailPref = hasEmail ? true : formData.wantEmailConfirmation;
+                setFormData({
+                  ...formData,
+                  angler: { ...formData.angler, email: text },
+                  wantEmailConfirmation: newEmailPref,
+                });
+
+                // Trigger animation and auto-save when auto-toggling email confirmation
+                if (shouldAutoToggleEmail) {
+                  pulseCheckbox(emailCheckboxAnim);
+                  saveDMFPreferences(formData.wantTextConfirmation, true);
+                }
+
+                // Auto-toggle Save to Profile when entering new email
+                if (shouldAutoToggleSave) {
+                  setSaveAnglerInfo(true);
+                  pulseCheckbox(profileSaveAnim);
+                }
+              }}
+              placeholder="Your email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              onFocus={scrollToCenter}
+              onBlur={() => {
+                const error = validateEmail(formData.angler.email || "");
+                setValidationErrors(prev => ({ ...prev, email: error }));
+              }}
+            />
+            {validationErrors.email && (
+              <Text style={localStyles.errorText}>{validationErrors.email}</Text>
+            )}
+
+            {/* Email confirmation checkbox - DMF will send email confirmation */}
+            {formData.angler.email && (
+              <TouchableOpacity
+                style={localStyles.checkboxRow}
+                onPress={() => {
+                  const newEmailPref = !formData.wantEmailConfirmation;
+                  setFormData({ ...formData, wantEmailConfirmation: newEmailPref });
+                  saveDMFPreferences(formData.wantTextConfirmation, newEmailPref);
+                }}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={[
+                  localStyles.checkbox,
+                  formData.wantEmailConfirmation && localStyles.checkboxChecked,
+                  { transform: [{ scale: emailCheckboxAnim }] }
+                ]}>
+                  {formData.wantEmailConfirmation && (
+                    <Feather name="check" size={14} color={colors.white} />
+                  )}
+                </Animated.View>
+                <Text style={localStyles.checkboxLabel}>Send email confirmation from NC DMF</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Mobile Phone</Text>
+            <Text style={localStyles.phoneDisclaimer}>
+              Entering your number indicates that you agree to receiving a confirmation SMS text from NC Department of Environmental Quality. Data rates may apply.
+            </Text>
+            <TextInput
+              style={[styles.input, validationErrors.phone && localStyles.inputError]}
+              value={formData.angler.phone}
+              onChangeText={(text) => {
+                clearValidationError("phone");
+                const formattedPhone = formatPhoneNumber(text);
+                // Auto-select text confirmation when user enters phone
+                const hasPhone = formattedPhone.trim().length > 0;
+                const wasEmpty = !formData.angler.phone?.trim();
+                const shouldAutoTogglePhone = hasPhone && wasEmpty && !formData.wantTextConfirmation;
+                const isNewPhone = formattedPhone.trim() !== "" && formattedPhone !== initialLoadedValues.phone;
+                const shouldAutoToggleSave = isNewPhone && !saveAnglerInfo;
+
+                const newTextPref = hasPhone ? true : formData.wantTextConfirmation;
+                setFormData({
+                  ...formData,
+                  angler: { ...formData.angler, phone: formattedPhone },
+                  wantTextConfirmation: newTextPref,
+                });
+
+                // Trigger animation and auto-save when auto-toggling phone confirmation
+                if (shouldAutoTogglePhone) {
+                  pulseCheckbox(phoneCheckboxAnim);
+                  saveDMFPreferences(true, formData.wantEmailConfirmation);
+                }
+
+                // Auto-toggle Save to Profile when entering new phone
+                if (shouldAutoToggleSave) {
+                  setSaveAnglerInfo(true);
+                  pulseCheckbox(profileSaveAnim);
+                }
+              }}
+              placeholder="555-555-5555"
+              keyboardType="phone-pad"
+              maxLength={12}
+              onFocus={scrollToCenter}
+              onBlur={() => {
+                const error = validatePhone(formData.angler.phone || "");
+                setValidationErrors(prev => ({ ...prev, phone: error }));
+              }}
+            />
+            {validationErrors.phone && (
+              <Text style={localStyles.errorText}>{validationErrors.phone}</Text>
+            )}
+
+            {/* Text confirmation checkbox - DMF will send text confirmation */}
+            {formData.angler.phone && (
+              <TouchableOpacity
+                style={localStyles.checkboxRow}
+                onPress={() => {
+                  const newTextPref = !formData.wantTextConfirmation;
+                  setFormData({ ...formData, wantTextConfirmation: newTextPref });
+                  saveDMFPreferences(newTextPref, formData.wantEmailConfirmation);
+                }}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={[
+                  localStyles.checkbox,
+                  formData.wantTextConfirmation && localStyles.checkboxChecked,
+                  { transform: [{ scale: phoneCheckboxAnim }] }
+                ]}>
+                  {formData.wantTextConfirmation && (
+                    <Feather name="check" size={14} color={colors.white} />
+                  )}
+                </Animated.View>
+                <Text style={localStyles.checkboxLabel}>Send text confirmation from NC DMF</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* Save angler info toggle - only show if user entered NEW info (different from pre-loaded) */}
@@ -1743,27 +2443,29 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           (formData.angler.lastName && formData.angler.lastName !== initialLoadedValues.lastName) ||
           (formData.angler.email && formData.angler.email !== initialLoadedValues.email) ||
           (formData.angler.phone && formData.angler.phone !== initialLoadedValues.phone)) && (
-          <TouchableOpacity
-            style={[
-              localStyles.saveButton,
-              saveAnglerInfo && localStyles.saveButtonSaved
-            ]}
-            onPress={() => handleSaveAnglerInfo(!saveAnglerInfo)}
-            activeOpacity={0.7}
-            disabled={saveAnglerInfo}
-          >
-            <Feather
-              name={saveAnglerInfo ? "check" : "save"}
-              size={14}
-              color={saveAnglerInfo ? colors.success : colors.primary}
-            />
-            <Text style={[
-              localStyles.saveButtonText,
-              saveAnglerInfo && localStyles.saveButtonTextSaved
-            ]}>
-              {saveAnglerInfo ? "Saved to profile" : "Save to profile"}
-            </Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: profileSaveAnim }] }}>
+            <TouchableOpacity
+              style={[
+                localStyles.saveButton,
+                saveAnglerInfo && localStyles.saveButtonSaved
+              ]}
+              onPress={() => handleSaveAnglerInfo(!saveAnglerInfo)}
+              activeOpacity={0.7}
+              disabled={saveAnglerInfo}
+            >
+              <Feather
+                name={saveAnglerInfo ? "check" : "save"}
+                size={14}
+                color={saveAnglerInfo ? colors.success : colors.primary}
+              />
+              <Text style={[
+                localStyles.saveButtonText,
+                saveAnglerInfo && localStyles.saveButtonTextSaved
+              ]}>
+                {saveAnglerInfo ? "Saved to profile" : "Save to profile"}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
       </View>
       )}
@@ -1774,25 +2476,25 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       {/* Raffle Entry Section */}
       <View style={[
         localStyles.raffleSection,
-        hasEnteredCurrentRaffle && localStyles.raffleSectionEntered,
+        (hasEnteredCurrentRaffle || enterRaffle) && localStyles.raffleSectionEntered,
       ]}>
         <View style={localStyles.raffleSectionHeader}>
           <View style={[
             localStyles.raffleIconContainer,
-            hasEnteredCurrentRaffle && localStyles.raffleIconContainerEntered,
+            (hasEnteredCurrentRaffle || enterRaffle) && localStyles.raffleIconContainerEntered,
           ]}>
             <Feather
-              name={hasEnteredCurrentRaffle ? "check-circle" : "gift"}
+              name={(hasEnteredCurrentRaffle || enterRaffle) ? "check-circle" : "gift"}
               size={24}
-              color={hasEnteredCurrentRaffle ? colors.white : colors.primary}
+              color={(hasEnteredCurrentRaffle || enterRaffle) ? colors.white : colors.primary}
             />
           </View>
           <View style={localStyles.raffleTitleContainer}>
-            <Text style={localStyles.raffleTitle}>{currentRaffle.name}</Text>
+            <Text style={localStyles.raffleTitle}>{currentRewards.name}</Text>
             <Text style={localStyles.raffleSubtitle}>
-              {hasEnteredCurrentRaffle
+              {(hasEnteredCurrentRaffle || enterRaffle)
                 ? "You're entered! Good luck!"
-                : `${currentRaffle.daysRemaining} days left to enter`}
+                : "Eligible contributors entered automatically"}
             </Text>
           </View>
         </View>
@@ -1801,13 +2503,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           <View style={localStyles.raffleEnteredMessage}>
             <Feather name="award" size={18} color={colors.success} />
             <Text style={localStyles.raffleEnteredText}>
-              You've already entered the current raffle. Winners will be announced at the end of {currentRaffle.name.split(' ')[0]}.
+              You're entered in this quarter's drawing. Selected contributors will be notified via email once the drawing period ends.
             </Text>
           </View>
         ) : (
           <>
             <Text style={localStyles.raffleDescription}>
-              Enter to win prizes! By joining, you agree to share your catch data on the public leaderboard.
+              Report your catch to be entered into our quarterly drawing.
             </Text>
 
             {enterRaffle ? (
@@ -1815,17 +2517,23 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 <View style={[localStyles.raffleButton, localStyles.raffleButtonSelected]}>
                   <Feather name="check-circle" size={20} color={colors.white} />
                   <Text style={[localStyles.raffleButtonText, localStyles.raffleButtonTextSelected]}>
-                    Entered in Raffle
+                    Joined Rewards Program
+                  </Text>
+                </View>
+                <View style={localStyles.privacyAssurance}>
+                  <Feather name="lock" size={14} color={colors.success} style={{ marginRight: 6 }} />
+                  <Text style={localStyles.privacyAssuranceText}>
+                    Your catch & profile will be shared on Catch Feed, but all user data NEVER leaves the app. We really don't like people who sell user data. They are bilge scum.
                   </Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => {
                     setEnterRaffle(false);
-                    showToast("Raffle Entry Removed", "You can re-enter anytime before submitting.");
+                    toast.show("Rewards Entry Removed", "You can re-join anytime before submitting.");
                   }}
                   style={localStyles.raffleRemoveButton}
                 >
-                  <Text style={localStyles.raffleRemoveButtonText}>Remove from raffle</Text>
+                  <Text style={localStyles.raffleRemoveButtonText}>Remove from rewards</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -1835,7 +2543,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 activeOpacity={0.7}
               >
                 <Feather name="circle" size={20} color={colors.primary} />
-                <Text style={localStyles.raffleButtonText}>Enter Raffle</Text>
+                <Text style={localStyles.raffleButtonText}>Learn More</Text>
               </TouchableOpacity>
             )}
           </>
@@ -1851,1164 +2559,48 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         <Text style={styles.submitButtonText}>Submit Report</Text>
       </TouchableOpacity>
 
-      <Text style={styles.requiredFields}>* Required fields</Text>
+      <Text style={styles.requiredFields}><Text style={localStyles.requiredAsterisk}>*</Text> Required fields</Text>
       </>
       )}
-    </ScrollView>
+        </View>
+      </Animated.ScrollView>
 
       {/* Toast Notification */}
-      {toastVisible && (
+      {toast.visible && (
         <Animated.View
           style={[
             localStyles.toast,
-            { transform: [{ translateY: toastAnim }] },
+            { transform: [{ translateY: toast.animValue }] },
           ]}
         >
           <Feather name="check-circle" size={24} color={colors.white} />
           <View style={localStyles.toastContent}>
-            <Text style={localStyles.toastTitle}>{toastTitle}</Text>
-            <Text style={localStyles.toastSubtitle}>{toastSubtitle}</Text>
+            <Text style={localStyles.toastTitle}>{toast.title}</Text>
+            <Text style={localStyles.toastSubtitle}>{toast.subtitle}</Text>
           </View>
         </Animated.View>
       )}
 
-      {/* Raffle Entry Modal - Collects all raffle-specific info */}
-      <Modal
+      <RaffleEntryModal
         visible={showRaffleModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowRaffleModal(false)}
-      >
-        <View style={localStyles.raffleModalOverlay}>
-          <View style={localStyles.raffleModalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Header */}
-              <View style={localStyles.raffleModalHeader}>
-                <TouchableOpacity
-                  style={localStyles.raffleModalCloseButton}
-                  onPress={() => setShowRaffleModal(false)}
-                >
-                  <Feather name="x" size={24} color={colors.textSecondary} />
-                </TouchableOpacity>
-                <View style={localStyles.raffleModalIconContainer}>
-                  <Feather name="gift" size={32} color={colors.primary} />
-                </View>
-                <Text style={localStyles.raffleModalTitle}>{currentRaffle.name}</Text>
-                <Text style={localStyles.raffleModalSubtitle}>
-                  {currentRaffle.daysRemaining} days remaining
-                </Text>
-              </View>
-
-              {/* Photo Section */}
-              <View style={localStyles.raffleModalSection}>
-                <Text style={localStyles.raffleModalSectionTitle}>
-                  <Feather name="camera" size={16} color={colors.primary} /> Photo Required
-                </Text>
-                <Text style={localStyles.raffleModalSectionDesc}>
-                  Take a photo of your catch to verify your entry.
-                </Text>
-
-                {catchPhoto ? (
-                  <View style={localStyles.rafflePhotoContainer}>
-                    <Image
-                      source={{ uri: catchPhoto }}
-                      style={localStyles.rafflePhoto}
-                      resizeMode="cover"
-                    />
-                    <View style={localStyles.rafflePhotoActions}>
-                      <TouchableOpacity
-                        style={localStyles.rafflePhotoActionButton}
-                        onPress={handleTakePhoto}
-                      >
-                        <Feather name="camera" size={16} color={colors.primary} />
-                        <Text style={localStyles.rafflePhotoActionText}>Retake</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={localStyles.rafflePhotoActionButton}
-                        onPress={handleRemovePhoto}
-                      >
-                        <Feather name="trash-2" size={16} color={colors.error} />
-                        <Text style={[localStyles.rafflePhotoActionText, { color: colors.error }]}>Remove</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ) : (
-                  <TouchableOpacity
-                    style={localStyles.raffleTakePhotoButton}
-                    onPress={handleTakePhoto}
-                  >
-                    <Feather name="camera" size={24} color={colors.primary} />
-                    <Text style={localStyles.raffleTakePhotoText}>Take Photo</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Contact Info Section */}
-              <View style={localStyles.raffleModalSection}>
-                <Text style={localStyles.raffleModalSectionTitle}>
-                  <Feather name="user" size={16} color={colors.primary} /> Your Information
-                </Text>
-                <Text style={localStyles.raffleModalSectionDesc}>
-                  We need your contact info to notify you if you win.
-                </Text>
-
-                <Text style={localStyles.raffleInputLabel}>Name *</Text>
-                <View style={localStyles.nameRow}>
-                  <TextInput
-                    style={[localStyles.raffleInput, localStyles.nameInput]}
-                    value={formData.angler.firstName}
-                    onChangeText={(text) => setFormData({
-                      ...formData,
-                      angler: { ...formData.angler, firstName: text },
-                    })}
-                    placeholder="First"
-                    placeholderTextColor={colors.textTertiary}
-                  />
-                  <TextInput
-                    style={[localStyles.raffleInput, localStyles.nameInput]}
-                    value={formData.angler.lastName}
-                    onChangeText={(text) => setFormData({
-                      ...formData,
-                      angler: { ...formData.angler, lastName: text },
-                    })}
-                    placeholder="Last"
-                    placeholderTextColor={colors.textTertiary}
-                  />
-                </View>
-
-                <Text style={localStyles.raffleInputLabel}>Email *</Text>
-                <TextInput
-                  style={localStyles.raffleInput}
-                  value={formData.angler.email}
-                  onChangeText={(text) => setFormData({
-                    ...formData,
-                    angler: { ...formData.angler, email: text },
-                  })}
-                  placeholder="Email address"
-                  placeholderTextColor={colors.textTertiary}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-
-                <Text style={localStyles.raffleInputLabel}>Phone *</Text>
-                <TextInput
-                  style={localStyles.raffleInput}
-                  value={formData.angler.phone}
-                  onChangeText={(text) => setFormData({
-                    ...formData,
-                    angler: { ...formData.angler, phone: formatPhoneNumber(text) },
-                  })}
-                  placeholder="555-555-5555"
-                  placeholderTextColor={colors.textTertiary}
-                  keyboardType="phone-pad"
-                  maxLength={12}
-                />
-              </View>
-
-              {/* Terms */}
-              <View style={localStyles.raffleModalSection}>
-                <Text style={localStyles.raffleModalSectionTitle}>
-                  <Feather name="info" size={16} color={colors.primary} /> By Entering
-                </Text>
-                <View style={localStyles.raffleModalList}>
-                  <View style={localStyles.raffleModalListItem}>
-                    <Feather name="check" size={14} color={colors.success} />
-                    <Text style={localStyles.raffleModalListText}>
-                      Your catch appears on the public leaderboard
-                    </Text>
-                  </View>
-                  <View style={localStyles.raffleModalListItem}>
-                    <Feather name="check" size={14} color={colors.success} />
-                    <Text style={localStyles.raffleModalListText}>
-                      Your name may appear in rankings
-                    </Text>
-                  </View>
-                  <View style={localStyles.raffleModalListItem}>
-                    <Feather name="check" size={14} color={colors.success} />
-                    <Text style={localStyles.raffleModalListText}>
-                      You're eligible for monthly prizes
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Action Buttons */}
-              <View style={localStyles.raffleModalButtonsRow}>
-                <TouchableOpacity
-                  style={[localStyles.raffleModalButton, localStyles.raffleModalSecondaryButton]}
-                  onPress={() => setShowRaffleModal(false)}
-                >
-                  <Text style={localStyles.raffleModalSecondaryButtonText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    localStyles.raffleModalButton,
-                    localStyles.raffleModalPrimaryButton,
-                    (!catchPhoto || !formData.angler.firstName?.trim() || !formData.angler.lastName?.trim() ||
-                     !formData.angler.email?.trim() || !formData.angler.phone?.trim()) && localStyles.raffleModalButtonDisabled,
-                  ]}
-                  onPress={() => {
-                    // Validate raffle requirements
-                    if (!catchPhoto) {
-                      Alert.alert("Photo Required", "Please take a photo of your catch to enter the raffle.");
-                      return;
-                    }
-                    if (!formData.angler.firstName?.trim() || !formData.angler.lastName?.trim()) {
-                      Alert.alert("Name Required", "Please enter your name to enter the raffle.");
-                      return;
-                    }
-                    if (!formData.angler.email?.trim()) {
-                      Alert.alert("Email Required", "Please enter your email address to enter the raffle.");
-                      return;
-                    }
-                    if (!formData.angler.phone?.trim()) {
-                      Alert.alert("Phone Required", "Please enter your phone number to enter the raffle.");
-                      return;
-                    }
-                    setEnterRaffle(true);
-                    setShowRaffleModal(false);
-                    showToast("Raffle Entry Added", "Your raffle entry will be submitted with this report.");
-                  }}
-                  disabled={!catchPhoto || !formData.angler.firstName?.trim() || !formData.angler.lastName?.trim() ||
-                           !formData.angler.email?.trim() || !formData.angler.phone?.trim()}
-                >
-                  <Feather name="gift" size={18} color={colors.white} />
-                  <Text style={localStyles.raffleModalPrimaryButtonText}>Enter Raffle</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowRaffleModal(false)}
+        raffleModalSlideAnim={raffleModalSlideAnim}
+        currentRewards={currentRewards}
+        catchPhoto={catchPhoto}
+        formData={formData}
+        raffleValidationErrors={raffleValidationErrors}
+        onSetFormData={setFormData}
+        onSetRaffleValidationErrors={setRaffleValidationErrors}
+        onTakePhoto={handleTakePhoto}
+        onRemovePhoto={handleRemovePhoto}
+        onSubmitRaffle={() => {
+          setEnterRaffle(true);
+          setShowRaffleModal(false);
+          toast.show("Rewards Entry Added", "You'll be entered in this quarter's drawing.");
+        }}
+      />
     </View>
   );
 };
-
-// Local styles for multi-fish UI and count picker
-const localStyles = StyleSheet.create({
-  // Toast notification styles
-  toast: {
-    position: "absolute",
-    bottom: 40,
-    left: 20,
-    right: 20,
-    backgroundColor: "#28a745",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  toastContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  toastTitle: {
-    color: colors.white,
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 2,
-  },
-  toastSubtitle: {
-    color: "rgba(255, 255, 255, 0.9)",
-    fontSize: 14,
-    fontWeight: "400",
-  },
-  // Screen container with primary background for header
-  screenContainer: {
-    flex: 1,
-    backgroundColor: colors.primary,
-  },
-  // Modern header styles
-  header: {
-    backgroundColor: colors.primary,
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitleContainer: {
-    alignItems: "center",
-  },
-  headerTitleText: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: colors.white,
-    letterSpacing: 0.3,
-  },
-  testModeBadge: {
-    backgroundColor: "#ff9800",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 4,
-  },
-  testModeBadgeText: {
-    color: colors.white,
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  // Scroll view with rounded top corners
-  scrollView: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  scrollViewContent: {
-    paddingTop: 8,
-    paddingBottom: 40,
-  },
-  // Modal styles
-  modalWrapper: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalDrawer: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "80%",
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  // Reporting type styles
-  reportingTypeOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
-  },
-  reportingTypeOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.primary,
-  },
-  reportingTypeText: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.textPrimary,
-  },
-  peopleCountSection: {
-    marginTop: 4,
-  },
-  // Count picker styles
-  countContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  countButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: colors.lightGray,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  countInput: {
-    flex: 1,
-    height: 44,
-    marginHorizontal: 12,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.textPrimary,
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  // Optional details styles
-  optionalToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    marginBottom: 8,
-  },
-  optionalToggleText: {
-    fontSize: 14,
-    color: colors.primary,
-    marginRight: 4,
-  },
-  optionalSection: {
-    backgroundColor: colors.lightGray,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  // Multiple lengths styles
-  lengthsContainer: {
-    marginBottom: 8,
-  },
-  lengthRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  lengthLabel: {
-    width: 32,
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.darkGray,
-  },
-  lengthInput: {
-    flex: 1,
-    height: 40,
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  // Helper text style
-  helperText: {
-    fontSize: 12,
-    color: colors.darkGray,
-    marginBottom: 8,
-    fontStyle: "italic",
-  },
-  // License toggle styles
-  licenseToggleContainer: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
-  },
-  licenseToggleButton: {
-    flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    alignItems: "center",
-  },
-  licenseToggleButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  licenseToggleText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.darkGray,
-  },
-  licenseToggleTextActive: {
-    color: colors.primary,
-  },
-  // Name row styles
-  nameRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 0,
-  },
-  nameInput: {
-    flex: 1,
-    marginBottom: 16,
-  },
-  // Multi-fish list styles
-  fishListContainer: {
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  fishListTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.darkGray,
-    marginBottom: 8,
-  },
-  fishChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.lightGray,
-    borderRadius: 8,
-    marginBottom: 6,
-    overflow: "hidden",
-  },
-  fishChipActive: {
-    backgroundColor: colors.primaryLight,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  fishChipContent: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  fishChipText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  fishChipRemove: {
-    padding: 10,
-    paddingLeft: 4,
-  },
-  addFishButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderStyle: "dashed",
-    borderRadius: 8,
-    marginTop: 12,
-    backgroundColor: "rgba(11, 84, 139, 0.05)",
-  },
-  addFishButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.primary,
-    marginLeft: 8,
-  },
-  // Switch toggle styles
-  switchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  switchLabel: {
-    fontSize: 14,
-    color: colors.darkGray,
-    flex: 1,
-    marginRight: 12,
-  },
-  // Raffle section styles
-  raffleSection: {
-    backgroundColor: "#fff9e6",
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: "#f0c14b",
-  },
-  raffleSectionEntered: {
-    borderColor: colors.success,
-    backgroundColor: "#e8f5e9",
-  },
-  raffleSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  raffleIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  raffleIconContainerEntered: {
-    backgroundColor: colors.success,
-  },
-  raffleEnteredMessage: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "#e8f5e9",
-    padding: 12,
-    borderRadius: 8,
-  },
-  raffleEnteredText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    marginLeft: 10,
-    flex: 1,
-    lineHeight: 20,
-  },
-  raffleTitleContainer: {
-    flex: 1,
-  },
-  raffleTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.textPrimary,
-  },
-  raffleSubtitle: {
-    fontSize: 13,
-    color: colors.darkGray,
-    marginTop: 2,
-  },
-  raffleDescription: {
-    fontSize: 14,
-    color: colors.darkGray,
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  raffleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    backgroundColor: colors.white,
-  },
-  raffleButtonSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  raffleButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.primary,
-    marginLeft: 8,
-  },
-  raffleButtonTextSelected: {
-    color: colors.white,
-  },
-  raffleRemoveButton: {
-    alignItems: "center",
-    paddingVertical: 10,
-    marginTop: 8,
-  },
-  raffleRemoveButtonText: {
-    fontSize: 14,
-    color: colors.darkGray,
-    textDecorationLine: "underline",
-  },
-  // Raffle modal styles
-  raffleModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  raffleModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    width: "90%",
-    maxHeight: "85%",
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  raffleModalHeader: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  raffleModalIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  raffleModalTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: colors.textPrimary,
-    textAlign: "center",
-  },
-  raffleModalSubtitle: {
-    fontSize: 14,
-    color: colors.darkGray,
-    textAlign: "center",
-    marginTop: 4,
-  },
-  raffleModalText: {
-    fontSize: 15,
-    color: colors.darkGray,
-    marginBottom: 16,
-  },
-  raffleModalList: {
-    marginBottom: 16,
-  },
-  raffleModalListItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  raffleModalListText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    marginLeft: 10,
-    flex: 1,
-    lineHeight: 20,
-  },
-  raffleModalNote: {
-    fontSize: 13,
-    color: colors.darkGray,
-    fontStyle: "italic",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  raffleModalButtonsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  raffleModalButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-  },
-  raffleModalPrimaryButton: {
-    backgroundColor: colors.primary,
-  },
-  raffleModalSecondaryButton: {
-    backgroundColor: colors.lightGray,
-  },
-  raffleModalPrimaryButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.white,
-    marginLeft: 6,
-  },
-  raffleModalSecondaryButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.textPrimary,
-  },
-  raffleModalButtonDisabled: {
-    opacity: 0.5,
-  },
-  raffleModalCloseButton: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    padding: 8,
-    zIndex: 1,
-  },
-  raffleModalSection: {
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  raffleModalSectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.textPrimary,
-    marginBottom: 6,
-  },
-  raffleModalSectionDesc: {
-    fontSize: 14,
-    color: colors.darkGray,
-    marginBottom: 12,
-  },
-  rafflePhotoContainer: {
-    alignItems: "center",
-  },
-  rafflePhoto: {
-    width: "100%",
-    height: 180,
-    borderRadius: 12,
-    backgroundColor: colors.lightGray,
-  },
-  rafflePhotoActions: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 10,
-    gap: 16,
-  },
-  rafflePhotoActionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  rafflePhotoActionText: {
-    fontSize: 14,
-    color: colors.primary,
-    marginLeft: 6,
-  },
-  raffleTakePhotoButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primaryLight,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderStyle: "dashed",
-    paddingVertical: 24,
-    gap: 8,
-  },
-  raffleTakePhotoText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.primary,
-  },
-  raffleInputLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.textPrimary,
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  raffleInput: {
-    backgroundColor: colors.lightGray,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  // Photo capture styles
-  photoContainer: {
-    marginTop: 12,
-  },
-  catchPhoto: {
-    width: "100%",
-    height: 250,
-    borderRadius: 12,
-    backgroundColor: colors.lightGray,
-  },
-  photoActions: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 12,
-    gap: 16,
-  },
-  photoActionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: colors.primaryLight,
-  },
-  photoRemoveButton: {
-    backgroundColor: "#ffebee",
-  },
-  photoActionText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.primary,
-    marginLeft: 6,
-  },
-  photoSuccessMessage: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#e8f5e9",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
-  },
-  photoSuccessText: {
-    fontSize: 14,
-    color: colors.success,
-    marginLeft: 8,
-    flex: 1,
-  },
-  takePhotoButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.primaryLight,
-    borderStyle: "dashed",
-    borderRadius: 12,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    marginTop: 12,
-  },
-  cameraIconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  takePhotoTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  takePhotoSubtitle: {
-    fontSize: 13,
-    color: colors.darkGray,
-  },
-  // Required field indicator styles
-  raffleRequiredNote: {
-    fontSize: 13,
-    color: colors.primary,
-    fontStyle: "italic",
-    marginBottom: 12,
-  },
-  requiredAsterisk: {
-    color: "#e53935",
-    fontWeight: "600",
-  },
-  // Inline validation error styles
-  inputError: {
-    borderColor: "#e53935",
-    borderWidth: 1.5,
-  },
-  errorText: {
-    fontSize: 12,
-    color: "#e53935",
-    marginTop: -8,
-    marginBottom: 12,
-  },
-  // Abandonment modal styles
-  abandonModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  abandonModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    width: "85%",
-    padding: 24,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  abandonModalIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#fff3e0",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  abandonModalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.textPrimary,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  abandonModalText: {
-    fontSize: 15,
-    color: colors.darkGray,
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  abandonModalButtons: {
-    flexDirection: "row",
-    width: "100%",
-    gap: 12,
-  },
-  abandonModalCancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: colors.lightGray,
-    alignItems: "center",
-  },
-  abandonModalCancelText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.textPrimary,
-  },
-  abandonModalDiscardButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: "#e53935",
-    alignItems: "center",
-  },
-  abandonModalDiscardText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.white,
-  },
-  // Checkbox styles for confirmation options
-  checkboxRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    marginTop: 4,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  checkboxLabel: {
-    fontSize: 15,
-    color: colors.darkGray,
-    flex: 1,
-  },
-  // Small save button styles
-  saveButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-end",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    backgroundColor: colors.white,
-    marginTop: 8,
-  },
-  saveButtonSaved: {
-    borderColor: colors.success,
-    backgroundColor: "#e8f5e9",
-  },
-  saveButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.primary,
-    marginLeft: 6,
-  },
-  saveButtonTextSaved: {
-    color: colors.success,
-  },
-  // Date picker modal styles
-  dateModalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dateModalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    width: "90%",
-    maxWidth: 400,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  dateModalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  dateModalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.textPrimary,
-  },
-  datePickerInline: {
-    height: 350,
-    width: "100%",
-  },
-  dateModalConfirmButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  dateModalConfirmText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  // Selected option styles for dropdowns
-  optionItemSelected: {
-    backgroundColor: "#e8f4fc",
-  },
-  optionTextSelected: {
-    color: colors.primary,
-    fontWeight: "600",
-  },
-  // Section header with icon styles
-  sectionHeaderWithIcon: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  mapIconButton: {
-    padding: 10,
-    borderRadius: 22,
-    backgroundColor: "#e8f4fc",
-  },
-});
 
 export default ReportFormScreen;

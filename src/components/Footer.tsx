@@ -1,147 +1,131 @@
 // components/Footer.tsx
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Linking, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Linking,
+  ScrollView,
+} from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, typography } from '../styles/common';
+import { colors } from '../styles/common';
+import { APP_VERSION } from '../config/appConfig';
+import { usePartners } from '../hooks/usePartners';
+import { GhostFish, WaveTransition, FOOTER_BG } from './icons/FooterIcons';
 
-// Sponsor data
-const sponsors = [
-  {
-    id: 'seatow',
-    name: 'Sea Tow',
-    icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSugeDjI5I1D2Jb_AA1IT2MtQmPVaFxMOqjpw&s', 
-    website: 'https://www.seatow.com'
-  },
-  {
-    id: 'towboatus',
-    name: 'TowBoatUS',
-    icon: 'https://play-lh.googleusercontent.com/Rzmm-rbPNmiFM2r4Z7yBvCurvsFAkZ5IQTbsw8M_5n7Pmgk0VhDTUbiOlAgGnm6gO7rH',
-    website: 'https://www.boatus.com/towing'
-  },
-  {
-    id: 'qualifiedcaptain',
-    name: 'The Qualified Captain',
-    icon: 'https://thequalifiedcaptain.com/cdn/shop/files/TQC_Logo_TQC.png?v=1696538834&width=600',
-    website: 'https://www.thequalifiedcaptain.com'
-  },
-  {
-    id: 'ncwildlife',
-    name: 'NC Wildlife',
-    icon: 'https://upload.wikimedia.org/wikipedia/en/f/f3/Logo_of_the_North_Carolina_Wildlife_Resources_Commission.png',
-    website: 'https://www.ncwildlife.org'
-  },
-  {
-    id: 'biggersmarket',
-    name: 'Biggers Market',
-    icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSS57_0_nBQ6DV4JkMHWk0-LiNg6m2w3p_-pg&s',
-    website: 'https://www.biggersmarket.com'
-  },
-  {
-    id: 'intracoastalangler',
-    name: 'Intracoastal Angler',
-    icon: 'https://cdn.shopify.com/s/files/1/0563/7124/9361/t/1/assets/IASO_P_White.png?v=1629906044',
-    website: 'https://www.intracoastalangler.com'
-  }
-];
+interface FooterProps {
+  onPrivacyPress?: () => void;
+  onTermsPress?: () => void;
+  onLicensesPress?: () => void;
+  onContactPress?: () => void;
+  onInfoPress?: () => void;
+}
 
-const Footer = () => {
-  const handleSponsorPress = (url: string) => {
-    Linking.openURL(url).catch(err => console.error('An error occurred', err));
-  };
+const Footer: React.FC<FooterProps> = ({
+  onPrivacyPress,
+  onTermsPress,
+  onLicensesPress,
+  onContactPress,
+  onInfoPress,
+}) => {
+  const { partners } = usePartners();
 
-  const handleContactPress = () => {
-    Linking.openURL('mailto:contact@ncfishreport.gov').catch(err => 
-      console.error('Could not open email app', err)
+  const handlePartnerPress = (url: string) => {
+    Linking.openURL(url).catch((err) =>
+      console.error('An error occurred', err)
     );
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.divider} />
-      
-      {/* Sponsors section - Simplified static version without auto-scrolling */}
-      <Text style={styles.sectionTitle}>Our Partners</Text>
-      <View style={styles.sponsorOuterContainer}>
-        <ScrollView 
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.sponsorScrollContainer}
-          scrollEnabled={true}
-          scrollEventThrottle={16}
-          snapToAlignment="center"
-          decelerationRate="fast"
-        >
-          <View style={styles.sponsorRow}>
-            {sponsors.map((sponsor) => (
-              <TouchableOpacity 
-                key={sponsor.id}
-                style={styles.sponsorItem}
-                onPress={() => handleSponsorPress(sponsor.website)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.sponsorIconContainer}>
-                  <Image 
-                    source={{ uri: sponsor.icon }} 
-                    style={styles.sponsorLogo}
-                    resizeMode="contain"
-                    defaultSource={require('../assets/fish-logo.png')}
-                  />
-                </View>
-                <Text style={styles.sponsorName}>
-                  {sponsor.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+      {/* Wave transition from content to navy */}
+      <WaveTransition />
+
+      {/* Footer content on navy background */}
+      <View style={styles.footerContent}>
+        {/* Ghost fish decorations */}
+        <GhostFish style={styles.fishLeft} width={80} height={50} />
+        <GhostFish style={styles.fishRight} width={60} height={40} flip />
+
+        {/* Partners Section - only render when there are active partners */}
+        {partners.length > 0 && (
+          <View style={styles.partnersSection}>
+            <Text style={styles.partnersLabel}>Our Partners</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.partnersCarousel}
+              scrollEventThrottle={16}
+              decelerationRate="fast"
+            >
+              {partners.map((partner) => (
+                <TouchableOpacity
+                  key={partner.id}
+                  style={styles.partnerCard}
+                  onPress={() => handlePartnerPress(partner.websiteUrl)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.partnerLogoContainer}>
+                    <Image
+                      source={{ uri: partner.iconUrl }}
+                      style={styles.partnerLogo}
+                      resizeMode="contain"
+                      defaultSource={require('../assets/icon.png')}
+                    />
+                  </View>
+                  <Text style={styles.partnerName} numberOfLines={2}>
+                    {partner.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-        </ScrollView>
-      </View>
-      
-      {/* Contact section */}
-      <View style={styles.contactContainer}>
-        <View style={styles.logoContainer}>
-          <Image 
-            source={require('../assets/fish-logo.png')} 
-            style={styles.logo}
-            resizeMode="contain"
-          />
+        )}
+
+        {/* App Branding */}
+        <View style={styles.brandingSection}>
           <Text style={styles.appName}>Fish Report</Text>
+          <Text style={styles.appOrg}>Catch. Report. Win.</Text>
         </View>
-        
-        <View style={styles.contactInfo}>
-          <TouchableOpacity 
-            style={styles.contactItem}
-            onPress={handleContactPress}
+
+        {/* Action Links */}
+        <View style={styles.actionsSection}>
+          <TouchableOpacity
+            style={styles.actionLink}
+            onPress={onContactPress}
           >
-            <Feather name="mail" size={16} color={colors.primary} style={styles.contactIcon} />
-            <Text style={styles.contactText}>Contact Us</Text>
+            <Feather name="mail" size={14} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.actionText}>Contact Us</Text>
           </TouchableOpacity>
-          
-          <View style={styles.contactItem}>
-            <Feather name="info" size={16} color={colors.primary} style={styles.contactIcon} />
-            <Text style={styles.contactText}>Version 1.8.2</Text>
-          </View>
+
+          <TouchableOpacity style={styles.actionLink} onPress={onInfoPress}>
+            <Feather name="info" size={14} color="rgba(255,255,255,0.9)" />
+            <Text style={styles.actionText}>Info</Text>
+          </TouchableOpacity>
         </View>
-      </View>
-      
-      {/* Copyright */}
-      <Text style={styles.copyright}>
-        © {new Date().getFullYear()} North Carolina Department of Environmental Quality.
-        All rights reserved.
-      </Text>
-      
-      {/* Legal links */}
-      <View style={styles.legalLinks}>
-        <TouchableOpacity>
-          <Text style={styles.legalText}>Privacy Policy</Text>
-        </TouchableOpacity>
-        <Text style={styles.legalDivider}>•</Text>
-        <TouchableOpacity>
-          <Text style={styles.legalText}>Terms of Use</Text>
-        </TouchableOpacity>
-        <Text style={styles.legalDivider}>•</Text>
-        <TouchableOpacity>
-          <Text style={styles.legalText}>Licenses</Text>
-        </TouchableOpacity>
+
+        {/* Legal Section */}
+        <View style={styles.legalSection}>
+          <Text style={styles.copyright}>
+            © {new Date().getFullYear()} Fish Log Co. All rights reserved.
+          </Text>
+          <View style={styles.legalLinks}>
+            <TouchableOpacity onPress={onPrivacyPress} activeOpacity={0.7}>
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalDot}>·</Text>
+            <TouchableOpacity onPress={onTermsPress} activeOpacity={0.7}>
+              <Text style={styles.legalLink}>Terms of Use</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalDot}>·</Text>
+            <TouchableOpacity onPress={onLicensesPress} activeOpacity={0.7}>
+              <Text style={styles.legalLink}>Licenses</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.version}>Version {APP_VERSION}</Text>
+        </View>
       </View>
     </View>
   );
@@ -149,142 +133,155 @@ const Footer = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.white,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    marginBottom: -1, // Prevent any potential gap at the bottom
+    // No background - wave handles the transition
   },
-  divider: {
-    height: 1,
-    backgroundColor: colors.divider,
-    marginBottom: spacing.md,
+
+  // Wave
+  waveContainer: {
+    backgroundColor: colors.background, // Light background above wave
+    height: 35,
   },
-  sectionTitle: {
-    ...typography.subtitle,
-    color: colors.primary,
+
+  // Footer content area
+  footerContent: {
+    backgroundColor: FOOTER_BG,
+    paddingTop: 16,
+    paddingBottom: 60, // Extended to cover safe area
+    position: 'relative',
+  },
+
+  // Ghost fish
+  fishLeft: {
+    position: 'absolute',
+    left: -15,
+    bottom: 80,
+    opacity: 0.08,
+  },
+  fishRight: {
+    position: 'absolute',
+    right: -10,
+    bottom: 40,
+    opacity: 0.06,
+  },
+
+  // Partners
+  partnersSection: {
+    marginBottom: 20,
+  },
+  partnersLabel: {
+    fontSize: 11,
     fontWeight: '600',
-    marginBottom: spacing.sm,
+    color: 'rgba(255,255,255,0.6)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    paddingHorizontal: 16,
   },
-  sponsorOuterContainer: {
-    marginBottom: spacing.lg,
-    borderWidth: 0,
-    borderColor: 'transparent',
+  partnersCarousel: {
+    paddingLeft: 16,
+    paddingRight: 16,
   },
-  sponsorScrollContainer: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-  sponsorRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  sponsorItem: {
-    backgroundColor: colors.white,
+  partnerCard: {
+    width: 80,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 12,
-    padding: spacing.md,
-    marginRight: spacing.md,
-    marginBottom: spacing.sm,
-    flexDirection: 'column',
+    padding: 10,
+    paddingHorizontal: 8,
+    marginRight: 10,
     alignItems: 'center',
-    width: 140, // Slightly narrower for better fit
-    minHeight: 110,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: colors.shadow,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  sponsorIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 4, 
-    backgroundColor: colors.white,
+  partnerLogoContainer: {
+    width: 40,
+    height: 40,
+    marginBottom: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-    overflow: 'hidden',
-    padding: 2,
   },
-  sponsorLogo: {
-    width: 52,
-    height: 52,
-    borderRadius: 3,
-  },
-  sponsorName: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: '600',
-    flexWrap: 'wrap',
-    textAlign: 'center',
-    fontSize: 14,
-    lineHeight: 18,
-    width: '100%',
-  },
-  contactContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logo: {
+  partnerLogo: {
     width: 36,
     height: 36,
-    marginRight: spacing.xs,
+    borderRadius: 4,
+  },
+  partnerName: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    lineHeight: 12,
+  },
+
+  // Branding
+  brandingSection: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 16,
   },
   appName: {
-    ...typography.heading,
-    color: colors.primary,
-    fontSize: 18,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
   },
-  contactInfo: {
-    alignItems: 'flex-end',
+  appOrg: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.7)',
   },
-  contactItem: {
+
+  // Actions
+  actionsSection: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+  actionLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    gap: 5,
   },
-  contactIcon: {
-    marginRight: spacing.xs,
+  actionText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
   },
-  contactText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+
+  // Legal
+  legalSection: {
+    alignItems: 'center',
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.15)',
+    marginHorizontal: 16,
   },
   copyright: {
-    ...typography.caption,
-    color: colors.textTertiary,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: 6,
   },
   legalLinks: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'wrap',
   },
-  legalText: {
-    ...typography.caption,
-    color: colors.primary,
-    marginHorizontal: spacing.xs,
+  legalLink: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.65)',
   },
-  legalDivider: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    marginHorizontal: 2,
+  legalDot: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    marginHorizontal: 8,
+  },
+  version: {
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 6,
   },
 });
 

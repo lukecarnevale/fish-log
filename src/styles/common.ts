@@ -858,6 +858,37 @@ export const cards = StyleSheet.create<Cards>({
   },
 });
 
+// Define shared modal styles
+export const modals = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  overlayBottomSheet: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  content: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    width: '100%',
+    maxWidth: 400,
+    overflow: 'hidden',
+    ...shadows.large,
+  },
+  contentBottomSheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: borderRadius.lg,
+    borderTopRightRadius: borderRadius.lg,
+    padding: spacing.lg,
+    ...shadows.large,
+  },
+});
+
 // Export common styles
 export const commonStyles = {
   colors,
@@ -869,4 +900,5 @@ export const commonStyles = {
   buttons,
   forms,
   cards,
+  modals,
 };

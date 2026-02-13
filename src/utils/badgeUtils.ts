@@ -1,0 +1,81 @@
+// utils/badgeUtils.ts
+//
+// Utility functions for managing badge notifications on quick action cards.
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { badgeDataCache, PERSISTENT_CACHE_KEYS } from '../screens/home/homeScreenConstants';
+
+// Storage keys for badge tracking
+export const BADGE_STORAGE_KEYS = {
+  lastViewedPastReports: '@badge_last_viewed_past_reports',
+  lastViewedCatchFeed: '@badge_last_viewed_catch_feed',
+  lastReportTimestamp: '@badge_last_report_timestamp',
+} as const;
+
+/**
+ * Mark that a new report has been submitted.
+ * Called from ConfirmationScreen when a report is successfully submitted.
+ */
+export async function markNewReportSubmitted(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      BADGE_STORAGE_KEYS.lastReportTimestamp,
+      new Date().toISOString()
+    );
+    console.log('📝 Marked new report submitted for badge');
+  } catch (error) {
+    console.error('Error marking new report:', error);
+  }
+}
+
+/**
+ * Clear the "new report" indicator.
+ * Called when user views the Past Reports screen.
+ */
+export async function clearNewReportIndicator(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      BADGE_STORAGE_KEYS.lastViewedPastReports,
+      new Date().toISOString()
+    );
+  } catch (error) {
+    console.error('Error clearing new report indicator:', error);
+  }
+}
+
+
+/**
+ * Invalidate both the in-memory and persistent badge data caches.
+ * Forces the next loadBadgeData() call to fetch fresh data instead of
+ * returning stale cached values. Also clears the AsyncStorage persistent
+ * cache to prevent stale optimistic data from causing UI flicker
+ * (the persistent cache is rebuilt on the next fresh fetch).
+ *
+ * Call this after any action that changes badge-relevant data
+ * (e.g., submitting a report, clearing the catch feed).
+ */
+export function invalidateBadgeCache(): void {
+  badgeDataCache.timestamp = 0;
+  badgeDataCache.data = null;
+  // Clear persistent cache so the optimistic load in useBadgeData
+  // doesn't inject stale data that triggers badge animation resets
+  AsyncStorage.removeItem(PERSISTENT_CACHE_KEYS.badgeData);
+}
+
+/**
+ * Check if there's a new report since last viewing Past Reports.
+ */
+export async function hasNewReportSinceLastView(): Promise<boolean> {
+  try {
+    const lastViewed = await AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastViewedPastReports);
+    const lastReport = await AsyncStorage.getItem(BADGE_STORAGE_KEYS.lastReportTimestamp);
+
+    if (!lastReport) return false;
+    if (!lastViewed) return true;
+
+    return lastReport > lastViewed;
+  } catch (error) {
+    console.error('Error checking new report:', error);
+    return false;
+  }
+}

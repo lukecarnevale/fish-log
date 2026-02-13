@@ -55,7 +55,7 @@ export const navigationStyles: NavigationStyles = {
       textShadowRadius: 2,
     },
     headerTitleAlign: 'center',
-    headerBackTitleVisible: false,
+    headerBackButtonDisplayMode: 'minimal', // Hide back button title in v7
     headerLeftContainerStyle: {
       paddingLeft: 8,
     },
