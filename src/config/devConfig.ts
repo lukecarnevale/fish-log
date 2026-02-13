@@ -1,30 +1,15 @@
 // config/devConfig.ts
 //
-// ⚠️  DEVELOPMENT CONFIGURATION - MUST BE UPDATED BEFORE PRODUCTION  ⚠️
-//
-// See PRE_PRODUCTION_CHECKLIST.md for details on what to change before release.
-//
+// Development feature flags - now derived from environment variables at build time.
+// No manual changes needed before production release!
 
-/**
- * Development configuration flags
- *
- * These flags control development/demo features that should be
- * disabled before deploying to production.
- */
+import { env } from './env';
+
 export const devConfig = {
-  /**
-   * When true, sample data will be shown in Past Reports when no real reports exist.
-   *
-   * ⚠️  SET TO FALSE BEFORE PRODUCTION RELEASE
-   */
-  SHOW_SAMPLE_REPORTS: true,
-
-  /**
-   * When true, the Developer Options menu item is visible in the hamburger menu.
-   *
-   * ⚠️  SET TO FALSE BEFORE PRODUCTION RELEASE
-   */
-  SHOW_DEVELOPER_OPTIONS: true,
+  /** Show Developer Options menu item in hamburger menu */
+  get SHOW_DEVELOPER_OPTIONS(): boolean {
+    return env.SHOW_DEVELOPER_TOOLS;
+  },
 };
 
 export default devConfig;

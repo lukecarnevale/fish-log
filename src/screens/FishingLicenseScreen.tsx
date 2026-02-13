@@ -1,13 +1,12 @@
 // screens/FishingLicenseScreen.tsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Text,
   View,
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
   Alert,
   ActivityIndicator,
   Platform,
@@ -15,6 +14,8 @@ import {
   Modal,
   Linking,
   StyleSheet,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { LinearGradient } from "expo-linear-gradient";
@@ -26,6 +27,10 @@ import { colors, spacing, borderRadius } from "../styles/common";
 import styles from "../styles/fishingLicenseScreenStyles";
 import LicenseTypePicker from "../components/LicenseTypePicker";
 import ScreenLayout from "../components/ScreenLayout";
+import { NCFlagIcon } from "../components/NCFlagIcon";
+import { SCREEN_LABELS } from "../constants/screenLabels";
+import { getCurrentUser, updateCurrentUser } from "../services/userProfileService";
+import { onAuthStateChange } from "../services/authService";
 
 type FishingLicenseScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -42,7 +47,10 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [formData, setFormData] = useState<FishingLicense>({});
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [isPickerMounted, setIsPickerMounted] = useState<boolean>(false);
+  const [datePickerKey, setDatePickerKey] = useState<number>(0);
   const [currentDateField, setCurrentDateField] = useState<'issueDate' | 'expiryDate'>('issueDate');
+  const [tempDate, setTempDate] = useState<Date>(new Date());
   const [licenseTypes] = useState<string[]>([
     "Annual Coastal Recreational Fishing License",
     "10-Day Coastal Recreational Fishing License",
@@ -56,26 +64,73 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   ]);
   const [showLicenseTypeModal, setShowLicenseTypeModal] = useState<boolean>(false);
   const [infoModalVisible, setInfoModalVisible] = useState<boolean>(false);
-  
+
+  // Animation for transitioning between view/edit modes
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const screenHeight = Dimensions.get('window').height;
+
+  // Toggle edit mode with animation
+  const toggleEditMode = (editing: boolean) => {
+    if (editing) {
+      // Entering edit mode - slide up from bottom
+      setFormData(license || {});
+      setIsEditing(true);
+      slideAnim.setValue(screenHeight);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      // Exiting edit mode - slide down
+      Animated.timing(slideAnim, {
+        toValue: screenHeight,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsEditing(false);
+      });
+    }
+  };
+
   // Load license data from AsyncStorage
-  useEffect(() => {
-    const loadLicense = async () => {
-      try {
-        const savedLicense = await AsyncStorage.getItem("fishingLicense");
-        if (savedLicense) {
-          const parsedLicense = JSON.parse(savedLicense);
-          setLicense(parsedLicense);
-          setFormData(parsedLicense);
-        }
-      } catch (error) {
-        Alert.alert("Error", "Failed to load your fishing license");
-      } finally {
-        setLoading(false);
+  const loadLicense = async () => {
+    try {
+      const savedLicense = await AsyncStorage.getItem("fishingLicense");
+      if (savedLicense) {
+        const parsedLicense = JSON.parse(savedLicense);
+        setLicense(parsedLicense);
+        setFormData(parsedLicense);
       }
-    };
-    
+    } catch (error) {
+      Alert.alert("Error", "Failed to load your fishing license");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadLicense();
-  }, []);
+
+    // Refresh data when screen comes into focus (e.g. after editing profile)
+    const focusUnsubscribe = navigation.addListener('focus', () => {
+      loadLicense();
+    });
+
+    // Refresh after auth sign-in so Supabase-synced license data appears
+    const authUnsubscribe = onAuthStateChange((event, _session) => {
+      if (event === 'SIGNED_IN') {
+        // Delay to allow syncToUserProfile to complete writing fishingLicense
+        setTimeout(() => loadLicense(), 1500);
+      }
+    });
+
+    return () => {
+      focusUnsubscribe();
+      authUnsubscribe?.();
+    };
+  }, [navigation]);
   
   // Save license data to AsyncStorage
   const saveLicense = async () => {
@@ -104,47 +159,38 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       };
       await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
 
+      // Sync license data to Supabase if user is signed in
+      const currentUser = await getCurrentUser();
+      if (currentUser?.id) {
+        try {
+          await updateCurrentUser({
+            firstName: formData.firstName || undefined,
+            lastName: formData.lastName || undefined,
+            hasLicense: true,
+            licenseNumber: formData.licenseNumber || undefined,
+            licenseType: formData.licenseType || undefined,
+            licenseIssueDate: formData.issueDate || undefined,
+            licenseExpiryDate: formData.expiryDate || undefined,
+          });
+          console.log('✅ License data synced to Supabase');
+        } catch (syncError) {
+          console.warn('Failed to sync license data to Supabase:', syncError);
+          // Continue anyway - local save was successful
+        }
+      }
+
       setLicense(formData);
-      setIsEditing(false);
-      Alert.alert("Success", "Your fishing license information has been saved.");
+      // Animate back to license view - slide down
+      Animated.timing(slideAnim, {
+        toValue: screenHeight,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsEditing(false);
+        Alert.alert("Success", "Your fishing license information has been saved.");
+      });
     } catch (error) {
       Alert.alert("Error", "Failed to save your fishing license");
-    }
-  };
-  
-  // Generate sample license
-  const generateSampleLicense = async () => {
-    const sampleLicense: FishingLicense = {
-      id: "123456",
-      firstName: "John",
-      lastName: "Smith",
-      licenseNumber: "NC-789012345",
-      licenseType: "Annual Coastal Recreational Fishing License",
-      issueDate: "2024-01-01",
-      expiryDate: "2024-12-31",
-    };
-
-    setFormData(sampleLicense);
-    setLicense(sampleLicense);
-    setIsEditing(false);
-
-    // Also save to AsyncStorage and update profile
-    try {
-      await AsyncStorage.setItem("fishingLicense", JSON.stringify(sampleLicense));
-
-      // Update profile with name and license info
-      const existingProfile = await AsyncStorage.getItem("userProfile");
-      const profile = existingProfile ? JSON.parse(existingProfile) : {};
-      const updatedProfile = {
-        ...profile,
-        firstName: sampleLicense.firstName,
-        lastName: sampleLicense.lastName,
-        hasLicense: true,
-        wrcId: sampleLicense.licenseNumber,
-      };
-      await AsyncStorage.setItem("userProfile", JSON.stringify(updatedProfile));
-    } catch (error) {
-      console.error("Error saving sample license:", error);
     }
   };
   
@@ -160,21 +206,67 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   };
   
   // Handle date change from date picker
+  // On iOS spinner: fires on each scroll, user confirms with Done button
+  // On Android native dialog: fires once when OK/Cancel is pressed
   const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    
-    if (selectedDate && currentDateField) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      setFormData({
-        ...formData,
-        [currentDateField]: formattedDate
-      });
+    if (Platform.OS === 'android') {
+      // Android native picker: close modal and apply date if OK was pressed
+      if (event.type === 'set' && selectedDate) {
+        const formattedDate = selectedDate.toISOString().split('T')[0];
+        setFormData({
+          ...formData,
+          [currentDateField]: formattedDate
+        });
+      }
+      // Close the modal for both OK and Cancel
+      closeDatePicker();
+    } else {
+      // iOS spinner: just update temp date, user confirms with Done button
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
     }
+  };
+
+  // Confirm date selection and close picker
+  const confirmDateSelection = () => {
+    const formattedDate = tempDate.toISOString().split('T')[0];
+    setFormData({
+      ...formData,
+      [currentDateField]: formattedDate
+    });
+    closeDatePicker();
+  };
+
+  // Close date picker with delayed unmount to prevent flash
+  const closeDatePicker = () => {
+    setShowDatePicker(false);
+    // Delay unmounting the picker until after modal fade animation
+    setTimeout(() => setIsPickerMounted(false), 300);
+  };
+
+  // Helper to safely get a valid Date object from a date string
+  // Returns today's date for any invalid, empty, or epoch-era values
+  const getValidDate = (dateString: string | undefined): Date => {
+    if (!dateString || (typeof dateString === 'string' && dateString.trim() === '')) {
+      return new Date();
+    }
+    const parsed = new Date(dateString);
+    // Check if the date is valid (not NaN) and not before year 2000
+    // (prevents epoch-era dates like Dec 31 1969 from appearing)
+    if (isNaN(parsed.getTime()) || parsed.getFullYear() < 2000) {
+      return new Date();
+    }
+    return parsed;
   };
   
   // Show date picker for a specific field
   const showDatePickerFor = (field: 'issueDate' | 'expiryDate') => {
     setCurrentDateField(field);
+    // Initialize tempDate with the current field value or today's date
+    setTempDate(getValidDate(formData[field]));
+    setDatePickerKey(prev => prev + 1);
+    setIsPickerMounted(true);
     setShowDatePicker(true);
   };
   
@@ -182,9 +274,22 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   const renderLicenseForm = () => (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
-      <ScrollView 
+      {/* Close button header - matching ProfileScreen pattern */}
+      <View style={styles.formHeader}>
+        <TouchableOpacity
+          style={styles.formCloseButton}
+          onPress={() => toggleEditMode(false)}
+          activeOpacity={0.7}
+        >
+          <Feather name="x" size={24} color={colors.white} />
+        </TouchableOpacity>
+        <Text style={styles.formHeaderTitle}>Edit License</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView
         style={styles.formContainer}
         contentContainerStyle={styles.formContentContainer}
         showsVerticalScrollIndicator={false}
@@ -302,10 +407,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
         <View style={styles.formButtonRow}>
           <TouchableOpacity
             style={[styles.formButton, styles.formCancelButton]}
-            onPress={() => {
-              setFormData(license || {});
-              setIsEditing(false);
-            }}
+            onPress={() => toggleEditMode(false)}
           >
             <Text style={styles.formCancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -318,47 +420,50 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           </TouchableOpacity>
         </View>
         
-        {/* Date picker for iOS */}
-        {Platform.OS === 'ios' && showDatePicker && (
-          <Modal
-            visible={showDatePicker}
-            transparent
-            animationType="slide"
-          >
-            <View style={styles.datePickerModal}>
-              <View style={styles.datePickerContainer}>
-                <View style={styles.datePickerHeader}>
-                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                    <Text style={styles.datePickerCancel}>Cancel</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.datePickerTitle}>
-                    Select {currentDateField === 'issueDate' ? 'Issue Date' : 'Expiry Date'}
-                  </Text>
-                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                    <Text style={styles.datePickerDone}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-                <DateTimePicker
-                  value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
-                  mode="date"
-                  display="spinner"
-                  onChange={onDateChange}
-                  style={styles.datePicker}
-                />
+        {/* Date Picker Modal - matching ReportFormScreen and ProfileScreen pattern */}
+        <Modal
+          visible={showDatePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={closeDatePicker}
+        >
+          <View style={styles.dateModalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeDatePicker}
+            />
+            <View style={styles.dateModalContent}>
+              <View style={styles.dateModalHeader}>
+                <Text style={styles.dateModalTitle}>
+                  Select {currentDateField === 'issueDate' ? 'Issue Date' : 'Expiry Date'}
+                </Text>
+                <TouchableOpacity onPress={closeDatePicker}>
+                  <Feather name="x" size={24} color={colors.darkGray} />
+                </TouchableOpacity>
               </View>
+              {isPickerMounted && (
+                <DateTimePicker
+                  key={`license-${currentDateField}-picker-${datePickerKey}`}
+                  value={tempDate instanceof Date && !isNaN(tempDate.getTime()) && tempDate.getFullYear() >= 2000 ? tempDate : new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onDateChange}
+                  minimumDate={new Date(2000, 0, 1)}
+                  maximumDate={currentDateField === 'issueDate' ? new Date() : new Date(2099, 11, 31)}
+                  themeVariant="light"
+                  style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.dateModalConfirmButton}
+                onPress={confirmDateSelection}
+              >
+                <Text style={styles.dateModalConfirmText}>Done</Text>
+              </TouchableOpacity>
             </View>
-          </Modal>
-        )}
-        
-        {/* For Android, DateTimePicker is rendered directly */}
-        {Platform.OS === 'android' && showDatePicker && (
-          <DateTimePicker
-            value={formData[currentDateField] ? new Date(formData[currentDateField] as string) : new Date()}
-            mode="date"
-            display="default"
-            onChange={onDateChange}
-          />
-        )}
+          </View>
+        </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -380,13 +485,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           style={styles.licenseCard}
         >
           <View style={styles.licenseCardHeader}>
-            <View style={styles.licenseLogoContainer}>
-              <Image
-                source={require('../assets/fish-logo.png')}
-                style={styles.licenseLogo}
-                resizeMode="contain"
-              />
-            </View>
+            <NCFlagIcon width={60} height={40} style={{ marginRight: spacing.md }} />
             <View style={styles.licenseHeaderText}>
               <Text style={styles.licenseState}>North Carolina</Text>
               <Text style={styles.licenseTitle}>Fishing License</Text>
@@ -443,7 +542,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       <View style={styles.actionsContainer}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => setIsEditing(true)}
+          onPress={() => toggleEditMode(true)}
         >
           <Feather name="edit-2" size={18} color={colors.white} />
           <Text style={styles.actionButtonText}>Edit License</Text>
@@ -511,7 +610,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24 }}>
               <Text style={styles.modalTitle}>About Your Fishing License</Text>
               
               <Text style={styles.modalText}>
@@ -556,7 +655,23 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                   </Text>
                 </View>
               </View>
-              
+
+              <Text style={styles.modalSectionTitle}>Don't Know Your License Number?</Text>
+              <Text style={styles.modalText}>
+                You can look up your WRC ID or Customer ID online if you've previously purchased a license.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.modalLookupButton}
+                onPress={() => {
+                  setInfoModalVisible(false);
+                  Linking.openURL("https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx");
+                }}
+              >
+                <Feather name="external-link" size={18} color={colors.white} style={{ marginRight: 8 }} />
+                <Text style={styles.modalLookupButtonText}>Look Up My License</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.modalButton}
                 onPress={() => setInfoModalVisible(false)}
@@ -567,8 +682,6 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           </View>
         </View>
       </Modal>
-      
-      {/* Info Modal - License details modal remains but license type modal is replaced by the component */}
     </ScrollView>
   );
   
@@ -579,11 +692,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       contentContainerStyle={[styles.contentContainer, styles.emptyStateContainer]}
       showsVerticalScrollIndicator={false}
     >
-      <Image
-        source={require("../assets/fish-logo.png")}
-        style={styles.emptyStateImage}
-        resizeMode="contain"
-      />
+      <NCFlagIcon width={120} height={80} style={{ marginBottom: spacing.lg }} />
       
       <Text style={styles.emptyStateTitle}>No Fishing License Added</Text>
       <Text style={styles.emptyStateText}>
@@ -592,18 +701,10 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       
       <TouchableOpacity
         style={styles.actionButton}
-        onPress={() => setIsEditing(true)}
+        onPress={() => toggleEditMode(true)}
       >
         <Feather name="plus" size={18} color={colors.white} />
         <Text style={styles.actionButtonText}>Add My License</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.actionButton, styles.secondaryButton, { marginTop: spacing.md }]}
-        onPress={generateSampleLicense}
-      >
-        <Feather name="file-text" size={18} color={colors.primary} />
-        <Text style={styles.secondaryButtonText}>Use Sample License</Text>
       </TouchableOpacity>
       
       <View style={styles.emptyStateInfoContainer}>
@@ -651,7 +752,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
     return (
       <ScreenLayout
         navigation={navigation}
-        title="My Fishing License"
+        title={SCREEN_LABELS.fishingLicense.title}
         noScroll
         loading={loading}
         loadingComponent={<ActivityIndicator size="large" color={colors.primary} />}
@@ -660,20 +761,24 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   }
 
   return (
-    <ScreenLayout
-      navigation={navigation}
-      title="My Fishing License"
-      subtitle="Manage your fishing license"
-      noScroll
-    >
-      {isEditing ? (
-        renderLicenseForm()
-      ) : license ? (
-        renderLicenseCard()
-      ) : (
-        renderEmptyState()
+    <View style={styles.safeArea}>
+      {/* Always render the license view underneath */}
+      <ScreenLayout
+        navigation={navigation}
+        title={SCREEN_LABELS.fishingLicense.title}
+        subtitle="Manage your fishing license"
+        noScroll
+      >
+        {license ? renderLicenseCard() : renderEmptyState()}
+      </ScreenLayout>
+
+      {/* Overlay the form when editing */}
+      {isEditing && (
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: slideAnim }] }]}>
+          {renderLicenseForm()}
+        </Animated.View>
       )}
-    </ScreenLayout>
+    </View>
   );
 };
 

@@ -6,125 +6,119 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
   Image,
   Alert,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Keyboard,
+  Animated,
+  Dimensions,
+  Modal,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StackNavigationProp } from "@react-navigation/stack";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { isValidPhoneNumber } from 'libphonenumber-js';
 import MaskInput from 'react-native-mask-input';
-import * as yup from 'yup';
 import * as ImagePicker from 'expo-image-picker';
 
 // Instead of using GooglePlacesAutocomplete which causes UUID issues
-import { RootStackParamList, UserProfile } from "../types";
+import { UserProfile } from "../types";
 import { colors, spacing, borderRadius, shadows, typography } from "../styles/common";
-
-type ProfileScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
-  "Profile"
->;
-
-// Create validation schema with Yup
-// Validation is conditional based on hasLicense status
-const profileSchema = yup.object().shape({
-  hasLicense: yup.boolean(),
-  // WRC ID required when hasLicense = true
-  wrcId: yup.string().when('hasLicense', {
-    is: true,
-    then: (schema) => schema.required('WRC ID or Customer ID is required'),
-    otherwise: (schema) => schema,
-  }),
-  // Name required when hasLicense = false
-  firstName: yup.string().when('hasLicense', {
-    is: false,
-    then: (schema) => schema.required('First name is required'),
-    otherwise: (schema) => schema,
-  }),
-  lastName: yup.string().when('hasLicense', {
-    is: false,
-    then: (schema) => schema.required('Last name is required'),
-    otherwise: (schema) => schema,
-  }),
-  // ZIP required when hasLicense = false
-  zipCode: yup.string().when('hasLicense', {
-    is: false,
-    then: (schema) => schema
-      .required('ZIP code is required')
-      .matches(/^\d{5}$/, 'ZIP code must be exactly 5 digits'),
-    otherwise: (schema) => schema,
-  }),
-  dateOfBirth: yup.string(),
-  email: yup.string().email('Please enter a valid email'),
-  phone: yup.string().test('is-valid-phone', 'Please enter a valid phone number', function(value) {
-    if (!value) return true; // Optional field
-    try {
-      return isValidPhoneNumber(value, 'US');
-    } catch (e) {
-      return false;
-    }
-  }),
-  address: yup.string(),
-  profileImage: yup.string(),
-});
-
-// Phone number mask for US numbers (123) 456-7890
-const PHONE_MASK = [
-  '(',
-  /\d/,
-  /\d/,
-  /\d/,
-  ')',
-  ' ',
-  /\d/,
-  /\d/,
-  /\d/,
-  '-',
-  /\d/,
-  /\d/,
-  /\d/,
-  /\d/,
-];
-
-interface ProfileScreenProps {
-  navigation: ProfileScreenNavigationProp;
-}
+import { clearCatchFeedCache } from "../services/catchFeedService";
+import WrcIdInfoModal from "../components/WrcIdInfoModal";
+import { StoredReport } from "../types/report";
+import {
+  getPendingAuth,
+  clearPendingAuth,
+  sendMagicLink,
+  storePendingAuth,
+  PendingAuth,
+  signOut,
+  deleteAccount,
+  onAuthStateChange,
+} from "../services/authService";
+import { getCurrentUser, updateCurrentUser, getUserStats } from "../services/userProfileService";
+import { clearAllUserData } from "../services/userService";
+import { isSupabaseConnected } from "../config/supabase";
+import { isRewardsMember } from "../services/rewardsConversionService";
+import { useRewards } from "../contexts/RewardsContext";
+import { User, UserAchievement } from "../types/user";
+import { useZipCodeLookup } from "../hooks/useZipCodeLookup";
+import { useFishingStats } from "../hooks/useFishingStats";
+import { uploadProfilePhoto, isLocalUri } from "../services/photoUploadService";
+import { ProfileScreenNavigationProp, ProfileScreenProps } from "./profile/profileScreen.types";
+import { profileSchema } from "../constants/validationSchemas";
+import { PHONE_MASK } from "../constants/inputMasks";
+import * as yup from 'yup';
+import AnglerAvatarIcon from "../components/icons/AnglerAvatarIcon";
+import { styles, localStyles } from "../styles/profileScreenStyles";
+import ProfileStats from "./profile/ProfileStats";
+import ProfileAchievements from "./profile/ProfileAchievements";
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [profile, setProfile] = useState<UserProfile>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [formData, setFormData] = useState<UserProfile>({});
+
+  // ZIP code lookup for city/state display feedback
+  const zipLookup = useZipCodeLookup(formData.zipCode);
+
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+  const [isPickerMounted, setIsPickerMounted] = useState<boolean>(false);
+  const [datePickerKey, setDatePickerKey] = useState<number>(0);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
-  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+
+  // Load fishing stats using custom hook
+  const { fishingStats, statsLoading } = useFishingStats();
+
+  // Rewards drawing entry status (from RewardsContext)
+  const { hasEnteredCurrentRaffle } = useRewards();
+
+  const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
+
+  // State for WRC ID info modal
+  const [showWrcIdInfoModal, setShowWrcIdInfoModal] = useState<boolean>(false);
+
+  // State for enlarged photo preview
+  const [showPhotoPreview, setShowPhotoPreview] = useState<boolean>(false);
+
+  // State for pending magic link auth
+  const [pendingAuth, setPendingAuth] = useState<PendingAuth | null>(null);
+  const [pendingAuthEmail, setPendingAuthEmail] = useState<string>('');
+  const [isResendingLink, setIsResendingLink] = useState<boolean>(false);
+  const [isEditingPendingEmail, setIsEditingPendingEmail] = useState<boolean>(false);
+
+  // State for rewards member status
+  const [rewardsMember, setRewardsMember] = useState<boolean>(false);
+  const [rewardsMemberUser, setRewardsMemberUser] = useState<User | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState<boolean>(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState<boolean>(false);
+
+  // State for sign-in flow (for non-members)
+  const [showSignInForm, setShowSignInForm] = useState<boolean>(false);
+  const [signInEmail, setSignInEmail] = useState<string>('');
+  const [signInEmailError, setSignInEmailError] = useState<string>('');
+  const [signInFirstName, setSignInFirstName] = useState<string>('');
+  const [signInLastName, setSignInLastName] = useState<string>('');
+  const [isSendingSignInLink, setIsSendingSignInLink] = useState<boolean>(false);
 
   // Refs for inputs to enable keyboard navigation
   const wrcIdInputRef = useRef<TextInput>(null);
   const lastNameInputRef = useRef<TextInput>(null);
   const zipCodeInputRef = useRef<TextInput>(null);
   const emailInputRef = useRef<TextInput>(null);
-  const phoneInputRef = useRef<MaskInput>(null);
-  const addressInputRef = useRef<TextInput>(null);
-
-  // Request permission for image picker
-  useEffect(() => {
-    (async () => {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to set profile pictures!');
-      }
-    })();
-  }, []);
+  const phoneInputRef = useRef<TextInput>(null);
+  
+  // Animation for transitioning between view/edit modes
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const screenHeight = Dimensions.get('window').height;
 
   // Load profile data from AsyncStorage (merge with fishingLicense data)
   useEffect(() => {
@@ -157,6 +151,42 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         setProfile(profileData);
         setFormData(profileData);
+
+        // Check for pending magic link auth
+        const pending = await getPendingAuth();
+        console.log('🔔 ProfileScreen - Pending auth loaded:', pending ? pending.email : 'none');
+        if (pending) {
+          setPendingAuth(pending);
+          setPendingAuthEmail(pending.email);
+        } else {
+          // Clear pending auth state if none exists (important for re-renders)
+          setPendingAuth(null);
+          setPendingAuthEmail('');
+        }
+
+        // Check if user is a rewards member
+        const isMember = await isRewardsMember();
+        console.log('🏆 ProfileScreen - Is rewards member:', isMember);
+        setRewardsMember(isMember);
+        if (isMember) {
+          const user = await getCurrentUser();
+          console.log('🏆 ProfileScreen - Rewards member email:', user?.email);
+          setRewardsMemberUser(user);
+
+          // Load user achievements
+          try {
+            const stats = await getUserStats();
+            setUserAchievements(stats.achievements || []);
+            console.log(`🏆 ProfileScreen - Loaded ${stats.achievements?.length || 0} achievements`);
+          } catch (achievementError) {
+            console.warn('Failed to load achievements:', achievementError);
+            setUserAchievements([]);
+          }
+        } else {
+          // Clear rewards member state if not a member (important for re-renders)
+          setRewardsMemberUser(null);
+          setUserAchievements([]);
+        }
       } catch (error) {
         Alert.alert("Error", "Failed to load your profile");
       } finally {
@@ -165,11 +195,52 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     };
 
     loadProfile();
-  }, []);
+
+    // Set up a focus listener to refresh data when returning to this screen
+    const focusUnsubscribe = navigation.addListener('focus', () => {
+      loadProfile();
+    });
+
+    // Set up an auth state listener to refresh when user signs in
+    const authUnsubscribe = onAuthStateChange((event, _session) => {
+      console.log('🔐 ProfileScreen - Auth state changed:', event);
+      if (event === 'SIGNED_IN') {
+        // Delay to allow createRewardsMemberFromAuthUser to complete
+        // Then retry if still not showing as member (database operations can take time)
+        const attemptReload = async (attempt: number) => {
+          console.log(`🔄 ProfileScreen - Reloading after sign in (attempt ${attempt})...`);
+          await loadProfile();
+
+          // Check if still showing pending auth after reload
+          const stillPending = await getPendingAuth();
+          const isMember = await isRewardsMember();
+
+          if (stillPending && !isMember && attempt < 3) {
+            // Retry after another delay
+            setTimeout(() => attemptReload(attempt + 1), 1000);
+          }
+        };
+
+        // Initial delay to let createRewardsMemberFromAuthUser start
+        setTimeout(() => attemptReload(1), 1500);
+      }
+    });
+
+    return () => {
+      focusUnsubscribe();
+      authUnsubscribe?.();
+    };
+  }, [navigation]);
 
   // Function to pick an image from gallery
   const pickImage = async () => {
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Camera roll permissions are needed to change your profile picture.');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -178,14 +249,39 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        const newFormData = { ...formData, profileImage: result.assets[0].uri };
+        const imageUri = result.assets[0].uri;
+        const newFormData = { ...formData, profileImage: imageUri };
         setFormData(newFormData);
 
         if (!isEditing) {
           // If not in edit mode, directly save the profile picture
           try {
-            await AsyncStorage.setItem("userProfile", JSON.stringify(newFormData));
-            setProfile(newFormData);
+            // Get current user to check if signed in
+            const currentUser = await getCurrentUser();
+            let finalImageUrl: string | null = imageUri;
+
+            // Upload to Supabase if user is signed in
+            if (currentUser?.id && isLocalUri(imageUri)) {
+              console.log('📸 Uploading profile photo to Supabase...');
+              const uploadedUrl = await uploadProfilePhoto(imageUri, currentUser.id);
+              if (uploadedUrl) {
+                finalImageUrl = uploadedUrl;
+                console.log('✅ Profile photo uploaded:', uploadedUrl);
+
+                // Update user record in Supabase
+                await updateCurrentUser({
+                  profileImageUrl: uploadedUrl,
+                });
+
+                // Clear Catch Feed cache so profile image updates appear
+                await clearCatchFeedCache();
+                console.log('🔄 Cleared Catch Feed cache after profile update');
+              }
+            }
+
+            const profileToSave = { ...formData, profileImage: finalImageUrl };
+            await AsyncStorage.setItem("userProfile", JSON.stringify(profileToSave));
+            setProfile(profileToSave);
             Alert.alert("Success", "Profile picture updated");
           } catch (error) {
             Alert.alert("Error", "Failed to save profile picture");
@@ -212,7 +308,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         return newErrors;
       });
       return true;
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof yup.ValidationError) {
         // Set the validation error for this field
         setValidationErrors(prev => ({
@@ -247,17 +343,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     }
   };
 
-  // Save profile data to AsyncStorage
+  // Save profile data to AsyncStorage and sync to Supabase
   const saveProfile = async () => {
     try {
       // Validate all fields
       try {
         await profileSchema.validate(formData, { abortEarly: false });
-      } catch (error) {
+      } catch (error: any) {
         if (error instanceof yup.ValidationError) {
           // Transform validation errors into object
           const errors: {[key: string]: string} = {};
-          error.inner.forEach(err => {
+          error.inner.forEach((err: any) => {
             if (err.path) {
               errors[err.path] = err.message;
             }
@@ -273,7 +369,58 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         }
       }
 
-      await AsyncStorage.setItem("userProfile", JSON.stringify(formData));
+      // Get current user to check if signed in and get user ID
+      const currentUser = await getCurrentUser();
+      let profileImageUrl: string | null = null;
+
+      // Handle profile image upload/sync
+      if (formData.profileImage && currentUser?.id) {
+        if (isLocalUri(formData.profileImage)) {
+          // Upload new local image to Supabase
+          console.log('📸 Uploading profile photo to Supabase...');
+          profileImageUrl = await uploadProfilePhoto(formData.profileImage, currentUser.id);
+          if (profileImageUrl) {
+            console.log('✅ Profile photo uploaded:', profileImageUrl);
+          } else {
+            console.log('⚠️ Profile photo upload failed, continuing with local image');
+          }
+        } else if (formData.profileImage.startsWith('http')) {
+          // Image is already a URL, use it directly
+          profileImageUrl = formData.profileImage;
+          console.log('📸 Using existing profile photo URL:', profileImageUrl);
+        }
+      }
+
+      // Save to AsyncStorage (with local or uploaded URL)
+      const profileToSave = {
+        ...formData,
+        // If we uploaded successfully, update the image URL to the public URL
+        profileImage: profileImageUrl || formData.profileImage,
+      };
+      await AsyncStorage.setItem("userProfile", JSON.stringify(profileToSave));
+
+      // Sync profile to Supabase if user is signed in
+      if (currentUser?.id) {
+        try {
+          await updateCurrentUser({
+            firstName: formData.firstName || undefined,
+            lastName: formData.lastName || undefined,
+            email: formData.email || undefined,
+            phone: formData.phone || undefined,
+            dateOfBirth: formData.dateOfBirth || undefined,
+            zipCode: formData.zipCode || undefined,
+            hasLicense: formData.hasLicense,
+            wrcId: formData.wrcId || undefined,
+            profileImageUrl: profileImageUrl || undefined,
+            preferredAreaCode: formData.preferredAreaCode || undefined,
+            preferredAreaLabel: formData.preferredAreaLabel || undefined,
+          });
+          console.log('✅ Profile synced to Supabase');
+        } catch (syncError) {
+          console.warn('Failed to sync profile to Supabase:', syncError);
+          // Continue anyway - local save was successful
+        }
+      }
 
       // Also sync license info to fishingLicense storage if user has a license
       if (formData.hasLicense === true && formData.wrcId) {
@@ -288,12 +435,285 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         await AsyncStorage.setItem("fishingLicense", JSON.stringify(updatedLicense));
       }
 
-      setProfile(formData);
-      setIsEditing(false);
+      setProfile(profileToSave);
       setValidationErrors({});
+
+      // Clear Catch Feed cache so profile image updates appear immediately
+      if (profileImageUrl) {
+        await clearCatchFeedCache();
+        console.log('🔄 Cleared Catch Feed cache after profile update');
+      }
+
       Alert.alert("Success", "Your profile information has been saved.");
+      // Animate back to profile view - slide down
+      Animated.timing(slideAnim, {
+        toValue: screenHeight,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsEditing(false);
+      });
     } catch (error) {
       Alert.alert("Error", "Failed to save your profile");
+    }
+  };
+
+  // Handle resending magic link
+  const handleResendMagicLink = async () => {
+    if (!pendingAuthEmail.trim()) {
+      Alert.alert('Email Required', 'Please enter your email address.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(pendingAuthEmail.trim())) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    setIsResendingLink(true);
+
+    try {
+      // Update pending auth with new email if changed
+      const updatedPendingAuth: PendingAuth = {
+        email: pendingAuthEmail.trim().toLowerCase(),
+        firstName: pendingAuth?.firstName || '',
+        lastName: pendingAuth?.lastName || '',
+        phone: pendingAuth?.phone,
+        sentAt: new Date().toISOString(),
+      };
+
+      await storePendingAuth(updatedPendingAuth);
+
+      // Send magic link
+      const result = await sendMagicLink(pendingAuthEmail.trim(), {
+        firstName: pendingAuth?.firstName,
+        lastName: pendingAuth?.lastName,
+        phone: pendingAuth?.phone,
+      });
+
+      if (result.success) {
+        setPendingAuth(updatedPendingAuth);
+        setIsEditingPendingEmail(false);
+        Alert.alert(
+          'Email Sent!',
+          `We've sent a new sign-in link to ${pendingAuthEmail.trim()}. Check your inbox!`
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to send verification email.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsResendingLink(false);
+    }
+  };
+
+  // Handle canceling pending auth
+  const handleCancelPendingAuth = () => {
+    Alert.alert(
+      'Cancel Sign Up?',
+      'Are you sure you want to cancel the Rewards sign up? You can always sign up again later.',
+      [
+        { text: 'Keep Waiting', style: 'cancel' },
+        {
+          text: 'Cancel Sign Up',
+          style: 'destructive',
+          onPress: async () => {
+            await clearPendingAuth();
+            setPendingAuth(null);
+            setPendingAuthEmail('');
+            setIsEditingPendingEmail(false);
+          },
+        },
+      ]
+    );
+  };
+
+  // Validate sign-in email
+  const validateSignInEmail = (email: string): boolean => {
+    if (!email.trim()) {
+      setSignInEmailError('');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setSignInEmailError('Please enter a valid email address');
+      return false;
+    }
+    setSignInEmailError('');
+    return true;
+  };
+
+  // Handle sign-in email change
+  const handleSignInEmailChange = (text: string) => {
+    setSignInEmail(text);
+    // Clear error while typing, validate on blur
+    if (signInEmailError) {
+      setSignInEmailError('');
+    }
+  };
+
+  // Handle sign-in email blur
+  const handleSignInEmailBlur = () => {
+    if (signInEmail.trim()) {
+      validateSignInEmail(signInEmail);
+    }
+  };
+
+  // Handle sign in / join rewards for returning users
+  const handleSignIn = async () => {
+    if (!signInEmail.trim()) {
+      setSignInEmailError('Email is required');
+      Alert.alert('Email Required', 'Please enter your email address.');
+      return;
+    }
+
+    if (!validateSignInEmail(signInEmail)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    // For new sign-ups, require first and last name
+    if (showSignInForm && (!signInFirstName.trim() || !signInLastName.trim())) {
+      Alert.alert('Name Required', 'Please enter your first and last name to join rewards.');
+      return;
+    }
+
+    setIsSendingSignInLink(true);
+
+    try {
+      // Store pending auth data
+      const newPendingAuth: PendingAuth = {
+        email: signInEmail.trim().toLowerCase(),
+        firstName: signInFirstName.trim(),
+        lastName: signInLastName.trim(),
+        sentAt: new Date().toISOString(),
+      };
+
+      await storePendingAuth(newPendingAuth);
+
+      // Send magic link
+      const result = await sendMagicLink(signInEmail.trim(), {
+        firstName: signInFirstName.trim(),
+        lastName: signInLastName.trim(),
+      });
+
+      if (result.success) {
+        setPendingAuth(newPendingAuth);
+        setPendingAuthEmail(signInEmail.trim());
+        setShowSignInForm(false);
+        setSignInEmail('');
+        setSignInFirstName('');
+        setSignInLastName('');
+        Alert.alert(
+          'Check Your Email!',
+          `We've sent a sign-in link to ${newPendingAuth.email}. Click the link to complete sign-in.`
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to send sign-in link. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSendingSignInLink(false);
+    }
+  };
+
+  // Handle sign out
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out?',
+      'Are you sure you want to sign out of Rewards? You can sign back in anytime.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSigningOut(true);
+            try {
+              const result = await signOut();
+              if (result.success) {
+                setRewardsMember(false);
+                setRewardsMemberUser(null);
+                Alert.alert('Signed Out', 'You have been signed out of Rewards.');
+              } else {
+                Alert.alert('Error', result.error || 'Failed to sign out.');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'An unexpected error occurred.');
+            } finally {
+              setIsSigningOut(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle account deletion
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account?',
+      'This will permanently delete your account and all associated data, including:\n\n' +
+        '\u2022 All harvest reports\n' +
+        '\u2022 Achievements and stats\n' +
+        '\u2022 Rewards entries\n' +
+        '\u2022 Profile information\n\n' +
+        'This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you sure?',
+              'Your account and all data will be permanently deleted. This cannot be reversed.',
+              [
+                { text: 'Go Back', style: 'cancel' },
+                {
+                  text: 'Permanently Delete',
+                  style: 'destructive',
+                  onPress: performAccountDeletion,
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const performAccountDeletion = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const connected = await isSupabaseConnected();
+      if (!connected) {
+        Alert.alert('No Connection', 'Account deletion requires an internet connection. Please try again when online.');
+        return;
+      }
+
+      const result = await deleteAccount();
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Failed to delete account. Please try again.');
+        return;
+      }
+
+      // Clear all local data
+      await clearAllUserData();
+      await signOut();
+
+      Alert.alert(
+        'Account Deleted',
+        'Your account and all associated data have been permanently deleted.',
+        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -308,25 +728,90 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     });
   };
 
-  // Handle date change from date picker
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-
-    if (selectedDate) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      setFormData({
-        ...formData,
-        dateOfBirth: formattedDate
+  // Animate transition between view/edit modes
+  const animateTransition = (toEditing: boolean) => {
+    if (toEditing) {
+      // Entering edit mode - slide up from bottom
+      setFormData(profile || {});
+      setIsEditing(true);
+      slideAnim.setValue(screenHeight);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }).start();
+    } else {
+      // Exiting edit mode - slide down
+      Animated.timing(slideAnim, {
+        toValue: screenHeight,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsEditing(false);
       });
     }
+  };
+
+  // Handle date change from date picker
+  // On iOS spinner: fires on each scroll, user confirms with Done button
+  // On Android native dialog: fires once when OK/Cancel is pressed
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      // Android native picker: close modal and apply date if OK was pressed
+      if (event.type === 'set' && selectedDate) {
+        const formattedDate = selectedDate.toISOString().split('T')[0];
+        setFormData({
+          ...formData,
+          dateOfBirth: formattedDate
+        });
+      }
+      // Close the modal for both OK and Cancel
+      closeDatePicker();
+    } else {
+      // iOS spinner: just update temp date, user confirms with Done button
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
+    }
+  };
+
+  // Confirm date selection and close picker
+  const confirmDateSelection = () => {
+    const formattedDate = tempDate.toISOString().split('T')[0];
+    setFormData({
+      ...formData,
+      dateOfBirth: formattedDate
+    });
+    closeDatePicker();
+  };
+
+  // Close date picker with delayed unmount to prevent flash
+  const closeDatePicker = () => {
+    setShowDatePicker(false);
+    // Delay unmounting the picker until after modal fade animation
+    setTimeout(() => setIsPickerMounted(false), 300);
   };
 
   // Render profile form
   const renderProfileForm = () => (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
+      {/* Close button header */}
+      <View style={styles.formHeader}>
+        <TouchableOpacity
+          style={styles.formCloseButton}
+          onPress={() => animateTransition(false)}
+          activeOpacity={0.7}
+        >
+          <Feather name="x" size={24} color={colors.white} />
+        </TouchableOpacity>
+        <Text style={styles.formHeaderTitle}>Edit Profile</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <ScrollView
         style={styles.formContainer}
         contentContainerStyle={styles.formContentContainer}
@@ -344,10 +829,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 style={styles.profileImage}
               />
             ) : (
-              <Feather name="user" size={50} color={colors.primary} />
+              <AnglerAvatarIcon size={105} />
             )}
             <View style={styles.cameraIconContainer}>
-              <Feather name="camera" size={18} color={colors.white} />
+              <Feather name="camera" size={18} color={colors.primary} />
             </View>
           </TouchableOpacity>
           <Text style={styles.photoHelpText}>Tap to change profile photo</Text>
@@ -393,7 +878,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {/* WRC ID - shown when hasLicense = true */}
           {formData.hasLicense === true && (
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>WRC ID / Customer ID *</Text>
+              <View style={styles.labelRow}>
+                <Text style={[styles.inputLabel, { marginBottom: 0 }]}>WRC ID / Customer ID *</Text>
+                <TouchableOpacity
+                  onPress={() => setShowWrcIdInfoModal(true)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Feather name="info" size={18} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
               <TextInput
                 ref={wrcIdInputRef}
                 style={[
@@ -475,36 +968,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          {/* ZIP Code - required when hasLicense = false */}
-          {formData.hasLicense === false && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>ZIP Code *</Text>
-              <TextInput
-                ref={zipCodeInputRef}
-                style={[
-                  styles.input,
-                  validationErrors.zipCode ? styles.inputError : null,
-                  { maxWidth: 120 }
-                ]}
-                value={formData.zipCode}
-                onChangeText={(text) => {
-                  // Only allow digits, max 5
-                  const digits = text.replace(/\D/g, '').slice(0, 5);
-                  handleFieldChange('zipCode', digits);
-                }}
-                placeholder="12345"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="number-pad"
-                maxLength={5}
-                returnKeyType="next"
-                onSubmitEditing={() => emailInputRef.current?.focus()}
-              />
-              {validationErrors.zipCode && (
-                <Text style={styles.errorText}>{validationErrors.zipCode}</Text>
-              )}
-            </View>
-          )}
-
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Date of Birth</Text>
             <TouchableOpacity
@@ -514,6 +977,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               ]}
               onPress={() => {
                 Keyboard.dismiss();
+                // Initialize tempDate with current value or a sensible default (30 years ago)
+                // Using 30 years ago allows scrolling both directions without hitting maximumDate
+                const defaultDate = new Date();
+                defaultDate.setFullYear(defaultDate.getFullYear() - 30);
+                setTempDate(formData.dateOfBirth ? new Date(formData.dateOfBirth) : defaultDate);
+                setDatePickerKey(prev => prev + 1);
+                setIsPickerMounted(true);
                 setShowDatePicker(true);
               }}
             >
@@ -569,7 +1039,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               keyboardType="phone-pad"
               mask={PHONE_MASK}
               returnKeyType="next"
-              onSubmitEditing={() => addressInputRef.current?.focus()}
+              onSubmitEditing={() => zipCodeInputRef.current?.focus()}
             />
             {validationErrors.phone && (
               <Text style={styles.errorText}>{validationErrors.phone}</Text>
@@ -577,92 +1047,52 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Address</Text>
-            <View>
+            <Text style={styles.inputLabel}>ZIP Code</Text>
+            <View style={styles.zipInputRow}>
               <TextInput
-                ref={addressInputRef}
+                ref={zipCodeInputRef}
                 style={[
                   styles.input,
-                  styles.textArea,
-                  validationErrors.address ? styles.inputError : null
+                  styles.zipInput,
+                  validationErrors.zipCode ? styles.inputError : null,
                 ]}
-                value={formData.address}
+                value={formData.zipCode}
                 onChangeText={(text) => {
-                  handleFieldChange('address', text);
-
-                  // More responsive address suggestion logic
-                  // Show suggestions for any text of sufficient length
-                  if (text.length >= 3) {
-                    // Common street patterns to match against
-                    const suggestions = [];
-
-                    // Always provide some suggestions based on input
-                    if (text.toLowerCase().includes('st') || text.toLowerCase().includes('street')) {
-                      suggestions.push('123 Main Street, Anytown, NC', '456 Ocean Street, Beachville, NC');
-                    }
-
-                    if (text.toLowerCase().includes('ave') || text.toLowerCase().includes('avenue')) {
-                      suggestions.push('789 Oak Avenue, Forestville, NC', '101 Park Avenue, Citytown, NC');
-                    }
-
-                    if (text.toLowerCase().includes('rd') || text.toLowerCase().includes('road')) {
-                      suggestions.push('222 Country Road, Ruralville, NC', '333 Mountain Road, Highland, NC');
-                    }
-
-                    if (text.toLowerCase().includes('ln') || text.toLowerCase().includes('lane')) {
-                      suggestions.push('444 Maple Lane, Shadygrove, NC', '555 Cedar Lane, Woodville, NC');
-                    }
-
-                    // Fallback if no specific street type matches but text length is sufficient
-                    if (suggestions.length === 0) {
-                      suggestions.push(
-                        `${text} Street, Anytown, NC`,
-                        `${text} Avenue, Cityville, NC`,
-                        `${text} Road, Countryside, NC`
-                      );
-                    }
-
-                    setAddressSuggestions(suggestions);
-                  } else {
-                    setAddressSuggestions([]);
-                  }
+                  // Only allow digits, max 5
+                  const digits = text.replace(/\D/g, '').slice(0, 5);
+                  handleFieldChange('zipCode', digits);
                 }}
-                placeholder="Enter your address"
+                placeholder="12345"
                 placeholderTextColor={colors.textTertiary}
-                multiline
-                numberOfLines={3}
-                textContentType="fullStreetAddress"
-                autoComplete="street-address"
+                keyboardType="number-pad"
+                maxLength={5}
+                returnKeyType="done"
               />
-
-              {/* Address suggestions */}
-              {addressSuggestions.length > 0 && (
-                <View style={styles.suggestionsContainer}>
-                  <ScrollView style={styles.suggestionsScroll} keyboardShouldPersistTaps="handled">
-                    {addressSuggestions.map((suggestion, index) => (
-                      <TouchableOpacity
-                        key={`suggestion-${index}`}
-                        style={styles.suggestionItem}
-                        onPress={() => {
-                          handleFieldChange('address', suggestion);
-                          setAddressSuggestions([]);
-                          Keyboard.dismiss();
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Feather name="map-pin" size={16} color={colors.primary} style={styles.suggestionIcon} />
-                        <Text style={styles.suggestionText} numberOfLines={1} ellipsizeMode="tail">
-                          {suggestion}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+              {/* ZIP code lookup feedback */}
+              {formData.zipCode?.length === 5 && !validationErrors.zipCode && (
+                <View style={styles.zipFeedback}>
+                  {zipLookup.isLoading && (
+                    <Text style={styles.zipFeedbackLoading}>Checking...</Text>
+                  )}
+                  {zipLookup.result && !zipLookup.isLoading && (
+                    <View style={styles.zipFeedbackSuccess}>
+                      <Feather name="check-circle" size={14} color="#28a745" />
+                      <Text style={styles.zipFeedbackSuccessText}>
+                        {zipLookup.result.city}, {zipLookup.result.stateAbbr}
+                      </Text>
+                    </View>
+                  )}
+                  {zipLookup.error && !zipLookup.isLoading && (
+                    <View style={styles.zipFeedbackWarning}>
+                      <Feather name="alert-circle" size={14} color="#ff9800" />
+                      <Text style={styles.zipFeedbackWarningText}>{zipLookup.error}</Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
-
-            {validationErrors.address && (
-              <Text style={styles.errorText}>{validationErrors.address}</Text>
+            {validationErrors.zipCode && (
+              <Text style={styles.errorText}>{validationErrors.zipCode}</Text>
             )}
           </View>
         </View>
@@ -670,10 +1100,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.formButtonRow}>
           <TouchableOpacity
             style={[styles.formButton, styles.formCancelButton]}
-            onPress={() => {
-              setFormData(profile || {});
-              setIsEditing(false);
-            }}
+            onPress={() => animateTransition(false)}
           >
             <Text style={styles.formCancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -686,37 +1113,80 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Date picker for iOS */}
-        {Platform.OS === 'ios' && showDatePicker && (
-          <View style={styles.datePickerContainer}>
-            <View style={styles.datePickerHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.datePickerCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={styles.datePickerTitle}>Select Date of Birth</Text>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.datePickerDone}>Done</Text>
-              </TouchableOpacity>
+        {/* Delete Account Section - Only show for authenticated rewards members */}
+        {rewardsMember && (
+          <View style={localStyles.deleteAccountSection}>
+            <View style={localStyles.deleteAccountHeader}>
+              <View style={localStyles.deleteAccountIcon}>
+                <Feather name="alert-triangle" size={18} color={colors.white} />
+              </View>
+              <Text style={localStyles.deleteAccountTitle}>Delete Account</Text>
             </View>
-            <DateTimePicker
-              value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
-              mode="date"
-              display="spinner"
-              onChange={onDateChange}
-              style={styles.datePicker}
-            />
+            <Text style={localStyles.deleteAccountDesc}>
+              Permanently delete your account and all associated data including harvest reports, achievements, and rewards entries.
+            </Text>
+            <TouchableOpacity
+              style={localStyles.deleteAccountButton}
+              onPress={handleDeleteAccount}
+              disabled={isDeletingAccount}
+              activeOpacity={0.7}
+            >
+              {isDeletingAccount ? (
+                <ActivityIndicator size="small" color="#FF3B30" />
+              ) : (
+                <>
+                  <Feather name="trash-2" size={16} color="#FF3B30" />
+                  <Text style={localStyles.deleteAccountButtonText}>Delete Account</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* For Android, DateTimePicker is rendered directly */}
-        {Platform.OS === 'android' && showDatePicker && (
-          <DateTimePicker
-            value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : new Date()}
-            mode="date"
-            display="default"
-            onChange={onDateChange}
-          />
-        )}
+        {/* Date Picker Modal - matching ReportFormScreen pattern */}
+        <Modal
+          visible={showDatePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={closeDatePicker}
+        >
+          <View style={styles.dateModalOverlay}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeDatePicker}
+            />
+            <View style={styles.dateModalContent}>
+              <View style={styles.dateModalHeader}>
+                <Text style={styles.dateModalTitle}>Select Date of Birth</Text>
+                <TouchableOpacity onPress={closeDatePicker}>
+                  <Feather name="x" size={24} color={colors.darkGray} />
+                </TouchableOpacity>
+              </View>
+              {isPickerMounted && (
+                <DateTimePicker
+                  key={`profile-dob-picker-${datePickerKey}`}
+                  value={tempDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onDateChange}
+                  maximumDate={new Date()}
+                  themeVariant="light"
+                  style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
+                />
+              )}
+              <TouchableOpacity
+                style={styles.dateModalConfirmButton}
+                onPress={confirmDateSelection}
+              >
+                <Text style={styles.dateModalConfirmText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* WRC ID Info Modal */}
+        <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -724,15 +1194,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // Render profile display
   const renderProfile = () => (
     <View style={styles.container}>
-      {/* Fixed Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.7}
-      >
-        <Feather name="arrow-left" size={24} color={colors.white} />
-      </TouchableOpacity>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
@@ -741,13 +1202,24 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         {/* Top spacer for pull-down bounce - shows dark blue */}
         <View style={styles.topBounceArea} />
 
-        {/* Header content - scrolls */}
+        {/* Header content - scrolls with back button inside */}
         <View style={styles.profileHeader}>
-          <Text style={styles.headerTitle}>My Profile</Text>
+          {/* Header row with back button */}
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Feather name="arrow-left" size={24} color={colors.white} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>My Profile</Text>
+            <View style={styles.headerSpacer} />
+          </View>
 
           <TouchableOpacity
             style={styles.profileImageContainer}
-            onPress={pickImage}
+            onPress={() => setShowPhotoPreview(true)}
             activeOpacity={0.8}
           >
             {profile.profileImage ? (
@@ -756,22 +1228,257 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 style={styles.profileImage}
               />
             ) : (
-              <Feather name="user" size={50} color={colors.primary} />
+              <AnglerAvatarIcon size={105} />
             )}
-            <View style={styles.cameraIconContainer}>
-              <Feather name="camera" size={18} color={colors.white} />
-            </View>
           </TouchableOpacity>
-          <Text style={styles.profileName}>
-            {profile.firstName && profile.lastName
-              ? `${profile.firstName} ${profile.lastName}`
-              : profile.firstName || profile.lastName || "Add Your Name"}
-          </Text>
+          {(profile.firstName || profile.lastName) && (
+            <Text style={styles.profileName}>
+              {profile.firstName && profile.lastName
+                ? `${profile.firstName} ${profile.lastName}`
+                : profile.firstName || profile.lastName}
+            </Text>
+          )}
         </View>
 
       {/* Content area with light background */}
       <View style={styles.contentArea}>
       <View style={styles.infoContainer}>
+        {/* Rewards Status Section - with skeleton loading */}
+        {loading ? (
+          /* Skeleton loader while checking rewards status */
+          <View style={[styles.infoSection, localStyles.skeletonSection]}>
+            <View style={localStyles.skeletonHeader}>
+              <View style={localStyles.skeletonIcon} />
+              <View style={localStyles.skeletonTextContainer}>
+                <View style={localStyles.skeletonTitle} />
+                <View style={localStyles.skeletonSubtitle} />
+              </View>
+            </View>
+            <View style={localStyles.skeletonDescription} />
+            <View style={localStyles.skeletonButton} />
+          </View>
+        ) : rewardsMember && rewardsMemberUser ? (
+          <View style={[styles.infoSection, localStyles.rewardsMemberSection]}>
+            <View style={localStyles.rewardsMemberHeader}>
+              <View style={localStyles.rewardsMemberIcon}>
+                <Feather name="award" size={20} color={colors.white} />
+              </View>
+              <View style={localStyles.rewardsMemberInfo}>
+                <Text style={localStyles.rewardsMemberTitle}>Rewards Member</Text>
+                <Text style={localStyles.rewardsMemberEmail}>{rewardsMemberUser.email}</Text>
+              </View>
+              <Feather name="check-circle" size={20} color="#4CAF50" />
+            </View>
+
+            <Text style={localStyles.rewardsMemberDesc}>
+              {hasEnteredCurrentRaffle
+                ? "You're entered in the quarterly drawing! Keep reporting your catches to earn more entries."
+                : "Submit a catch report and enter the quarterly drawing for a chance to win prizes!"}
+            </Text>
+
+            <TouchableOpacity
+              style={localStyles.signOutButton}
+              onPress={handleSignOut}
+              disabled={isSigningOut}
+              activeOpacity={0.7}
+            >
+              {isSigningOut ? (
+                <ActivityIndicator size="small" color={colors.textSecondary} />
+              ) : (
+                <>
+                  <Feather name="log-out" size={16} color={colors.textSecondary} />
+                  <Text style={localStyles.signOutButtonText}>Sign Out</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : pendingAuth ? (
+          <View style={[styles.infoSection, localStyles.pendingAuthSection]}>
+            <View style={localStyles.pendingAuthHeader}>
+              <View style={localStyles.pendingAuthIcon}>
+                <Feather name="mail" size={20} color={colors.white} />
+              </View>
+              <Text style={localStyles.pendingAuthTitle}>Rewards Sign Up Pending</Text>
+            </View>
+
+            <Text style={localStyles.pendingAuthDesc}>
+              Check your email for the sign-in link. If you didn't receive it, you can resend below.
+            </Text>
+
+            <View style={localStyles.pendingAuthEmailContainer}>
+              <Text style={localStyles.pendingAuthLabel}>Email</Text>
+              {isEditingPendingEmail ? (
+                <TextInput
+                  style={localStyles.pendingAuthInput}
+                  value={pendingAuthEmail}
+                  onChangeText={setPendingAuthEmail}
+                  placeholder="Enter your email"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoFocus
+                />
+              ) : (
+                <View style={localStyles.pendingAuthEmailRow}>
+                  <Text style={localStyles.pendingAuthEmail}>{pendingAuthEmail}</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsEditingPendingEmail(true)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Feather name="edit-2" size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {pendingAuth.sentAt && (
+              <Text style={localStyles.pendingAuthSentAt}>
+                Last sent: {new Date(pendingAuth.sentAt).toLocaleString()}
+              </Text>
+            )}
+
+            <View style={localStyles.pendingAuthActions}>
+              <TouchableOpacity
+                style={[localStyles.pendingAuthButton, localStyles.pendingAuthResendButton]}
+                onPress={handleResendMagicLink}
+                disabled={isResendingLink}
+                activeOpacity={0.7}
+              >
+                {isResendingLink ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <>
+                    <Feather name="send" size={16} color={colors.white} />
+                    <Text style={localStyles.pendingAuthButtonText}>
+                      {isEditingPendingEmail ? 'Send Link' : 'Resend Link'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[localStyles.pendingAuthButton, localStyles.pendingAuthCancelButton]}
+                onPress={handleCancelPendingAuth}
+                activeOpacity={0.7}
+              >
+                <Feather name="x" size={16} color={colors.textSecondary} />
+                <Text style={localStyles.pendingAuthCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          /* Sign In / Join Rewards Section - shown when not a member and no pending auth */
+          <View style={[styles.infoSection, localStyles.signInSection]}>
+            <View style={localStyles.signInHeader}>
+              <View style={localStyles.signInIcon}>
+                <Feather name="award" size={20} color={colors.white} />
+              </View>
+              <Text style={localStyles.signInTitle}>Quarterly Rewards</Text>
+            </View>
+
+            <Text style={localStyles.signInDesc}>
+              Sign in with your email to be entered in the quarterly prize drawing. Report your catches to earn more entries!
+            </Text>
+
+            {showSignInForm ? (
+              <View style={localStyles.signInForm}>
+                <View style={localStyles.signInInputGroup}>
+                  <Text style={localStyles.signInLabel}>Email *</Text>
+                  <TextInput
+                    style={[
+                      localStyles.signInInput,
+                      signInEmailError ? localStyles.signInInputError : null
+                    ]}
+                    value={signInEmail}
+                    onChangeText={handleSignInEmailChange}
+                    onBlur={handleSignInEmailBlur}
+                    placeholder="your.email@example.com"
+                    placeholderTextColor={colors.textTertiary}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    textContentType="emailAddress"
+                  />
+                  {signInEmailError ? (
+                    <Text style={localStyles.signInInputErrorText}>{signInEmailError}</Text>
+                  ) : null}
+                </View>
+
+                <View style={localStyles.signInNameRow}>
+                  <View style={[localStyles.signInInputGroup, { flex: 1, marginRight: 8 }]}>
+                    <Text style={localStyles.signInLabel}>First Name *</Text>
+                    <TextInput
+                      style={localStyles.signInInput}
+                      value={signInFirstName}
+                      onChangeText={setSignInFirstName}
+                      placeholder="First"
+                      placeholderTextColor={colors.textTertiary}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                  <View style={[localStyles.signInInputGroup, { flex: 1, marginLeft: 8 }]}>
+                    <Text style={localStyles.signInLabel}>Last Name *</Text>
+                    <TextInput
+                      style={localStyles.signInInput}
+                      value={signInLastName}
+                      onChangeText={setSignInLastName}
+                      placeholder="Last"
+                      placeholderTextColor={colors.textTertiary}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                </View>
+
+                <View style={localStyles.signInActions}>
+                  <TouchableOpacity
+                    style={localStyles.signInSubmitButton}
+                    onPress={handleSignIn}
+                    disabled={isSendingSignInLink}
+                    activeOpacity={0.7}
+                  >
+                    {isSendingSignInLink ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <>
+                        <Feather name="send" size={16} color={colors.white} />
+                        <Text style={localStyles.signInSubmitText}>Send Sign-In Link</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={localStyles.signInCancelButton}
+                    onPress={() => {
+                      setShowSignInForm(false);
+                      setSignInEmail('');
+                      setSignInFirstName('');
+                      setSignInLastName('');
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={localStyles.signInCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={localStyles.joinRewardsButton}
+                onPress={() => {
+                  // Pre-populate form fields with stored profile data
+                  setSignInEmail(profile.email || '');
+                  setSignInFirstName(profile.firstName || '');
+                  setSignInLastName(profile.lastName || '');
+                  setShowSignInForm(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Feather name="user-plus" size={18} color={colors.white} />
+                <Text style={localStyles.joinRewardsText}>{profile.email ? 'Sign In to Rewards Program' : 'Join Rewards Program'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* License Status Section */}
         <View style={styles.infoSection}>
           <Text style={styles.infoSectionTitle}>License Status</Text>
@@ -801,18 +1508,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>WRC ID / Customer ID</Text>
                 <Text style={styles.infoValue}>{profile.wrcId}</Text>
-              </View>
-            </View>
-          )}
-
-          {profile.hasLicense === false && profile.zipCode && (
-            <View style={styles.infoItem}>
-              <View style={styles.infoIconContainer}>
-                <Feather name="map-pin" size={18} color={colors.primary} />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>ZIP Code</Text>
-                <Text style={styles.infoValue}>{profile.zipCode}</Text>
               </View>
             </View>
           )}
@@ -871,14 +1566,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
           )}
 
-          {profile.address && (
+          {profile.zipCode && (
             <View style={styles.infoItem}>
               <View style={styles.infoIconContainer}>
                 <Feather name="map-pin" size={18} color={colors.primary} />
               </View>
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Address</Text>
-                <Text style={styles.infoValue}>{profile.address}</Text>
+                <Text style={styles.infoLabel}>ZIP Code</Text>
+                <Text style={styles.infoValue}>{profile.zipCode}</Text>
               </View>
             </View>
           )}
@@ -886,7 +1581,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.editButton}
-          onPress={() => setIsEditing(true)}
+          onPress={() => animateTransition(true)}
         >
           <Feather name="edit-2" size={18} color={colors.white} />
           <Text style={styles.editButtonText}>Edit Profile</Text>
@@ -909,23 +1604,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         </Text>
       </View>
 
-      <View style={styles.statsSection}>
-        <Text style={styles.sectionTitle}>Fishing Statistics</Text>
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Catches</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>0</Text>
-            <Text style={styles.statLabel}>Species</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>0 lbs</Text>
-            <Text style={styles.statLabel}>Biggest Catch</Text>
-          </View>
-        </View>
-      </View>
+      <ProfileStats fishingStats={fishingStats} statsLoading={statsLoading} />
+
+      {/* Achievements Section - Only show for rewards members with achievements */}
+      {rewardsMember && userAchievements.length > 0 && (
+        <ProfileAchievements achievements={userAchievements} />
+      )}
+
       </View>
       </ScrollView>
     </View>
@@ -933,454 +1618,69 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
-      {isEditing ? renderProfileForm() : renderProfile()}
+      {/* Always render profile underneath */}
+      {renderProfile()}
+
+      {/* Overlay the form when editing */}
+      {isEditing && (
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: slideAnim }] }]}>
+          {renderProfileForm()}
+        </Animated.View>
+      )}
+
+      {/* Photo preview modal */}
+      <Modal
+        visible={showPhotoPreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPhotoPreview(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowPhotoPreview(false)}>
+          <View style={photoPreviewStyles.overlay}>
+            <View style={photoPreviewStyles.imageContainer}>
+              {profile.profileImage ? (
+                <Image
+                  source={{ uri: profile.profileImage }}
+                  style={photoPreviewStyles.image}
+                />
+              ) : (
+                <View style={photoPreviewStyles.avatarFallback}>
+                  <AnglerAvatarIcon size={200} />
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
-  safeArea: {
+const photoPreviewStyles = StyleSheet.create({
+  overlay: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  contentContainer: {
-    flexGrow: 1,
-  },
-  // Invisible spacer that shows primary color when pulling down at top
-  topBounceArea: {
-    backgroundColor: colors.primary,
-    height: 500,
-    marginTop: -500,
-  },
-  // Content area with light background
-  contentArea: {
-    backgroundColor: colors.background,
-    flexGrow: 1,
-    paddingBottom: spacing.xl * 2,
-  },
-  // Fixed Back Button
-  backButton: {
-    position: 'absolute',
-    top: 60,
-    left: spacing.lg,
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  // Profile Header
-  profileHeader: {
-    backgroundColor: colors.primary,
-    paddingTop: 80,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    ...typography.h1,
-    color: colors.white,
-    fontSize: 22,
-    marginBottom: spacing.lg,
-  },
-  profileImageContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.xl,
-    overflow: 'visible',
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
-  cameraIconContainer: {
-    position: 'absolute',
-    bottom: -5,
-    right: -5,
-    backgroundColor: colors.primary,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.white,
-    ...shadows.medium,
-  },
-  profileName: {
-    ...typography.h1,
-    color: colors.white,
-    marginBottom: spacing.xxs,
-  },
-  profileSubtitle: {
-    ...typography.body,
-    color: colors.white,
-    opacity: 0.9,
-  },
-  // Info Section
-  infoContainer: {
-    backgroundColor: colors.white,
-    marginHorizontal: spacing.lg,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginTop: -spacing.xl,
-    ...shadows.medium,
-  },
-  infoSection: {
-    marginBottom: spacing.lg,
-  },
-  infoSectionTitle: {
-    ...typography.heading,
-    color: colors.primary,
-    marginBottom: spacing.md,
-  },
-  infoItem: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  infoIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  infoContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  infoLabel: {
-    ...typography.bodySmall,
-    color: colors.darkGray,
-    marginBottom: spacing.xxs,
-  },
-  infoValue: {
-    ...typography.body,
-    color: colors.black,
-  },
-  editButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.small,
-  },
-  editButtonText: {
-    ...typography.button,
-    color: colors.white,
-    marginLeft: spacing.xs,
-  },
-  // License Section
-  licenseSection: {
-    backgroundColor: colors.white,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    ...shadows.medium,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  sectionTitle: {
-    ...typography.heading,
-    color: colors.primary,
-  },
-  viewLicenseButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  viewLicenseText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '600',
-    marginRight: spacing.xxs,
-  },
-  licenseDescription: {
-    ...typography.body,
-    color: colors.darkGray,
-    marginTop: spacing.xs,
-  },
-  // Stats Section
-  statsSection: {
-    backgroundColor: colors.white,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    ...shadows.medium,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-  },
-  statCard: {
-    width: '30%',
-    backgroundColor: colors.lightGray,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  statValue: {
-    ...typography.heading,
-    color: colors.primary,
-    marginBottom: spacing.xxs,
-  },
-  statLabel: {
-    ...typography.bodySmall,
-    color: colors.darkGray,
-  },
-  // Form styles
-  formContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  formContentContainer: {
-    padding: spacing.lg,
-  },
-  formSection: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-    ...shadows.small,
-  },
-  formSectionTitle: {
-    ...typography.heading,
-    color: colors.primary,
-    marginBottom: spacing.md,
-  },
-  sectionDescription: {
-    ...typography.body,
-    color: colors.darkGray,
-    marginBottom: spacing.md,
-    marginTop: -spacing.xs,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-  },
-  toggleButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  toggleButtonText: {
-    ...typography.body,
-    fontWeight: '600',
-    color: colors.darkGray,
-  },
-  toggleButtonTextActive: {
-    color: colors.primary,
-  },
-  helpText: {
-    ...typography.bodySmall,
-    color: colors.darkGray,
-    marginTop: spacing.xxs,
-    fontStyle: 'italic',
-  },
-  profilePhotoSection: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  photoHelpText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    marginTop: spacing.sm,
-  },
-  inputGroup: {
-    marginBottom: spacing.md,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  nameInputRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  nameInput: {
-    flex: 1,
-  },
-  nameInputSpacer: {
-    width: 12,
-  },
-  inputLabel: {
-    ...typography.bodySmall,
-    fontWeight: '600',
-    color: colors.darkGray,
-    marginBottom: spacing.xs,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.sm,
-    fontSize: 16,
-    color: colors.black,
-    backgroundColor: colors.white,
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  inputError: {
-    borderColor: colors.error || '#FF3B30',
-    borderWidth: 1,
-  },
-  errorText: {
-    color: colors.error || '#FF3B30',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-    paddingTop: spacing.sm,
-  },
-  inputText: {
-    fontSize: 16,
-    color: colors.black,
-    flex: 1,
-  },
-  inputPlaceholder: {
-    fontSize: 16,
-    color: colors.textTertiary,
-    flex: 1,
-  },
-  suggestionsContainer: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    marginTop: 4,
-    height: 150,
+  imageContainer: {
+    width: 280,
+    height: 280,
+    borderRadius: 140,
     overflow: 'hidden',
-    ...shadows.medium,
-    zIndex: 999,
-    position: 'absolute',
-    top: 104, // Position below the text input (adjusted for your layout)
-    left: 0,
-    right: 0,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  suggestionsScroll: {
-    flex: 1,
+  image: {
+    width: '100%',
+    height: '100%',
   },
-  suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  suggestionIcon: {
-    marginRight: 8,
-  },
-  suggestionText: {
-    fontSize: 14,
-    color: colors.black,
-    flex: 1,
-  },
-  formButtonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xl,
-  },
-  formButton: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
     justifyContent: 'center',
-  },
-  formCancelButton: {
-    backgroundColor: colors.lightGray,
-    marginRight: spacing.sm,
-  },
-  formSaveButton: {
-    backgroundColor: colors.primary,
-    marginLeft: spacing.sm,
-  },
-  formCancelButtonText: {
-    ...typography.button,
-    color: colors.darkGray,
-  },
-  formSaveButtonText: {
-    ...typography.button,
-    color: colors.white,
-  },
-  // Date picker
-  datePickerContainer: {
-    backgroundColor: colors.white,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    ...shadows.large,
-  },
-  datePickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  datePickerTitle: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  datePickerCancel: {
-    ...typography.bodySmall,
-    color: colors.darkGray,
-  },
-  datePickerDone: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  datePicker: {
-    backgroundColor: colors.white,
   },
 });
 

@@ -1,18 +1,27 @@
 // styles/homeScreenStyles.ts
-import { StyleSheet, Dimensions, ViewStyle, TextStyle, ImageStyle, Platform, StatusBar } from 'react-native';
+import { StyleSheet, ViewStyle, TextStyle, ImageStyle, Platform, StatusBar } from 'react-native';
 import { colors, spacing, borderRadius, shadows, typography } from './common';
 
-const { width } = Dimensions.get('window');
-export const menuWidth = width * 0.85; // Increased menu width for better text fit
+export const menuWidth = 320; // Fixed width to match DrawerMenu component
 
 interface HomeScreenStyles {
   container: ViewStyle;
   header: ViewStyle;
+  headerContent: ViewStyle;
+  headerLeftSection: ViewStyle;
+  headerRightSection: ViewStyle;
+  headerTextSection: ViewStyle;
   menuButton: ViewStyle;
+  logoContainer: ViewStyle;
   logo: ImageStyle;
   title: TextStyle;
   subtitle: TextStyle;
   content: ViewStyle;
+  greetingContainer: ViewStyle;
+  greetingIcon: ViewStyle;
+  greetingTextContainer: ViewStyle;
+  greetingText: TextStyle;
+  userNameText: TextStyle;
   licenseCardContainer: ViewStyle;
   licenseCard: ViewStyle;
   licenseHeader: ViewStyle;
@@ -22,9 +31,6 @@ interface HomeScreenStyles {
   buttonContainer: ViewStyle;
   button: ViewStyle;
   buttonText: TextStyle;
-  actionButton: ViewStyle;
-  actionIconContainer: ViewStyle;
-  actionButtonText: TextStyle;
   infoContainer: ViewStyle;
   infoTitle: TextStyle;
   infoText: TextStyle;
@@ -33,6 +39,8 @@ interface HomeScreenStyles {
   checkIcon: ViewStyle;
   checkImage: ImageStyle;
   checkText: TextStyle;
+  learnMoreButton: ViewStyle;
+  learnMoreButtonText: TextStyle;
   gotItButton: ViewStyle;
   gotItButtonText: TextStyle;
   menu: ViewStyle;
@@ -134,6 +142,8 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFD700',
   },
   logo: {
     width: 44,
@@ -217,33 +227,6 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
     fontSize: 17,
     fontWeight: '600',
     letterSpacing: 0.5,
-  },
-  actionButton: {
-    width: '48%',
-    aspectRatio: 1,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.medium,
-    padding: spacing.sm,
-  },
-  actionIconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  actionButtonText: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: spacing.xs,
   },
   infoContainer: {
     backgroundColor: colors.card,
@@ -404,7 +387,7 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
   menuItemIcon: {
     width: 32, // Slightly smaller icons
     height: 32,
-    borderRadius: 16,
+    borderRadius: borderRadius.lg,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,6 +1,6 @@
 // styles/fishingLicenseScreenStyles.ts
 import { StyleSheet, Platform } from "react-native";
-import { colors, spacing, typography, borderRadius } from "./common";
+import { colors, spacing, typography, borderRadius, shadows, modals } from "./common";
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -110,6 +110,7 @@ const styles = StyleSheet.create({
   },
   licenseRow: {
     flexDirection: "row",
+    alignItems: "center",
     marginBottom: spacing.xs,
   },
   licenseLabel: {
@@ -258,11 +259,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginTop: spacing.xl,
   },
+  // Form header - matching ProfileScreen pattern
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: 60,
+    paddingBottom: spacing.xl,
+    backgroundColor: colors.primary,
+    borderBottomLeftRadius: borderRadius.md,
+    borderBottomRightRadius: borderRadius.md,
+  },
+  formCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formHeaderTitle: {
+    ...typography.h1,
+    color: colors.white,
+    fontSize: 20,
+  },
   formContainer: {
     flex: 1,
     backgroundColor: colors.background,
-    borderTopLeftRadius: borderRadius.md,
-    borderTopRightRadius: borderRadius.md,
   },
   formContentContainer: {
     padding: spacing.lg,
@@ -279,8 +303,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   formSectionTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
+    ...typography.heading,
+    color: colors.primary,
     marginBottom: spacing.md,
   },
   inputGroup: {
@@ -288,19 +312,23 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
+    fontWeight: '600',
+    color: colors.darkGray,
+    marginBottom: spacing.sm,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.md,
     paddingHorizontal: spacing.sm,
-    paddingVertical: Platform.OS === 'ios' ? spacing.sm : 8,
+    paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.sm,
     fontSize: 16,
-    color: colors.textPrimary,
+    color: colors.black,
     backgroundColor: colors.white,
-    alignItems: "center",
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   inputText: {
     fontSize: 16,
@@ -341,22 +369,27 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   formCancelButton: {
-    backgroundColor: colors.lightGray,
+    backgroundColor: colors.white,
     marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   formCancelButtonText: {
     ...typography.button,
-    color: colors.textPrimary,
+    color: colors.darkGray,
   },
-  datePickerModal: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
+  // Date picker - matching ProfileScreen pattern
   datePickerContainer: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.lg,
-    borderTopRightRadius: borderRadius.lg,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 10,
   },
   datePickerHeader: {
     flexDirection: 'row',
@@ -364,22 +397,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightGray,
+    borderBottomColor: colors.border,
   },
   datePickerTitle: {
-    ...typography.h3,
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
   datePickerCancel: {
-    ...typography.button,
-    color: colors.danger,
+    ...typography.bodySmall,
+    color: colors.darkGray,
   },
   datePickerDone: {
-    ...typography.button,
+    ...typography.bodySmall,
     color: colors.primary,
+    fontWeight: '600',
   },
   datePicker: {
-    height: 250,
+    backgroundColor: colors.white,
   },
   modalContainer: {
     flex: 1,
@@ -392,7 +426,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     width: "90%",
     maxHeight: "80%",
-    padding: spacing.lg,
+    overflow: 'hidden',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
@@ -437,7 +471,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.lightGray,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
@@ -445,6 +479,21 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   modalButtonText: {
+    ...typography.button,
+    color: colors.textSecondary,
+  },
+  modalLookupButton: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  modalLookupButtonText: {
     ...typography.button,
     color: colors.white,
   },
@@ -482,6 +531,40 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
     flex: 1,
+  },
+  // Date picker modal styles - uses common modal styles
+  dateModalOverlay: modals.overlay,
+  dateModalContent: {
+    ...modals.content,
+    padding: spacing.lg,
+  },
+  dateModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  dateModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  datePickerInline: {
+    height: 350,
+    width: '100%',
+    backgroundColor: colors.white,
+  },
+  dateModalConfirmButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  dateModalConfirmText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

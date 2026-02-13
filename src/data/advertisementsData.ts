@@ -18,8 +18,8 @@ export interface Advertisement {
 // Define available ad images - add new images here as they become available
 export const adImages = {
   qualifiedCaptain1: require('../assets/QC Ad1.png'),
-  // Add more ad images here as needed:
-  // companyName1: require('../assets/CompanyAd1.png'),
+  seaTow: require('../assets/sea_tow_boat.jpg'),
+  shimanoReels: require('../assets/shimano-reels.jpg'),
 };
 
 // Active advertisements - easily maintainable list
@@ -34,16 +34,26 @@ export const advertisements: Advertisement[] = [
     isActive: true,
     priority: 1,
   },
-  // Add more advertisements here:
-  // {
-  //   id: 'company-promo-2026',
-  //   companyName: 'Another Company',
-  //   promoText: 'Special offer text here!',
-  //   linkUrl: 'https://example.com/',
-  //   image: adImages.companyName1,
-  //   isActive: true,
-  //   priority: 2,
-  // },
+  {
+    id: 'sea-tow-2026',
+    companyName: 'Sea Tow',
+    promoText: '24/7 On-Water Assistance - Join Today!',
+    promoCode: 'NCFISH20',
+    linkUrl: 'https://www.seatow.com/',
+    image: adImages.seaTow,
+    isActive: true,
+    priority: 2,
+  },
+  {
+    id: 'shimano-reels-2026',
+    companyName: 'Shimano',
+    promoText: 'Premium Fishing Reels - Built to Perform',
+    promoCode: 'CATCH15',
+    linkUrl: 'https://fish.shimano.com/',
+    image: adImages.shimanoReels,
+    isActive: true,
+    priority: 3,
+  },
 ];
 
 // Helper function to get active advertisements sorted by priority

@@ -1,6 +1,6 @@
 // components/LicenseTypePicker.tsx
-import React from 'react';
-import { View, Text, TouchableOpacity, FlatList, Modal, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, FlatList, Modal, StyleSheet, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius } from '../styles/common';
 
@@ -19,59 +19,128 @@ const LicenseTypePicker: React.FC<LicenseTypePickerProps> = ({
   selectedValue,
   options
 }) => {
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [modalVisible, setModalVisible] = useState(false);
+  const isClosing = useRef(false);
+
+  // Handle close with animation
+  const handleClose = useCallback(() => {
+    if (isClosing.current) return;
+    isClosing.current = true;
+
+    Animated.parallel([
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setModalVisible(false);
+      isClosing.current = false;
+      onClose();
+    });
+  }, [slideAnim, overlayOpacity, onClose]);
+
+  // Handle visibility changes
+  useEffect(() => {
+    if (visible && !modalVisible && !isClosing.current) {
+      setModalVisible(true);
+      slideAnim.setValue(0);
+      overlayOpacity.setValue(0);
+
+      Animated.parallel([
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }),
+      ]).start();
+    } else if (!visible && modalVisible && !isClosing.current) {
+      handleClose();
+    }
+  }, [visible, modalVisible, slideAnim, overlayOpacity, handleClose]);
+
   return (
     <Modal
-      visible={visible}
+      visible={modalVisible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={handleClose}
     >
-      <TouchableOpacity 
-        style={styles.backdrop} 
-        activeOpacity={1} 
-        onPress={onClose}
-      >
-        <View style={styles.container}>
-          <TouchableOpacity activeOpacity={1} onPress={(e) => { e.stopPropagation(); }}>
-            <View style={styles.header}>
-              <Text style={styles.headerText}>Select License Type</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Feather name="x" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={options}
-              keyExtractor={(item, index) => index.toString()}
-              style={styles.list}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.option,
-                    selectedValue === item && styles.selectedOption
-                  ]}
-                  onPress={() => {
-                    onSelect(item);
-                    onClose();
-                  }}
-                >
-                  <Text style={styles.optionText}>{item}</Text>
-                  {selectedValue === item && (
-                    <Feather name="check" size={18} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              )}
-            />
-            
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={onClose}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+      <View style={styles.backdrop}>
+        {/* Animated overlay */}
+        <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={handleClose}
+          />
+        </Animated.View>
+
+        {/* Animated content */}
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              transform: [{
+                translateY: slideAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [300, 0],
+                }),
+              }],
+            },
+          ]}
+        >
+          <View style={styles.header}>
+            <Text style={styles.headerText}>Select License Type</Text>
+            <TouchableOpacity onPress={handleClose}>
+              <Feather name="x" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={options}
+            keyExtractor={(item, index) => index.toString()}
+            style={styles.list}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.option,
+                  selectedValue === item && styles.selectedOption
+                ]}
+                onPress={() => {
+                  onSelect(item);
+                  handleClose();
+                }}
+              >
+                <Text style={styles.optionText}>{item}</Text>
+                {selectedValue === item && (
+                  <Feather name="check" size={18} color={colors.primary} />
+                )}
+              </TouchableOpacity>
+            )}
+          />
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={handleClose}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+        </Animated.View>
+      </View>
     </Modal>
   );
 };
@@ -79,9 +148,12 @@ const LicenseTypePicker: React.FC<LicenseTypePickerProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   container: {
     width: '90%',

@@ -270,7 +270,7 @@ export async function mockSubmitToDMF(
   console.log('='.repeat(60));
 
   // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, delayMs));
+  await new Promise<void>(resolve => setTimeout(() => resolve(), delayMs));
 
   // Optionally simulate failure
   if (simulateFailure) {
