@@ -6,11 +6,6 @@
 import { env } from './env';
 
 export const devConfig = {
-  /** Show sample data in Past Reports when no real reports exist */
-  get SHOW_SAMPLE_REPORTS(): boolean {
-    return env.SHOW_SAMPLE_REPORTS;
-  },
-
   /** Show Developer Options menu item in hamburger menu */
   get SHOW_DEVELOPER_OPTIONS(): boolean {
     return env.SHOW_DEVELOPER_TOOLS;

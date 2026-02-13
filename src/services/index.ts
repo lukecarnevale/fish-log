@@ -9,12 +9,10 @@ export {
   generateConfirmationNumber,
   transformToDMFPayload,
   submitToDMF,
-  mockSubmitToDMF,
   submitHarvestReport,
   previewDMFPayload,
   checkRequiredDMFFields,
   type ConfirmationNumberParts,
-  type MockSubmitOptions,
 } from './harvestReportService';
 
 // Offline Queue Service

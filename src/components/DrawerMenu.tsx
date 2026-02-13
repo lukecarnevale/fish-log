@@ -160,7 +160,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   const handleClearData = () => {
     Alert.alert(
       "Clear All Data",
-      "This will clear all app data and reset to initial state. Sample data will be hidden.",
+      "This will clear all app data and reset to initial state.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -169,7 +169,6 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
           onPress: async () => {
             try {
               await AsyncStorage.clear();
-              await AsyncStorage.setItem("sampleDataSuppressed", "true");
               if (Platform.OS !== 'web') {
                 const keys = ['userProfile', 'fishingLicense', 'fishReports', 'authToken'];
                 for (const key of keys) {
@@ -185,34 +184,6 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
         }
       ]
     );
-  };
-
-  const handleToggleSampleData = async () => {
-    try {
-      const suppressed = await AsyncStorage.getItem("sampleDataSuppressed");
-      const isCurrentlySuppressed = suppressed === "true";
-      Alert.alert(
-        "Sample Data",
-        `Sample data is currently ${isCurrentlySuppressed ? "HIDDEN" : "VISIBLE"}.\n\nWould you like to ${isCurrentlySuppressed ? "show" : "hide"} sample data?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: isCurrentlySuppressed ? "Show Sample Data" : "Hide Sample Data",
-            onPress: async () => {
-              if (isCurrentlySuppressed) {
-                await AsyncStorage.removeItem("sampleDataSuppressed");
-              } else {
-                await AsyncStorage.setItem("sampleDataSuppressed", "true");
-              }
-              Alert.alert("Success", `Sample data is now ${isCurrentlySuppressed ? "VISIBLE" : "HIDDEN"}.`);
-              onClose();
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      Alert.alert("Error", "Failed to toggle sample data");
-    }
   };
 
   const handleToggleDMFMode = () => {
@@ -399,14 +370,6 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                 onPress={handleClearData}
                 iconBgColor="#FFEBEE"
                 iconColor="#D32F2F"
-              />
-
-              <MenuItem
-                icon="database"
-                label="Toggle Sample Data"
-                onPress={handleToggleSampleData}
-                iconBgColor="#E3F2FD"
-                iconColor="#1976D2"
               />
 
               <MenuItem
