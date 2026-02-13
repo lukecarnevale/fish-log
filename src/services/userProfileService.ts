@@ -21,7 +21,7 @@ import {
 import { FishingLicense } from '../types';
 import { getAuthState } from './authService';
 import { backfillUserStatsFromReports } from './statsService';
-import { findUserByDeviceId, findUserByEmail, createUserInSupabase } from './userService';
+import { findUserByDeviceId, findUserByEmail } from './userService';
 import { getDeviceId } from '../utils/deviceId';
 
 // Storage keys
@@ -279,8 +279,18 @@ export async function fetchStatsFromSupabase(userId: string): Promise<UserStats>
 // =============================================================================
 
 /**
- * Get or create the current user based on device ID.
+ * Get the current user based on device ID.
+ * Looks up existing rewards member in the users table — does NOT auto-create.
+ * The users table is reserved for rewards members; anonymous users are tracked
+ * via the anonymous_users table (see anonymousUserService.ts).
+ *
  * Returns cached user if Supabase is unavailable.
+ * Returns a minimal local-only user if no DB record exists.
+ *
+ * IMPORTANT: The returned local user's `id` is prefixed with "local_" to clearly
+ * indicate it is NOT a valid Supabase row ID. Services that send data to Supabase
+ * (feedback, reports, etc.) must use the anonymous user system instead of relying
+ * on this id. See feedbackService.ts and reportsService.ts for correct patterns.
  */
 export async function getCurrentUser(): Promise<User | null> {
   const deviceId = await getDeviceId();
@@ -290,46 +300,35 @@ export async function getCurrentUser(): Promise<User | null> {
 
   if (connected) {
     try {
-      let user = await findUserByDeviceId(deviceId);
+      const user = await findUserByDeviceId(deviceId);
 
-      if (!user) {
-        // Try to create new device user
-        try {
-          user = await createUserInSupabase({ deviceId });
-          console.log('✅ Created new user in Supabase');
-        } catch (createError) {
-          // If duplicate key error, user already exists - try finding again
-          const errorMessage = createError instanceof Error ? createError.message : '';
-          if (errorMessage.includes('duplicate key') || errorMessage.includes('users_device_id_key')) {
-            console.log('🔄 User already exists, fetching...');
-            user = await findUserByDeviceId(deviceId);
-          } else {
-            throw createError;
-          }
-        }
-      }
-
-      // Cache the user if found
+      // Cache and return if found (user is a rewards member)
       if (user) {
         await cacheUser(user);
         return user;
       }
+
+      // No user found — this is expected for anonymous users who haven't
+      // opted into the Rewards Program yet. Don't try to create one;
+      // the users table requires authentication and is reserved for
+      // rewards members created via the conversion flow.
     } catch (error) {
       console.warn('⚠️ Supabase user fetch failed, using cache:', error);
     }
   }
 
-  // Fall back to cached user
+  // Fall back to cached user (may be a rewards member from a previous session)
   const cachedUser = await getCachedUser();
-  if (cachedUser) {
-    console.log('📦 Using cached user');
+  if (cachedUser && cachedUser.rewardsOptedInAt) {
+    console.log('📦 Using cached rewards member');
     return cachedUser;
   }
 
-  // Return a minimal local user
+  // Return a minimal local user for UI display purposes.
+  // Use "local_" prefix so downstream services can detect this is not a DB user.
   console.log('📱 Using local device user');
   return {
-    id: deviceId,
+    id: `local_${deviceId}`,
     deviceId,
     email: null,
     authId: null,
