@@ -1,6 +1,7 @@
 // services/feedbackService.ts
 //
 // Service for submitting user feedback to Supabase.
+// Supports both anonymous device users and authenticated rewards members.
 //
 
 import { Platform } from 'react-native';
@@ -9,7 +10,8 @@ import { supabase, isSupabaseConnected } from '../config/supabase';
 import { withConnection } from './base';
 import { FeedbackInput, Feedback, transformFeedback } from '../types/feedback';
 import { getDeviceId } from '../utils/deviceId';
-import { getCurrentUser } from './userProfileService';
+import { getOrCreateAnonymousUser } from './anonymousUserService';
+import { getRewardsMemberForAnonymousUser } from './rewardsConversionService';
 
 /**
  * Get app version from Expo constants.
@@ -30,6 +32,8 @@ function getPlatformInfo(): { platform: string; osVersion: string } {
 
 /**
  * Submit feedback to Supabase using RPC function.
+ * Determines user identity via the anonymous user system to correctly
+ * distinguish between rewards members (user_id) and anonymous users (anonymous_user_id).
  */
 export async function submitFeedback(input: FeedbackInput): Promise<{
   success: boolean;
@@ -47,13 +51,23 @@ export async function submitFeedback(input: FeedbackInput): Promise<{
 
   try {
     const deviceId = await getDeviceId();
-    const user = await getCurrentUser();
     const { platform, osVersion } = getPlatformInfo();
     const appVersion = getAppVersion();
 
+    // Determine user identity using the anonymous user system.
+    // This follows the same pattern as createReportFromHarvestInput in reportsService.ts.
+    const anonymousUser = await getOrCreateAnonymousUser();
+    const rewardsMember = await getRewardsMemberForAnonymousUser();
+
+    // Only pass user_id if the user is a real rewards member in the users table.
+    // For anonymous users, pass null to avoid FK constraint violations.
+    const userId = rewardsMember?.id || null;
+    const anonymousUserId = anonymousUser?.id || null;
+
     // Build the input JSONB for the RPC function
     const rpcInput = {
-      user_id: user?.id || null,
+      user_id: userId,
+      anonymous_user_id: anonymousUserId,
       device_id: deviceId,
       type: input.type,
       subject: input.subject || null,
@@ -145,21 +159,31 @@ export async function requestFeature(
 
 /**
  * Get user's previous feedback submissions.
+ * Uses device_id for anonymous users, user_id for rewards members.
  */
 export async function getMyFeedback(): Promise<Feedback[]> {
   const connected = await isSupabaseConnected();
   if (!connected) return [];
 
-  const user = await getCurrentUser();
-  if (!user) return [];
+  const deviceId = await getDeviceId();
+  const rewardsMember = await getRewardsMemberForAnonymousUser();
+
+  // Build query to get feedback for this user by device_id OR user_id
+  let query = supabase
+    .from('feedback')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (rewardsMember) {
+    // Rewards member: get feedback linked to their user_id or device_id
+    query = query.or(`user_id.eq.${rewardsMember.id},device_id.eq.${deviceId}`);
+  } else {
+    // Anonymous user: get feedback by device_id only
+    query = query.eq('device_id', deviceId);
+  }
 
   const data = await withConnection(
-    async () =>
-      await supabase
-        .from('feedback')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false }),
+    async () => query,
     'getMyFeedback',
     []
   );
