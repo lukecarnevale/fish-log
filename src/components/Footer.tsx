@@ -86,7 +86,7 @@ const Footer: React.FC<FooterProps> = ({
 
         {/* App Branding */}
         <View style={styles.brandingSection}>
-          <Text style={styles.appName}>Fish Report</Text>
+          <Text style={styles.appName}>Fish Log Co.</Text>
           <Text style={styles.appOrg}>Catch. Report. Win.</Text>
         </View>
 
