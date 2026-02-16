@@ -1,6 +1,6 @@
-// App.tsx - Main component for the Fish Reporting App
+// App.tsx - Main component for the Fish Log Co. App
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import {
   createStackNavigator,
@@ -25,6 +25,9 @@ import { queryClient } from './api/queryClient';
 
 // Import Error Boundary
 import ErrorBoundary from './components/ErrorBoundary';
+
+// Import Animated Splash Screen
+import AnimatedSplashScreen from './components/AnimatedSplashScreen';
 
 // Import Rewards context
 import { RewardsProvider } from './contexts/RewardsContext';
@@ -207,7 +210,7 @@ const AppContent: React.FC = () => {
             name="Home"
             component={HomeScreen}
             options={{ 
-              title: "Fish Report",
+              title: "Fish Log Co.",
               headerShown: true,
             }}
           />
@@ -324,27 +327,41 @@ const configErrorStyles = StyleSheet.create({
 });
 
 const App: React.FC = () => {
+  const [appReady, setAppReady] = useState(false);
+
+  useEffect(() => {
+    async function prepare() {
+      // Small delay to ensure providers and initial data hooks have mounted
+      // The actual data loading happens in AppInitializer hooks
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      setAppReady(true);
+    }
+    prepare();
+  }, []);
+
   if (!isSupabaseConfigured) {
     return <ConfigErrorScreen />;
   }
 
   return (
     <ErrorBoundary>
-      <Provider store={store}>
-        <QueryClientProvider client={queryClient}>
-          <RewardsProvider>
-            <AchievementProvider>
-              <BulletinProvider>
-                <SpeciesAlertsProvider>
-                  <SafeAreaProvider>
-                    <AppContent />
-                  </SafeAreaProvider>
-                </SpeciesAlertsProvider>
-              </BulletinProvider>
-            </AchievementProvider>
-          </RewardsProvider>
-        </QueryClientProvider>
-      </Provider>
+      <AnimatedSplashScreen ready={appReady}>
+        <Provider store={store}>
+          <QueryClientProvider client={queryClient}>
+            <RewardsProvider>
+              <AchievementProvider>
+                <BulletinProvider>
+                  <SpeciesAlertsProvider>
+                    <SafeAreaProvider>
+                      <AppContent />
+                    </SafeAreaProvider>
+                  </SpeciesAlertsProvider>
+                </BulletinProvider>
+              </AchievementProvider>
+            </RewardsProvider>
+          </QueryClientProvider>
+        </Provider>
+      </AnimatedSplashScreen>
     </ErrorBoundary>
   );
 };
