@@ -71,7 +71,7 @@ const DOCUMENTS: Record<LegalDocumentType, {
       },
       {
         title: "Children's Privacy",
-        content: 'Fish Log is not directed at children under 13. We do not knowingly collect personal information from children under 13. The Rewards Member program requires users to be at least 18. Users between 13 and 17 may use the app for harvest reporting with parent or guardian consent. Contact us immediately if you believe a child under 13 has provided us with personal information.',
+        content: 'Fish Log Co. is not directed at children under 13. We do not knowingly collect personal information from children under 13. The Rewards Member program requires users to be at least 18. Users between 13 and 17 may use the app for harvest reporting with parent or guardian consent. Contact us immediately if you believe a child under 13 has provided us with personal information.',
       },
       {
         title: 'Data Security',
@@ -86,7 +86,7 @@ const DOCUMENTS: Record<LegalDocumentType, {
     sections: [
       {
         title: 'Agreement to Terms',
-        content: 'By using Fish Log, you agree to these Terms of Use. You must be at least 13 years old to use this app. If you are between 13 and 17, a parent or guardian must agree on your behalf. The Rewards Member program is open only to NC residents 18 years of age or older.',
+        content: 'By using Fish Log Co., you agree to these Terms of Use. You must be at least 13 years old to use this app. If you are between 13 and 17, a parent or guardian must agree on your behalf. The Rewards Member program is open only to NC residents 18 years of age or older.',
       },
       {
         title: 'Account Responsibilities',
@@ -94,7 +94,7 @@ const DOCUMENTS: Record<LegalDocumentType, {
       },
       {
         title: 'Harvest Reporting',
-        content: 'You are solely responsible for the accuracy of your harvest reports. Fish Log helps you submit reports to the NC Division of Marine Fisheries but does not verify catch information, species identification, or regulatory compliance. Fish Log does not guarantee successful transmission to NC DMF. Always consult official NC DMF sources for current regulations. Submitting false harvest reports may violate North Carolina law.',
+        content: 'You are solely responsible for the accuracy of your harvest reports. Fish Log Co. helps you submit reports to the NC Division of Marine Fisheries but does not verify catch information, species identification, or regulatory compliance. Fish Log Co. does not guarantee successful transmission to NC DMF. Always consult official NC DMF sources for current regulations. Submitting false harvest reports may violate North Carolina law.',
       },
       {
         title: 'Rewards Program',
@@ -106,7 +106,7 @@ const DOCUMENTS: Record<LegalDocumentType, {
       },
       {
         title: 'Disclaimers',
-        content: 'THE APP IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND. We do not guarantee uninterrupted service, accuracy of fishing information, successful report transmission, or error-free operation. Fish Log is not affiliated with, endorsed by, or operated by the NC Division of Marine Fisheries or any government agency.',
+        content: 'THE APP IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND. We do not guarantee uninterrupted service, accuracy of fishing information, successful report transmission, or error-free operation. Fish Log Co. is not affiliated with, endorsed by, or operated by the NC Division of Marine Fisheries or any government agency.',
       },
       {
         title: 'Limitation of Liability',
@@ -121,7 +121,7 @@ const DOCUMENTS: Record<LegalDocumentType, {
     sections: [
       {
         title: 'About This App',
-        content: 'Fish Log is built using open source software. We are grateful to the developers and contributors of these projects.',
+        content: 'Fish Log Co. is built using open source software. We are grateful to the developers and contributors of these projects.',
       },
       {
         title: 'Core Technologies',

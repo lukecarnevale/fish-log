@@ -405,7 +405,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               />
             </View>
             <View style={styles.headerTextSection}>
-              <Text style={styles.title}>Fish Report</Text>
+              <Text style={styles.title}>Fish Log Co.</Text>
               <Text style={styles.subtitle}>
                 Catch. Report. Win.
               </Text>

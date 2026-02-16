@@ -41,7 +41,7 @@ export function AboutModal({ visible, onClose }: AboutModalProps): React.ReactEl
               style={styles.appIcon}
               resizeMode="contain"
             />
-            <Text style={styles.appName}>Fish Report</Text>
+            <Text style={styles.appName}>Fish Log Co.</Text>
             <Text style={styles.version}>Version {APP_VERSION}</Text>
           </View>
 

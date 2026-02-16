@@ -9,6 +9,8 @@ dist/
 web-build/
 
 # Native
+ios/
+android/
 *.orig.*
 *.jks
 *.p8
@@ -41,3 +43,8 @@ CLAUDE.md
 
 # docs markdown files (keep for context in local only)
 docs/*.md
+SPLASH_SCREEN_IMPLEMENTATION.md
+COMMANDS.md
+
+# Website (separate repo)
+website/

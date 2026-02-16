@@ -581,7 +581,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             <View style={styles.infoContent}>
               <Text style={styles.infoTitle}>How It Works</Text>
               <Text style={styles.infoText}>
-                Must be a registered user of the Fish Log app.
+                Must be a registered user of the Fish Log Co. app.
               </Text>
             </View>
             <Feather name="chevron-right" size={20} color="#ccc" />

@@ -227,7 +227,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
         {/* Header - Solid primary color */}
         <View style={styles.menuHeader}>
           <View style={styles.headerContent}>
-            <Text style={styles.appTitleText}>Fish Report</Text>
+            <Text style={styles.appTitleText}>Fish Log Co.</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Feather name="x" size={20} color={colors.white} />
             </TouchableOpacity>

@@ -536,7 +536,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
             <Text style={styles.instructionNumberText}>1</Text>
           </View>
           <Text style={styles.instructionText}>
-            Open the email from Fish Log
+            Open the email from Fish Log Co.
           </Text>
         </View>
         <View style={styles.instructionItem}>

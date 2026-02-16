@@ -100,6 +100,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
           subtitle={SCREEN_LABELS.pastReports.subtitle}
           subtitleColor="#1E3A5F"
           image={cardImages.pastReports}
+          imageStyle={{ transform: [{ scaleX: -1 }] }}
           onPress={() => onNavigate('PastReports')}
           disabled={!isSignedIn}
           disabledMessage="Sign in to view"
@@ -140,10 +141,11 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
           imageStyle={{
             position: 'absolute',
             bottom: -28,
-            left: -13,
+            left: -20,
             right: 0,
             width: '120%',
             height: '120%',
+            transform: [{ scaleX: -1 }],
           }}
           onPress={handleSpeciesGuidePress}
           renderCornerBadge={totalSpeciesWithAlerts > 0 ? () => (

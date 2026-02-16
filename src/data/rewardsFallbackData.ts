@@ -45,7 +45,7 @@ export const FALLBACK_PRIZES: Prize[] = [
     description: 'Limited edition t-shirt with the 2026 Quarterly Rewards logo',
     value: '$24.99',
     category: 'apparel',
-    sponsor: 'Fish Log',
+    sponsor: 'Fish Log Co.',
     sortOrder: 3,
     isActive: true,
   },
@@ -85,7 +85,7 @@ export const FALLBACK_PRIZES: Prize[] = [
  * Default eligibility requirements for the rewards program.
  */
 export const DEFAULT_ELIGIBILITY_REQUIREMENTS: string[] = [
-  'Must be a registered user of the Fish Log app',
+  'Must be a registered user of the Fish Log Co. app',
   'Must be a legal resident of North Carolina, 18 years or older',
   'One entry per person per quarter regardless of number of reports submitted',
   'NC Wildlife employees and immediate family members are not eligible',

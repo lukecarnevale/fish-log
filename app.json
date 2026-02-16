@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "fish-log",
+    "name": "Fish Log Co.",
     "slug": "fish-log",
     "version": "1.2.1",
     "scheme": "fishlog",
@@ -8,17 +8,15 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1B808C"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "io.fishlog.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Fish Log needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
-        "NSPhotoLibraryUsageDescription": "Fish Log needs access to your photo library to select photos of your catch for harvest reports and your profile picture.",
+        "NSCameraUsageDescription": "Fish Log Co. needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
+        "NSPhotoLibraryUsageDescription": "Fish Log Co. needs access to your photo library to select photos of your catch for harvest reports and your profile picture.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -41,11 +39,12 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Fish Log needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
-          "photosPermission": "Fish Log needs access to your photo library to select photos of your catch for harvest reports and your profile picture."
+          "cameraPermission": "Fish Log Co. needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
+          "photosPermission": "Fish Log Co. needs access to your photo library to select photos of your catch for harvest reports and your profile picture."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-splash-screen"
     ],
     "extra": {
       "eas": {
