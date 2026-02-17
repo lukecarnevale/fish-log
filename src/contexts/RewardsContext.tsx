@@ -316,8 +316,28 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        console.log('📱 App returned to foreground, refreshing rewards...');
+        console.log('📱 App returned to foreground, refreshing rewards & syncing pending reports...');
         refresh();
+
+        // Sync any locally-saved reports that haven't been pushed to Supabase yet.
+        // This covers the case where a report was saved locally because the auth
+        // session was expired or Supabase was unreachable at submission time.
+        import('../services/reportsService').then(({ syncPendingReports, retryFailedWebhooks }) => {
+          syncPendingReports()
+            .then(({ synced, failed }) => {
+              if (synced > 0 || failed > 0) {
+                console.log(`📊 Foreground sync: ${synced} synced, ${failed} failed`);
+              }
+            })
+            .catch((err: unknown) => {
+              console.warn('⚠️ Foreground sync error:', err);
+            });
+
+          // Also retry any failed webhook deliveries (text/email confirmations)
+          retryFailedWebhooks().catch((err: unknown) => {
+            console.warn('⚠️ Webhook retry error:', err);
+          });
+        });
       }
       appState.current = nextAppState;
     };

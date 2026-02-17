@@ -507,6 +507,10 @@ export interface SubmitWithQueueResult {
   objectId?: number;
   /** Achievements unlocked by this submission */
   achievementsAwarded?: AwardedAchievement[];
+  /** Whether the report was saved to Supabase (false = local only, will sync later) */
+  savedToSupabase?: boolean;
+  /** Reason Supabase save failed, if applicable */
+  supabaseError?: string;
   /** Error message if failed and not queued */
   error?: string;
 }
@@ -542,6 +546,8 @@ export async function submitWithQueueFallback(
     // Also save to Supabase (for anonymous user tracking and rewards)
     // Include the DMF confirmation data so it's stored in Supabase
     let achievementsAwarded: AwardedAchievement[] | undefined;
+    let savedToSupabase = false;
+    let supabaseError: string | undefined;
     try {
       const supabaseResult = await createReportFromHarvestInput(input, {
         confirmationNumber: result.confirmationNumber,
@@ -549,16 +555,21 @@ export async function submitWithQueueFallback(
         submittedAt: new Date().toISOString(),
       });
       if (supabaseResult.success) {
-        console.log('✅ Report saved to Supabase with DMF confirmation:', result.confirmationNumber);
+        savedToSupabase = supabaseResult.savedToSupabase;
+        supabaseError = supabaseResult.supabaseError;
+        console.log('✅ Report saved to Supabase with DMF confirmation:', result.confirmationNumber,
+          savedToSupabase ? '(Supabase)' : '(local only)');
         achievementsAwarded = supabaseResult.achievementsAwarded;
         if (achievementsAwarded && achievementsAwarded.length > 0) {
           console.log('🏆 Achievements unlocked:', achievementsAwarded.map(a => a.name).join(', '));
         }
       } else {
         console.warn('⚠️ Failed to save report to Supabase:', supabaseResult.error);
+        supabaseError = supabaseResult.error;
       }
     } catch (error) {
       console.warn('⚠️ Supabase save error:', error);
+      supabaseError = error instanceof Error ? error.message : String(error);
       // Don't fail the overall submission - DMF is the primary system
     }
 
@@ -568,6 +579,8 @@ export async function submitWithQueueFallback(
       confirmationNumber: result.confirmationNumber,
       objectId: result.objectId,
       achievementsAwarded,
+      savedToSupabase,
+      supabaseError,
     };
   }
 

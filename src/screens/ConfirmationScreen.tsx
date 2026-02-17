@@ -504,6 +504,16 @@ This report was submitted to the NC Division of Marine Fisheries.`;
             </View>
           )}
 
+          {/* Supabase sync banner — shown when DMF succeeded but Supabase save didn't */}
+          {submitResult?.success && submitResult?.savedToSupabase === false && !submitResult?.queued && (
+            <View style={localStyles.syncBanner}>
+              <Feather name="cloud-off" size={18} color={colors.textSecondary} />
+              <Text style={localStyles.syncBannerText}>
+                Report saved locally. It will sync to your account automatically.
+              </Text>
+            </View>
+          )}
+
           {/* Report Summary */}
           <View style={styles.summaryContainer}>
             <Text style={styles.summaryTitle}>Report Summary</Text>
@@ -935,6 +945,23 @@ const localStyles = StyleSheet.create({
   queuedWarningText: {
     ...typography.bodySmall,
     color: "#856404",
+    marginLeft: spacing.sm,
+    flex: 1,
+  },
+
+  // Subtle sync banner (Supabase save failed but DMF succeeded)
+  syncBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f4f8",
+    padding: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.lg,
+  } as const,
+  syncBannerText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
     marginLeft: spacing.sm,
     flex: 1,
   },
