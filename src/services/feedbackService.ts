@@ -17,7 +17,7 @@ import { getRewardsMemberForAnonymousUser } from './rewardsConversionService';
  * Get app version from Expo constants.
  */
 function getAppVersion(): string {
-  return Constants.expoConfig?.version || Constants.manifest?.version || 'unknown';
+  return Constants.expoConfig?.version || 'unknown';
 }
 
 /**

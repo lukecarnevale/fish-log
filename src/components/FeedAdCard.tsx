@@ -167,10 +167,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  // Photo section - same 220px as CatchCard
+  // Photo section - Instagram-style 4:5 portrait ratio (matches CatchCard)
   photoContainer: {
     width: '100%',
-    height: 220,
+    aspectRatio: 4 / 5,
     backgroundColor: colors.lightestGray,
     position: 'relative',
   },

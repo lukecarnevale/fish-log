@@ -34,6 +34,7 @@ import styles from "../styles/reportFormScreenStyles";
 import { colors } from "../styles/common";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
 import BottomDrawer from "../components/BottomDrawer";
+import FloatingBackButton from "../components/FloatingBackButton";
 
 // DMF constants
 import { AREA_LABELS, getAreaCodeFromLabel } from "../constants/areaOptions";
@@ -992,7 +993,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       // Launch camera (not gallery - camera only)
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: [4, 5],
         quality: 0.8,
       });
 
@@ -1014,7 +1015,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             onPress: async () => {
               const libraryResult = await ImagePicker.launchImageLibraryAsync({
                 allowsEditing: true,
-                aspect: [4, 3],
+                aspect: [4, 5],
                 quality: 0.8,
               });
 
@@ -1374,25 +1375,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       </View>
 
       {/* Floating back button - appears when scrolling */}
-      <Animated.View
-        style={[
-          localStyles.floatingBackButton,
-          {
-            opacity: floatingBackOpacity,
-            transform: [{
-              translateX: floatingBackTranslateX,
-            }]
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={handleBackPress}
-          style={localStyles.floatingBackTouchable}
-          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-        >
-          <Feather name="arrow-left" size={22} color={colors.white} />
-        </TouchableOpacity>
-      </Animated.View>
+      <FloatingBackButton
+        opacity={floatingBackOpacity}
+        translateX={floatingBackTranslateX}
+        onPress={handleBackPress}
+      />
 
       {/* Scrollable content - slides over the header */}
       <Animated.ScrollView

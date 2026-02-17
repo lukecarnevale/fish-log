@@ -184,27 +184,6 @@ export const localStyles = StyleSheet.create({
     color: colors.white,
   },
 
-  // Floating back button - appears on scroll
-  floatingBackButton: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 52,
-    left: 16,
-    zIndex: 100,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  floatingBackTouchable: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   // Scroll view - slides over fixed header
   scrollView: {
     flex: 1,
@@ -625,7 +604,7 @@ export const localStyles = StyleSheet.create({
   },
   catchFeedPhoto: {
     width: "100%",
-    height: 160,
+    aspectRatio: 4 / 5,
     borderRadius: borderRadius.md,
     backgroundColor: colors.lightGray,
   },
@@ -788,7 +767,7 @@ export const localStyles = StyleSheet.create({
   },
   rafflePhoto: {
     width: "100%",
-    height: 180,
+    aspectRatio: 4 / 5,
     borderRadius: borderRadius.md,
     backgroundColor: colors.lightGray,
   },

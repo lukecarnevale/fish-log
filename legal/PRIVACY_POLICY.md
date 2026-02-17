@@ -8,12 +8,13 @@
 
 ## 1. Introduction
 
-Welcome to Fish Log ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application ("App").
+Welcome to Fish Log Co. ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application ("App").
 
 **Company Information:**
-- Company Name: [INSERT COMPANY NAME]
+
+- Company Name: Fish Log Co
 - Address: [INSERT ADDRESS]
-- Email: [INSERT EMAIL]
+- Email: fishlogco@gmail.com
 - Phone: [INSERT PHONE]
 
 By using the App, you agree to the collection and use of information in accordance with this Privacy Policy. If you do not agree with our policies and practices, do not use the App.
@@ -79,28 +80,34 @@ For users in the European Economic Area (EEA), we process your data based on:
 We may share your information in the following circumstances:
 
 ### 5.1 With Your Consent
+
 - Community feed posts (catches shared publicly)
 - Profile information visible to other users
 
 ### 5.2 Service Providers
+
 We use third-party services to operate the App:
 
-| Provider | Purpose | Data Shared |
-|----------|---------|-------------|
-| Supabase | Database & Authentication | Account data, catch records |
-| Supabase Storage | Photo storage | Catch photos, profile photos |
-| Expo | App infrastructure | Device information |
+| Provider         | Purpose                   | Data Shared                  |
+| ---------------- | ------------------------- | ---------------------------- |
+| Supabase         | Database & Authentication | Account data, catch records  |
+| Supabase Storage | Photo storage             | Catch photos, profile photos |
+| Expo             | App infrastructure        | Device information           |
 
 ### 5.3 Legal Requirements
+
 We may disclose information when required by:
+
 - Court orders or legal process
 - Government requests
 - To protect our rights, privacy, safety, or property
 
 ### 5.4 Regulatory Reporting
+
 Harvest reports may be shared with the NC Division of Marine Fisheries as required for fisheries management.
 
 ### 5.5 Business Transfers
+
 In the event of a merger, acquisition, or sale of assets, your information may be transferred.
 
 ---
@@ -109,13 +116,13 @@ In the event of a merger, acquisition, or sale of assets, your information may b
 
 We retain your information as follows:
 
-| Data Type | Retention Period |
-|-----------|------------------|
-| Account Information | Until account deletion |
+| Data Type             | Retention Period                       |
+| --------------------- | -------------------------------------- |
+| Account Information   | Until account deletion                 |
 | Fishing Activity Data | Indefinitely (for regulatory purposes) |
-| Profile Photos | Until deleted or account closed |
-| Catch Photos | Until deleted or account closed |
-| Rewards Entries | 7 years (for contest compliance) |
+| Profile Photos        | Until deleted or account closed        |
+| Catch Photos          | Until deleted or account closed        |
+| Rewards Entries       | 7 years (for contest compliance)       |
 
 You may request deletion of your data subject to legal retention requirements.
 
@@ -126,6 +133,7 @@ You may request deletion of your data subject to legal retention requirements.
 ### 7.1 All Users
 
 You have the right to:
+
 - **Access:** Request a copy of your personal data
 - **Correction:** Update inaccurate information
 - **Deletion:** Request deletion of your data (subject to legal requirements)
@@ -145,6 +153,7 @@ To exercise these rights, contact us at [INSERT EMAIL].
 We will respond to verifiable consumer requests within 45 days.
 
 **Categories of Personal Information Collected (last 12 months):**
+
 - Identifiers (name, email, phone)
 - Commercial information (rewards participation)
 - Geolocation data
@@ -197,6 +206,7 @@ While we strive to protect your information, no method of transmission or storag
 Your information may be transferred to and processed in countries other than your own. These countries may have different data protection laws.
 
 For transfers from the EEA, we rely on:
+
 - Standard Contractual Clauses approved by the European Commission
 - Adequacy decisions where applicable
 
@@ -217,6 +227,7 @@ The App does not respond to "Do Not Track" signals. However, you can manage your
 ## 13. Changes to This Privacy Policy
 
 We may update this Privacy Policy from time to time. We will notify you of material changes by:
+
 - Posting the new Privacy Policy in the App
 - Updating the "Last Updated" date
 - Sending you a notification (for significant changes)
@@ -230,11 +241,13 @@ Your continued use of the App after changes constitutes acceptance of the update
 If you have questions about this Privacy Policy or wish to exercise your rights, please contact us:
 
 **[INSERT COMPANY NAME]**
+
 - Email: [INSERT EMAIL]
 - Address: [INSERT ADDRESS]
 - Phone: [INSERT PHONE]
 
 **Data Protection Officer (for EU inquiries):**
+
 - Email: [INSERT DPO EMAIL]
 
 **Response Time:** We aim to respond to all inquiries within 30 days.
@@ -257,4 +270,4 @@ Colorado residents have rights under the Colorado Privacy Act similar to those l
 
 ---
 
-*This Privacy Policy is effective as of [INSERT DATE].*
+_This Privacy Policy is effective as of [INSERT DATE]._

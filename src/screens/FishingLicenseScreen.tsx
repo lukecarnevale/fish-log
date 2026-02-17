@@ -532,7 +532,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             
             <View style={styles.licenseFooter}>
               <Text style={styles.licenseFooterText}>
-                North Carolina Wildlife Resources Commission
+                This does not replace licensing from NC WRC
               </Text>
             </View>
           </View>
