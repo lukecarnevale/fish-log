@@ -137,6 +137,25 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
     loadRewardsData();
     // Legacy drawing IDs are loaded inside loadRewardsData via the
     // authenticated-user check — no need to load them unconditionally here.
+
+    // Sync any locally-saved reports on startup.
+    // The AppState listener only covers background→active transitions,
+    // so a fresh app launch would miss the sync without this.
+    import('../services/reportsService').then(({ syncPendingReports, retryFailedWebhooks }) => {
+      syncPendingReports()
+        .then(({ synced, failed }) => {
+          if (synced > 0 || failed > 0) {
+            console.log(`📊 Startup sync: ${synced} synced, ${failed} failed`);
+          }
+        })
+        .catch((err: unknown) => {
+          console.warn('⚠️ Startup sync error:', err);
+        });
+
+      retryFailedWebhooks().catch((err: unknown) => {
+        console.warn('⚠️ Startup webhook retry error:', err);
+      });
+    });
   }, [userId]);
 
   /**
