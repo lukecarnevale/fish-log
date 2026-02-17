@@ -12,6 +12,7 @@ import {
   DMFAttributes,
   DMFGeometry,
 } from '../types/harvestReport';
+import { supabase } from '../config/supabase';
 
 // ============================================
 // GUID GENERATION
@@ -150,6 +151,61 @@ export function transformToDMFPayload(input: HarvestReportInput): DMFPayload {
 }
 
 // ============================================
+// DMF CONFIRMATION WEBHOOK
+// ============================================
+
+/**
+ * Trigger DMF confirmation webhooks (text/email) via Supabase Edge Function.
+ *
+ * The Survey123 web client calls Azure Logic App webhooks after a successful
+ * applyEdits to send text/email confirmations. This function replicates that
+ * behavior by routing through a Supabase Edge Function that securely stores
+ * the webhook URLs.
+ *
+ * IMPORTANT: This is fire-and-forget. Webhook failures are logged but never
+ * block the submission flow. The user always gets their confirmation number
+ * regardless of whether the webhook succeeds.
+ *
+ * @param objectId - ArcGIS object ID from applyEdits response
+ * @param globalId - GlobalID from DMF attributes
+ * @param dmfAttributes - Complete DMF attributes from transformToDMFPayload()
+ * @param geometry - Geometry object sent to applyEdits
+ * @param skipWebhooks - true in mock mode to skip actual webhook calls
+ */
+export async function triggerDMFConfirmationWebhook(
+  objectId: number,
+  globalId: string,
+  dmfAttributes: DMFAttributes,
+  geometry: DMFGeometry,
+  skipWebhooks: boolean = false,
+): Promise<void> {
+  try {
+    console.log('📡 Triggering DMF confirmation webhook...');
+    const { data, error } = await supabase.functions.invoke('trigger-dmf-webhook', {
+      body: {
+        objectId,
+        globalId,
+        dmfAttributes,
+        geometry,
+        skipWebhooks,
+      },
+    });
+
+    if (error) {
+      console.warn('⚠️ DMF webhook trigger returned error:', error.message);
+    } else {
+      console.log('✅ DMF webhook trigger response:', data?.message ?? 'ok');
+    }
+  } catch (err) {
+    // Non-blocking: log and continue
+    console.warn(
+      '⚠️ Failed to trigger DMF confirmation webhook (non-blocking):',
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
+
+// ============================================
 // DMF SUBMISSION (Production)
 // ============================================
 
@@ -196,10 +252,21 @@ export async function submitToDMF(input: HarvestReportInput): Promise<DMFSubmiss
 
     // ArcGIS returns an array with addResults
     if (result[0]?.addResults?.[0]?.success) {
+      const objectId = result[0].addResults[0].objectId;
+
+      // Trigger text/email confirmation webhooks (fire-and-forget)
+      triggerDMFConfirmationWebhook(
+        objectId,
+        feature.attributes.GlobalID,
+        feature.attributes,
+        feature.geometry,
+        false,
+      );
+
       return {
         success: true,
         confirmationNumber,
-        objectId: result[0].addResults[0].objectId,
+        objectId,
       };
     } else {
       // Extract error message from ArcGIS response
@@ -287,6 +354,15 @@ export async function mockSubmitToDMF(
   const fakeObjectId = Math.floor(Math.random() * 1000000) + 100000;
 
   console.log('✅ MOCK SUCCESS - Object ID:', fakeObjectId);
+
+  // Trigger webhook in mock mode (skipWebhooks=true so edge function logs but doesn't call Azure)
+  triggerDMFConfirmationWebhook(
+    fakeObjectId,
+    feature.attributes.GlobalID,
+    feature.attributes,
+    feature.geometry,
+    true,
+  );
 
   return {
     success: true,
@@ -391,6 +467,7 @@ export default {
   generateGlobalId,
   generateConfirmationNumber,
   transformToDMFPayload,
+  triggerDMFConfirmationWebhook,
   submitToDMF,
   mockSubmitToDMF,
   submitHarvestReport,

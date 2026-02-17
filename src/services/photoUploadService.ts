@@ -5,9 +5,7 @@
 //
 
 import { supabase } from '../config/supabase';
-import * as FileSystem from 'expo-file-system';
-import { Platform } from 'react-native';
-import { decode } from 'base64-arraybuffer';
+import { File } from 'expo-file-system';
 
 // Storage bucket names
 const CATCH_PHOTOS_BUCKET = 'catch-photos';
@@ -44,6 +42,14 @@ function getMimeType(uri: string): string {
 }
 
 /**
+ * Read a local file URI as an ArrayBuffer using the new expo-file-system File API.
+ */
+async function readFileAsArrayBuffer(localUri: string): Promise<ArrayBuffer> {
+  const file = new File(localUri);
+  return file.arrayBuffer();
+}
+
+/**
  * Upload a photo to Supabase Storage.
  *
  * @param localUri - The local file URI (file:// or content://)
@@ -58,14 +64,11 @@ export async function uploadCatchPhoto(
     console.log('📸 Starting photo upload...');
     console.log('  Local URI:', localUri);
 
-    // Read the file as base64
-    let base64Data: string;
+    // Read file directly as ArrayBuffer (no base64 roundtrip)
+    let arrayBuffer: ArrayBuffer;
 
     try {
-      // For both iOS and Android, read as base64
-      base64Data = await FileSystem.readAsStringAsync(localUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      arrayBuffer = await readFileAsArrayBuffer(localUri);
     } catch (readError) {
       console.error('Failed to read file:', readError);
       return null;
@@ -77,9 +80,6 @@ export async function uploadCatchPhoto(
 
     console.log('  Filename:', filename);
     console.log('  MIME type:', mimeType);
-
-    // Convert base64 to ArrayBuffer using base64-arraybuffer
-    const arrayBuffer = decode(base64Data);
 
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
@@ -132,13 +132,11 @@ export async function uploadProfilePhoto(
     console.log('📸 Starting profile photo upload...');
     console.log('  Local URI:', localUri);
 
-    // Read the file as base64
-    let base64Data: string;
+    // Read file directly as ArrayBuffer
+    let arrayBuffer: ArrayBuffer;
 
     try {
-      base64Data = await FileSystem.readAsStringAsync(localUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      arrayBuffer = await readFileAsArrayBuffer(localUri);
     } catch (readError) {
       console.error('Failed to read file:', readError);
       return null;
@@ -151,9 +149,6 @@ export async function uploadProfilePhoto(
 
     console.log('  Filename:', filename);
     console.log('  MIME type:', mimeType);
-
-    // Convert base64 to ArrayBuffer
-    const arrayBuffer = decode(base64Data);
 
     // Upload to Supabase Storage (upsert to replace old photo)
     const { data, error } = await supabase.storage
