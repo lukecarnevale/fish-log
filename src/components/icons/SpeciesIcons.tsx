@@ -36,9 +36,9 @@ export const SIZE_CONFIGS: Record<PlaceholderSize, SizeConfig> = {
   },
   large: {
     container: { height: 220 },
-    fishScale: 1.1,
-    fishWidth: 132,
-    fishHeight: 88,
+    fishScale: 1.4,
+    fishWidth: 168,
+    fishHeight: 112,
   },
 };
 

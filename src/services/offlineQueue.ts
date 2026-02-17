@@ -15,6 +15,8 @@ import {
 import {
   submitHarvestReport,
   generateConfirmationNumber,
+  transformToDMFPayload,
+  triggerDMFConfirmationWebhook,
 } from './harvestReportService';
 import { createReportFromHarvestInput, getReports } from './reportsService';
 import type { AwardedAchievement } from './reportsService';
@@ -179,6 +181,20 @@ export async function syncQueuedReports(): Promise<SyncResult> {
     if (result.success) {
       synced++;
       console.log(`✅ Synced: ${result.confirmationNumber}`);
+
+      // Trigger text/email confirmation webhooks for the synced report (fire-and-forget)
+      try {
+        const dmfPayload = transformToDMFPayload(input);
+        triggerDMFConfirmationWebhook(
+          result.objectId!,
+          dmfPayload.attributes.GlobalID,
+          dmfPayload.attributes,
+          dmfPayload.geometry,
+          false,
+        );
+      } catch (webhookErr) {
+        console.warn('⚠️ Failed to trigger webhook for synced report (non-blocking):', webhookErr);
+      }
 
       // Move to history - extract only HarvestReportInput fields from queuedReport
       const {

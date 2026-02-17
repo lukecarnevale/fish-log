@@ -59,6 +59,8 @@ import AnglerAvatarIcon from "../components/icons/AnglerAvatarIcon";
 import { styles, localStyles } from "../styles/profileScreenStyles";
 import ProfileStats from "./profile/ProfileStats";
 import ProfileAchievements from "./profile/ProfileAchievements";
+import { useFloatingHeaderAnimation } from "../hooks/useFloatingHeaderAnimation";
+import FloatingBackButton from "../components/FloatingBackButton";
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [profile, setProfile] = useState<UserProfile>({});
@@ -119,6 +121,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // Animation for transitioning between view/edit modes
   const slideAnim = useRef(new Animated.Value(0)).current;
   const screenHeight = Dimensions.get('window').height;
+
+  // Floating back button animation (appears when static header scrolls away)
+  const { scrollY, floatingOpacity, floatingTranslateXLeft } = useFloatingHeaderAnimation();
 
   // Load profile data from AsyncStorage (merge with fishingLicense data)
   useEffect(() => {
@@ -1194,10 +1199,22 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // Render profile display
   const renderProfile = () => (
     <View style={styles.container}>
-      <ScrollView
+      {/* Floating back button - appears when static header scrolls away */}
+      <FloatingBackButton
+        opacity={floatingOpacity}
+        translateX={floatingTranslateXLeft}
+        onPress={() => navigation.goBack()}
+      />
+
+      <Animated.ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
       >
         {/* Top spacer for pull-down bounce - shows dark blue */}
         <View style={styles.topBounceArea} />
@@ -1612,7 +1629,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       )}
 
       </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 
