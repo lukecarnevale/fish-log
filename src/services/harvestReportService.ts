@@ -172,36 +172,73 @@ export function transformToDMFPayload(input: HarvestReportInput): DMFPayload {
  * @param geometry - Geometry object sent to applyEdits
  * @param skipWebhooks - true in mock mode to skip actual webhook calls
  */
+/** Result from a webhook delivery attempt. */
+export interface WebhookDeliveryResult {
+  success: boolean;
+  webhooksTriggered: number;
+  errors: string[];
+}
+
+/**
+ * Trigger the DMF confirmation webhook and persist delivery status.
+ *
+ * The edge function forwards the payload to Azure Logic App webhooks that
+ * send text/email confirmations.  After the call we write the delivery
+ * status back to `harvest_reports` so failures are visible and retryable.
+ */
 export async function triggerDMFConfirmationWebhook(
   objectId: number,
   globalId: string,
   dmfAttributes: DMFAttributes,
   geometry: DMFGeometry,
   skipWebhooks: boolean = false,
-): Promise<void> {
+): Promise<WebhookDeliveryResult> {
+  const fallback: WebhookDeliveryResult = { success: false, webhooksTriggered: 0, errors: [] };
+
   try {
     console.log('📡 Triggering DMF confirmation webhook...');
     const { data, error } = await supabase.functions.invoke('trigger-dmf-webhook', {
-      body: {
-        objectId,
-        globalId,
-        dmfAttributes,
-        geometry,
-        skipWebhooks,
-      },
+      body: { objectId, globalId, dmfAttributes, geometry, skipWebhooks },
     });
+
+    let result: WebhookDeliveryResult;
 
     if (error) {
       console.warn('⚠️ DMF webhook trigger returned error:', error.message);
+      result = { success: false, webhooksTriggered: 0, errors: [error.message] };
     } else {
+      const triggered = data?.webhooksTriggered ?? 0;
+      const errs: string[] = data?.errors ?? [];
+      result = { success: triggered > 0, webhooksTriggered: triggered, errors: errs };
       console.log('✅ DMF webhook trigger response:', data?.message ?? 'ok');
     }
+
+    // Persist delivery status (non-blocking — don't let DB failure prevent return)
+    try {
+      await supabase.from('harvest_reports').update({
+        webhook_status: result.success ? 'sent' : 'failed',
+        webhook_error: result.errors.length > 0 ? result.errors.join('; ') : null,
+        webhook_attempts: 1,
+      }).eq('dmf_object_id', objectId);
+    } catch (dbErr) {
+      console.warn('⚠️ Failed to persist webhook status:', dbErr);
+    }
+
+    return result;
   } catch (err) {
-    // Non-blocking: log and continue
-    console.warn(
-      '⚠️ Failed to trigger DMF confirmation webhook (non-blocking):',
-      err instanceof Error ? err.message : String(err),
-    );
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('⚠️ Failed to trigger DMF confirmation webhook (non-blocking):', msg);
+
+    // Attempt to record the failure
+    try {
+      await supabase.from('harvest_reports').update({
+        webhook_status: 'failed',
+        webhook_error: msg,
+        webhook_attempts: 1,
+      }).eq('dmf_object_id', objectId);
+    } catch { /* best-effort */ }
+
+    return { ...fallback, errors: [msg] };
   }
 }
 
