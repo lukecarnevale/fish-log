@@ -39,6 +39,7 @@ import { FALLBACK_CONFIG, FALLBACK_DRAWING } from '../data/rewardsFallbackData';
 import { getCurrentUserState } from '../services/anonymousUserService';
 import { getRewardsMemberForAnonymousUser } from '../services/rewardsConversionService';
 import { onAuthStateChange } from '../services/authService';
+import { syncPendingReports, retryFailedWebhooks } from '../services/reportsService';
 import {
   calculateDaysRemaining,
   calculatePeriodProgress,
@@ -141,20 +142,20 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
     // Sync any locally-saved reports on startup.
     // The AppState listener only covers background→active transitions,
     // so a fresh app launch would miss the sync without this.
-    import('../services/reportsService').then(({ syncPendingReports, retryFailedWebhooks }) => {
-      syncPendingReports()
-        .then(({ synced, failed }) => {
-          if (synced > 0 || failed > 0) {
-            console.log(`📊 Startup sync: ${synced} synced, ${failed} failed`);
-          }
-        })
-        .catch((err: unknown) => {
-          console.warn('⚠️ Startup sync error:', err);
-        });
-
-      retryFailedWebhooks().catch((err: unknown) => {
-        console.warn('⚠️ Startup webhook retry error:', err);
+    // NOTE: uses static import (not dynamic) to avoid silent failures
+    // from unhandled promise rejections if the dynamic import fails.
+    syncPendingReports()
+      .then(({ synced, failed }) => {
+        if (synced > 0 || failed > 0) {
+          console.log(`📊 Startup sync: ${synced} synced, ${failed} failed`);
+        }
+      })
+      .catch((err: unknown) => {
+        console.warn('⚠️ Startup sync error:', err);
       });
+
+    retryFailedWebhooks().catch((err: unknown) => {
+      console.warn('⚠️ Startup webhook retry error:', err);
     });
   }, [userId]);
 
@@ -341,21 +342,19 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
         // Sync any locally-saved reports that haven't been pushed to Supabase yet.
         // This covers the case where a report was saved locally because the auth
         // session was expired or Supabase was unreachable at submission time.
-        import('../services/reportsService').then(({ syncPendingReports, retryFailedWebhooks }) => {
-          syncPendingReports()
-            .then(({ synced, failed }) => {
-              if (synced > 0 || failed > 0) {
-                console.log(`📊 Foreground sync: ${synced} synced, ${failed} failed`);
-              }
-            })
-            .catch((err: unknown) => {
-              console.warn('⚠️ Foreground sync error:', err);
-            });
-
-          // Also retry any failed webhook deliveries (text/email confirmations)
-          retryFailedWebhooks().catch((err: unknown) => {
-            console.warn('⚠️ Webhook retry error:', err);
+        syncPendingReports()
+          .then(({ synced, failed }) => {
+            if (synced > 0 || failed > 0) {
+              console.log(`📊 Foreground sync: ${synced} synced, ${failed} failed`);
+            }
+          })
+          .catch((err: unknown) => {
+            console.warn('⚠️ Foreground sync error:', err);
           });
+
+        // Also retry any failed webhook deliveries (text/email confirmations)
+        retryFailedWebhooks().catch((err: unknown) => {
+          console.warn('⚠️ Webhook retry error:', err);
         });
       }
       appState.current = nextAppState;
