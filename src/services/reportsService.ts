@@ -756,6 +756,11 @@ export async function getFishEntries(reportId: string): Promise<StoredFishEntry[
 /**
  * Sync pending local reports to Supabase.
  * Call this when network becomes available.
+ *
+ * Self-healing: in addition to checking the explicit pending sync queue,
+ * we also scan all local reports for any with `local_` prefix IDs that
+ * somehow weren't added to the queue (e.g. older app version, queue cleared
+ * by a previous failed sync, etc.).
  */
 export async function syncPendingReports(): Promise<{
   synced: number;
@@ -763,8 +768,138 @@ export async function syncPendingReports(): Promise<{
 }> {
   // Check for pending reports first (cheap local check) before hitting the network.
   const pending = await getPendingSyncReports();
-  if (pending.length === 0) {
+
+  // Self-healing: also scan local reports for any that still have local_ IDs
+  // but were not in the pending sync queue. This catches reports that were
+  // saved locally by an older app version that didn't queue them, or where
+  // the queue was corrupted/cleared.
+  const localReportsForScan = await getLocalReports();
+  const localOnlyIds = localReportsForScan
+    .filter((r) => r.id.startsWith('local_'))
+    .map((r) => r.id);
+
+  // Merge: add any local-only IDs not already in the pending queue
+  const allPending = [...new Set([...pending, ...localOnlyIds])];
+
+  // ── Sync diagnostics: write to Supabase so we can observe progress ──
+  // This updates anonymous_users.sync_debug with a JSON snapshot of each
+  // sync attempt.  We can query it from the dashboard to see exactly what
+  // happened, since console.log is invisible in production builds.
+  const deviceId = await getDeviceId();
+  const writeSyncDebug = async (data: Record<string, unknown>) => {
+    try {
+      await supabase
+        .from('anonymous_users')
+        .update({ sync_debug: data })
+        .eq('device_id', deviceId);
+    } catch {
+      // Non-critical — just diagnostic
+    }
+  };
+
+  // Always write the initial diagnostic so we can verify the sync code ran
+  await writeSyncDebug({
+    stage: 'sync_check',
+    timestamp: new Date().toISOString(),
+    pendingQueueCount: pending.length,
+    localOnlyCount: localOnlyIds.length,
+    selfHealedCount: allPending.length > 0 ? localOnlyIds.filter((id) => !pending.includes(id)).length : 0,
+    allPendingCount: allPending.length,
+    localReportIds: localReportsForScan.map((r) => r.id),
+  });
+
+  if (allPending.length === 0) {
+    // Third-level fallback: check @harvest_history for reports that were
+    // submitted to DMF (got a confirmation number) but never made it to
+    // Supabase.  This covers the case where @harvest_reports was also
+    // cleared but the submission history survived.
+    try {
+      const historyData = await AsyncStorage.getItem('@harvest_history');
+      const history: Array<Record<string, unknown>> = historyData ? JSON.parse(historyData) : [];
+      const historyWithDMF = history.filter(
+        (h) => h.confirmationNumber && typeof h.confirmationNumber === 'string',
+      );
+
+      if (historyWithDMF.length > 0) {
+        const connected = await isSupabaseConnected();
+        if (connected) {
+          // Check which confirmation numbers are missing from Supabase
+          const confirmNumbers = historyWithDMF.map((h) => String(h.confirmationNumber));
+          const { data: existingReports } = await supabase
+            .from('harvest_reports')
+            .select('dmf_confirmation_number')
+            .in('dmf_confirmation_number', confirmNumbers);
+
+          const existingSet = new Set(
+            (existingReports || []).map((r: { dmf_confirmation_number: string }) => r.dmf_confirmation_number),
+          );
+          const missing = historyWithDMF.filter(
+            (h) => !existingSet.has(String(h.confirmationNumber)),
+          );
+
+          if (missing.length > 0) {
+            console.log(`🔧 History fallback: found ${missing.length} report(s) in history but not in Supabase`);
+            // Reconstruct local reports from history and queue them
+            for (const hist of missing) {
+              const localReport = createLocalReport({
+                userId: hist.userId as string | undefined,
+                hasLicense: hist.hasLicense as boolean,
+                wrcId: hist.wrcId as string | undefined,
+                firstName: hist.firstName as string | undefined,
+                lastName: hist.lastName as string | undefined,
+                zipCode: hist.zipCode as string | undefined,
+                phone: hist.phone as string | undefined,
+                email: hist.email as string | undefined,
+                wantTextConfirmation: hist.wantTextConfirmation as boolean,
+                wantEmailConfirmation: hist.wantEmailConfirmation as boolean,
+                harvestDate: hist.harvestDate as string,
+                areaCode: hist.areaCode as string,
+                areaLabel: hist.areaLabel as string | undefined,
+                usedHookAndLine: hist.usedHookAndLine as boolean,
+                gearCode: hist.gearCode as string | undefined,
+                gearLabel: hist.gearLabel as string | undefined,
+                redDrumCount: (hist.redDrumCount as number) || 0,
+                flounderCount: (hist.flounderCount as number) || 0,
+                spottedSeatroutCount: (hist.spottedSeatroutCount as number) || 0,
+                weakfishCount: (hist.weakfishCount as number) || 0,
+                stripedBassCount: (hist.stripedBassCount as number) || 0,
+                reportingFor: (hist.reportingFor as 'self' | 'family') || 'self',
+                familyCount: hist.familyCount as number | undefined,
+                notes: hist.notes as string | undefined,
+                photoUrl: hist.catchPhoto as string | undefined,
+                gpsLatitude: (hist.gpsCoordinates as { latitude: number } | undefined)?.latitude,
+                gpsLongitude: (hist.gpsCoordinates as { longitude: number } | undefined)?.longitude,
+                enteredRewards: hist.enterRaffle as boolean | undefined,
+                dmfConfirmationNumber: hist.confirmationNumber as string | undefined,
+                dmfObjectId: hist.objectId as number | undefined,
+                dmfSubmittedAt: hist.submittedAt as string | undefined,
+                dmfStatus: 'submitted',
+                fishEntries: hist.fishEntries as Array<{ species: string; count: number }> | undefined,
+              });
+              await addLocalReport(localReport);
+              await addToPendingSync(localReport.id);
+              console.log(`📋 Reconstructed report from history: ${hist.confirmationNumber} → ${localReport.id}`);
+            }
+            // Recurse: now that we've added reports, run the sync again
+            return syncPendingReports();
+          }
+        }
+      }
+    } catch (histErr) {
+      console.warn('⚠️ History fallback check failed (non-critical):', histErr);
+    }
+
     return { synced: 0, failed: 0 };
+  }
+
+  // Log when self-healing discovers unqueued reports
+  const unqueued = localOnlyIds.filter((id) => !pending.includes(id));
+  if (unqueued.length > 0) {
+    console.log(`🔧 Self-healing: found ${unqueued.length} unsynced local report(s) not in pending queue:`, unqueued);
+    // Add them to the queue so they're tracked properly
+    for (const id of unqueued) {
+      await addToPendingSync(id);
+    }
   }
 
   // On cold app start the network stack may not be ready yet.
@@ -784,13 +919,22 @@ export async function syncPendingReports(): Promise<{
     return { synced: 0, failed: 0 };
   }
 
-  const localReports = await getLocalReports();
+  // Re-use the already-loaded local reports (they were read above for the
+  // self-healing scan).  Re-read only if needed after the connectivity delay.
+  const localReports = localReportsForScan;
   let synced = 0;
   let failed = 0;
 
-  for (const reportId of pending) {
+  for (const reportId of allPending) {
     const localReport = localReports.find((r) => r.id === reportId);
     if (!localReport) {
+      console.warn(`⚠️ Sync: report ${reportId} in pending queue but NOT found in @harvest_reports`);
+      await writeSyncDebug({
+        stage: 'report_not_found',
+        timestamp: new Date().toISOString(),
+        missingReportId: reportId,
+        localReportIds: localReports.map((r) => r.id),
+      });
       await removeFromPendingSync(reportId);
       continue;
     }
@@ -889,7 +1033,26 @@ export async function syncPendingReports(): Promise<{
         }
       }
 
+      await writeSyncDebug({
+        stage: 'before_rpc',
+        timestamp: new Date().toISOString(),
+        reportId,
+        hasUserId: !!input.userId,
+        hasAnonId: !!input.anonymousUserId,
+        dmfObjectId: input.dmfObjectId ?? null,
+        dmfConfirmation: input.dmfConfirmationNumber ?? null,
+        fishEntryCount: fishEntries.length,
+      });
+
       const supabaseReport = await createReportInSupabase(input);
+
+      await writeSyncDebug({
+        stage: 'rpc_success',
+        timestamp: new Date().toISOString(),
+        reportId,
+        supabaseReportId: supabaseReport.id,
+        userId: supabaseReport.userId,
+      });
 
       // Remove from pending queue FIRST (uses the old local_xxx ID),
       // then update the local report's ID to the Supabase UUID.
@@ -915,10 +1078,24 @@ export async function syncPendingReports(): Promise<{
 
       console.log(`✅ Synced report ${reportId} -> ${supabaseReport.id}`);
     } catch (error) {
-      console.warn(`⚠️ Failed to sync report ${reportId}:`, error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.warn(`⚠️ Failed to sync report ${reportId}:`, errorMsg);
+      await writeSyncDebug({
+        stage: 'rpc_error',
+        timestamp: new Date().toISOString(),
+        reportId,
+        error: errorMsg,
+      });
       failed++;
     }
   }
+
+  await writeSyncDebug({
+    stage: 'sync_complete',
+    timestamp: new Date().toISOString(),
+    synced,
+    failed,
+  });
 
   console.log(`📊 Sync complete: ${synced} synced, ${failed} failed`);
   return { synced, failed };
