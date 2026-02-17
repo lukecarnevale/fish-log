@@ -141,6 +141,50 @@ export async function clearPendingAuth(): Promise<void> {
 // Session Management
 // =============================================================================
 
+export interface SessionCheckResult {
+  /** Whether the session is valid (has a non-expired access token) */
+  valid: boolean;
+  /** The Supabase auth user ID (auth.uid()) if session is valid */
+  authUserId?: string;
+  /** Reason the session is invalid, for logging */
+  reason?: 'no_session' | 'refresh_failed' | 'error';
+}
+
+/**
+ * Ensure we have a valid (non-expired) auth session.
+ *
+ * The Supabase client's `autoRefreshToken` only refreshes while the app
+ * is actively running.  When the app is backgrounded for hours, the JWT
+ * expires.  Calling this before any RPC that checks `auth.uid()` avoids
+ * "Unauthorized" errors from stale tokens.
+ *
+ * @returns SessionCheckResult indicating whether the session is usable
+ */
+export async function ensureValidSession(): Promise<SessionCheckResult> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      return { valid: false, reason: 'no_session' };
+    }
+
+    // Proactively refresh the token — this is a no-op if the token is still
+    // fresh, and swaps in a new JWT if it's close to / past expiry.
+    const { data, error } = await supabase.auth.refreshSession();
+
+    if (error || !data.session) {
+      console.warn('⚠️ Session refresh failed:', error?.message ?? 'no session returned');
+      return { valid: false, reason: 'refresh_failed' };
+    }
+
+    console.log('🔑 Session refreshed for:', data.session.user.email);
+    return { valid: true, authUserId: data.session.user.id };
+  } catch (err) {
+    console.warn('⚠️ ensureValidSession error:', err instanceof Error ? err.message : String(err));
+    return { valid: false, reason: 'error' };
+  }
+}
+
 /**
  * Get the current authentication state.
  */
