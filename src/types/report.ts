@@ -61,6 +61,11 @@ export interface StoredReport {
   enteredRewards: boolean;
   rewardsDrawingId: string | null;
 
+  // Webhook delivery tracking
+  webhookStatus: string | null;
+  webhookError: string | null;
+  webhookAttempts: number;
+
   // Timestamps
   createdAt: string;
   updatedAt: string;
@@ -196,6 +201,9 @@ export function transformReport(row: Record<string, unknown>): StoredReport {
     gpsLongitude: row.gps_longitude as number | null,
     enteredRewards: row.entered_rewards as boolean,
     rewardsDrawingId: row.rewards_drawing_id as string | null,
+    webhookStatus: (row.webhook_status as string | null) ?? null,
+    webhookError: (row.webhook_error as string | null) ?? null,
+    webhookAttempts: (row.webhook_attempts as number) ?? 0,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };

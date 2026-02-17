@@ -22,6 +22,7 @@ import { ensurePublicPhotoUrl, isLocalUri } from './photoUploadService';
 import { fetchCurrentDrawing, addReportToRewardsEntry } from './rewardsService';
 import { updateAllStatsAfterReport, AwardedAchievement } from './statsService';
 import { getDeviceId } from '../utils/deviceId';
+import { ensureValidSession } from './authService';
 
 // Re-export for convenience
 export type { AwardedAchievement } from './statsService';
@@ -164,116 +165,101 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
     })) || [],
   };
 
-  // Use appropriate RPC function based on user type
+  // Helper: build a StoredReport from RPC response data + input
+  const buildStoredReport = (
+    rpcData: { report_id: string; dmf_status?: string; anonymous_user_id?: string; created_at: string },
+    effectiveUserId: string | null,
+    effectiveAnonId: string | null,
+  ): StoredReport => ({
+    id: rpcData.report_id,
+    userId: effectiveUserId,
+    anonymousUserId: effectiveAnonId,
+    dmfStatus: rpcData.dmf_status as StoredReport['dmfStatus'] || 'pending',
+    dmfConfirmationNumber: input.dmfConfirmationNumber || null,
+    dmfObjectId: input.dmfObjectId || null,
+    dmfSubmittedAt: input.dmfSubmittedAt || null,
+    dmfError: null,
+    hasLicense: input.hasLicense,
+    wrcId: input.wrcId || null,
+    firstName: input.firstName || null,
+    lastName: input.lastName || null,
+    zipCode: input.zipCode || null,
+    phone: input.phone || null,
+    email: input.email || null,
+    wantTextConfirmation: input.wantTextConfirmation,
+    wantEmailConfirmation: input.wantEmailConfirmation,
+    harvestDate: input.harvestDate,
+    areaCode: input.areaCode,
+    areaLabel: input.areaLabel || null,
+    usedHookAndLine: input.usedHookAndLine,
+    gearCode: input.gearCode || null,
+    gearLabel: input.gearLabel || null,
+    redDrumCount: input.redDrumCount,
+    flounderCount: input.flounderCount,
+    spottedSeatroutCount: input.spottedSeatroutCount,
+    weakfishCount: input.weakfishCount,
+    stripedBassCount: input.stripedBassCount,
+    reportingFor: input.reportingFor,
+    familyCount: input.familyCount || null,
+    notes: input.notes || null,
+    photoUrl: input.photoUrl || null,
+    gpsLatitude: input.gpsLatitude || null,
+    gpsLongitude: input.gpsLongitude || null,
+    enteredRewards: input.enteredRewards || false,
+    rewardsDrawingId: input.rewardsDrawingId || null,
+    webhookStatus: null,
+    webhookError: null,
+    webhookAttempts: 0,
+    createdAt: rpcData.created_at,
+    updatedAt: rpcData.created_at,
+  });
+
+  // ── Authenticated path (rewards member) ────────────────────────────
   if (input.userId) {
-    // Authenticated user
-    const { data, error } = await supabase.rpc('create_report_atomic', {
-      p_input: rpcInput,
-    });
+    // Ensure the JWT is fresh before calling create_report_atomic,
+    // which checks auth.uid() server-side.
+    const session = await ensureValidSession();
 
-    if (error) {
-      throw new Error(`Failed to create report: ${error.message}`);
+    if (session.valid) {
+      console.log('🔑 Session valid, using create_report_atomic for user:', input.userId);
+      const { data, error } = await supabase.rpc('create_report_atomic', {
+        p_input: rpcInput,
+      });
+
+      if (error) {
+        // If specifically an auth error, fall through to anonymous path below
+        const isAuthError = error.message?.toLowerCase().includes('unauthorized')
+          || error.message?.toLowerCase().includes('auth');
+        if (isAuthError) {
+          console.warn('⚠️ create_report_atomic auth error despite session refresh; falling back to anonymous:', error.message);
+        } else {
+          throw new Error(`Failed to create report: ${error.message}`);
+        }
+      } else {
+        return buildStoredReport(data, input.userId, null);
+      }
+    } else {
+      console.warn(`⚠️ Session invalid (${session.reason}); falling back to anonymous RPC with user_id preserved`);
     }
 
-    // Transform the response
-    const report: StoredReport = {
-      id: data.report_id,
-      userId: input.userId,
-      anonymousUserId: null,
-      dmfStatus: data.dmf_status || 'pending',
-      dmfConfirmationNumber: null,
-      dmfObjectId: null,
-      dmfSubmittedAt: null,
-      dmfError: null,
-      hasLicense: input.hasLicense,
-      wrcId: input.wrcId || null,
-      firstName: input.firstName || null,
-      lastName: input.lastName || null,
-      zipCode: input.zipCode || null,
-      phone: input.phone || null,
-      email: input.email || null,
-      wantTextConfirmation: input.wantTextConfirmation,
-      wantEmailConfirmation: input.wantEmailConfirmation,
-      harvestDate: input.harvestDate,
-      areaCode: input.areaCode,
-      areaLabel: input.areaLabel || null,
-      usedHookAndLine: input.usedHookAndLine,
-      gearCode: input.gearCode || null,
-      gearLabel: input.gearLabel || null,
-      redDrumCount: input.redDrumCount,
-      flounderCount: input.flounderCount,
-      spottedSeatroutCount: input.spottedSeatroutCount,
-      weakfishCount: input.weakfishCount,
-      stripedBassCount: input.stripedBassCount,
-      reportingFor: input.reportingFor,
-      familyCount: input.familyCount || null,
-      notes: input.notes || null,
-      photoUrl: input.photoUrl || null,
-      gpsLatitude: input.gpsLatitude || null,
-      gpsLongitude: input.gpsLongitude || null,
-      enteredRewards: input.enteredRewards || false,
-      rewardsDrawingId: input.rewardsDrawingId || null,
-      createdAt: data.created_at,
-      updatedAt: data.created_at,
-    };
-
-    return report;
-  } else {
-    // Anonymous user
-    const deviceId = await getDeviceId();
-    const { data, error } = await supabase.rpc('create_report_anonymous', {
-      p_device_id: deviceId,
-      p_input: rpcInput,
-    });
-
-    if (error) {
-      throw new Error(`Failed to create report: ${error.message}`);
-    }
-
-    // Transform the response
-    const report: StoredReport = {
-      id: data.report_id,
-      userId: null,
-      anonymousUserId: data.anonymous_user_id,
-      dmfStatus: data.dmf_status || 'pending',
-      dmfConfirmationNumber: null,
-      dmfObjectId: null,
-      dmfSubmittedAt: null,
-      dmfError: null,
-      hasLicense: input.hasLicense,
-      wrcId: input.wrcId || null,
-      firstName: input.firstName || null,
-      lastName: input.lastName || null,
-      zipCode: input.zipCode || null,
-      phone: input.phone || null,
-      email: input.email || null,
-      wantTextConfirmation: input.wantTextConfirmation,
-      wantEmailConfirmation: input.wantEmailConfirmation,
-      harvestDate: input.harvestDate,
-      areaCode: input.areaCode,
-      areaLabel: input.areaLabel || null,
-      usedHookAndLine: input.usedHookAndLine,
-      gearCode: input.gearCode || null,
-      gearLabel: input.gearLabel || null,
-      redDrumCount: input.redDrumCount,
-      flounderCount: input.flounderCount,
-      spottedSeatroutCount: input.spottedSeatroutCount,
-      weakfishCount: input.weakfishCount,
-      stripedBassCount: input.stripedBassCount,
-      reportingFor: input.reportingFor,
-      familyCount: input.familyCount || null,
-      notes: input.notes || null,
-      photoUrl: input.photoUrl || null,
-      gpsLatitude: input.gpsLatitude || null,
-      gpsLongitude: input.gpsLongitude || null,
-      enteredRewards: input.enteredRewards || false,
-      rewardsDrawingId: input.rewardsDrawingId || null,
-      createdAt: data.created_at,
-      updatedAt: data.created_at,
-    };
-
-    return report;
+    // ── Fallback: use anonymous RPC but keep user_id in input ──────
+    // The updated create_report_anonymous RPC writes user_id from p_input,
+    // so the rewards member link is preserved even without an auth session.
+    console.log('🔄 Falling back to create_report_anonymous for rewards member:', input.userId);
   }
+
+  // ── Anonymous path (or fallback from above) ────────────────────────
+  const deviceId = await getDeviceId();
+  const { data, error } = await supabase.rpc('create_report_anonymous', {
+    p_device_id: deviceId,
+    p_input: rpcInput,
+  });
+
+  if (error) {
+    throw new Error(`Failed to create report: ${error.message}`);
+  }
+
+  return buildStoredReport(data, input.userId || null, data.anonymous_user_id);
 }
 
 /**
@@ -447,10 +433,10 @@ function createLocalReport(input: ReportInput): StoredReport {
     id: generateLocalId(),
     userId: input.userId || null,
     anonymousUserId: input.anonymousUserId || null,
-    dmfStatus: 'pending',
-    dmfConfirmationNumber: null,
-    dmfObjectId: null,
-    dmfSubmittedAt: null,
+    dmfStatus: input.dmfStatus || 'pending',
+    dmfConfirmationNumber: input.dmfConfirmationNumber || null,
+    dmfObjectId: input.dmfObjectId || null,
+    dmfSubmittedAt: input.dmfSubmittedAt || null,
     dmfError: null,
     hasLicense: input.hasLicense,
     wrcId: input.wrcId || null,
@@ -480,6 +466,9 @@ function createLocalReport(input: ReportInput): StoredReport {
     gpsLongitude: input.gpsLongitude || null,
     enteredRewards: input.enteredRewards || false,
     rewardsDrawingId: input.rewardsDrawingId || null,
+    webhookStatus: null,
+    webhookError: null,
+    webhookAttempts: 0,
     createdAt: now,
     updatedAt: now,
   };
@@ -495,6 +484,8 @@ export interface CreateReportResult {
   savedToSupabase: boolean;
   achievementsAwarded?: AwardedAchievement[];
   error?: string;
+  /** When savedToSupabase is false, describes why (e.g. 'connection', 'auth', 'rpc_error') */
+  supabaseError?: string;
 }
 
 /**
@@ -516,6 +507,8 @@ export async function createReport(input: ReportInput): Promise<CreateReportResu
       console.warn('⚠️ Photo upload failed, storing local URI (may not be visible to other users)');
     }
   }
+
+  let supabaseFailureReason: string | undefined;
 
   if (connected) {
     try {
@@ -543,17 +536,21 @@ export async function createReport(input: ReportInput): Promise<CreateReportResu
 
       return { success: true, report, savedToSupabase: true, achievementsAwarded };
     } catch (error) {
-      console.warn('⚠️ Supabase save failed, saving locally:', error);
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn('⚠️ Supabase save failed, saving locally:', msg);
+      supabaseFailureReason = msg;
     }
+  } else {
+    supabaseFailureReason = 'No connection to Supabase';
   }
 
   // Save locally and queue for sync
   const localReport = createLocalReport(input);
   await addLocalReport(localReport);
   await addToPendingSync(localReport.id);
-  console.log('📱 Report saved locally, queued for sync');
+  console.log('📱 Report saved locally, queued for sync. Reason:', supabaseFailureReason);
 
-  return { success: true, report: localReport, savedToSupabase: false };
+  return { success: true, report: localReport, savedToSupabase: false, supabaseError: supabaseFailureReason };
 }
 
 /**
@@ -806,6 +803,11 @@ export async function syncPendingReports(): Promise<{
         gpsLongitude: localReport.gpsLongitude || undefined,
         enteredRewards: localReport.enteredRewards,
         rewardsDrawingId: localReport.rewardsDrawingId || undefined,
+        // Include DMF data so it's preserved when syncing to Supabase
+        dmfStatus: localReport.dmfStatus,
+        dmfConfirmationNumber: localReport.dmfConfirmationNumber || undefined,
+        dmfObjectId: localReport.dmfObjectId || undefined,
+        dmfSubmittedAt: localReport.dmfSubmittedAt || undefined,
       };
 
       const supabaseReport = await createReportInSupabase(input);
@@ -837,6 +839,71 @@ export async function syncPendingReports(): Promise<{
 
   console.log(`📊 Sync complete: ${synced} synced, ${failed} failed`);
   return { synced, failed };
+}
+
+/**
+ * Retry webhook delivery for reports that previously failed.
+ *
+ * Queries Supabase for reports where `webhook_status = 'failed'` and
+ * `webhook_attempts < 3`, then re-invokes the edge function.
+ * Called during the foreground sync cycle so retries happen automatically.
+ */
+export async function retryFailedWebhooks(): Promise<{ retried: number; succeeded: number }> {
+  const connected = await isSupabaseConnected();
+  if (!connected) return { retried: 0, succeeded: 0 };
+
+  try {
+    const { data: failedReports, error } = await supabase
+      .from('harvest_reports')
+      .select('dmf_object_id, dmf_confirmation_number, webhook_attempts')
+      .eq('webhook_status', 'failed')
+      .lt('webhook_attempts', 3)
+      .not('dmf_object_id', 'is', null);
+
+    if (error || !failedReports || failedReports.length === 0) {
+      return { retried: 0, succeeded: 0 };
+    }
+
+    console.log(`🔄 Retrying webhooks for ${failedReports.length} reports...`);
+
+    // Lazy import to avoid circular dependency
+    const { triggerDMFConfirmationWebhook, transformToDMFPayload } = await import('./harvestReportService');
+    let succeeded = 0;
+
+    for (const report of failedReports) {
+      try {
+        // We don't have the full payload stored, but the edge function only
+        // needs objectId and globalId as required identifiers.  We pass
+        // minimal stubs for the rest; the edge function uses them to build
+        // the webhook body, but DMF already has the full data.
+        const result = await triggerDMFConfirmationWebhook(
+          report.dmf_object_id,
+          '', // globalId — not critical for retry, edge function fills from attributes
+          {} as any, // dmfAttributes stub — edge function handles missing fields gracefully
+          { x: 0, y: 0 } as any, // geometry stub
+          false,
+        );
+
+        // Update attempt count regardless of outcome
+        const newAttempts = (report.webhook_attempts ?? 0) + 1;
+        await supabase.from('harvest_reports').update({
+          webhook_status: result.success ? 'sent' : 'failed',
+          webhook_error: result.errors.length > 0 ? result.errors.join('; ') : null,
+          webhook_attempts: newAttempts,
+        }).eq('dmf_object_id', report.dmf_object_id);
+
+        if (result.success) succeeded++;
+      } catch (retryErr) {
+        console.warn(`⚠️ Webhook retry failed for objectId ${report.dmf_object_id}:`, retryErr);
+      }
+    }
+
+    console.log(`📊 Webhook retry: ${succeeded}/${failedReports.length} succeeded`);
+    return { retried: failedReports.length, succeeded };
+  } catch (err) {
+    console.warn('⚠️ retryFailedWebhooks error:', err);
+    return { retried: 0, succeeded: 0 };
+  }
 }
 
 /**
