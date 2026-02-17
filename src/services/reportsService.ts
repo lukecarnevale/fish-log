@@ -43,7 +43,18 @@ const STORAGE_KEYS = {
 async function getLocalReports(): Promise<StoredReport[]> {
   try {
     const data = await AsyncStorage.getItem(STORAGE_KEYS.reports);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    const raw: unknown[] = JSON.parse(data);
+    // Normalize reports saved by older app versions that may be missing
+    // fields added in later updates (e.g. webhookStatus, webhookError,
+    // webhookAttempts). Without this, TypeScript expects these fields but
+    // they would be undefined at runtime.
+    return raw.map((r: any) => ({
+      ...r,
+      webhookStatus: r.webhookStatus ?? null,
+      webhookError: r.webhookError ?? null,
+      webhookAttempts: r.webhookAttempts ?? 0,
+    }));
   } catch {
     return [];
   }
@@ -504,7 +515,8 @@ export async function createReport(input: ReportInput): Promise<CreateReportResu
       console.log('✅ Photo uploaded, using public URL');
       input = { ...input, photoUrl: publicUrl };
     } else {
-      console.warn('⚠️ Photo upload failed, storing local URI (may not be visible to other users)');
+      console.warn('⚠️ Photo upload failed, clearing photo URL to prevent local URI in DB');
+      input = { ...input, photoUrl: undefined };
     }
   }
 
@@ -749,13 +761,26 @@ export async function syncPendingReports(): Promise<{
   synced: number;
   failed: number;
 }> {
-  const connected = await isSupabaseConnected();
-  if (!connected) {
+  // Check for pending reports first (cheap local check) before hitting the network.
+  const pending = await getPendingSyncReports();
+  if (pending.length === 0) {
     return { synced: 0, failed: 0 };
   }
 
-  const pending = await getPendingSyncReports();
-  if (pending.length === 0) {
+  // On cold app start the network stack may not be ready yet.
+  // Retry the connectivity check up to 3 times with a short delay so we
+  // don't silently abandon the sync on a transient network failure.
+  let connected = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    connected = await isSupabaseConnected();
+    if (connected) break;
+    if (attempt < 3) {
+      console.log(`🔄 Connectivity check failed (attempt ${attempt}/3), retrying in ${attempt * 2}s...`);
+      await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+    }
+  }
+  if (!connected) {
+    console.warn('⚠️ Supabase not reachable after 3 attempts, skipping sync');
     return { synced: 0, failed: 0 };
   }
 
@@ -771,6 +796,35 @@ export async function syncPendingReports(): Promise<{
     }
 
     try {
+      // Upload photo to Supabase Storage if it's a local URI.
+      // The original createReport does this, but sync calls createReportInSupabase
+      // directly, so we need to handle it here too.
+      let photoUrl = localReport.photoUrl || undefined;
+      if (isLocalUri(photoUrl)) {
+        console.log('📸 Syncing: uploading local photo to Supabase Storage...');
+        const publicUrl = await ensurePublicPhotoUrl(photoUrl, localReport.userId || localReport.anonymousUserId || undefined);
+        if (publicUrl) {
+          photoUrl = publicUrl;
+          // Update local report with the public URL so we don't re-upload
+          await updateLocalReport(reportId, { photoUrl: publicUrl });
+        } else {
+          console.warn('⚠️ Syncing: photo upload failed, proceeding without photo');
+          photoUrl = undefined;
+        }
+      }
+
+      // Reconstruct fish entries from aggregate counts.
+      // StoredReport doesn't persist individual fish entries (those live in
+      // the fish_entries table in Supabase), so we rebuild them from the
+      // aggregate count fields. Individual lengths/tags are lost, but the
+      // species and counts match.
+      const fishEntries: Array<{ species: string; count: number }> = [];
+      if (localReport.redDrumCount > 0) fishEntries.push({ species: 'Red Drum', count: localReport.redDrumCount });
+      if (localReport.flounderCount > 0) fishEntries.push({ species: 'Southern Flounder', count: localReport.flounderCount });
+      if (localReport.spottedSeatroutCount > 0) fishEntries.push({ species: 'Spotted Seatrout', count: localReport.spottedSeatroutCount });
+      if (localReport.weakfishCount > 0) fishEntries.push({ species: 'Weakfish', count: localReport.weakfishCount });
+      if (localReport.stripedBassCount > 0) fishEntries.push({ species: 'Striped Bass', count: localReport.stripedBassCount });
+
       // Create in Supabase
       const input: ReportInput = {
         userId: localReport.userId || undefined,
@@ -798,7 +852,7 @@ export async function syncPendingReports(): Promise<{
         reportingFor: localReport.reportingFor,
         familyCount: localReport.familyCount || undefined,
         notes: localReport.notes || undefined,
-        photoUrl: localReport.photoUrl || undefined,
+        photoUrl,
         gpsLatitude: localReport.gpsLatitude || undefined,
         gpsLongitude: localReport.gpsLongitude || undefined,
         enteredRewards: localReport.enteredRewards,
@@ -808,16 +862,45 @@ export async function syncPendingReports(): Promise<{
         dmfConfirmationNumber: localReport.dmfConfirmationNumber || undefined,
         dmfObjectId: localReport.dmfObjectId || undefined,
         dmfSubmittedAt: localReport.dmfSubmittedAt || undefined,
+        // Reconstruct fish entries from aggregate counts
+        fishEntries: fishEntries.length > 0 ? fishEntries : undefined,
       };
+
+      // Idempotency check: if this report was already synced (e.g. app
+      // crashed after RPC succeeded but before removeFromPendingSync),
+      // skip re-creation to prevent duplicates.  There is no unique
+      // constraint on dmf_object_id, so we check manually.
+      if (localReport.dmfObjectId) {
+        const { data: existing } = await supabase
+          .from('harvest_reports')
+          .select('id')
+          .eq('dmf_object_id', localReport.dmfObjectId)
+          .maybeSingle();
+
+        if (existing) {
+          console.log(`⏭️ Report ${reportId} already in Supabase (dmf_object_id ${localReport.dmfObjectId}), skipping`);
+          await removeFromPendingSync(reportId);
+          await updateLocalReport(reportId, {
+            id: existing.id,
+            updatedAt: new Date().toISOString(),
+          });
+          synced++;
+          continue;
+        }
+      }
 
       const supabaseReport = await createReportInSupabase(input);
 
-      // Update local report with Supabase ID and remove from pending
+      // Remove from pending queue FIRST (uses the old local_xxx ID),
+      // then update the local report's ID to the Supabase UUID.
+      // This order prevents an orphan scenario where the ID changes but
+      // the queue still references the old ID if the update succeeds
+      // but removeFromPendingSync fails.
+      await removeFromPendingSync(reportId);
       await updateLocalReport(reportId, {
         id: supabaseReport.id,
         updatedAt: new Date().toISOString(),
       });
-      await removeFromPendingSync(reportId);
       synced++;
 
       // Update streak & check achievements for this synced report
@@ -867,20 +950,55 @@ export async function retryFailedWebhooks(): Promise<{ retried: number; succeede
     console.log(`🔄 Retrying webhooks for ${failedReports.length} reports...`);
 
     // Lazy import to avoid circular dependency
-    const { triggerDMFConfirmationWebhook, transformToDMFPayload } = await import('./harvestReportService');
+    const { triggerDMFConfirmationWebhook, generateGlobalId } = await import('./harvestReportService');
     let succeeded = 0;
 
     for (const report of failedReports) {
       try {
-        // We don't have the full payload stored, but the edge function only
-        // needs objectId and globalId as required identifiers.  We pass
-        // minimal stubs for the rest; the edge function uses them to build
-        // the webhook body, but DMF already has the full data.
+        // Fetch the full report so we can reconstruct DMF attributes.
+        // The edge function validates globalId and dmfAttributes are
+        // non-empty, so we must provide real values (not stubs).
+        const { data: fullReport, error: fetchErr } = await supabase
+          .from('harvest_reports')
+          .select('*')
+          .eq('dmf_object_id', report.dmf_object_id)
+          .maybeSingle();
+
+        if (fetchErr || !fullReport) {
+          console.warn(`⚠️ Could not fetch report for objectId ${report.dmf_object_id}, skipping retry`);
+          continue;
+        }
+
+        // Reconstruct a minimal DMF attributes payload from DB fields.
+        // The Azure Logic App webhook uses these to compose text/email
+        // confirmations. GlobalID is regenerated since it's not stored.
+        const globalId = generateGlobalId();
+        const dmfAttributes: Record<string, unknown> = {
+          GlobalID: globalId,
+          Unique1: fullReport.dmf_confirmation_number || '',
+          Phone: fullReport.want_text_confirmation ? (fullReport.phone || null) : null,
+          TextCon: fullReport.want_text_confirmation ? 'Yes' : 'No',
+          Email: fullReport.want_email_confirmation ? (fullReport.email || null) : null,
+          EmailCon: fullReport.want_email_confirmation ? 'Yes' : 'No',
+          FirstN: fullReport.first_name || null,
+          LastN: fullReport.last_name || null,
+          NumRD: (fullReport.red_drum_count || 0).toString(),
+          NumF: (fullReport.flounder_count || 0).toString(),
+          NumSS: (fullReport.spotted_seatrout_count || 0).toString(),
+          NumW: (fullReport.weakfish_count || 0).toString(),
+          NumSB: (fullReport.striped_bass_count || 0).toString(),
+          Area: fullReport.area_code || '',
+          Harvest: 'Recreational',
+          OBJECTID: report.dmf_object_id,
+        };
+
+        const geometry = { spatialReference: { wkid: 4326 }, x: 0, y: 0, z: 0 };
+
         const result = await triggerDMFConfirmationWebhook(
           report.dmf_object_id,
-          '', // globalId — not critical for retry, edge function fills from attributes
-          {} as any, // dmfAttributes stub — edge function handles missing fields gracefully
-          { x: 0, y: 0 } as any, // geometry stub
+          globalId,
+          dmfAttributes as any,
+          geometry as any,
           false,
         );
 
