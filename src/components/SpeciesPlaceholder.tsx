@@ -56,8 +56,14 @@ const SpeciesPlaceholder: React.FC<SpeciesPlaceholderProps> = ({
   const theme = getSpeciesTheme(species);
   const config = SIZE_CONFIGS[size];
 
+  // Large size fills its parent container (which uses aspectRatio);
+  // smaller sizes use fixed heights for thumbnail contexts
+  const sizeStyle = size === 'large'
+    ? { flex: 1 as const }
+    : { height: config.container.height };
+
   return (
-    <View style={[styles.container, { height: config.container.height, backgroundColor: theme.light }]}>
+    <View style={[styles.container, sizeStyle, { backgroundColor: theme.light }]}>
       {/* Wave pattern overlay */}
       <View style={styles.waveContainer}>
         <WaveBackground />

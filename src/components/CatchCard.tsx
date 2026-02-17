@@ -151,7 +151,11 @@ const CatchCard: React.FC<CatchCardProps> = ({
       disabled={!onAnglerPress && !onCardPress}
     >
       {/* Photo section with overlays */}
-      <View style={styles.photoContainer}>
+      <View style={[
+        styles.photoContainer,
+        // White background for stock photos so letterbox areas match the photo's white background
+        !entry.photoUrl && speciesImageUrl && { backgroundColor: '#FFFFFF' },
+      ]}>
         {entry.photoUrl ? (
           <Image
             source={{ uri: entry.photoUrl }}
@@ -166,11 +170,11 @@ const CatchCard: React.FC<CatchCardProps> = ({
           <Image
             source={{ uri: speciesImageUrl }}
             style={styles.photo}
-            contentFit="cover"
+            contentFit="contain"
             transition={300}
             cachePolicy="memory-disk"
             placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
-            placeholderContentFit="cover"
+            placeholderContentFit="contain"
           />
         ) : (
           <SpeciesPlaceholder species={entry.species} size="large" />
@@ -294,10 +298,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  // Photo section - larger for premium feel
+  // Photo section - Instagram-style 4:5 portrait ratio
   photoContainer: {
     width: '100%',
-    height: 220,
+    aspectRatio: 4 / 5,
     backgroundColor: colors.lightestGray,
     position: 'relative',
   },
