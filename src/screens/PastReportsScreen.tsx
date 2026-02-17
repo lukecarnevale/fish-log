@@ -1548,7 +1548,7 @@ const styles = StyleSheet.create({
   },
   modalPhoto: {
     width: "100%",
-    height: 180,
+    aspectRatio: 4 / 5,
     borderRadius: borderRadius.md,
     backgroundColor: colors.lightGray,
   },
