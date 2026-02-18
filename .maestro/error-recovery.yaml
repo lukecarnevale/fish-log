@@ -1,0 +1,74 @@
+# Flow 10: Error Boundary Recovery
+# Trigger error condition -> verify recovery UI -> navigate away.
+# Tests that the app can recover from transient errors.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: false
+
+# Home screen should load normally
+- assertVisible: "Fish Log Co."
+
+# Test 1: Navigate to Catch Feed (may show connection error)
+- tapOn: "Catch Feed"
+
+# Should either load feed or show graceful error
+- assertVisible:
+    text: "Catch Feed|Connection Issue|No Catches Yet"
+    regex: true
+    timeout: 10000
+
+# If connection issue, try the Try Again button
+- runFlow:
+    when:
+      visible: "Connection Issue"
+    commands:
+      - assertVisible: "Try Again"
+      - tapOn: "Try Again"
+      # Wait for retry
+      - wait: 3000
+
+# Navigate back to home
+- pressKey: back
+- assertVisible: "Fish Log Co."
+
+# Test 2: Navigate to Species Guide with potential network issues
+- tapOn: "Species Guide"
+
+# Should either load species or show error
+- assertVisible:
+    text: "Species Guide"
+    timeout: 5000
+
+- assertVisible:
+    text: "Red Drum|Unable to load species data"
+    regex: true
+    timeout: 10000
+
+# Navigate back
+- pressKey: back
+- assertVisible: "Fish Log Co."
+
+# Test 3: Submit report with validation error
+- tapOn: "Report Catch"
+- assertVisible: "Report Catch"
+
+# Try to submit without filling any fields (scroll to bottom)
+- scrollUntilVisible:
+    element: "Submit Report"
+    direction: DOWN
+    optional: true
+
+# If Submit is visible, tap it to trigger validation
+- runFlow:
+    when:
+      visible: "Submit Report"
+    commands:
+      - tapOn: "Submit Report"
+      # Should show validation alert
+      - wait: 1000
+
+# Navigate back to home
+- pressKey: back
+- pressKey: back
+- assertVisible: "Fish Log Co."

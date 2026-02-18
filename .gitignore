@@ -50,4 +50,5 @@ COMMANDS.md
 website/
 
 # Testing
-Testing/*.md
+docs/Testing/*.md
+coverage/

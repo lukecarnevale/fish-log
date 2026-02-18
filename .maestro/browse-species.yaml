@@ -1,0 +1,52 @@
+# Flow 4: Browse Species Info
+# Browse species catalog, search, and view details.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: false
+
+# Home screen
+- assertVisible: "Fish Log Co."
+
+# Navigate to Species Guide
+- tapOn: "Species Guide"
+
+# Species screen should load
+- assertVisible: "Species Guide"
+
+# Wait for species list to load
+- assertVisible:
+    text: "Red Drum|Southern Flounder|Spotted Seatrout"
+    regex: true
+    timeout: 10000
+
+# Test search functionality
+- tapOn:
+    id: "search-input"
+    optional: true
+- tapOn:
+    text: "Search by name..."
+    optional: true
+- inputText: "Red"
+
+# Red Drum should be visible, others filtered out
+- assertVisible: "Red Drum"
+
+# Clear search
+- clearText
+
+# Tap on a species to view details
+- tapOn: "Red Drum"
+
+# Detail view should show
+- assertVisible: "Description"
+- assertVisible: "Fishing Regulations"
+
+# Verify key sections exist
+- scrollUntilVisible:
+    element: "Fishing Tips"
+    direction: DOWN
+    optional: true
+
+# Navigate back from detail view
+- pressKey: back

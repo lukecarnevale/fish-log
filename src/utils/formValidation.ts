@@ -10,6 +10,11 @@ export const validateEmail = (email: string): string | undefined => {
 
   const trimmedEmail = email.trim().toLowerCase();
 
+  // Reject consecutive dots anywhere in the email
+  if (trimmedEmail.includes('..')) {
+    return "Please enter a valid email address";
+  }
+
   // More robust email regex:
   // - Local part: letters, numbers, dots, hyphens, underscores, plus signs
   // - Domain: letters, numbers, hyphens, dots

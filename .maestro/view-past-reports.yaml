@@ -1,0 +1,36 @@
+# Flow 2: View Past Reports
+# Navigate to past reports and verify the list renders.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: false
+
+# Home screen
+- assertVisible: "Fish Log Co."
+
+# Navigate to Past Reports
+- tapOn: "Past Reports"
+
+# Past Reports screen should load
+- assertVisible: "Past Reports"
+
+# Should show either reports or empty state
+- assertVisible:
+    text: "No Reports Yet|All \\(|Submitted \\("
+    regex: true
+    timeout: 10000
+
+# If empty state, verify CTA button
+- runFlow:
+    when:
+      visible: "No Reports Yet"
+    commands:
+      - assertVisible: "Submit a Report"
+
+# Navigate back
+- tapOn:
+    id: "back-button"
+    optional: true
+
+# Verify we return to home
+- assertVisible: "Fish Log Co."
