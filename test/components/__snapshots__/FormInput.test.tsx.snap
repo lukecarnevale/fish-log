@@ -1,0 +1,63 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`FormInput matches snapshot 1`] = `
+<View
+  style={
+    [
+      {
+        "marginBottom": 0,
+      },
+      undefined,
+    ]
+  }
+>
+  <Text
+    style={
+      [
+        {
+          "color": "#263238",
+          "fontSize": 14,
+          "fontWeight": "600",
+          "marginBottom": 6,
+        },
+        undefined,
+      ]
+    }
+  >
+    Email
+  </Text>
+  <TextInput
+    placeholder="Enter email"
+    placeholderTextColor="#546E7A"
+    style={
+      [
+        {
+          "backgroundColor": "#F8F9FA",
+          "borderColor": "#85C5E5",
+          "borderRadius": 12,
+          "borderWidth": 1.5,
+          "color": "#263238",
+          "fontSize": 16,
+          "paddingHorizontal": 12,
+          "paddingVertical": 12,
+        },
+        {
+          "borderColor": "#FF5252",
+        },
+        undefined,
+      ]
+    }
+  />
+  <Text
+    style={
+      {
+        "color": "#FF5252",
+        "fontSize": 13,
+        "marginTop": 4,
+      }
+    }
+  >
+    Required
+  </Text>
+</View>
+`;

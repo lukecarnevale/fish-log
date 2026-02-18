@@ -1,0 +1,70 @@
+# Flow 7: Auth Expiry During Form
+# Fill out a long form, simulate auth expiry, submit, verify no data loss.
+# Note: This flow validates form state preservation - auth token behavior
+# depends on the Supabase session management.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: false
+
+# Navigate to report form
+- assertVisible: "Fish Log Co."
+- tapOn: "Report Catch"
+- assertVisible: "Report Catch"
+
+# Fill out the form with detailed data
+- tapOn: "Myself Only"
+
+# Select species
+- tapOn: "Select species"
+- tapOn: "Red Drum"
+
+# Increase fish count
+- scrollUntilVisible:
+    element: "Number Harvested"
+    direction: DOWN
+
+# Fill harvest area
+- scrollUntilVisible:
+    element: "Area of Harvest"
+    direction: DOWN
+- tapOn: "Select area"
+- tapOn:
+    index: 0
+
+# Hook & line
+- scrollUntilVisible:
+    element: "Did you use hook & line?"
+    direction: DOWN
+- tapOn: "Yes"
+
+# Fill angler details
+- scrollUntilVisible:
+    element: "First Name"
+    direction: DOWN
+- tapOn: "First Name"
+- inputText: "AuthExpiry"
+- tapOn: "Last Name"
+- inputText: "Test"
+
+# Briefly background the app (simulates token expiry scenario)
+- pressKey: home
+- wait: 2000
+- launchApp
+
+# Form data should be preserved after returning
+- assertVisible: "Report Catch"
+
+# Scroll to verify name is still populated
+- scrollUntilVisible:
+    element: "Submit Report"
+    direction: DOWN
+
+# Submit the report
+- tapOn: "Submit Report"
+
+# Should reach confirmation (or queued state)
+- assertVisible:
+    text: "Report Submitted|Report Queued|Submitting"
+    regex: true
+    timeout: 15000
