@@ -221,6 +221,12 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
     webhookStatus: null,
     webhookError: null,
     webhookAttempts: 0,
+    fishEntries: input.fishEntries?.map((fe) => ({
+      species: fe.species,
+      count: fe.count,
+      lengths: fe.lengths,
+      tagNumber: fe.tagNumber,
+    })),
     createdAt: rpcData.created_at,
     updatedAt: rpcData.created_at,
   });
@@ -480,6 +486,12 @@ function createLocalReport(input: ReportInput): StoredReport {
     webhookStatus: null,
     webhookError: null,
     webhookAttempts: 0,
+    fishEntries: input.fishEntries?.map((fe) => ({
+      species: fe.species,
+      count: fe.count,
+      lengths: fe.lengths,
+      tagNumber: fe.tagNumber,
+    })),
     createdAt: now,
     updatedAt: now,
   };
@@ -757,34 +769,17 @@ export async function getFishEntries(reportId: string): Promise<StoredFishEntry[
  * Sync pending local reports to Supabase.
  * Call this when network becomes available.
  *
- * Self-healing: in addition to checking the explicit pending sync queue,
- * we also scan all local reports for any with `local_` prefix IDs that
- * somehow weren't added to the queue (e.g. older app version, queue cleared
- * by a previous failed sync, etc.).
+ * Uses a single sync pathway: the pending sync queue.  The RPC also has
+ * server-side idempotency (user_id + harvest_date + area_code) so even
+ * if the same report is submitted twice, only one row is created.
  */
 export async function syncPendingReports(): Promise<{
   synced: number;
   failed: number;
 }> {
-  // Check for pending reports first (cheap local check) before hitting the network.
   const pending = await getPendingSyncReports();
 
-  // Self-healing: also scan local reports for any that still have local_ IDs
-  // but were not in the pending sync queue. This catches reports that were
-  // saved locally by an older app version that didn't queue them, or where
-  // the queue was corrupted/cleared.
-  const localReportsForScan = await getLocalReports();
-  const localOnlyIds = localReportsForScan
-    .filter((r) => r.id.startsWith('local_'))
-    .map((r) => r.id);
-
-  // Merge: add any local-only IDs not already in the pending queue
-  const allPending = [...new Set([...pending, ...localOnlyIds])];
-
-  // ── Sync diagnostics: write to Supabase so we can observe progress ──
-  // This updates anonymous_users.sync_debug with a JSON snapshot of each
-  // sync attempt.  We can query it from the dashboard to see exactly what
-  // happened, since console.log is invisible in production builds.
+  // ── Sync diagnostics ──
   const deviceId = await getDeviceId();
   const writeSyncDebug = async (data: Record<string, unknown>) => {
     try {
@@ -793,118 +788,21 @@ export async function syncPendingReports(): Promise<{
         .update({ sync_debug: data })
         .eq('device_id', deviceId);
     } catch {
-      // Non-critical — just diagnostic
+      // Non-critical
     }
   };
 
-  // Always write the initial diagnostic so we can verify the sync code ran
   await writeSyncDebug({
     stage: 'sync_check',
     timestamp: new Date().toISOString(),
     pendingQueueCount: pending.length,
-    localOnlyCount: localOnlyIds.length,
-    selfHealedCount: allPending.length > 0 ? localOnlyIds.filter((id) => !pending.includes(id)).length : 0,
-    allPendingCount: allPending.length,
-    localReportIds: localReportsForScan.map((r) => r.id),
   });
 
-  if (allPending.length === 0) {
-    // Third-level fallback: check @harvest_history for reports that were
-    // submitted to DMF (got a confirmation number) but never made it to
-    // Supabase.  This covers the case where @harvest_reports was also
-    // cleared but the submission history survived.
-    try {
-      const historyData = await AsyncStorage.getItem('@harvest_history');
-      const history: Array<Record<string, unknown>> = historyData ? JSON.parse(historyData) : [];
-      const historyWithDMF = history.filter(
-        (h) => h.confirmationNumber && typeof h.confirmationNumber === 'string',
-      );
-
-      if (historyWithDMF.length > 0) {
-        const connected = await isSupabaseConnected();
-        if (connected) {
-          // Check which confirmation numbers are missing from Supabase
-          const confirmNumbers = historyWithDMF.map((h) => String(h.confirmationNumber));
-          const { data: existingReports } = await supabase
-            .from('harvest_reports')
-            .select('dmf_confirmation_number')
-            .in('dmf_confirmation_number', confirmNumbers);
-
-          const existingSet = new Set(
-            (existingReports || []).map((r: { dmf_confirmation_number: string }) => r.dmf_confirmation_number),
-          );
-          const missing = historyWithDMF.filter(
-            (h) => !existingSet.has(String(h.confirmationNumber)),
-          );
-
-          if (missing.length > 0) {
-            console.log(`🔧 History fallback: found ${missing.length} report(s) in history but not in Supabase`);
-            // Reconstruct local reports from history and queue them
-            for (const hist of missing) {
-              const localReport = createLocalReport({
-                userId: hist.userId as string | undefined,
-                hasLicense: hist.hasLicense as boolean,
-                wrcId: hist.wrcId as string | undefined,
-                firstName: hist.firstName as string | undefined,
-                lastName: hist.lastName as string | undefined,
-                zipCode: hist.zipCode as string | undefined,
-                phone: hist.phone as string | undefined,
-                email: hist.email as string | undefined,
-                wantTextConfirmation: hist.wantTextConfirmation as boolean,
-                wantEmailConfirmation: hist.wantEmailConfirmation as boolean,
-                harvestDate: hist.harvestDate as string,
-                areaCode: hist.areaCode as string,
-                areaLabel: hist.areaLabel as string | undefined,
-                usedHookAndLine: hist.usedHookAndLine as boolean,
-                gearCode: hist.gearCode as string | undefined,
-                gearLabel: hist.gearLabel as string | undefined,
-                redDrumCount: (hist.redDrumCount as number) || 0,
-                flounderCount: (hist.flounderCount as number) || 0,
-                spottedSeatroutCount: (hist.spottedSeatroutCount as number) || 0,
-                weakfishCount: (hist.weakfishCount as number) || 0,
-                stripedBassCount: (hist.stripedBassCount as number) || 0,
-                reportingFor: (hist.reportingFor as 'self' | 'family') || 'self',
-                familyCount: hist.familyCount as number | undefined,
-                notes: hist.notes as string | undefined,
-                photoUrl: hist.catchPhoto as string | undefined,
-                gpsLatitude: (hist.gpsCoordinates as { latitude: number } | undefined)?.latitude,
-                gpsLongitude: (hist.gpsCoordinates as { longitude: number } | undefined)?.longitude,
-                enteredRewards: hist.enterRaffle as boolean | undefined,
-                dmfConfirmationNumber: hist.confirmationNumber as string | undefined,
-                dmfObjectId: hist.objectId as number | undefined,
-                dmfSubmittedAt: hist.submittedAt as string | undefined,
-                dmfStatus: 'submitted',
-                fishEntries: hist.fishEntries as Array<{ species: string; count: number }> | undefined,
-              });
-              await addLocalReport(localReport);
-              await addToPendingSync(localReport.id);
-              console.log(`📋 Reconstructed report from history: ${hist.confirmationNumber} → ${localReport.id}`);
-            }
-            // Recurse: now that we've added reports, run the sync again
-            return syncPendingReports();
-          }
-        }
-      }
-    } catch (histErr) {
-      console.warn('⚠️ History fallback check failed (non-critical):', histErr);
-    }
-
+  if (pending.length === 0) {
     return { synced: 0, failed: 0 };
   }
 
-  // Log when self-healing discovers unqueued reports
-  const unqueued = localOnlyIds.filter((id) => !pending.includes(id));
-  if (unqueued.length > 0) {
-    console.log(`🔧 Self-healing: found ${unqueued.length} unsynced local report(s) not in pending queue:`, unqueued);
-    // Add them to the queue so they're tracked properly
-    for (const id of unqueued) {
-      await addToPendingSync(id);
-    }
-  }
-
   // On cold app start the network stack may not be ready yet.
-  // Retry the connectivity check up to 3 times with a short delay so we
-  // don't silently abandon the sync on a transient network failure.
   let connected = false;
   for (let attempt = 1; attempt <= 3; attempt++) {
     connected = await isSupabaseConnected();
@@ -919,37 +817,26 @@ export async function syncPendingReports(): Promise<{
     return { synced: 0, failed: 0 };
   }
 
-  // Re-use the already-loaded local reports (they were read above for the
-  // self-healing scan).  Re-read only if needed after the connectivity delay.
-  const localReports = localReportsForScan;
+  const localReports = await getLocalReports();
   let synced = 0;
   let failed = 0;
 
-  for (const reportId of allPending) {
+  for (const reportId of pending) {
     const localReport = localReports.find((r) => r.id === reportId);
     if (!localReport) {
       console.warn(`⚠️ Sync: report ${reportId} in pending queue but NOT found in @harvest_reports`);
-      await writeSyncDebug({
-        stage: 'report_not_found',
-        timestamp: new Date().toISOString(),
-        missingReportId: reportId,
-        localReportIds: localReports.map((r) => r.id),
-      });
       await removeFromPendingSync(reportId);
       continue;
     }
 
     try {
       // Upload photo to Supabase Storage if it's a local URI.
-      // The original createReport does this, but sync calls createReportInSupabase
-      // directly, so we need to handle it here too.
       let photoUrl = localReport.photoUrl || undefined;
       if (isLocalUri(photoUrl)) {
         console.log('📸 Syncing: uploading local photo to Supabase Storage...');
         const publicUrl = await ensurePublicPhotoUrl(photoUrl, localReport.userId || localReport.anonymousUserId || undefined);
         if (publicUrl) {
           photoUrl = publicUrl;
-          // Update local report with the public URL so we don't re-upload
           await updateLocalReport(reportId, { photoUrl: publicUrl });
         } else {
           console.warn('⚠️ Syncing: photo upload failed, proceeding without photo');
@@ -957,19 +844,19 @@ export async function syncPendingReports(): Promise<{
         }
       }
 
-      // Reconstruct fish entries from aggregate counts.
-      // StoredReport doesn't persist individual fish entries (those live in
-      // the fish_entries table in Supabase), so we rebuild them from the
-      // aggregate count fields. Individual lengths/tags are lost, but the
-      // species and counts match.
-      const fishEntries: Array<{ species: string; count: number }> = [];
-      if (localReport.redDrumCount > 0) fishEntries.push({ species: 'Red Drum', count: localReport.redDrumCount });
-      if (localReport.flounderCount > 0) fishEntries.push({ species: 'Southern Flounder', count: localReport.flounderCount });
-      if (localReport.spottedSeatroutCount > 0) fishEntries.push({ species: 'Spotted Seatrout', count: localReport.spottedSeatroutCount });
-      if (localReport.weakfishCount > 0) fishEntries.push({ species: 'Weakfish', count: localReport.weakfishCount });
-      if (localReport.stripedBassCount > 0) fishEntries.push({ species: 'Striped Bass', count: localReport.stripedBassCount });
+      // Use stored fish entries (preserves lengths/tags) if available,
+      // otherwise fall back to reconstructing from aggregate counts.
+      let fishEntries: Array<{ species: string; count: number; lengths?: string[]; tagNumber?: string }> = [];
+      if (localReport.fishEntries && localReport.fishEntries.length > 0) {
+        fishEntries = localReport.fishEntries;
+      } else {
+        if (localReport.redDrumCount > 0) fishEntries.push({ species: 'Red Drum', count: localReport.redDrumCount });
+        if (localReport.flounderCount > 0) fishEntries.push({ species: 'Southern Flounder', count: localReport.flounderCount });
+        if (localReport.spottedSeatroutCount > 0) fishEntries.push({ species: 'Spotted Seatrout', count: localReport.spottedSeatroutCount });
+        if (localReport.weakfishCount > 0) fishEntries.push({ species: 'Weakfish', count: localReport.weakfishCount });
+        if (localReport.stripedBassCount > 0) fishEntries.push({ species: 'Striped Bass', count: localReport.stripedBassCount });
+      }
 
-      // Create in Supabase
       const input: ReportInput = {
         userId: localReport.userId || undefined,
         anonymousUserId: localReport.anonymousUserId || undefined,
@@ -1001,36 +888,45 @@ export async function syncPendingReports(): Promise<{
         gpsLongitude: localReport.gpsLongitude || undefined,
         enteredRewards: localReport.enteredRewards,
         rewardsDrawingId: localReport.rewardsDrawingId || undefined,
-        // Include DMF data so it's preserved when syncing to Supabase
         dmfStatus: localReport.dmfStatus,
         dmfConfirmationNumber: localReport.dmfConfirmationNumber || undefined,
         dmfObjectId: localReport.dmfObjectId || undefined,
         dmfSubmittedAt: localReport.dmfSubmittedAt || undefined,
-        // Reconstruct fish entries from aggregate counts
         fishEntries: fishEntries.length > 0 ? fishEntries : undefined,
       };
 
-      // Idempotency check: if this report was already synced (e.g. app
-      // crashed after RPC succeeded but before removeFromPendingSync),
-      // skip re-creation to prevent duplicates.  There is no unique
-      // constraint on dmf_object_id, so we check manually.
+      // Client-side idempotency: check if a matching report already exists
+      // in Supabase before calling the RPC.  Checks dmf_object_id first,
+      // then falls back to user_id + harvest_date + area_code.
+      let existingId: string | null = null;
       if (localReport.dmfObjectId) {
         const { data: existing } = await supabase
           .from('harvest_reports')
           .select('id')
           .eq('dmf_object_id', localReport.dmfObjectId)
           .maybeSingle();
+        if (existing) existingId = existing.id;
+      }
+      if (!existingId && localReport.userId) {
+        const { data: existing } = await supabase
+          .from('harvest_reports')
+          .select('id')
+          .eq('user_id', localReport.userId)
+          .eq('harvest_date', localReport.harvestDate)
+          .eq('area_code', localReport.areaCode)
+          .maybeSingle();
+        if (existing) existingId = existing.id;
+      }
 
-        if (existing) {
-          console.log(`⏭️ Report ${reportId} already in Supabase (dmf_object_id ${localReport.dmfObjectId}), skipping`);
-          await removeFromPendingSync(reportId);
-          await updateLocalReport(reportId, {
-            id: existing.id,
-            updatedAt: new Date().toISOString(),
-          });
-          synced++;
-          continue;
-        }
+      if (existingId) {
+        console.log(`⏭️ Report ${reportId} already in Supabase as ${existingId}, skipping`);
+        await removeFromPendingSync(reportId);
+        await updateLocalReport(reportId, {
+          id: existingId,
+          updatedAt: new Date().toISOString(),
+        });
+        synced++;
+        continue;
       }
 
       await writeSyncDebug({
@@ -1039,7 +935,6 @@ export async function syncPendingReports(): Promise<{
         reportId,
         hasUserId: !!input.userId,
         hasAnonId: !!input.anonymousUserId,
-        dmfObjectId: input.dmfObjectId ?? null,
         dmfConfirmation: input.dmfConfirmationNumber ?? null,
         fishEntryCount: fishEntries.length,
       });
@@ -1054,11 +949,7 @@ export async function syncPendingReports(): Promise<{
         userId: supabaseReport.userId,
       });
 
-      // Remove from pending queue FIRST (uses the old local_xxx ID),
-      // then update the local report's ID to the Supabase UUID.
-      // This order prevents an orphan scenario where the ID changes but
-      // the queue still references the old ID if the update succeeds
-      // but removeFromPendingSync fails.
+      // Remove from pending queue FIRST, then update local ID
       await removeFromPendingSync(reportId);
       await updateLocalReport(reportId, {
         id: supabaseReport.id,
