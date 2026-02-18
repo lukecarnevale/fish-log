@@ -32,6 +32,7 @@ import ScreenLayout from "../components/ScreenLayout";
 import { useAllFishSpecies } from "../api/speciesApi";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 import { PastReportsSkeletonLoader } from "../components/SkeletonLoader";
+import { WaveAccent, WAVE_PRESETS } from "../components/WaveAccent";
 
 // DMF services
 import {
@@ -548,6 +549,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           <Text style={styles.confirmationNumber}>#{item.confirmationNumber}</Text>
         </View>
 
+        {/* Wave accent for pending cards */}
+        {isPending && <WaveAccent {...WAVE_PRESETS.warning} borderRadius={16} />}
+
         {/* Pending Banner */}
         {isPending && (
           <View style={styles.cardPendingBanner}>
@@ -795,6 +799,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 <Text style={styles.modalRaffleText}>
                   You entered the raffle with this report. Winners are contacted via email/phone at the end of each month.
                 </Text>
+                <WaveAccent {...WAVE_PRESETS.primary} />
               </View>
             )}
 
@@ -879,6 +884,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             </Text>
           </View>
           <Text style={styles.pendingBannerHint}>Pull down to refresh</Text>
+          <WaveAccent {...WAVE_PRESETS.warning} />
         </View>
       )}
 
@@ -1102,9 +1108,8 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     borderRadius: borderRadius.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
   },
   pendingBannerContent: {
     flexDirection: "row",
@@ -1169,8 +1174,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   reportCardPending: {
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
+    paddingBottom: 28,
   },
   statusIconContainer: {
     position: "absolute",
@@ -1622,9 +1626,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#e3f2fd",
     borderRadius: borderRadius.md,
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     marginBottom: spacing.md,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
   },
   modalRaffleHeader: {
     flexDirection: "row",

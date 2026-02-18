@@ -15,6 +15,14 @@ import { Feather } from '@expo/vector-icons';
 import { colors, borderRadius, spacing, shadows } from '../styles/common';
 import BulletinModal from './BulletinModal';
 import type { Bulletin, BulletinType } from '../types/bulletin';
+import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
+
+const BANNER_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof WAVE_PRESETS]> = {
+  closure: WAVE_PRESETS.error,
+  advisory: WAVE_PRESETS.warning,
+  educational: WAVE_PRESETS.primary,
+  info: WAVE_PRESETS.info,
+};
 
 // =============================================================================
 // Type configuration per bulletin type (matches BulletinModal pattern)
@@ -126,7 +134,6 @@ export const SpeciesDetailBulletinBanner: React.FC<
           styles.banner,
           {
             backgroundColor: config.backgroundColor,
-            borderLeftColor: config.borderColor,
             opacity: entranceAnim,
             transform: [{ translateY }],
           },
@@ -180,6 +187,7 @@ export const SpeciesDetailBulletinBanner: React.FC<
             <Feather name="x" size={16} color={colors.darkGray} />
           </TouchableOpacity>
         </View>
+        <WaveAccent {...(BANNER_WAVE_MAP[primaryBulletin.bulletinType] ?? WAVE_PRESETS.primary)} />
       </Animated.View>
 
       {/* BulletinModal — reuses existing modal component */}
@@ -200,8 +208,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginBottom: spacing.md,
     borderRadius: borderRadius.md,
-    borderLeftWidth: 4,
     padding: spacing.sm,
+    paddingBottom: spacing.sm + 28,
     ...shadows.small,
   },
   content: {

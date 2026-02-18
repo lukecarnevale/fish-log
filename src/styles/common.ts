@@ -783,11 +783,10 @@ export const cards = StyleSheet.create<Cards>({
     backgroundColor: colors.pearlWhite,
     borderRadius: borderRadius.md,
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.oceanSurface, // Water-like border
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
     borderTopColor: 'rgba(255, 255, 255, 0.85)', // Pearl-like highlight
     borderBottomColor: 'rgba(6, 58, 93, 0.15)', // Deep water shadow
     ...shadows.small,
@@ -808,11 +807,10 @@ export const cards = StyleSheet.create<Cards>({
     backgroundColor: 'rgba(195, 224, 247, 0.7)', // Translucent ocean surface
     borderRadius: borderRadius.md,
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.oceanSurface, // Blue water border
-    borderLeftWidth: 4,
-    borderLeftColor: colors.info,
     borderTopColor: 'rgba(255, 255, 255, 0.7)', // Subtle highlight
     borderBottomColor: 'rgba(6, 58, 93, 0.15)', // Deep water shadow
     ...shadows.small,
@@ -821,11 +819,10 @@ export const cards = StyleSheet.create<Cards>({
     backgroundColor: 'rgba(46, 125, 75, 0.1)', // Translucent seaweed green
     borderRadius: borderRadius.md,
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(46, 125, 75, 0.3)', // Seaweed green border
-    borderLeftWidth: 4,
-    borderLeftColor: colors.seaweedGreen,
     borderTopColor: 'rgba(255, 255, 255, 0.7)', // Subtle highlight
     borderBottomColor: 'rgba(6, 58, 93, 0.12)', // Deep water shadow
     ...shadows.small,
@@ -834,11 +831,10 @@ export const cards = StyleSheet.create<Cards>({
     backgroundColor: 'rgba(249, 168, 37, 0.08)', // Light amber/sand background
     borderRadius: borderRadius.md,
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(249, 168, 37, 0.25)', // Sand/amber border
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
     borderTopColor: 'rgba(255, 255, 255, 0.7)', // Subtle highlight
     borderBottomColor: 'rgba(6, 58, 93, 0.1)', // Subtle shadow
     ...shadows.small,
@@ -847,11 +843,10 @@ export const cards = StyleSheet.create<Cards>({
     backgroundColor: 'rgba(211, 47, 47, 0.08)', // Very light danger buoy red
     borderRadius: borderRadius.md,
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(211, 47, 47, 0.25)', // Light red border
-    borderLeftWidth: 4,
-    borderLeftColor: colors.error,
     borderTopColor: 'rgba(255, 255, 255, 0.7)', // Subtle highlight
     borderBottomColor: 'rgba(6, 58, 93, 0.1)', // Subtle shadow
     ...shadows.small,
