@@ -102,9 +102,8 @@ const confirmationScreenStyles = StyleSheet.create<ConfirmationScreenStyles>({
     backgroundColor: colors.info,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    paddingBottom: spacing.lg + 28,
     marginBottom: spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
     ...shadows.small,
   },
   infoTitle: {

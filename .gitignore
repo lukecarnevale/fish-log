@@ -48,3 +48,6 @@ COMMANDS.md
 
 # Website (separate repo)
 website/
+
+# Testing
+Testing/*.md

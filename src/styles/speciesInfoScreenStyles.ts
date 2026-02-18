@@ -176,10 +176,9 @@ const speciesInfoScreenStyles = StyleSheet.create<SpeciesInfoScreenStyles>({
   regulationsBox: {
     backgroundColor: colors.info,
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     borderRadius: borderRadius.md,
     marginVertical: spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
   },
   regulationsTitle: {
     ...typography.heading,
