@@ -221,6 +221,12 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
     webhookStatus: null,
     webhookError: null,
     webhookAttempts: 0,
+    fishEntries: input.fishEntries?.map((fe) => ({
+      species: fe.species,
+      count: fe.count,
+      lengths: fe.lengths,
+      tagNumber: fe.tagNumber,
+    })),
     createdAt: rpcData.created_at,
     updatedAt: rpcData.created_at,
   });
@@ -480,6 +486,12 @@ function createLocalReport(input: ReportInput): StoredReport {
     webhookStatus: null,
     webhookError: null,
     webhookAttempts: 0,
+    fishEntries: input.fishEntries?.map((fe) => ({
+      species: fe.species,
+      count: fe.count,
+      lengths: fe.lengths,
+      tagNumber: fe.tagNumber,
+    })),
     createdAt: now,
     updatedAt: now,
   };
@@ -832,13 +844,18 @@ export async function syncPendingReports(): Promise<{
         }
       }
 
-      // Reconstruct fish entries from aggregate counts.
-      const fishEntries: Array<{ species: string; count: number }> = [];
-      if (localReport.redDrumCount > 0) fishEntries.push({ species: 'Red Drum', count: localReport.redDrumCount });
-      if (localReport.flounderCount > 0) fishEntries.push({ species: 'Southern Flounder', count: localReport.flounderCount });
-      if (localReport.spottedSeatroutCount > 0) fishEntries.push({ species: 'Spotted Seatrout', count: localReport.spottedSeatroutCount });
-      if (localReport.weakfishCount > 0) fishEntries.push({ species: 'Weakfish', count: localReport.weakfishCount });
-      if (localReport.stripedBassCount > 0) fishEntries.push({ species: 'Striped Bass', count: localReport.stripedBassCount });
+      // Use stored fish entries (preserves lengths/tags) if available,
+      // otherwise fall back to reconstructing from aggregate counts.
+      let fishEntries: Array<{ species: string; count: number; lengths?: string[]; tagNumber?: string }> = [];
+      if (localReport.fishEntries && localReport.fishEntries.length > 0) {
+        fishEntries = localReport.fishEntries;
+      } else {
+        if (localReport.redDrumCount > 0) fishEntries.push({ species: 'Red Drum', count: localReport.redDrumCount });
+        if (localReport.flounderCount > 0) fishEntries.push({ species: 'Southern Flounder', count: localReport.flounderCount });
+        if (localReport.spottedSeatroutCount > 0) fishEntries.push({ species: 'Spotted Seatrout', count: localReport.spottedSeatroutCount });
+        if (localReport.weakfishCount > 0) fishEntries.push({ species: 'Weakfish', count: localReport.weakfishCount });
+        if (localReport.stripedBassCount > 0) fishEntries.push({ species: 'Striped Bass', count: localReport.stripedBassCount });
+      }
 
       const input: ReportInput = {
         userId: localReport.userId || undefined,

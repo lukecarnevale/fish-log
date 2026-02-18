@@ -66,6 +66,14 @@ export interface StoredReport {
   webhookError: string | null;
   webhookAttempts: number;
 
+  // Fish entries (persisted locally so lengths/tags survive sync)
+  fishEntries?: Array<{
+    species: string;
+    count: number;
+    lengths?: string[];
+    tagNumber?: string;
+  }>;
+
   // Timestamps
   createdAt: string;
   updatedAt: string;
