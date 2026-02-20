@@ -24,8 +24,8 @@ const mockPersistedStorage = persistedStorage as jest.Mocked<typeof persistedSto
 
 function createStore(preloadedState?: Partial<RootState>) {
   return configureStore({
-    reducer: { fishReports: fishReportsReducer, user: (s = null) => s, license: (s = null) => s },
-    preloadedState,
+    reducer: { fishReports: fishReportsReducer, user: (s = {} as any) => s, license: (s = {} as any) => s } as any,
+    preloadedState: preloadedState as any,
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({ serializableCheck: false }),
   });
@@ -71,7 +71,7 @@ describe('fishReportsSlice', () => {
       expect(state.status).toBe('succeeded');
       expect(state.ids).toHaveLength(2);
       expect(state.lastFetched).not.toBeNull();
-      expect(selectAllFishReports(store.getState())).toHaveLength(2);
+      expect(selectAllFishReports(store.getState() as RootState)).toHaveLength(2);
     });
 
     it('returns empty array when no reports stored', async () => {
@@ -81,7 +81,7 @@ describe('fishReportsSlice', () => {
       await store.dispatch(fetchFishReports());
 
       expect(store.getState().fishReports.status).toBe('succeeded');
-      expect(selectAllFishReports(store.getState())).toEqual([]);
+      expect(selectAllFishReports(store.getState() as RootState)).toEqual([]);
     });
 
     it('sets error state on fetch failure', async () => {
@@ -106,7 +106,7 @@ describe('fishReportsSlice', () => {
       );
 
       expect(result.type).toBe('fishReports/add/fulfilled');
-      const reports = selectAllFishReports(store.getState());
+      const reports = selectAllFishReports(store.getState() as RootState);
       expect(reports).toHaveLength(1);
       expect(reports[0].species).toBe('Spotted Seatrout');
       expect(reports[0].id).toBeDefined();
@@ -151,7 +151,7 @@ describe('fishReportsSlice', () => {
         updateFishReport({ id: '1', species: 'Red Drum', length: '24in' } as any)
       );
 
-      const report = selectFishReportById(store.getState(), '1');
+      const report = selectFishReportById(store.getState() as RootState, '1');
       expect(report?.length).toBe('24in');
       expect(report?.updatedAt).toBeDefined();
     });
@@ -167,12 +167,12 @@ describe('fishReportsSlice', () => {
 
       const store = createStore();
       await store.dispatch(fetchFishReports());
-      expect(selectAllFishReports(store.getState())).toHaveLength(2);
+      expect(selectAllFishReports(store.getState() as RootState)).toHaveLength(2);
 
       await store.dispatch(deleteFishReport('1'));
 
-      expect(selectAllFishReports(store.getState())).toHaveLength(1);
-      expect(selectFishReportById(store.getState(), '1')).toBeUndefined();
+      expect(selectAllFishReports(store.getState() as RootState)).toHaveLength(1);
+      expect(selectFishReportById(store.getState() as RootState, '1')).toBeUndefined();
     });
 
     it('persists updated list after deletion', async () => {
@@ -205,7 +205,7 @@ describe('fishReportsSlice', () => {
       const store = createStore();
       await store.dispatch(fetchFishReports());
 
-      const sorted = selectAllFishReports(store.getState());
+      const sorted = selectAllFishReports(store.getState() as RootState);
       expect(sorted[0].id).toBe('2'); // Jan 15 - most recent
       expect(sorted[1].id).toBe('3'); // Jan 12
       expect(sorted[2].id).toBe('1'); // Jan 10
@@ -220,7 +220,7 @@ describe('fishReportsSlice', () => {
       const store = createStore();
       await store.dispatch(fetchFishReports());
 
-      const ids = selectFishReportIds(store.getState());
+      const ids = selectFishReportIds(store.getState() as RootState);
       expect(ids).toHaveLength(2);
       expect(ids).toContain('a');
       expect(ids).toContain('b');

@@ -151,7 +151,7 @@ describe('useZipCodeLookup', () => {
 
   it('cancels debounce on zip code change', async () => {
     const { rerender } = renderHook(
-      ({ zip }) => useZipCodeLookup(zip),
+      ({ zip }: { zip: string }) => useZipCodeLookup(zip),
       { initialProps: { zip: '27601' } }
     );
 
@@ -174,7 +174,7 @@ describe('useZipCodeLookup', () => {
 
   it('resets state when zip becomes invalid', async () => {
     const { result, rerender } = renderHook(
-      ({ zip }) => useZipCodeLookup(zip),
+      ({ zip }: { zip: string | undefined }) => useZipCodeLookup(zip),
       { initialProps: { zip: '27601' as string | undefined } }
     );
 

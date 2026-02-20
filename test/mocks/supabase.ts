@@ -16,7 +16,7 @@ export const mockSupabase = {
   })),
   auth: {
     getSession: jest.fn(() =>
-      Promise.resolve({ data: { session: null }, error: null })
+      Promise.resolve({ data: { session: null as any }, error: null as any })
     ),
     signInWithPassword: jest.fn(),
     signUp: jest.fn(),

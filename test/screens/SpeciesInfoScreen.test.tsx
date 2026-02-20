@@ -115,7 +115,7 @@ const mockUseAllFishSpecies = jest.fn(() => ({
 }));
 
 jest.mock('../../src/api/speciesApi', () => ({
-  useAllFishSpecies: (...args: any[]) => mockUseAllFishSpecies(...args),
+  useAllFishSpecies: (...args: any[]) => (mockUseAllFishSpecies as any)(...args),
 }));
 
 // SpeciesAlertsContext
@@ -315,7 +315,7 @@ describe('SpeciesInfoScreen', () => {
     mockUseAllFishSpecies.mockReturnValue({
       data: [],
       isLoading: false,
-      error: new Error('Network error'),
+      error: new Error('Network error') as any,
     });
 
     const { getByText } = render(
