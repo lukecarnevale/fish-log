@@ -293,4 +293,9 @@ export async function handleRequest(req: Request): Promise<Response> {
   });
 }
 
-Deno.serve(handleRequest);
+// Only start the server when deployed, not during test runs.
+// Deno.mainModule ends with the entrypoint file when running directly;
+// during `deno test` it points to the test file instead.
+if (import.meta.main) {
+  Deno.serve(handleRequest);
+}
