@@ -32,8 +32,8 @@ function createTestStore(preloadedState?: Partial<RootState>) {
       user: userReducer,
       fishReports: fishReportsReducer,
       license: licenseReducer,
-    },
-    preloadedState,
+    } as any,
+    preloadedState: preloadedState as any,
   });
 }
 

@@ -23,20 +23,20 @@ jest.mock('../../src/contexts/AchievementContext', () => ({
 const mockGetPendingAuth = jest.fn().mockResolvedValue(null);
 const mockOnAuthStateChange = jest.fn(() => jest.fn());
 jest.mock('../../src/services/authService', () => ({
-  getPendingAuth: (...args: any[]) => mockGetPendingAuth(...args),
-  onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
+  getPendingAuth: (...args: any[]) => (mockGetPendingAuth as any)(...args),
+  onAuthStateChange: (...args: any[]) => (mockOnAuthStateChange as any)(...args),
 }));
 
 const mockGetCurrentUser = jest.fn().mockResolvedValue(null);
 const mockGetUserStats = jest.fn().mockResolvedValue({ achievements: [] });
 jest.mock('../../src/services/userProfileService', () => ({
-  getCurrentUser: (...args: any[]) => mockGetCurrentUser(...args),
-  getUserStats: (...args: any[]) => mockGetUserStats(...args),
+  getCurrentUser: (...args: any[]) => (mockGetCurrentUser as any)(...args),
+  getUserStats: (...args: any[]) => (mockGetUserStats as any)(...args),
 }));
 
 const mockIsRewardsMember = jest.fn().mockResolvedValue(false);
 jest.mock('../../src/services/rewardsConversionService', () => ({
-  isRewardsMember: (...args: any[]) => mockIsRewardsMember(...args),
+  isRewardsMember: (...args: any[]) => (mockIsRewardsMember as any)(...args),
 }));
 
 // ============================================================================

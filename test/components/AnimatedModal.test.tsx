@@ -38,7 +38,7 @@ describe('AnimatedModal', () => {
     // The overlay touchable is rendered; simulate tapping it
     // Find the TouchableWithoutFeedback overlay
     const touchables = UNSAFE_root.findAll(
-      (node) => node.props.onPress !== undefined
+      (node: any) => node.props.onPress !== undefined
     );
     // The first touchable with onPress should be the overlay
     if (touchables.length > 0) {

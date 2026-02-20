@@ -120,13 +120,13 @@ const mockSignOut = jest.fn();
 const mockDeleteAccount = jest.fn();
 const mockOnAuthStateChange = jest.fn(() => jest.fn());
 jest.mock('../../src/services/authService', () => ({
-  getPendingAuth: (...args: any[]) => mockGetPendingAuth(...args),
-  clearPendingAuth: (...args: any[]) => mockClearPendingAuth(...args),
-  sendMagicLink: (...args: any[]) => mockSendMagicLink(...args),
-  storePendingAuth: (...args: any[]) => mockStorePendingAuth(...args),
-  signOut: (...args: any[]) => mockSignOut(...args),
-  deleteAccount: (...args: any[]) => mockDeleteAccount(...args),
-  onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
+  getPendingAuth: (...args: any[]) => (mockGetPendingAuth as any)(...args),
+  clearPendingAuth: (...args: any[]) => (mockClearPendingAuth as any)(...args),
+  sendMagicLink: (...args: any[]) => (mockSendMagicLink as any)(...args),
+  storePendingAuth: (...args: any[]) => (mockStorePendingAuth as any)(...args),
+  signOut: (...args: any[]) => (mockSignOut as any)(...args),
+  deleteAccount: (...args: any[]) => (mockDeleteAccount as any)(...args),
+  onAuthStateChange: (...args: any[]) => (mockOnAuthStateChange as any)(...args),
 }));
 
 // userProfileService
@@ -134,9 +134,9 @@ const mockGetCurrentUser = jest.fn().mockResolvedValue(null);
 const mockUpdateCurrentUser = jest.fn().mockResolvedValue(undefined);
 const mockGetUserStats = jest.fn().mockResolvedValue({ achievements: [] });
 jest.mock('../../src/services/userProfileService', () => ({
-  getCurrentUser: (...args: any[]) => mockGetCurrentUser(...args),
-  updateCurrentUser: (...args: any[]) => mockUpdateCurrentUser(...args),
-  getUserStats: (...args: any[]) => mockGetUserStats(...args),
+  getCurrentUser: (...args: any[]) => (mockGetCurrentUser as any)(...args),
+  updateCurrentUser: (...args: any[]) => (mockUpdateCurrentUser as any)(...args),
+  getUserStats: (...args: any[]) => (mockGetUserStats as any)(...args),
 }));
 
 // userService
@@ -147,7 +147,7 @@ jest.mock('../../src/services/userService', () => ({
 // rewardsConversionService
 const mockIsRewardsMember = jest.fn().mockResolvedValue(false);
 jest.mock('../../src/services/rewardsConversionService', () => ({
-  isRewardsMember: (...args: any[]) => mockIsRewardsMember(...args),
+  isRewardsMember: (...args: any[]) => (mockIsRewardsMember as any)(...args),
   getRewardsMemberForAnonymousUser: jest.fn().mockResolvedValue(null),
 }));
 
@@ -553,7 +553,7 @@ describe('ProfileScreen', () => {
 
     it('shows loading state when stats are loading', async () => {
       mockUseFishingStats.mockReturnValue({
-        fishingStats: { totalCatches: 0, uniqueSpecies: 0, largestFish: null },
+        fishingStats: { totalCatches: 0, uniqueSpecies: 0, largestFish: 0 },
         statsLoading: true,
       });
 

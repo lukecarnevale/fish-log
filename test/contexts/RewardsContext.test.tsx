@@ -7,7 +7,7 @@ import { RewardsProvider, useRewards } from '../../src/contexts/RewardsContext';
 jest.mock('../../src/services/rewardsService', () => ({
   fetchRewardsData: jest.fn(() =>
     Promise.resolve({
-      config: { quarter: 'Q1 2026', status: 'active' },
+      config: { isEnabled: true, currentDrawingId: 'drawing-1', legalDisclaimer: '', noPurchaseNecessaryText: '', alternativeEntryText: '' },
       currentDrawing: { id: 'drawing-1', name: 'Q1 Drawing' },
       userEntry: null,
     })
@@ -36,7 +36,7 @@ jest.mock('../../src/services/pendingSubmissionService', () => ({
 }));
 
 jest.mock('../../src/data/rewardsFallbackData', () => ({
-  FALLBACK_CONFIG: { quarter: 'FALLBACK', status: 'active' },
+  FALLBACK_CONFIG: { isEnabled: true, currentDrawingId: null, legalDisclaimer: '', noPurchaseNecessaryText: '', alternativeEntryText: '' },
   FALLBACK_DRAWING: { id: 'fallback', name: 'Fallback Drawing' },
 }));
 
@@ -75,7 +75,7 @@ function TestConsumer() {
   return (
     <>
       {error && <Text testID="error">{error}</Text>}
-      <Text testID="quarter">{config?.quarter}</Text>
+      <Text testID="quarter">{config?.currentDrawingId}</Text>
       <Text testID="drawing">{currentDrawing?.name}</Text>
       <Text testID="days">{calculated.daysRemaining}</Text>
     </>
@@ -94,7 +94,7 @@ describe('RewardsContext', () => {
       expect(getByTestId('quarter')).toBeTruthy();
     });
 
-    expect(getByTestId('quarter').props.children).toBe('Q1 2026');
+    expect(getByTestId('quarter').props.children).toBe('drawing-1');
     expect(getByTestId('drawing').props.children).toBe('Q1 Drawing');
   });
 
@@ -134,7 +134,7 @@ describe('RewardsContext', () => {
     );
 
     await waitFor(() => {
-      expect(getByTestId('quarter').props.children).toBe('FALLBACK');
+      expect(getByTestId('quarter').props.children).toBe(null);
     });
 
     errorSpy.mockRestore();
