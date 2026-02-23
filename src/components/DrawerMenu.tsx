@@ -27,7 +27,8 @@ import { RootStackParamList } from '../types';
 import { devConfig } from '../config/devConfig';
 import { setAppModeWithWarning, AppMode, APP_VERSION } from '../config/appConfig';
 import { SCREEN_LABELS } from '../constants/screenLabels';
-import { AppLogoIcon, AnglerAvatarIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, MultipleFishIcon, LicenseCardIcon } from './icons/DrawerMenuIcons';
+import { AppLogoIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, MultipleFishIcon, LicenseCardIcon } from './icons/DrawerMenuIcons';
+import DefaultAnglerAvatarIcon from './icons/DefaultAnglerAvatarIcon';
 
 // ============================================
 // TYPES
@@ -259,7 +260,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                     transition={150}
                   />
                 ) : (
-                  <AnglerAvatarIcon />
+                  <DefaultAnglerAvatarIcon size={44} />
                 )}
               </View>
               {pendingAuth && (

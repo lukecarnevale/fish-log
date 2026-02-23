@@ -252,11 +252,11 @@ jest.mock('../../src/components/WrcIdInfoModal', () => {
   };
 });
 
-jest.mock('../../src/components/icons/AnglerAvatarIcon', () => {
+jest.mock('../../src/components/icons/DefaultAnglerAvatarIcon', () => {
   const { View } = require('react-native');
   return {
     __esModule: true,
-    default: ({ size }: any) => <View testID="angler-avatar-icon" />,
+    default: ({ size }: any) => <View testID="default-angler-avatar-icon" />,
   };
 });
 
