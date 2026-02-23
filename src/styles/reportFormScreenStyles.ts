@@ -102,8 +102,6 @@ const reportFormScreenStyles = StyleSheet.create<ReportFormScreenStyles>({
     fontWeight: '800',
     fontSize: 22,
     letterSpacing: 0.5,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
     paddingLeft: spacing.sm,
   },
   label: {

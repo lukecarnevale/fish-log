@@ -1,0 +1,44 @@
+# Flow 3: Profile & Achievements
+# Open profile, view stats and badges.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: false
+
+# Home screen
+- assertVisible: "Fish Log Co."
+
+# Open the hamburger menu
+- tapOn:
+    id: "wavy-menu-icon"
+    optional: true
+
+# Navigate to Profile from menu or quick action
+- tapOn:
+    text: "Profile"
+    optional: true
+
+# Profile screen should load
+- assertVisible:
+    text: "Profile|Fishing Statistics|Edit Profile"
+    regex: true
+    timeout: 10000
+
+# Should show stats section
+- assertVisible:
+    text: "Fishing Statistics|Catches|Species"
+    regex: true
+    optional: true
+
+# Should show Edit Profile button
+- assertVisible: "Edit Profile"
+
+# Tap Edit Profile to enter edit mode
+- tapOn: "Edit Profile"
+
+# Edit form should appear
+- assertVisible: "Save Profile"
+- assertVisible: "Cancel"
+
+# Cancel to go back to view mode
+- tapOn: "Cancel"

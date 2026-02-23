@@ -554,10 +554,20 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   const emailAutoToggled = useRef(false);
   const phoneAutoToggled = useRef(false);
 
+  // Track pulse animation timeouts for cleanup
+  const pulseTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Clean up pulse animation timers on unmount
+  useEffect(() => {
+    return () => {
+      pulseTimers.current.forEach(clearTimeout);
+    };
+  }, []);
+
   // Pulse animation for auto-toggled checkboxes
   const pulseCheckbox = (animValue: Animated.Value) => {
     // Brief delay so user sees the toggle happen
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       Animated.sequence([
         Animated.timing(animValue, {
           toValue: 1.15,
@@ -571,6 +581,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         }),
       ]).start();
     }, 100);
+    pulseTimers.current.push(timer);
   };
 
   // Email validation helper

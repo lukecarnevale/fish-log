@@ -97,7 +97,7 @@ interface WebhookResult {
 // HELPERS
 // ============================================
 
-function jsonResponse(body: Record<string, unknown>, status = 200): Response {
+export function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -108,7 +108,7 @@ function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   });
 }
 
-function buildWebhookPayload(req: TriggerWebhookRequest): Record<string, unknown> {
+export function buildWebhookPayload(req: TriggerWebhookRequest): Record<string, unknown> {
   const { objectId, globalId, dmfAttributes, geometry } = req;
 
   return {
@@ -188,7 +188,7 @@ async function postWebhook(
 // MAIN HANDLER
 // ============================================
 
-Deno.serve(async (req: Request) => {
+export async function handleRequest(req: Request): Promise<Response> {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", {
@@ -291,4 +291,11 @@ Deno.serve(async (req: Request) => {
     webhooksTriggered: triggeredCount,
     errors: errors.length > 0 ? errors : undefined,
   });
-});
+}
+
+// Only start the server when deployed, not during test runs.
+// Deno.mainModule ends with the entrypoint file when running directly;
+// during `deno test` it points to the test file instead.
+if (import.meta.main) {
+  Deno.serve(handleRequest);
+}

@@ -532,6 +532,169 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
   },
+  // ─── Zero-state empty license card ────────────────────────────────────────
+  emptyLicenseCard: {
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    backgroundColor: '#EEF2F4',
+    borderWidth: 1.5,
+    borderColor: '#CFD8DC',
+    borderStyle: 'dashed',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  emptyCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  emptyFlagWrapper: {
+    position: 'relative',
+  },
+  emptyFlagOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(180, 195, 200, 0.5)',
+    borderRadius: 4,
+  },
+  emptyCardTitleBlock: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  emptyCardTitleLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: '#90A4AE',
+  },
+  emptyCardTitleMain: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    color: '#90A4AE',
+    marginTop: 1,
+  },
+  emptyPlaceholders: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  placeholderLine: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#78909C',
+  },
+  emptyCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+  },
+  emptyCardFieldLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: '#90A4AE',
+    marginBottom: 4,
+  },
+  addLicensePill: {
+    backgroundColor: colors.primary,
+    borderRadius: 24,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  addLicensePillText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+
+  // ─── Section header label (uppercase eyebrow) ──────────────────────────────
+  infoSectionHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    color: '#90A4AE',
+    textTransform: 'uppercase',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+
+  // ─── Expandable section content ────────────────────────────────────────────
+  expandableBulletList: {
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  expandableBulletRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
+  },
+  expandableBullet: {
+    fontSize: 14,
+    color: colors.primary,
+    lineHeight: 20,
+  },
+  expandableBulletText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+
+  // ─── FAQ items ─────────────────────────────────────────────────────────────
+  faqItem: {
+    paddingVertical: spacing.sm,
+  },
+  faqItemBorder: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
+  faqQuestion: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  faqAnswer: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 19,
+  },
+
+  // ─── External link row ─────────────────────────────────────────────────────
+  externalLinkRow: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  externalLinkText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+
   // Date picker modal styles - uses common modal styles
   dateModalOverlay: modals.overlay,
   dateModalContent: {

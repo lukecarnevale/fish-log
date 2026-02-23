@@ -5,13 +5,14 @@
 
 export {
   AppLogoIcon,
-  AnglerAvatarIcon,
   JumpingFishIcon,
   StackedFishIcon,
   SwimmingFishIcon,
   MultipleFishIcon,
   LicenseCardIcon,
 } from './DrawerMenuIcons';
+
+export { default as DefaultAnglerAvatarIcon } from './DefaultAnglerAvatarIcon';
 
 export {
   TrophyIcon,
