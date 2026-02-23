@@ -472,6 +472,7 @@ const enhancedSpeciesStyles = StyleSheet.create({
   // Similar species section
   similarSpeciesCard: {
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     backgroundColor: colors.white,
     borderRadius: borderRadius.md,
     marginBottom: spacing.md,
@@ -482,8 +483,6 @@ const enhancedSpeciesStyles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
   },
   similarSpeciesImage: {
     width: 70,

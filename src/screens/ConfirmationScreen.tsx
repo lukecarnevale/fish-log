@@ -24,6 +24,7 @@ import { RouteProp, CommonActions } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles from "../styles/confirmationScreenStyles";
+import { WaveAccent, WAVE_PRESETS } from "../components/WaveAccent";
 import { RootStackParamList, FishReportData, HarvestReportInput } from "../types";
 import { colors, spacing, borderRadius, typography } from "../styles/common";
 
@@ -501,6 +502,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
               <Text style={localStyles.queuedWarningText}>
                 Report saved offline. It will automatically submit when you have internet connection.
               </Text>
+              <WaveAccent {...WAVE_PRESETS.warning} />
             </View>
           )}
 
@@ -606,6 +608,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
               <Text style={localStyles.raffleText}>
                 You've been entered into the quarterly rewards drawing! Selected contributors will be contacted via email.
               </Text>
+              <WaveAccent {...WAVE_PRESETS.primary} borderRadius={16} />
             </View>
           )}
 
@@ -624,6 +627,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
               NC General Statute 113-170.3 requires harvest reporting for Red Drum,
               Flounder, Spotted Seatrout, Weakfish, and Striped Bass.
             </Text>
+            <WaveAccent {...WAVE_PRESETS.primary} borderRadius={16} />
           </View>
 
           {/* Action Buttons - Simplified */}
@@ -937,10 +941,9 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff3cd",
     padding: spacing.md,
+    paddingBottom: spacing.md + 28,
     borderRadius: borderRadius.md,
     marginBottom: spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.warning,
   },
   queuedWarningText: {
     ...typography.bodySmall,
@@ -1001,9 +1004,8 @@ const localStyles = StyleSheet.create({
     backgroundColor: "#f0f7ff",
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    paddingBottom: spacing.lg + 28,
     marginBottom: spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
   },
   raffleHeader: {
     flexDirection: "row",
@@ -1026,9 +1028,8 @@ const localStyles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
+    paddingBottom: spacing.lg + 28,
     marginBottom: spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
     shadowColor: "rgba(0, 0, 0, 0.08)",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,

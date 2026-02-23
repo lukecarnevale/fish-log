@@ -751,7 +751,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       return renderErrorState();
     }
     return renderEmptyState();
-  }, [loading, error]);
+  }, [loading, error, hasActiveFilters]);
 
   // Callback for when user scrolls near the end
   const handleEndReached = useCallback(() => {

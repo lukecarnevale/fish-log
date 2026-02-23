@@ -28,6 +28,7 @@ import styles from "../styles/fishingLicenseScreenStyles";
 import LicenseTypePicker from "../components/LicenseTypePicker";
 import ScreenLayout from "../components/ScreenLayout";
 import { NCFlagIcon } from "../components/NCFlagIcon";
+import ExpandableSection from "../components/ExpandableSection";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 import { getCurrentUser, updateCurrentUser } from "../services/userProfileService";
 import { onAuthStateChange } from "../services/authService";
@@ -687,64 +688,129 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   
   // Render empty state for no license
   const renderEmptyState = () => (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.contentContainer, styles.emptyStateContainer]}
+      contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      <NCFlagIcon width={120} height={80} style={{ marginBottom: spacing.lg }} />
-      
-      <Text style={styles.emptyStateTitle}>No Fishing License Added</Text>
-      <Text style={styles.emptyStateText}>
-        Add your fishing license information for easy access when you're out on the water.
-      </Text>
-      
-      <TouchableOpacity
-        style={styles.actionButton}
-        onPress={() => toggleEditMode(true)}
-      >
-        <Feather name="plus" size={18} color={colors.white} />
-        <Text style={styles.actionButtonText}>Add My License</Text>
-      </TouchableOpacity>
-      
-      <View style={styles.emptyStateInfoContainer}>
-        <Text style={styles.infoSubtitle}>Fishing License Requirements</Text>
-        <View style={styles.bulletList}>
-          <View style={styles.bulletItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.bulletText}>
-              Required for anglers 16-70 years old
-            </Text>
+      {/* Zero-state license card — grayed out to signal "not added yet" */}
+      <View style={styles.emptyLicenseCard}>
+        {/* Header: flag + license type title */}
+        <View style={styles.emptyCardHeader}>
+          <View style={styles.emptyFlagWrapper}>
+            <NCFlagIcon width={60} height={40} />
+            <View style={styles.emptyFlagOverlay} />
           </View>
-          <View style={styles.bulletItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.bulletText}>
-              Different licenses for inland and coastal waters
-            </Text>
-          </View>
-          <View style={styles.bulletItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.bulletText}>
-              Available as daily, 10-day, annual or lifetime
-            </Text>
-          </View>
-          <View style={styles.bulletItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.bulletText}>
-              Can be purchased online or from a wildlife agent
-            </Text>
+          <View style={styles.emptyCardTitleBlock}>
+            <Text style={styles.emptyCardTitleLabel}>NC COASTAL RECREATIONAL</Text>
+            <Text style={styles.emptyCardTitleMain}>FISHING LICENSE</Text>
           </View>
         </View>
-        
-        <TouchableOpacity
-          style={[styles.actionButton, styles.outlineButton]}
-          onPress={() => {
-            Linking.openURL("https://www.ncwildlife.org/Licensing/Fishing-Licenses");
-          }}
-        >
-          <Text style={styles.outlineButtonText}>Purchase a License Online</Text>
-        </TouchableOpacity>
+
+        {/* Placeholder lines for name / license number */}
+        <View style={styles.emptyPlaceholders}>
+          <View style={[styles.placeholderLine, { width: '60%', opacity: 0.3 }]} />
+          <View style={[styles.placeholderLine, { width: '40%', opacity: 0.2, marginTop: 6 }]} />
+        </View>
+
+        {/* Footer: field labels + Add License pill */}
+        <View style={styles.emptyCardFooter}>
+          <View>
+            <Text style={styles.emptyCardFieldLabel}>EXPIRES</Text>
+            <View style={[styles.placeholderLine, { width: 60, opacity: 0.2 }]} />
+          </View>
+          <View>
+            <Text style={styles.emptyCardFieldLabel}>ISSUED</Text>
+            <View style={[styles.placeholderLine, { width: 60, opacity: 0.2 }]} />
+          </View>
+          <TouchableOpacity
+            style={styles.addLicensePill}
+            onPress={() => toggleEditMode(true)}
+            activeOpacity={0.8}
+          >
+            <Feather name="plus" size={16} color={colors.white} />
+            <Text style={styles.addLicensePillText}>Add License</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Section header */}
+      <Text style={styles.infoSectionHeader}>License Information</Text>
+
+      {/* Expandable: Requirements */}
+      <ExpandableSection title="License Requirements">
+        <View style={styles.expandableBulletList}>
+          {[
+            'Required for anglers 16–70 years old',
+            'Different licenses for inland and coastal waters',
+            'Available as daily, 10-day, annual, or lifetime',
+            'Saltwater recreational fishing requires a Coastal Recreational Fishing License (CRFL)',
+          ].map((item, i) => (
+            <View key={i} style={styles.expandableBulletRow}>
+              <Text style={styles.expandableBullet}>•</Text>
+              <Text style={styles.expandableBulletText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      </ExpandableSection>
+
+      {/* Expandable: How to Purchase */}
+      <ExpandableSection title="How to Purchase">
+        <View style={styles.expandableBulletList}>
+          {[
+            'Purchase online at ncwildlife.org',
+            'Available from licensed wildlife agents (sporting goods stores, bait shops)',
+            'Phone: 1-888-248-6834',
+            'License is valid from date of purchase through the stated expiration date',
+          ].map((item, i) => (
+            <View key={i} style={styles.expandableBulletRow}>
+              <Text style={styles.expandableBullet}>•</Text>
+              <Text style={styles.expandableBulletText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      </ExpandableSection>
+
+      {/* Expandable: FAQs */}
+      <ExpandableSection title="FAQs">
+        <View>
+          {[
+            {
+              q: 'Do I need a license to fish in the surf?',
+              a: 'Yes. Surf fishing in NC coastal waters requires a Coastal Recreational Fishing License.',
+            },
+            {
+              q: 'What if I am over 70?',
+              a: 'Anglers 70 and older are exempt from the fishing license requirement in North Carolina.',
+            },
+            {
+              q: 'Do I need a separate license for each body of water?',
+              a: "Inland and coastal waters require different licenses. Make sure you have the right one for where you're fishing.",
+            },
+            {
+              q: 'Can I fish without a license on Free Fishing Day?',
+              a: "Yes. NC designates certain days as Free Fishing Days where no license is required. Check ncwildlife.org for the current year's dates.",
+            },
+          ].map((faq, i) => (
+            <View key={i} style={[styles.faqItem, i > 0 && styles.faqItemBorder]}>
+              <Text style={styles.faqQuestion}>{faq.q}</Text>
+              <Text style={styles.faqAnswer}>{faq.a}</Text>
+            </View>
+          ))}
+        </View>
+      </ExpandableSection>
+
+      {/* External link — NC Wildlife */}
+      <TouchableOpacity
+        style={styles.externalLinkRow}
+        onPress={() => Linking.openURL('https://www.ncwildlife.gov/fishing')}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.externalLinkText}>NC Wildlife License Information</Text>
+        <Feather name="external-link" size={16} color={colors.primary} />
+      </TouchableOpacity>
+
+      <View style={{ height: spacing.xxl }} />
     </ScrollView>
   );
   
