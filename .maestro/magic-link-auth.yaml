@@ -1,0 +1,53 @@
+# Flow 9: Deep Link Magic Link Auth
+# Navigate to profile, attempt sign-in flow via magic link.
+# Note: Full deep link testing requires a running mail server or
+# Supabase inbucket; this flow validates the UI flow.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: true
+
+# Home screen
+- assertVisible: "Fish Log Co."
+
+# Open hamburger menu
+- tapOn:
+    id: "wavy-menu-icon"
+    optional: true
+
+# Navigate to Profile
+- tapOn:
+    text: "Profile"
+    optional: true
+
+# Profile screen should load
+- assertVisible:
+    text: "Profile|Edit Profile"
+    regex: true
+    timeout: 10000
+
+# Look for sign-in option (non-rewards-member state)
+- scrollUntilVisible:
+    element: "Edit Profile"
+    direction: DOWN
+    optional: true
+
+# Enter edit mode to see email field
+- tapOn: "Edit Profile"
+- assertVisible: "Save Profile"
+
+# Find and fill email field
+- scrollUntilVisible:
+    element: "Enter your email"
+    direction: DOWN
+    optional: true
+- tapOn:
+    text: "Enter your email"
+    optional: true
+- inputText: "test@fishlog.app"
+
+# Cancel without saving
+- tapOn: "Cancel"
+
+# Return to profile view
+- assertVisible: "Edit Profile"

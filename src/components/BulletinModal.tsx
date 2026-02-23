@@ -18,6 +18,14 @@ import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
 import type { Bulletin, BulletinType } from '../types/bulletin';
+import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
+
+const BULLETIN_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof WAVE_PRESETS]> = {
+  closure: WAVE_PRESETS.error,
+  advisory: WAVE_PRESETS.warning,
+  educational: WAVE_PRESETS.primary,
+  info: WAVE_PRESETS.info,
+};
 
 // =============================================================================
 // Type-based styling
@@ -166,7 +174,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
 
       {/* Date Range */}
       {dateRange && (
-        <View style={[styles.dateContainer, { borderLeftColor: config.color }]}>
+        <View style={styles.dateContainer}>
           <Feather name="calendar" size={14} color={config.color} />
           <Text style={[styles.dateText, { color: config.color }]}>
             {dateRange}
@@ -228,7 +236,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
 
       {/* Notes callout */}
       {bulletin.notes && (
-        <View style={[styles.notesContainer, { borderLeftColor: config.color }]}>
+        <View style={styles.notesContainer}>
           <Feather
             name="info"
             size={16}
@@ -236,6 +244,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
             style={styles.notesIcon}
           />
           {renderLinkedText(bulletin.notes, styles.notesText)}
+          <WaveAccent {...(BULLETIN_WAVE_MAP[bulletin.bulletinType] ?? WAVE_PRESETS.primary)} height={20} />
         </View>
       )}
 
@@ -307,7 +316,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
-    borderLeftWidth: 3,
     marginBottom: spacing.md,
   },
   dateText: {
@@ -360,8 +368,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: colors.lightestGray,
     padding: spacing.md,
+    paddingBottom: spacing.md + 20,
     borderRadius: borderRadius.md,
-    borderLeftWidth: 3,
     marginBottom: spacing.md,
   },
   notesIcon: {

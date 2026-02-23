@@ -25,6 +25,7 @@ import { useAllFishSpecies } from "../api/speciesApi";
 import styles from "../styles/enhancedSpeciesStyles";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "../styles/common";
+import { WaveAccent, WAVE_PRESETS } from "../components/WaveAccent";
 import ScreenLayout from "../components/ScreenLayout";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 import { SpeciesListBulletinIndicator } from "../components/SpeciesListBulletinIndicator";
@@ -688,6 +689,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         <Text style={styles.regulationsFooter}>
           Always check current regulations at ncwildlife.org before fishing
         </Text>
+        <WaveAccent {...WAVE_PRESETS.primary} />
       </View>
     );
   };

@@ -1,0 +1,82 @@
+# Flow 6: Offline Submit + Sync
+# Go offline -> submit report -> verify queued -> go online -> verify sync.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: true
+
+# Home screen should load
+- assertVisible: "Fish Log Co."
+
+# Toggle airplane mode to simulate offline
+- toggleAirplaneMode
+
+# Navigate to report form
+- tapOn: "Report Catch"
+- assertVisible: "Report Catch"
+
+# Fill out a minimal report
+- tapOn: "Myself Only"
+- tapOn: "Select species"
+- tapOn: "Red Drum"
+
+# Fill harvest details
+- scrollUntilVisible:
+    element: "Area of Harvest"
+    direction: DOWN
+- tapOn: "Select area"
+- tapOn:
+    index: 0
+
+- scrollUntilVisible:
+    element: "Did you use hook & line?"
+    direction: DOWN
+- tapOn: "Yes"
+
+# Fill angler info
+- scrollUntilVisible:
+    element: "First Name"
+    direction: DOWN
+- tapOn: "First Name"
+- inputText: "Offline"
+- tapOn: "Last Name"
+- inputText: "Tester"
+
+# Submit report
+- scrollUntilVisible:
+    element: "Submit Report"
+    direction: DOWN
+- tapOn: "Submit Report"
+
+# Should show queued state (offline)
+- assertVisible:
+    text: "Report Queued|Saved for Later"
+    regex: true
+    timeout: 15000
+
+# Verify local confirmation number
+- assertVisible:
+    text: "LOCAL"
+    optional: true
+
+# Return to home
+- tapOn:
+    text: "Return to Home|Return Home"
+    regex: true
+
+# Restore connectivity
+- toggleAirplaneMode
+
+# Wait for potential auto-sync
+- wait: 5000
+
+# Navigate to Past Reports to check sync status
+- tapOn: "Past Reports"
+- assertVisible: "Past Reports"
+
+# Should show either synced or pending report
+- assertVisible:
+    text: "pending|DMF-|LOCAL-"
+    regex: true
+    timeout: 10000
+    optional: true

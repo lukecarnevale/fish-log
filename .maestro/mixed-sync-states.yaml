@@ -1,0 +1,65 @@
+# Flow 8: Report History Mixed States
+# Display list with synced, pending, and failed reports correctly.
+# This flow verifies past reports screen handles mixed states.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: false
+
+# Home screen
+- assertVisible: "Fish Log Co."
+
+# Navigate to Past Reports
+- tapOn: "Past Reports"
+- assertVisible: "Past Reports"
+
+# Wait for data to load
+- wait: 3000
+
+# Check filter tabs render (if reports exist)
+- assertVisible:
+    text: "All|Submitted|Pending"
+    regex: true
+    optional: true
+
+# If submitted reports exist, tap one to see details
+- runFlow:
+    when:
+      visible:
+        text: "#DMF-"
+        regex: true
+    commands:
+      - tapOn:
+          text: "#DMF-"
+          regex: true
+          index: 0
+      # Detail modal should show
+      - assertVisible: "Submitted to DMF"
+      - assertVisible: "DMF CONFIRMATION #"
+      # Close modal
+      - tapOn: "Close"
+
+# Check pending filter tab if reports exist
+- runFlow:
+    when:
+      visible:
+        text: "Pending \\("
+        regex: true
+    commands:
+      - tapOn:
+          text: "Pending \\("
+          regex: true
+      # Should show pending reports or empty pending message
+      - assertVisible:
+          text: "Pending sync|No Reports Pending"
+          regex: true
+          timeout: 5000
+
+# Return to All tab
+- tapOn:
+    text: "All \\("
+    regex: true
+    optional: true
+
+# Navigate back
+- pressKey: back

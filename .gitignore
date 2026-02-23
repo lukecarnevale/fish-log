@@ -48,3 +48,7 @@ COMMANDS.md
 
 # Website (separate repo)
 website/
+
+# Testing
+docs/Testing/*.md
+coverage/

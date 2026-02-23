@@ -1,0 +1,71 @@
+# Flow 1: Submit a Report
+# Validates the full report submission flow from home screen to confirmation.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: true
+
+# Home screen should show the main dashboard
+- assertVisible: "Fish Log Co."
+- assertVisible: "Report Catch"
+
+# Navigate to report form
+- tapOn: "Report Catch"
+
+# Report form should display
+- assertVisible: "Report Catch"
+- assertVisible: "NC Mandatory Harvest Report"
+
+# Step 1: Select reporting type
+- assertVisible: "Who Are You Reporting For?"
+- tapOn: "Myself Only"
+
+# Step 2: Select species
+- assertVisible: "Species"
+- tapOn: "Select species"
+- assertVisible: "Red Drum"
+- tapOn: "Red Drum"
+
+# Step 3: Fish count should appear with default of 1
+- assertVisible: "Number Harvested"
+
+# Step 4: Scroll down and fill harvest details
+- scrollUntilVisible:
+    element: "Area of Harvest"
+    direction: DOWN
+- tapOn: "Select area"
+# Select first available area
+- tapOn:
+    index: 0
+
+# Step 5: Hook & Line question
+- scrollUntilVisible:
+    element: "Did you use hook & line?"
+    direction: DOWN
+- tapOn: "Yes"
+
+# Step 6: Scroll to angler information
+- scrollUntilVisible:
+    element: "Angler Information"
+    direction: DOWN
+
+# Step 7: Fill in name (may be pre-populated)
+- scrollUntilVisible:
+    element: "First Name"
+    direction: DOWN
+- tapOn: "First Name"
+- inputText: "Test"
+- tapOn: "Last Name"
+- inputText: "Angler"
+
+# Step 8: Submit
+- scrollUntilVisible:
+    element: "Submit Report"
+    direction: DOWN
+- tapOn: "Submit Report"
+
+# Confirmation screen should appear
+- assertVisible:
+    text: "Report Submitted|Report Queued|Submitting to NC DMF"
+    regex: true
+    timeout: 15000

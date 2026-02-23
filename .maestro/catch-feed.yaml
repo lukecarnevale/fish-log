@@ -1,0 +1,38 @@
+# Flow 5: Catch Feed
+# View community catch feed and test filters.
+appId: io.fishlog.app
+---
+- launchApp:
+    clearState: false
+
+# Home screen
+- assertVisible: "Fish Log Co."
+
+# Navigate to Catch Feed
+- tapOn: "Catch Feed"
+
+# Catch Feed screen should load
+- assertVisible: "Catch Feed"
+- assertVisible: "Community catches from NC anglers"
+
+# Wait for feed to load (either catches or empty state)
+- assertVisible:
+    text: "No Catches Yet|All Areas|Loading catches"
+    regex: true
+    timeout: 15000
+
+# If feed has data, verify filter pills are visible
+- runFlow:
+    when:
+      visible: "All Areas"
+    commands:
+      - assertVisible: "All Species"
+      - assertVisible: "Photos"
+      # Try tapping the Photos filter
+      - tapOn: "Photos"
+      # Tap again to deselect
+      - tapOn: "Photos"
+
+# Navigate back
+- pressKey: back
+- assertVisible: "Fish Log Co."

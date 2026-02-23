@@ -182,8 +182,7 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
+    paddingBottom: spacing.md + 28,
     ...shadows.medium,
   },
   licenseHeader: {
