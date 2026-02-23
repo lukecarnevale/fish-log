@@ -240,5 +240,88 @@ describe('rewardsService', () => {
       expect(data.config.isEnabled).toBe(true);
       expect(data.fromCache).toBe(true);
     });
+
+    it('maps image_url from Supabase prize row to imageUrl on the Prize type', async () => {
+      const drawingRow = {
+        id: 'drawing-1',
+        name: 'Q1 2026 Drawing',
+        description: 'Win great prizes!',
+        eligibility_requirements: ['Must be a registered user'],
+        quarter: 1,
+        year: 2026,
+        start_date: '2026-01-01',
+        end_date: '2026-03-31',
+        drawing_date: '2026-04-01',
+        is_active: true,
+        contact_email: null,
+        contact_phone: null,
+        rules_url: null,
+      };
+
+      const prizeRow = {
+        id: 'prize-boatus',
+        name: 'BoatUS Membership',
+        description: 'One-year BoatUS membership with towing coverage.',
+        image_url: 'https://example.com/boatus.png',
+        value: '$29.00',
+        category: 'other',
+        sponsor: 'BoatUS',
+        sort_order: 1,
+        is_active: true,
+      };
+
+      const configRow = {
+        id: 'config-1',
+        is_enabled: true,
+        current_drawing_id: 'drawing-1',
+        legal_disclaimer: '',
+        no_purchase_necessary_text: '',
+        alternative_entry_text: '',
+      };
+
+      let callCount = 0;
+      (mockSupabase.from as jest.Mock).mockImplementation((table: string) => {
+        if (table === 'rewards_config') {
+          return {
+            select: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            single: jest.fn().mockResolvedValue({ data: configRow, error: null }),
+          };
+        }
+        if (table === 'rewards_drawings') {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            single: jest.fn().mockResolvedValue({ data: drawingRow, error: null }),
+          };
+        }
+        if (table === 'drawing_prizes') {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockResolvedValue({
+              data: [{ prize_id: prizeRow.id, prizes: prizeRow }],
+              error: null,
+            }),
+          };
+        }
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      });
+
+      const data = await fetchRewardsData();
+
+      expect(data.currentDrawing).toBeDefined();
+      expect(data.currentDrawing!.prizes).toHaveLength(1);
+
+      const prize = data.currentDrawing!.prizes[0];
+      expect(prize.imageUrl).toBe('https://example.com/boatus.png');
+      expect(prize.name).toBe('BoatUS Membership');
+      expect(prize.description).toBe('One-year BoatUS membership with towing coverage.');
+    });
   });
 });

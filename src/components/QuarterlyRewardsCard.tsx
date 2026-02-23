@@ -19,6 +19,7 @@ import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 
 import { colors } from '../styles/common';
 import { RootStackParamList } from '../types';
@@ -267,6 +268,9 @@ const QuarterlyRewardsCardSkeleton: React.FC = () => {
 const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false }) => {
   const navigation = useNavigation<NavigationProp>();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [scrollToPrizes, setScrollToPrizes] = useState(false);
+  const modalScrollViewRef = useRef<ScrollView>(null);
+  const prizeSectionY = useRef<number>(0);
 
   const {
     currentDrawing,
@@ -299,6 +303,17 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     pulseAnimation.start();
     return () => pulseAnimation.stop();
   }, [progressPulse]);
+
+  // Scroll to prize section when modal opens via prize card tap
+  useEffect(() => {
+    if (showDetailsModal && scrollToPrizes) {
+      const timer = setTimeout(() => {
+        modalScrollViewRef.current?.scrollTo({ y: prizeSectionY.current, animated: true });
+        setScrollToPrizes(false);
+      }, 300); // wait for modal fade-in animation
+      return () => clearTimeout(timer);
+    }
+  }, [showDetailsModal, scrollToPrizes]);
 
   // Border color pulse - white to orange
   const progressBorderColor = progressPulse.interpolate({
@@ -348,7 +363,16 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     return (
       <View style={styles.prizeItem}>
         <View style={styles.prizeIllustration}>
-          {getPrizeIllustration(prize.category)}
+          {prize.imageUrl ? (
+            <Image
+              source={{ uri: prize.imageUrl }}
+              style={styles.prizeImage}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            getPrizeIllustration(prize.category)
+          )}
         </View>
         <View style={styles.prizeDetails}>
           <Text style={styles.prizeName}>{prize.name}</Text>
@@ -371,7 +395,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
-          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+          <ScrollView ref={modalScrollViewRef} contentContainerStyle={styles.modalScrollContent}>
             <Text style={styles.modalHeader}>{currentDrawing.name}</Text>
 
             <View style={styles.modalSection}>
@@ -420,20 +444,44 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               </Text>
             </View>
 
-            <View style={styles.modalSection}>
+            <View
+              style={styles.modalSection}
+              onLayout={(e) => { prizeSectionY.current = e.nativeEvent.layout.y; }}
+            >
               <Text style={styles.modalSectionTitle}>Prize List</Text>
               {currentDrawing.prizes && currentDrawing.prizes.length > 0 ? (
                 currentDrawing.prizes.map((prize) => (
-                  <View key={prize.id} style={styles.modalPrizeItem}>
-                    <Feather
-                      name={getPrizeIcon(prize.category)}
-                      size={20}
-                      color={COLORS.primary}
-                    />
-                    <Text style={styles.modalPrizeText}>
-                      {prize.name} ({prize.value})
-                    </Text>
-                  </View>
+                  prize.imageUrl ? (
+                    <View key={prize.id} style={styles.modalPrizeCard}>
+                      <Image
+                        source={{ uri: prize.imageUrl }}
+                        style={styles.modalPrizeImage}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                      />
+                      <View style={styles.modalPrizeCardBody}>
+                        <Text style={styles.modalPrizeCardName}>{prize.name}</Text>
+                        <Text style={styles.modalPrizeCardValue}>{prize.value}</Text>
+                        {prize.description ? (
+                          <Text style={styles.modalPrizeCardDescription}>{prize.description}</Text>
+                        ) : null}
+                        {prize.sponsor ? (
+                          <Text style={styles.modalPrizeCardSponsor}>Sponsored by {prize.sponsor}</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  ) : (
+                    <View key={prize.id} style={styles.modalPrizeItem}>
+                      <Feather
+                        name={getPrizeIcon(prize.category)}
+                        size={20}
+                        color={COLORS.primary}
+                      />
+                      <Text style={styles.modalPrizeText}>
+                        {prize.name} ({prize.value})
+                      </Text>
+                    </View>
+                  )
                 ))
               ) : (
                 <Text style={styles.modalText}>
@@ -602,12 +650,16 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
           </View>
 
           {/* Prize Section */}
-          <View style={styles.prizeSection}>
+          <TouchableOpacity
+            style={styles.prizeSection}
+            onPress={() => { setScrollToPrizes(true); setShowDetailsModal(true); }}
+            activeOpacity={0.8}
+          >
             <Text style={styles.prizeSectionTitle}>
               Current Quarter Prize
             </Text>
             {renderPrizeItem(currentDrawing.prizes?.[0])}
-          </View>
+          </TouchableOpacity>
 
           {/* Notification Banner */}
           <TouchableOpacity
@@ -896,6 +948,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 14,
   },
+  prizeImage: {
+    width: 60,
+    height: 50,
+    borderRadius: 8,
+  },
   prizeDetails: {
     flex: 1,
   },
@@ -1036,6 +1093,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     marginLeft: 10,
+  },
+  modalPrizeCard: {
+    backgroundColor: COLORS.bgCard,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modalPrizeImage: {
+    width: '100%',
+    height: 160,
+  },
+  modalPrizeCardBody: {
+    padding: 12,
+  },
+  modalPrizeCardName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: 2,
+  },
+  modalPrizeCardValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.navyDark,
+    marginBottom: 6,
+  },
+  modalPrizeCardDescription: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 19,
+    marginBottom: 6,
+  },
+  modalPrizeCardSponsor: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   modalButton: {
     backgroundColor: COLORS.navyDark,
