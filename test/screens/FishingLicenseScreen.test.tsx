@@ -67,6 +67,21 @@ jest.mock('../../src/components/NCFlagIcon', () => {
   return { NCFlagIcon: (props: any) => <View testID="nc-flag-icon" {...props} /> };
 });
 
+// Mock ExpandableSection — renders header + children always visible for easy testing
+jest.mock('../../src/components/ExpandableSection', () => {
+  const React = require('react');
+  const { View, Text, TouchableOpacity } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ title, children }: any) => (
+      <View testID={`expandable-section-${title}`}>
+        <Text>{title}</Text>
+        <View>{children}</View>
+      </View>
+    ),
+  };
+});
+
 const mockNavigation = {
   goBack: jest.fn(),
   navigate: jest.fn(),
@@ -93,51 +108,73 @@ describe('FishingLicenseScreen', () => {
   // ===== Empty State (No License) =====
 
   describe('Empty State', () => {
-    it('renders empty state when no license is saved', async () => {
+    it('renders zero-state license card when no license is saved', async () => {
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      expect(await findByText('No Fishing License Added')).toBeTruthy();
+      expect(await findByText('NC COASTAL RECREATIONAL')).toBeTruthy();
+      expect(await findByText('FISHING LICENSE')).toBeTruthy();
     });
 
-    it('shows Add My License button in empty state', async () => {
+    it('shows Add License pill button in empty state', async () => {
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      expect(await findByText('Add My License')).toBeTruthy();
+      expect(await findByText('Add License')).toBeTruthy();
     });
 
-    it('shows license requirement information', async () => {
+    it('shows License Requirements expandable section', async () => {
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      expect(await findByText(/Required for anglers 16-70 years old/)).toBeTruthy();
+      expect(await findByText('License Requirements')).toBeTruthy();
     });
 
-    it('renders Purchase a License Online button', async () => {
+    it('shows requirements content inside expandable section', async () => {
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      const purchaseButton = await findByText('Purchase a License Online');
-      expect(purchaseButton).toBeTruthy();
+      // ExpandableSection mock always renders children
+      expect(await findByText(/Required for anglers 16/)).toBeTruthy();
     });
 
-    it('opens NC Wildlife website when Purchase a License is pressed', async () => {
+    it('shows How to Purchase expandable section', async () => {
+      const { findByText } = render(
+        <FishingLicenseScreen navigation={mockNavigation} />
+      );
+
+      expect(await findByText('How to Purchase')).toBeTruthy();
+    });
+
+    it('shows FAQs expandable section', async () => {
+      const { findByText } = render(
+        <FishingLicenseScreen navigation={mockNavigation} />
+      );
+
+      expect(await findByText('FAQs')).toBeTruthy();
+    });
+
+    it('renders NC Wildlife License Information external link', async () => {
+      const { findByText } = render(
+        <FishingLicenseScreen navigation={mockNavigation} />
+      );
+
+      expect(await findByText('NC Wildlife License Information')).toBeTruthy();
+    });
+
+    it('opens NC Wildlife Licensing page when external link is pressed', async () => {
       const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as any);
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      const purchaseButton = await findByText('Purchase a License Online');
-      fireEvent.press(purchaseButton);
+      fireEvent.press(await findByText('NC Wildlife License Information'));
 
-      expect(openURL).toHaveBeenCalledWith(
-        'https://www.ncwildlife.org/Licensing/Fishing-Licenses'
-      );
+      expect(openURL).toHaveBeenCalledWith('https://www.ncwildlife.org/Licensing');
       openURL.mockRestore();
     });
   });
@@ -230,12 +267,12 @@ describe('FishingLicenseScreen', () => {
   // ===== Edit Mode =====
 
   describe('Edit Mode', () => {
-    it('enters edit mode when Add My License is pressed (empty state)', async () => {
+    it('enters edit mode when Add License pill is pressed (empty state)', async () => {
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      const addButton = await findByText('Add My License');
+      const addButton = await findByText('Add License');
       fireEvent.press(addButton);
 
       expect(await findByText('Edit License', {}, { timeout: 2000 })).toBeTruthy();
@@ -246,7 +283,7 @@ describe('FishingLicenseScreen', () => {
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      fireEvent.press(await findByText('Add My License'));
+      fireEvent.press(await findByText('Add License'));
 
       expect(await findByText('License Holder')).toBeTruthy();
       expect(await findByPlaceholderText('First')).toBeTruthy();
@@ -259,7 +296,7 @@ describe('FishingLicenseScreen', () => {
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      fireEvent.press(await findByText('Add My License'));
+      fireEvent.press(await findByText('Add License'));
 
       expect(await findByText('Save License')).toBeTruthy();
       expect(await findByText('Cancel')).toBeTruthy();
@@ -270,7 +307,7 @@ describe('FishingLicenseScreen', () => {
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      fireEvent.press(await findByText('Add My License'));
+      fireEvent.press(await findByText('Add License'));
 
       expect(await findByText('Go to Profile')).toBeTruthy();
     });
@@ -280,7 +317,7 @@ describe('FishingLicenseScreen', () => {
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      fireEvent.press(await findByText('Add My License'));
+      fireEvent.press(await findByText('Add License'));
       fireEvent.press(await findByText('Go to Profile'));
 
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Profile');
@@ -296,7 +333,7 @@ describe('FishingLicenseScreen', () => {
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      fireEvent.press(await findByText('Add My License'));
+      fireEvent.press(await findByText('Add License'));
 
       // Fill only license number, skip name
       fireEvent.changeText(await findByPlaceholderText('Enter license number'), 'WRC123');
@@ -316,7 +353,7 @@ describe('FishingLicenseScreen', () => {
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      fireEvent.press(await findByText('Add My License'));
+      fireEvent.press(await findByText('Add License'));
 
       // Fill name but not license number or type
       fireEvent.changeText(await findByPlaceholderText('First'), 'John');
@@ -340,8 +377,8 @@ describe('FishingLicenseScreen', () => {
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      // Wait for loading to complete
-      await findByText('No Fishing License Added');
+      // Wait for loading to complete (zero-state card is now rendered)
+      await findByText('NC COASTAL RECREATIONAL');
 
       fireEvent.press(await findByTestId('back-button'));
       expect(mockNavigation.goBack).toHaveBeenCalled();

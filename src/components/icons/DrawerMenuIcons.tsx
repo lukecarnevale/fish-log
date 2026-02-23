@@ -23,20 +23,6 @@ export const AppLogoIcon: React.FC = () => (
   </Svg>
 );
 
-export const AnglerAvatarIcon: React.FC = () => (
-  <Svg width={32} height={32} viewBox="0 0 40 40">
-    <Circle cx={12} cy={10} r={5} fill="white" opacity={0.9} />
-    <Path d="M7 18 Q7 14 12 14 Q17 14 17 18 L17 28 L7 28 Z" fill="white" opacity={0.9} />
-    <Path d="M16 16 L30 6" stroke="white" strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={0.9} />
-    <Path d="M30 6 L32 16" stroke="white" strokeWidth={1} fill="none" opacity={0.7} />
-    <G transform="translate(28, 18)">
-      <Ellipse cx={5} cy={4} rx={5} ry={3} fill="#FFB74D" />
-      <Path d="M9 4 Q12 2 11 4 Q12 6 9 4" fill="#FF8F00" />
-      <Circle cx={2} cy={3} r={1} fill="white" />
-    </G>
-  </Svg>
-);
-
 export const JumpingFishIcon: React.FC = () => (
   <Svg width={32} height={26} viewBox="0 0 50 40">
     <Ellipse cx={25} cy={36} rx={14} ry={3} fill="#64B5F6" opacity={0.3} />

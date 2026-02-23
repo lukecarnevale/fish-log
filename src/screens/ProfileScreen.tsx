@@ -55,7 +55,7 @@ import { ProfileScreenNavigationProp, ProfileScreenProps } from "./profile/profi
 import { profileSchema } from "../constants/validationSchemas";
 import { PHONE_MASK } from "../constants/inputMasks";
 import * as yup from 'yup';
-import AnglerAvatarIcon from "../components/icons/AnglerAvatarIcon";
+import DefaultAnglerAvatarIcon from "../components/icons/DefaultAnglerAvatarIcon";
 import { styles, localStyles } from "../styles/profileScreenStyles";
 import ProfileStats from "./profile/ProfileStats";
 import ProfileAchievements from "./profile/ProfileAchievements";
@@ -834,7 +834,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 style={styles.profileImage}
               />
             ) : (
-              <AnglerAvatarIcon size={105} />
+              <DefaultAnglerAvatarIcon size={160} />
             )}
             <View style={styles.cameraIconContainer}>
               <Feather name="camera" size={18} color={colors.primary} />
@@ -1199,12 +1199,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   // Render profile display
   const renderProfile = () => (
     <View style={styles.container}>
-      {/* Floating back button - appears when static header scrolls away */}
-      <FloatingBackButton
-        opacity={floatingOpacity}
-        translateX={floatingTranslateXLeft}
-        onPress={() => navigation.goBack()}
-      />
+      {/* Floating back button - appears when static header scrolls away, hidden during edit */}
+      {!isEditing && (
+        <FloatingBackButton
+          opacity={floatingOpacity}
+          translateX={floatingTranslateXLeft}
+          onPress={() => navigation.goBack()}
+        />
+      )}
 
       <Animated.ScrollView
         style={styles.scrollView}
@@ -1245,7 +1247,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 style={styles.profileImage}
               />
             ) : (
-              <AnglerAvatarIcon size={105} />
+              <DefaultAnglerAvatarIcon size={160} />
             )}
           </TouchableOpacity>
           {(profile.firstName || profile.lastName) && (
@@ -1662,7 +1664,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 />
               ) : (
                 <View style={photoPreviewStyles.avatarFallback}>
-                  <AnglerAvatarIcon size={200} />
+                  <DefaultAnglerAvatarIcon size={280} />
                 </View>
               )}
             </View>
