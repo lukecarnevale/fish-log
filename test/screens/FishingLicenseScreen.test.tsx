@@ -174,7 +174,7 @@ describe('FishingLicenseScreen', () => {
 
       fireEvent.press(await findByText('NC Wildlife License Information'));
 
-      expect(openURL).toHaveBeenCalledWith('https://www.ncwildlife.org/Licensing');
+      expect(openURL).toHaveBeenCalledWith('https://www.ncwildlife.gov/fishing');
       openURL.mockRestore();
     });
   });
