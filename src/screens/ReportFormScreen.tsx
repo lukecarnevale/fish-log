@@ -728,14 +728,28 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   sanitized.slice(firstDecimalIndex + 1).replace(/\./g, '');
     }
 
+    // Enforce max length value
+    if (sanitized && parseFloat(sanitized) > MAX_FISH_LENGTH) {
+      sanitized = String(MAX_FISH_LENGTH);
+    }
+
     const newLengths = [...formData.lengths];
     newLengths[index] = sanitized;
     setFormData({ ...formData, lengths: newLengths });
   };
 
+  // Maximum number of fish per species entry
+  const MAX_FISH_COUNT = 20;
+  // Maximum value reachable via the +/- stepper buttons
+  const MAX_STEPPER_COUNT = 10;
+  // Maximum number of people for family reporting
+  const MAX_PEOPLE_COUNT = 10;
+  // Maximum fish length in inches
+  const MAX_FISH_LENGTH = 999.99;
+
   // Update lengths array when count changes
   const handleCountChange = (newCount: number): void => {
-    const count = Math.max(1, newCount);
+    const count = Math.min(MAX_FISH_COUNT, Math.max(1, newCount));
     const newLengths = [...formData.lengths];
 
     // Add empty strings if count increased
@@ -1506,8 +1520,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <TouchableOpacity
                 style={localStyles.countButton}
                 onPress={() => setFormData({ ...formData, totalPeopleCount: Math.max(2, formData.totalPeopleCount - 1) })}
+                disabled={formData.totalPeopleCount <= 2}
               >
-                <Feather name="minus" size={20} color={colors.primary} />
+                <Feather name="minus" size={20} color={formData.totalPeopleCount <= 2 ? colors.textTertiary : colors.primary} />
               </TouchableOpacity>
               <TextInput
                 style={localStyles.countInput}
@@ -1515,13 +1530,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 value={String(formData.totalPeopleCount)}
                 onChangeText={(text) => {
                   const num = parseInt(text) || 2;
-                  setFormData({ ...formData, totalPeopleCount: Math.max(2, num) });
+                  setFormData({ ...formData, totalPeopleCount: Math.min(MAX_PEOPLE_COUNT, Math.max(2, num)) });
                 }}
+                maxLength={2}
                 onFocus={scrollToCenter}
               />
               <TouchableOpacity
                 style={localStyles.countButton}
-                onPress={() => setFormData({ ...formData, totalPeopleCount: formData.totalPeopleCount + 1 })}
+                onPress={() => setFormData({ ...formData, totalPeopleCount: Math.min(MAX_PEOPLE_COUNT, formData.totalPeopleCount + 1) })}
+                disabled={formData.totalPeopleCount >= MAX_PEOPLE_COUNT}
               >
                 <Feather name="plus" size={20} color={colors.primary} />
               </TouchableOpacity>
@@ -1548,21 +1565,24 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <TouchableOpacity
                 style={localStyles.countButton}
                 onPress={() => handleCountChange(formData.count - 1)}
+                disabled={formData.count <= 1}
               >
-                <Feather name="minus" size={20} color={colors.primary} />
+                <Feather name="minus" size={20} color={formData.count <= 1 ? colors.textTertiary : colors.primary} />
               </TouchableOpacity>
               <TextInput
                 style={localStyles.countInput}
                 keyboardType="number-pad"
                 value={String(formData.count)}
                 onChangeText={(text) => handleCountChange(parseInt(text) || 1)}
+                maxLength={2}
                 onFocus={scrollToCenter}
               />
               <TouchableOpacity
                 style={localStyles.countButton}
                 onPress={() => handleCountChange(formData.count + 1)}
+                disabled={formData.count >= MAX_STEPPER_COUNT}
               >
-                <Feather name="plus" size={20} color={colors.primary} />
+                <Feather name="plus" size={20} color={formData.count >= MAX_STEPPER_COUNT ? colors.textTertiary : colors.primary} />
               </TouchableOpacity>
             </View>
 

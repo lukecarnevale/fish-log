@@ -29,6 +29,7 @@ import LicenseTypePicker from "../components/LicenseTypePicker";
 import ScreenLayout from "../components/ScreenLayout";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import ExpandableSection from "../components/ExpandableSection";
+import WrcIdInfoModal from "../components/WrcIdInfoModal";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 import { getCurrentUser, updateCurrentUser } from "../services/userProfileService";
 import { onAuthStateChange } from "../services/authService";
@@ -65,6 +66,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   ]);
   const [showLicenseTypeModal, setShowLicenseTypeModal] = useState<boolean>(false);
   const [infoModalVisible, setInfoModalVisible] = useState<boolean>(false);
+  const [showLicenseNumberInfoModal, setShowLicenseNumberInfoModal] = useState<boolean>(false);
 
   // Animation for transitioning between view/edit modes
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -213,6 +215,16 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
     if (Platform.OS === 'android') {
       // Android native picker: close modal and apply date if OK was pressed
       if (event.type === 'set' && selectedDate) {
+        // Validate issue date is not in the future
+        if (currentDateField === 'issueDate') {
+          const today = new Date();
+          today.setHours(23, 59, 59, 999);
+          if (selectedDate > today) {
+            Alert.alert('Invalid Date', 'Issue date cannot be in the future.');
+            closeDatePicker();
+            return;
+          }
+        }
         const formattedDate = selectedDate.toISOString().split('T')[0];
         setFormData({
           ...formData,
@@ -229,8 +241,16 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
     }
   };
 
-  // Confirm date selection and close picker
+  // Confirm date selection and close picker (validates issue date is not in the future)
   const confirmDateSelection = () => {
+    if (currentDateField === 'issueDate') {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      if (tempDate > today) {
+        Alert.alert('Invalid Date', 'Issue date cannot be in the future.');
+        return;
+      }
+    }
     const formattedDate = tempDate.toISOString().split('T')[0];
     setFormData({
       ...formData,
@@ -327,7 +347,15 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           <Text style={styles.formSectionTitle}>License Information</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>License Number *</Text>
+            <View style={styles.inputLabelRow}>
+              <Text style={[styles.inputLabel, { marginBottom: 0 }]}>License Number *</Text>
+              <TouchableOpacity
+                onPress={() => setShowLicenseNumberInfoModal(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Feather name="info" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
             <TextInput
               style={styles.input}
               value={formData.licenseNumber}
@@ -387,24 +415,6 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           </View>
         </View>
         
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoTitle}>Profile Information</Text>
-          <Text style={styles.infoText}>
-            Personal information has been moved to the Profile section. You can access your profile from the menu.
-          </Text>
-          <View style={profileStyles.profileLinkContainer}>
-            <TouchableOpacity 
-              style={profileStyles.profileLinkButton}
-              onPress={() => {
-                navigation.navigate("Profile");
-              }}
-            >
-              <Feather name="user" size={16} color={colors.white} />
-              <Text style={profileStyles.profileLinkText}>Go to Profile</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        
         <View style={styles.formButtonRow}>
           <TouchableOpacity
             style={[styles.formButton, styles.formCancelButton]}
@@ -421,6 +431,12 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           </TouchableOpacity>
         </View>
         
+        {/* License Number info modal */}
+        <WrcIdInfoModal
+          visible={showLicenseNumberInfoModal}
+          onClose={() => setShowLicenseNumberInfoModal(false)}
+        />
+
         {/* Date Picker Modal - matching ReportFormScreen and ProfileScreen pattern */}
         <Modal
           visible={showDatePicker}
@@ -451,7 +467,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={onDateChange}
                   minimumDate={new Date(2000, 0, 1)}
-                  maximumDate={currentDateField === 'issueDate' ? new Date() : new Date(2099, 11, 31)}
+                  maximumDate={new Date(2099, 11, 31)}
                   themeVariant="light"
                   style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
                 />
@@ -530,78 +546,110 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                 <Text style={styles.licenseValue}>{license?.expiryDate ? formatDate(license.expiryDate) : "Not specified"}</Text>
               </View>
             </View>
-            
+
+            {/* Footer: disclaimer left, edit pencil right */}
             <View style={styles.licenseFooter}>
               <Text style={styles.licenseFooterText}>
                 This does not replace licensing from NC WRC
               </Text>
+              <TouchableOpacity
+                style={styles.licenseEditButton}
+                onPress={() => toggleEditMode(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Edit license"
+                testID="license-edit-button"
+              >
+                <Feather name="edit-2" size={20} color={colors.white} />
+              </TouchableOpacity>
             </View>
           </View>
         </LinearGradient>
       </View>
-      
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => toggleEditMode(true)}
-        >
-          <Feather name="edit-2" size={18} color={colors.white} />
-          <Text style={styles.actionButtonText}>Edit License</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.actionButton, styles.secondaryButton]}
-          onPress={() => {
-            Linking.openURL("https://www.ncwildlife.org/");
-          }}
-        >
-          <Feather name="external-link" size={18} color={colors.primary} />
-          <Text style={styles.secondaryButtonText}>NC Wildlife Website</Text>
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.infoContainer}>
-        <Text style={styles.infoTitle}>Fishing License Information</Text>
-        <Text style={styles.infoText}>
-          Most anglers in North Carolina between the ages of 16 and 70 need a
-          fishing license to fish in public waters. This includes both freshwater
-          and saltwater fishing.
-        </Text>
-        
-        <Text style={styles.infoText}>
-          Your license should be kept with you while fishing. Digital versions of
-          fishing licenses are acceptable in North Carolina.
-        </Text>
-        
-        <Text style={styles.infoSubtitle}>License Requirements</Text>
-        <View style={styles.bulletList}>
-          <View style={styles.bulletItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.bulletText}>
-              Must be renewed annually (unless lifetime license)
+
+      {/* License Information section — matches zero-state layout */}
+      <Text style={styles.infoSectionHeader}>License Information</Text>
+
+      <ExpandableSection title="License Requirements">
+        <View style={styles.expandableBulletList}>
+          {[
+            'Required for anglers 16–70 years old',
+            'Anglers 70 and older are exempt from the fishing license requirement in North Carolina.',
+            'Different licenses for inland and coastal waters',
+            'Available as daily, 10-day, annual, or lifetime',
+            'Saltwater recreational fishing requires a Coastal Recreational Fishing License (CRFL)',
+          ].map((item, i) => (
+            <View key={i} style={styles.expandableBulletRow}>
+              <Text style={styles.expandableBullet}>•</Text>
+              <Text style={styles.expandableBulletText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      </ExpandableSection>
+
+      <ExpandableSection title="Where to Get a License">
+        <View style={styles.expandableBulletList}>
+          <View style={styles.expandableBulletRow}>
+            <Text style={styles.expandableBullet}>•</Text>
+            <Text style={styles.expandableBulletText}>
+              {'Online at '}
+              <Text
+                style={styles.expandableLinkText}
+                onPress={() => Linking.openURL('https://www.ncwildlife.gov/fishing')}
+              >
+                ncwildlife.gov
+              </Text>
             </Text>
           </View>
-          <View style={styles.bulletItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.bulletText}>
-              Separate licenses for inland and coastal waters
+          <View style={styles.expandableBulletRow}>
+            <Text style={styles.expandableBullet}>•</Text>
+            <Text style={styles.expandableBulletText}>
+              {'By phone at '}
+              <Text
+                style={styles.expandableLinkText}
+                onPress={() => Linking.openURL('tel:8882486834')}
+              >
+                888-248-6834
+              </Text>
             </Text>
           </View>
-          <View style={styles.bulletItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.bulletText}>
-              Special regulations apply for trout waters
-            </Text>
+          <View style={styles.expandableBulletRow}>
+            <Text style={styles.expandableBullet}>•</Text>
+            <Text style={styles.expandableBulletText}>From licensed agents — sporting goods stores, bait shops, and wildlife service offices</Text>
           </View>
-          <View style={styles.bulletItem}>
-            <View style={styles.bullet} />
-            <Text style={styles.bulletText}>
-              Some public fishing areas don't require a license
-            </Text>
+          <View style={styles.expandableBulletRow}>
+            <Text style={styles.expandableBullet}>•</Text>
+            <Text style={styles.expandableBulletText}>License is valid from date of purchase through the stated expiration date</Text>
           </View>
         </View>
-      </View>
-      
+      </ExpandableSection>
+
+      <ExpandableSection title="Don't Know Your License Number?">
+        <View style={{ paddingTop: spacing.sm }}>
+          <Text style={[styles.expandableBulletText, { marginBottom: spacing.md }]}>
+            You can look up your WRC ID or Customer ID online if you've previously purchased a license.
+          </Text>
+          <TouchableOpacity
+            style={styles.lookupButton}
+            onPress={() => Linking.openURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
+            activeOpacity={0.8}
+          >
+            <Feather name="external-link" size={16} color={colors.white} />
+            <Text style={styles.lookupButtonText}>Look Up My License</Text>
+          </TouchableOpacity>
+        </View>
+      </ExpandableSection>
+
+      <TouchableOpacity
+        style={styles.externalLinkRow}
+        onPress={() => Linking.openURL('https://www.ncwildlife.gov/fishing')}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.externalLinkText}>NC Wildlife License Information</Text>
+        <Feather name="external-link" size={16} color={colors.primary} />
+      </TouchableOpacity>
+
+      <View style={{ height: spacing.xxl }} />
+
       {/* Info Modal */}
       <Modal
         visible={infoModalVisible}
@@ -625,54 +673,6 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                 official license when fishing.
               </Text>
               
-              <Text style={styles.modalSectionTitle}>Where to Get a License</Text>
-              <Text style={styles.modalText}>
-                You can purchase a North Carolina fishing license:
-              </Text>
-              
-              <View style={styles.modalBulletList}>
-                <View style={styles.modalBulletItem}>
-                  <View style={styles.modalBullet} />
-                  <Text style={styles.modalBulletText}>
-                    Online at ncwildlife.org
-                  </Text>
-                </View>
-                <View style={styles.modalBulletItem}>
-                  <View style={styles.modalBullet} />
-                  <Text style={styles.modalBulletText}>
-                    By phone at 888-248-6834
-                  </Text>
-                </View>
-                <View style={styles.modalBulletItem}>
-                  <View style={styles.modalBullet} />
-                  <Text style={styles.modalBulletText}>
-                    From a wildlife service agent
-                  </Text>
-                </View>
-                <View style={styles.modalBulletItem}>
-                  <View style={styles.modalBullet} />
-                  <Text style={styles.modalBulletText}>
-                    At many sporting goods stores
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={styles.modalSectionTitle}>Don't Know Your License Number?</Text>
-              <Text style={styles.modalText}>
-                You can look up your WRC ID or Customer ID online if you've previously purchased a license.
-              </Text>
-
-              <TouchableOpacity
-                style={styles.modalLookupButton}
-                onPress={() => {
-                  setInfoModalVisible(false);
-                  Linking.openURL("https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx");
-                }}
-              >
-                <Feather name="external-link" size={18} color={colors.white} style={{ marginRight: 8 }} />
-                <Text style={styles.modalLookupButtonText}>Look Up My License</Text>
-              </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.modalButton}
                 onPress={() => setInfoModalVisible(false)}
@@ -742,6 +742,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
         <View style={styles.expandableBulletList}>
           {[
             'Required for anglers 16–70 years old',
+            'Anglers 70 and older are exempt from the fishing license requirement in North Carolina.',
             'Different licenses for inland and coastal waters',
             'Available as daily, 10-day, annual, or lifetime',
             'Saltwater recreational fishing requires a Coastal Recreational Fishing License (CRFL)',
@@ -754,49 +755,58 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
         </View>
       </ExpandableSection>
 
-      {/* Expandable: How to Purchase */}
-      <ExpandableSection title="How to Purchase">
+      {/* Expandable: Where to Get a License */}
+      <ExpandableSection title="Where to Get a License">
         <View style={styles.expandableBulletList}>
-          {[
-            'Purchase online at ncwildlife.org',
-            'Available from licensed wildlife agents (sporting goods stores, bait shops)',
-            'Phone: 1-888-248-6834',
-            'License is valid from date of purchase through the stated expiration date',
-          ].map((item, i) => (
-            <View key={i} style={styles.expandableBulletRow}>
-              <Text style={styles.expandableBullet}>•</Text>
-              <Text style={styles.expandableBulletText}>{item}</Text>
-            </View>
-          ))}
+          <View style={styles.expandableBulletRow}>
+            <Text style={styles.expandableBullet}>•</Text>
+            <Text style={styles.expandableBulletText}>
+              {'Online at '}
+              <Text
+                style={styles.expandableLinkText}
+                onPress={() => Linking.openURL('https://www.ncwildlife.gov/fishing')}
+              >
+                ncwildlife.gov
+              </Text>
+            </Text>
+          </View>
+          <View style={styles.expandableBulletRow}>
+            <Text style={styles.expandableBullet}>•</Text>
+            <Text style={styles.expandableBulletText}>
+              {'By phone at '}
+              <Text
+                style={styles.expandableLinkText}
+                onPress={() => Linking.openURL('tel:8882486834')}
+              >
+                888-248-6834
+              </Text>
+            </Text>
+          </View>
+          <View style={styles.expandableBulletRow}>
+            <Text style={styles.expandableBullet}>•</Text>
+            <Text style={styles.expandableBulletText}>From licensed agents — sporting goods stores, bait shops, and wildlife service offices</Text>
+          </View>
+          <View style={styles.expandableBulletRow}>
+            <Text style={styles.expandableBullet}>•</Text>
+            <Text style={styles.expandableBulletText}>License is valid from date of purchase through the stated expiration date</Text>
+          </View>
         </View>
       </ExpandableSection>
 
-      {/* Expandable: FAQs */}
-      <ExpandableSection title="FAQs">
-        <View>
-          {[
-            {
-              q: 'Do I need a license to fish in the surf?',
-              a: 'Yes. Surf fishing in NC coastal waters requires a Coastal Recreational Fishing License.',
-            },
-            {
-              q: 'What if I am over 70?',
-              a: 'Anglers 70 and older are exempt from the fishing license requirement in North Carolina.',
-            },
-            {
-              q: 'Do I need a separate license for each body of water?',
-              a: "Inland and coastal waters require different licenses. Make sure you have the right one for where you're fishing.",
-            },
-            {
-              q: 'Can I fish without a license on Free Fishing Day?',
-              a: "Yes. NC designates certain days as Free Fishing Days where no license is required. Check ncwildlife.org for the current year's dates.",
-            },
-          ].map((faq, i) => (
-            <View key={i} style={[styles.faqItem, i > 0 && styles.faqItemBorder]}>
-              <Text style={styles.faqQuestion}>{faq.q}</Text>
-              <Text style={styles.faqAnswer}>{faq.a}</Text>
-            </View>
-          ))}
+      {/* Expandable: Don't Know Your License Number? */}
+      <ExpandableSection title="Don't Know Your License Number?">
+        <View style={{ paddingTop: spacing.sm }}>
+          <Text style={[styles.expandableBulletText, { marginBottom: spacing.md }]}>
+            You can look up your WRC ID or Customer ID online if you've previously purchased a license.
+          </Text>
+          <TouchableOpacity
+            style={styles.lookupButton}
+            onPress={() => Linking.openURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
+            activeOpacity={0.8}
+          >
+            <Feather name="external-link" size={16} color={colors.white} />
+            <Text style={styles.lookupButtonText}>Look Up My License</Text>
+          </TouchableOpacity>
         </View>
       </ExpandableSection>
 

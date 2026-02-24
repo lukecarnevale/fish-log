@@ -65,6 +65,7 @@ jest.mock('../../src/services/userProfileService', () => ({
 
 import {
   convertToRewardsMember,
+  createRewardsMemberFromAuthUser,
   isRewardsMember,
   getRewardsMemberForAnonymousUser,
   linkEmailToUser,
@@ -244,6 +245,140 @@ describe('rewardsConversionService', () => {
       mockIsSupabaseConnected.mockResolvedValue(false);
       const result = await linkEmailToUser('test@example.com');
       expect(result.success).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // createRewardsMemberFromAuthUser - intent handling
+  // ============================================================
+  describe('createRewardsMemberFromAuthUser', () => {
+    it('returns error when not connected', async () => {
+      mockIsSupabaseConnected.mockResolvedValue(false);
+      const result = await createRewardsMemberFromAuthUser();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('No connection to server');
+    });
+
+    it('returns error when no auth user', async () => {
+      const { getCurrentAuthUser } = require('../../src/services/authService');
+      getCurrentAuthUser.mockResolvedValue(null);
+
+      const result = await createRewardsMemberFromAuthUser();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('No authenticated user found');
+    });
+
+    it('updates existing user when intent is update_email', async () => {
+      const { getCurrentAuthUser, getPendingAuth, clearPendingAuth } = require('../../src/services/authService');
+      const { findUserByEmail } = require('../../src/services/userService');
+      const { cacheUser, syncToUserProfile } = require('../../src/services/userProfileService');
+
+      getCurrentAuthUser.mockResolvedValue({
+        id: 'auth-456',
+        email: 'new@example.com',
+        user_metadata: {},
+      });
+
+      // No existing user by email (it's a new email)
+      findUserByEmail.mockResolvedValue(null);
+
+      // Pending auth has update_email intent
+      getPendingAuth.mockResolvedValue({
+        email: 'new@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        sentAt: new Date().toISOString(),
+        intent: 'update_email',
+        existingUserId: 'user-existing-123',
+      });
+
+      const updatedUserData = {
+        id: 'user-existing-123',
+        email: 'new@example.com',
+        auth_id: 'auth-456',
+        device_id: 'device-123',
+        first_name: 'Test',
+        last_name: 'User',
+        rewards_opted_in_at: '2026-01-01',
+        created_at: '2026-01-01',
+        updated_at: '2026-02-24',
+      };
+
+      // Mock the Supabase update chain
+      (mockSupabase.from as jest.Mock).mockImplementation(() => ({
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: updatedUserData, error: null }),
+      }));
+
+      const result = await createRewardsMemberFromAuthUser();
+
+      expect(result.success).toBe(true);
+      expect(result.user?.email).toBe('new@example.com');
+      expect(result.user?.id).toBe('user-existing-123');
+      expect(cacheUser).toHaveBeenCalled();
+      expect(syncToUserProfile).toHaveBeenCalled();
+      expect(clearPendingAuth).toHaveBeenCalled();
+    });
+
+    it('proceeds with normal flow when intent is new_account', async () => {
+      const { getCurrentAuthUser, getPendingAuth } = require('../../src/services/authService');
+      const { findUserByEmail, findUserByDeviceId } = require('../../src/services/userService');
+
+      getCurrentAuthUser.mockResolvedValue({
+        id: 'auth-789',
+        email: 'fresh@example.com',
+        user_metadata: {},
+      });
+
+      findUserByEmail.mockResolvedValue(null);
+      findUserByDeviceId.mockResolvedValue(null);
+
+      getPendingAuth.mockResolvedValue({
+        email: 'fresh@example.com',
+        firstName: 'Fresh',
+        lastName: 'Start',
+        sentAt: new Date().toISOString(),
+        intent: 'new_account',
+      });
+
+      const rpcResult = { user_id: 'user-new', reports_linked: 0 };
+      const userData = {
+        id: 'user-new',
+        email: 'fresh@example.com',
+        device_id: 'device-123',
+        auth_id: 'auth-789',
+        first_name: 'Fresh',
+        last_name: 'Start',
+        rewards_opted_in_at: '2026-02-24',
+        created_at: '2026-02-24',
+        updated_at: '2026-02-24',
+      };
+
+      (mockSupabase as any).rpc = jest.fn().mockResolvedValue({
+        data: rpcResult,
+        error: null,
+      });
+
+      (mockSupabase.from as jest.Mock).mockImplementation(() => ({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: userData, error: null }),
+      }));
+
+      const result = await createRewardsMemberFromAuthUser();
+
+      expect(result.success).toBe(true);
+      expect(result.user?.email).toBe('fresh@example.com');
+      // Should have called the RPC (not the update path)
+      expect((mockSupabase as any).rpc).toHaveBeenCalledWith(
+        'convert_to_rewards_member',
+        expect.objectContaining({
+          p_email: 'fresh@example.com',
+          p_auth_id: 'auth-789',
+        })
+      );
     });
   });
 });

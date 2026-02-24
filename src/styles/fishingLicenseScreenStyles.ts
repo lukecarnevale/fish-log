@@ -125,13 +125,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   licenseFooter: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     marginTop: spacing.md,
   },
   licenseFooterText: {
     ...typography.caption,
     color: colors.white,
     opacity: 0.7,
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  licenseEditButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   actionsContainer: {
     flexDirection: "row",
@@ -630,6 +642,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
 
+  // ─── Form label row (label + info icon) ───────────────────────────────────
+  inputLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: spacing.sm,
+  },
+
   // ─── Expandable section content ────────────────────────────────────────────
   expandableBulletList: {
     gap: spacing.sm,
@@ -650,6 +670,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  expandableLinkText: {
+    color: colors.primary,
+    textDecorationLine: 'underline',
+  },
+  lookupButton: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  lookupButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '600',
   },
 
   // ─── FAQ items ─────────────────────────────────────────────────────────────

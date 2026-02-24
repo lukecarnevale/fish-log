@@ -118,6 +118,23 @@ export async function convertToRewardsMember(
 
     const deviceId = await getDeviceId();
 
+    // Before creating, check if device_id is already claimed by another user.
+    // This happens when a user signs out of rewards and re-signs up with a different email.
+    const existingDeviceUser = await findUserByDeviceId(deviceId);
+    if (existingDeviceUser) {
+      console.log('🔄 convertToRewardsMember: Device already claimed by user:', existingDeviceUser.id, existingDeviceUser.email);
+      // Detach device_id from the old user so the new user can claim this device
+      const { error: detachError } = await supabase
+        .from('users')
+        .update({ device_id: null })
+        .eq('id', existingDeviceUser.id);
+      if (detachError) {
+        console.warn('🔄 convertToRewardsMember: Failed to detach device_id:', detachError.message);
+      } else {
+        console.log('🔄 convertToRewardsMember: Detached device_id from old user');
+      }
+    }
+
     // Call the convert_to_rewards_member RPC
     const { data: rpcResult, error: rpcError } = await supabase
       .rpc('convert_to_rewards_member', {
@@ -143,7 +160,12 @@ export async function convertToRewardsMember(
           return { success: true, user: existingUser };
         }
       }
-      throw new Error(`Failed to create rewards member: ${rpcError.message}`);
+      console.error('convertToRewardsMember RPC error:', rpcError.message);
+      // Never expose raw database errors to the user
+      if (rpcError.message.includes('duplicate key') || rpcError.message.includes('unique constraint')) {
+        throw new Error('This device is already linked to a rewards account. Please try signing out first and then signing back in.');
+      }
+      throw new Error('Something went wrong creating your rewards account. Please try again.');
     }
 
     if (!rpcResult) {
@@ -408,6 +430,68 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
     console.log('🔄 createRewardsMemberFromAuthUser: Pending auth:', pendingAuth?.email || 'none');
     console.log('🔄 createRewardsMemberFromAuthUser: Anonymous user:', anonymousUser?.id || 'none', 'Device:', deviceId);
 
+    // Handle email update intent: user chose to update their existing account's email
+    // instead of creating a new account. We update the existing user record directly.
+    if (pendingAuth?.intent === 'update_email' && pendingAuth?.existingUserId) {
+      console.log('🔄 createRewardsMemberFromAuthUser: Handling update_email intent for user:', pendingAuth.existingUserId);
+
+      try {
+        const { data: updatedData, error: updateError } = await supabase
+          .from('users')
+          .update({
+            email: authUser.email.toLowerCase(),
+            auth_id: authUser.id,
+            device_id: deviceId,
+            anonymous_user_id: anonymousUser?.id || null,
+          })
+          .eq('id', pendingAuth.existingUserId)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('🔄 createRewardsMemberFromAuthUser: Failed to update email:', updateError.message);
+          throw new Error('Something went wrong updating your email. Please try again.');
+        }
+
+        if (!updatedData) {
+          throw new Error('Something went wrong updating your email. Please try again.');
+        }
+
+        const updatedUser = transformUser(updatedData);
+        await cacheUser(updatedUser);
+        await syncToUserProfile(updatedUser);
+        await clearPendingAuth();
+
+        // Migrate local rewards entries to the existing user
+        await migrateLocalRewardsEntries(updatedUser.id);
+
+        console.log(`✅ Updated email for existing user to: ${authUser.email}`);
+        return { success: true, user: updatedUser, claimedCatches: 0 };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('❌ Failed to update email for existing user:', error);
+        return { success: false, error: message };
+      }
+    }
+
+    // Before creating a new user, check if the device_id is already claimed by another user.
+    // This happens when a user signs out and re-signs in with a different email —
+    // the old user record still holds the device_id, causing a unique constraint violation.
+    const existingDeviceUser = await findUserByDeviceId(deviceId);
+    if (existingDeviceUser) {
+      console.log('🔄 createRewardsMemberFromAuthUser: Device already claimed by user:', existingDeviceUser.id, existingDeviceUser.email);
+      // Detach device_id from the old user so the new user can claim this device
+      const { error: detachError } = await supabase
+        .from('users')
+        .update({ device_id: null })
+        .eq('id', existingDeviceUser.id);
+      if (detachError) {
+        console.warn('🔄 createRewardsMemberFromAuthUser: Failed to detach device_id from old user:', detachError.message);
+      } else {
+        console.log('🔄 createRewardsMemberFromAuthUser: Detached device_id from old user');
+      }
+    }
+
     // Use the convert_to_rewards_member RPC to atomically create user and link reports
     console.log('🔄 createRewardsMemberFromAuthUser: Calling convert_to_rewards_member RPC...');
     const { data: rpcResult, error: rpcError } = await supabase
@@ -435,7 +519,12 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
           return { success: true, user: existingEmailUser };
         }
       }
-      throw new Error(`Failed to create rewards member: ${rpcError.message}`);
+      console.error('createRewardsMemberFromAuthUser RPC error:', rpcError.message);
+      // Never expose raw database errors to the user
+      if (rpcError.message.includes('duplicate key') || rpcError.message.includes('unique constraint')) {
+        throw new Error('This device is already linked to a rewards account. Please try signing out first and then signing back in.');
+      }
+      throw new Error('Something went wrong creating your rewards account. Please try again.');
     }
 
     if (!rpcResult) {

@@ -54,7 +54,7 @@ export function AboutModal({ visible, onClose }: AboutModalProps): React.ReactEl
           <View style={styles.infoSection}>
             <View style={styles.infoRow}>
               <Feather name="anchor" size={16} color={colors.primary} />
-              <Text style={styles.infoText}>NC Division of Marine Fisheries</Text>
+              <Text style={styles.infoText}>Reports are submitted to NC DMF</Text>
             </View>
             <View style={styles.infoRow}>
               <Feather name="map-pin" size={16} color={colors.primary} />
