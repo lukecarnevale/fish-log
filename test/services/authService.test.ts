@@ -181,17 +181,34 @@ describe('authService', () => {
   // isMagicLinkCallback
   // ============================================================
   describe('isMagicLinkCallback', () => {
-    it('recognizes standalone app scheme', () => {
+    it('recognizes standalone/production app scheme', () => {
       expect(isMagicLinkCallback('fishlog://auth/callback#access_token=abc')).toBe(true);
+    });
+
+    it('recognizes Expo Dev Client scheme (exp+fishlog://)', () => {
+      expect(isMagicLinkCallback('exp+fishlog://auth/callback#access_token=abc')).toBe(true);
     });
 
     it('recognizes Expo Go scheme', () => {
       expect(isMagicLinkCallback('exp://192.168.1.1:8081/--/auth/callback#token=abc')).toBe(true);
     });
 
+    it('recognizes legacy expo-development-client scheme', () => {
+      expect(isMagicLinkCallback('expo-development-client://auth/callback#token=abc')).toBe(true);
+    });
+
+    it('recognizes Expo Go with /--/ path separator', () => {
+      expect(isMagicLinkCallback('exp://192.168.1.5:19000/--/auth/callback#token=abc')).toBe(true);
+    });
+
     it('rejects non-auth URLs', () => {
       expect(isMagicLinkCallback('fishlog://settings')).toBe(false);
       expect(isMagicLinkCallback('https://example.com')).toBe(false);
+    });
+
+    it('rejects unknown schemes even with auth/callback path', () => {
+      expect(isMagicLinkCallback('https://evil.com/auth/callback')).toBe(false);
+      expect(isMagicLinkCallback('randomapp://auth/callback')).toBe(false);
     });
   });
 

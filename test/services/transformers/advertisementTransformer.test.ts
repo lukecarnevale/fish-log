@@ -1,5 +1,6 @@
 import {
   transformAdvertisement,
+  transformAdvertisementSafe,
   transformAdvertisementList,
 } from '../../../src/services/transformers/advertisementTransformer';
 
@@ -43,7 +44,37 @@ describe('transformAdvertisement', () => {
       impressionCount: 1500,
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-15T00:00:00Z',
+      // Promotions Hub fields (defaults when not present in DB row)
+      category: 'promotion',
+      areaCodes: [],
+      description: undefined,
+      contactPhone: undefined,
+      contactEmail: undefined,
+      contactWebsite: undefined,
+      featured: false,
+      badgeText: undefined,
     });
+  });
+
+  it('maps promotions hub fields correctly', () => {
+    const result = transformAdvertisement(makeRow({
+      category: 'charter',
+      area_codes: ['OBX', 'CRC'],
+      description: 'Premium fishing charter',
+      contact_phone: '555-1234',
+      contact_email: 'info@charter.com',
+      contact_website: 'https://charter.com',
+      featured: true,
+      badge_text: 'New',
+    }));
+    expect(result.category).toBe('charter');
+    expect(result.areaCodes).toEqual(['OBX', 'CRC']);
+    expect(result.description).toBe('Premium fishing charter');
+    expect(result.contactPhone).toBe('555-1234');
+    expect(result.contactEmail).toBe('info@charter.com');
+    expect(result.contactWebsite).toBe('https://charter.com');
+    expect(result.featured).toBe(true);
+    expect(result.badgeText).toBe('New');
   });
 
   it('handles undefined optional fields', () => {
@@ -57,6 +88,28 @@ describe('transformAdvertisement', () => {
     expect(result.location).toBeUndefined();
     expect(result.startDate).toBeUndefined();
     expect(result.endDate).toBeUndefined();
+  });
+});
+
+describe('transformAdvertisementSafe', () => {
+  it('returns Advertisement for valid data', () => {
+    const result = transformAdvertisementSafe(makeRow());
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe('ad-1');
+  });
+
+  it('returns null for invalid data instead of throwing', () => {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const result = transformAdvertisementSafe({ id: '', company_name: '' } as any);
+    expect(result).toBeNull();
+    consoleSpy.mockRestore();
+  });
+
+  it('returns null for completely empty object', () => {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const result = transformAdvertisementSafe({});
+    expect(result).toBeNull();
+    consoleSpy.mockRestore();
   });
 });
 

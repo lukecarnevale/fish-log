@@ -5,7 +5,7 @@ module.exports = {
 
   transformIgnorePatterns: [
     // ESM-only packages must be transformed by Babel
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|@supabase/.*|@tanstack/.*|uuid|@reduxjs/toolkit|immer|redux|redux-thunk|reselect))',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|@supabase/.*|@tanstack/.*|uuid|@reduxjs/toolkit|immer|redux|redux-thunk|reselect|react-redux))',
   ],
 
   moduleNameMapper: {
@@ -53,6 +53,11 @@ module.exports = {
     './src/services/offlineQueue.ts': {
       branches: 28,
       lines: 76,
+    },
+    // Promotions Hub: URL validation utility
+    './src/utils/urlValidation.ts': {
+      branches: 80,
+      lines: 90,
     },
   },
 
