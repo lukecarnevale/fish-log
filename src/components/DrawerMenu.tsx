@@ -326,6 +326,17 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             iconBgColor="#E3EBF6"
           />
 
+          <View style={styles.divider} />
+
+          <MenuItem
+            icon="tag"
+            label={SCREEN_LABELS.promotions.title}
+            subtitle={SCREEN_LABELS.promotions.subtitle}
+            onPress={() => handleNavigate("Promotions")}
+            iconBgColor="#FFF3E0"
+            iconColor="#FF7F25"
+          />
+
           <Text style={styles.sectionHeader}>External Links</Text>
 
           <MenuItem

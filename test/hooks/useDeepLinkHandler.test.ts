@@ -33,6 +33,11 @@ jest.mock('../../src/services/pendingSubmissionService', () => ({
   completePendingSubmissionByEmail: jest.fn(() => Promise.resolve()),
 }));
 
+jest.mock('../../src/services/deepLinkBuffer', () => ({
+  consumeBufferedUrl: jest.fn(() => null),
+  stopBuffering: jest.fn(),
+}));
+
 import { useDeepLinkHandler } from '../../src/hooks/useDeepLinkHandler';
 import {
   isMagicLinkCallback,

@@ -34,6 +34,14 @@ export const SCREEN_LABELS = {
     title: 'Profile',
     subtitle: 'View Profile',
   },
+  promotions: {
+    title: "Fisherman's Locker",
+    subtitle: 'Deals & Local Services',
+  },
+  partnerInquiry: {
+    title: 'Partner With Us',
+    subtitle: 'Advertise on NC Fish Log',
+  },
 } as const;
 
 // Type for accessing screen labels

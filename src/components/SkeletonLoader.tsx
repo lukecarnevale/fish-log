@@ -215,6 +215,71 @@ export const CatchFeedSkeletonLoader: React.FC = () => (
   </View>
 );
 
+/**
+ * Skeleton loader for the Promotions (Fisherman's Locker) screen.
+ * Mirrors the real layout: header, area pills, category tabs,
+ * featured hero card, section label, and a 2-column grid of cards.
+ */
+export const PromotionsSkeletonLoader: React.FC = () => (
+  <View style={styles.promoContainer}>
+    {/* Area filter pills */}
+    <View style={styles.promoFilterRow}>
+      <View style={styles.promoPillSkeleton}><Skeleton width={80} height={34} borderRadius={20} style={styles.promoSkeletonItem} /></View>
+      <View style={styles.promoPillSkeleton}><Skeleton width={52} height={34} borderRadius={20} style={styles.promoSkeletonItem} /></View>
+      <View style={styles.promoPillSkeleton}><Skeleton width={52} height={34} borderRadius={20} style={styles.promoSkeletonItem} /></View>
+      <View style={styles.promoPillSkeleton}><Skeleton width={52} height={34} borderRadius={20} style={styles.promoSkeletonItem} /></View>
+      <View style={styles.promoPillSkeleton}><Skeleton width={52} height={34} borderRadius={20} style={styles.promoSkeletonItem} /></View>
+    </View>
+
+    {/* Category filter tabs */}
+    <View style={styles.promoFilterRow}>
+      <View style={styles.promoTabSkeleton}><Skeleton width={56} height={32} borderRadius={16} style={styles.promoSkeletonItem} /></View>
+      <View style={styles.promoTabSkeleton}><Skeleton width={68} height={32} borderRadius={16} style={styles.promoSkeletonItem} /></View>
+      <View style={styles.promoTabSkeleton}><Skeleton width={76} height={32} borderRadius={16} style={styles.promoSkeletonItem} /></View>
+      <View style={styles.promoTabSkeleton}><Skeleton width={56} height={32} borderRadius={16} style={styles.promoSkeletonItem} /></View>
+      <View style={styles.promoTabSkeleton}><Skeleton width={72} height={32} borderRadius={16} style={styles.promoSkeletonItem} /></View>
+    </View>
+
+    {/* Featured hero card */}
+    <View style={styles.promoFeaturedCard}>
+      <Skeleton width="100%" height={200} borderRadius={borderRadius.lg} style={styles.promoHeroSkeleton} />
+    </View>
+
+    {/* Section label */}
+    <View style={styles.promoSectionLabel}>
+      <Skeleton width={140} height={14} style={styles.promoSkeletonItem} />
+    </View>
+
+    {/* 2-column grid cards */}
+    <View style={styles.promoGridRow}>
+      <PromotionCardSkeleton />
+      <PromotionCardSkeleton />
+    </View>
+    <View style={styles.promoGridRow}>
+      <PromotionCardSkeleton />
+      <PromotionCardSkeleton />
+    </View>
+  </View>
+);
+
+/**
+ * Skeleton for an individual promotion card in the grid.
+ */
+const PromotionCardSkeleton: React.FC = () => (
+  <View style={styles.promoCard}>
+    {/* Image placeholder */}
+    <Skeleton width="100%" height={100} borderRadius={0} />
+    {/* Content */}
+    <View style={styles.promoCardContent}>
+      <Skeleton width={50} height={16} borderRadius={borderRadius.xs} style={{ marginBottom: 6 }} />
+      <Skeleton width="80%" height={16} style={{ marginBottom: 4 }} />
+      <Skeleton width="100%" height={12} style={{ marginBottom: 3 }} />
+      <Skeleton width="60%" height={12} style={{ marginBottom: 8 }} />
+      <Skeleton width={64} height={18} borderRadius={borderRadius.xs} />
+    </View>
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -345,6 +410,64 @@ const styles = StyleSheet.create({
   },
   topAnglerItem: {
     alignItems: 'center',
+  },
+
+  // Promotions skeleton styles
+  promoContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: spacing.md,
+  },
+  promoFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  promoFeaturedCard: {
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  promoSectionLabel: {
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  promoGridRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  promoCard: {
+    flex: 1,
+    backgroundColor: colors.pearlWhite,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  promoCardContent: {
+    padding: spacing.sm,
+  },
+  // Higher-contrast skeleton items for the light blue background
+  promoSkeletonItem: {
+    backgroundColor: 'rgba(11, 84, 139, 0.10)',
+  },
+  promoHeroSkeleton: {
+    backgroundColor: 'rgba(11, 84, 139, 0.15)',
+  },
+  promoPillSkeleton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  promoTabSkeleton: {
+    borderRadius: 16,
+    overflow: 'hidden',
   },
 });
 

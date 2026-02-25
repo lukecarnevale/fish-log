@@ -8,8 +8,10 @@ import { withConnection } from './base';
 import { advertisements as localAdvertisements, Advertisement as LocalAdvertisement } from '../data/advertisementsData';
 import {
   transformAdvertisement,
+  transformAdvertisementSafe,
   type Advertisement,
   type AdPlacement,
+  type AdCategory,
 } from './transformers/advertisementTransformer';
 
 // =============================================================================
@@ -17,7 +19,7 @@ import {
 // =============================================================================
 
 // Re-export types for backwards compatibility
-export type { Advertisement, AdPlacement };
+export type { Advertisement, AdPlacement, AdCategory };
 
 /**
  * Convert local advertisement to the new format.
@@ -39,6 +41,15 @@ function convertLocalAdvertisement(local: LocalAdvertisement): Advertisement {
     impressionCount: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    // Promotions Hub fields - use local ad extended fields if available
+    category: (local as any).category || 'promotion',
+    areaCodes: (local as any).areaCodes || [],
+    description: (local as any).description,
+    contactPhone: (local as any).contactPhone,
+    contactEmail: (local as any).contactEmail,
+    contactWebsite: (local as any).contactWebsite,
+    featured: (local as any).featured || false,
+    badgeText: (local as any).badgeText,
   };
 }
 
@@ -61,7 +72,8 @@ export async function fetchAdvertisements(
         .from('advertisements')
         .select('*')
         .eq('is_active', true)
-        .order('priority', { ascending: true });
+        .order('priority', { ascending: true })
+        .limit(100);
 
       // Filter by placement if specified
       if (placement) {
@@ -82,7 +94,9 @@ export async function fetchAdvertisements(
       }
 
       if (data && data.length > 0) {
-        const ads = data.map(row => transformAdvertisement(row as Record<string, unknown>));
+        const ads = data
+          .map(row => transformAdvertisementSafe(row as Record<string, unknown>))
+          .filter((ad): ad is Advertisement => ad !== null);
 
         // Check if any image URLs are placeholder URLs (not yet configured)
         const hasPlaceholderUrls = ads.some(ad =>

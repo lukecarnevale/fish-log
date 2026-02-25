@@ -3,6 +3,8 @@ import type { HarvestReportInput, FishEntry, QueuedReport, SubmittedReport } fro
 import type { StoredReport, StoredFishEntry, ReportInput } from '../src/types/report';
 import type { UserProfile } from '../src/types';
 import type { User } from '../src/types/user';
+import type { Advertisement } from '../src/services/transformers/advertisementTransformer';
+import type { PartnerInquiry } from '../src/types/partnerInquiry';
 
 // Harvest report input (what the user submits from the form)
 export function makeHarvestInput(overrides?: Partial<HarvestReportInput>): HarvestReportInput {
@@ -201,6 +203,70 @@ export function makeUser(overrides?: Partial<User>): User {
     rewardsOptedInAt: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+// Advertisement (camelCase, post-transformation)
+export function makeAdvertisement(overrides?: Partial<Advertisement>): Advertisement {
+  return {
+    id: uuid(),
+    companyName: 'Test Bait & Tackle',
+    promoText: '20% off all tackle',
+    promoCode: 'FISH20',
+    linkUrl: 'https://example.com',
+    imageUrl: 'https://example.com/ad.jpg',
+    isActive: true,
+    priority: 1,
+    placements: ['home'],
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    clickCount: 0,
+    impressionCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    category: 'promotion',
+    areaCodes: ['OBX'],
+    featured: false,
+    ...overrides,
+  };
+}
+
+// Supabase advertisement row (snake_case, pre-transformation)
+export function makeSupabaseAdvertisementRow(overrides?: Record<string, unknown>) {
+  return {
+    id: uuid(),
+    company_name: 'Test Bait & Tackle',
+    promo_text: '20% off all tackle',
+    promo_code: 'FISH20',
+    link_url: 'https://example.com',
+    image_url: 'https://example.com/ad.jpg',
+    is_active: true,
+    priority: 1,
+    placements: ['home'],
+    location: 'Outer Banks',
+    start_date: '2026-01-01',
+    end_date: '2026-12-31',
+    click_count: 0,
+    impression_count: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    category: 'promotion',
+    area_codes: ['OBX'],
+    featured: false,
+    ...overrides,
+  };
+}
+
+// Partner inquiry (for submission testing)
+export function makePartnerInquiry(overrides?: Partial<PartnerInquiry>): PartnerInquiry {
+  return {
+    businessName: 'Test Charters LLC',
+    contactName: 'Captain Bob',
+    email: 'bob@testcharters.com',
+    businessType: 'charter',
+    areaCodes: ['OBX', 'CRC'],
+    message: 'We want to advertise our charter fishing services to NC anglers through the app.',
     ...overrides,
   };
 }

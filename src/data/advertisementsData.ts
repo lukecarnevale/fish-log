@@ -13,6 +13,12 @@ export interface Advertisement {
   startDate?: string;
   endDate?: string;
   priority?: number; // Higher priority ads show first
+  // Promotions Hub fields
+  category?: 'promotion' | 'charter' | 'gear' | 'service' | 'experience';
+  areaCodes?: string[];
+  description?: string;
+  featured?: boolean;
+  badgeText?: string;
 }
 
 // Define available ad images - add new images here as they become available
@@ -33,6 +39,11 @@ export const advertisements: Advertisement[] = [
     image: adImages.qualifiedCaptain1,
     isActive: true,
     priority: 1,
+    category: 'gear',
+    areaCodes: [],
+    description: 'Premium fishing hats and captain gear. Use code FISHREPORT for 15% off your entire order.',
+    featured: true,
+    badgeText: 'Popular',
   },
   {
     id: 'sea-tow-2026',
@@ -43,6 +54,9 @@ export const advertisements: Advertisement[] = [
     image: adImages.seaTow,
     isActive: true,
     priority: 2,
+    category: 'service',
+    areaCodes: [],
+    description: 'On-water towing, fuel delivery, jump starts and more. Join Sea Tow for peace of mind on every trip.',
   },
   {
     id: 'shimano-reels-2026',
@@ -53,6 +67,10 @@ export const advertisements: Advertisement[] = [
     image: adImages.shimanoReels,
     isActive: true,
     priority: 3,
+    category: 'gear',
+    areaCodes: [],
+    description: 'Engineered for performance. Shimano reels deliver smooth casting and powerful drag for every species.',
+    badgeText: 'New',
   },
 ];
 

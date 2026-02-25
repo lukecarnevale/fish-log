@@ -1,5 +1,9 @@
 // App.tsx - Main component for the Fish Log Co. App
 
+// IMPORTANT: Import the deep link buffer FIRST so it starts capturing URLs
+// before any React component mounts (e.g. during the splash screen animation).
+import './services/deepLinkBuffer';
+
 import React, { useState, useEffect } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import {
@@ -68,6 +72,8 @@ import FishingLicenseScreen from "./screens/FishingLicenseScreen";
 import CatchFeedScreen from "./screens/CatchFeedScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import LegalDocumentScreen from "./screens/LegalDocumentScreen";
+import PromotionsScreen from "./screens/PromotionsScreen";
+import PartnerInquiryScreen from "./screens/PartnerInquiryScreen";
 
 // Import styles
 import { navigationStyles } from "./styles/navigationStyles";
@@ -162,6 +168,8 @@ const AppContent: React.FC = () => {
           Profile: 'profile',
           Confirmation: 'confirmation',
           LegalDocument: 'legal/:type',
+          Promotions: 'promotions',
+          PartnerInquiry: 'partner-inquiry',
         },
       },
     }}>
@@ -267,6 +275,21 @@ const AppContent: React.FC = () => {
           <Stack.Screen
             name="LegalDocument"
             component={LegalDocumentScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="Promotions"
+            component={PromotionsScreen}
+            options={{
+              headerShown: false,
+              gestureEnabled: false, // Disable swipe-back so horizontal scrolls work on Android
+            }}
+          />
+          <Stack.Screen
+            name="PartnerInquiry"
+            component={PartnerInquiryScreen}
             options={{
               headerShown: false,
             }}
