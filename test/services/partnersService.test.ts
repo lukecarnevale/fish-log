@@ -21,7 +21,7 @@ describe('partnersService', () => {
   // fetchPartners
   // ============================================================
   describe('fetchPartners', () => {
-    it('returns fallback data when Supabase fails and no cache', async () => {
+    it('returns empty array when Supabase fails and no cache (offline)', async () => {
       (mockSupabase.from as jest.Mock).mockImplementation(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -29,8 +29,8 @@ describe('partnersService', () => {
       }));
 
       const result = await fetchPartners();
-      expect(result.source).toBe('fallback');
-      expect(result.partners.length).toBeGreaterThan(0);
+      expect(result.source).toBe('offline');
+      expect(result.partners).toHaveLength(0);
       expect(result.isAuthoritative).toBe(false);
     });
 

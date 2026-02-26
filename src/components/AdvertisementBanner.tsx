@@ -3,7 +3,6 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   Linking,
   StyleSheet,
@@ -11,13 +10,11 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
-  ImageSourcePropType,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
-import { Advertisement as LocalAdvertisement, getActiveAdvertisements } from '../data/advertisementsData';
 import {
   Advertisement as RemoteAdvertisement,
   fetchAdvertisements,
@@ -44,7 +41,7 @@ const IMPRESSION_COOLDOWN_MS = 30_000; // 30 seconds
 const VIEWABILITY_THRESHOLD_MS = 1_000; // 1 second
 
 /**
- * Unified ad type that works with both local and remote ads.
+ * Display ad type — all ads come from Supabase.
  */
 interface DisplayAd {
   id: string;
@@ -52,60 +49,36 @@ interface DisplayAd {
   promoText: string;
   promoCode?: string;
   linkUrl: string;
-  // Can be either a local require() or a URL string
-  image: ImageSourcePropType | string;
-  isRemote: boolean; // true if image is a URL
+  imageUrl: string;
 }
 
 interface AdvertisementBannerProps {
-  // Optional: pass specific local ads
-  advertisements?: LocalAdvertisement[];
-  // Optional: placement location to fetch ads for (uses Supabase if set)
+  // Optional: placement location to fetch ads for
   placement?: AdPlacement;
   // Optional: callback when ad is pressed
   onPress?: (ad: DisplayAd) => void;
   // Optional: disable auto-rotation
   autoRotate?: boolean;
-  // Optional: use only local data (skip Supabase fetch)
-  useLocalOnly?: boolean;
-}
-
-/**
- * Convert local advertisement to display format.
- */
-function localToDisplayAd(ad: LocalAdvertisement): DisplayAd {
-  return {
-    id: ad.id,
-    companyName: ad.companyName,
-    promoText: ad.promoText,
-    promoCode: ad.promoCode,
-    linkUrl: ad.linkUrl,
-    image: ad.image,
-    isRemote: false,
-  };
 }
 
 /**
  * Convert remote advertisement to display format.
  */
-function remoteToDisplayAd(ad: RemoteAdvertisement): DisplayAd {
+function toDisplayAd(ad: RemoteAdvertisement): DisplayAd {
   return {
     id: ad.id,
     companyName: ad.companyName,
     promoText: ad.promoText,
     promoCode: ad.promoCode,
     linkUrl: ad.linkUrl,
-    image: ad.imageUrl,
-    isRemote: true,
+    imageUrl: ad.imageUrl,
   };
 }
 
 const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
-  advertisements: propAds,
   placement,
   onPress,
   autoRotate = true,
-  useLocalOnly = false,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -115,7 +88,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
 
   // State for fetched ads
   const [fetchedAds, setFetchedAds] = useState<DisplayAd[]>([]);
-  const [isLoading, setIsLoading] = useState(!propAds && !useLocalOnly);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Screen focus state — used to only track impressions when the user can
   // actually see the banner (not when the screen is behind another in the stack).
@@ -129,43 +102,26 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   // Timer handle for the IAB 1-second viewability threshold
   const viewabilityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch ads from Supabase if no props and not using local only
+  // Fetch ads from Supabase (returns empty when offline)
   useEffect(() => {
-    if (propAds || useLocalOnly) {
-      return;
-    }
-
     const loadAds = async () => {
       setIsLoading(true);
       try {
-        const { advertisements, fromCache } = await fetchAdvertisements(placement);
-
-        if (fromCache) {
-          // Using local data - convert to display format
-          const localAds = getActiveAdvertisements().map(localToDisplayAd);
-          setFetchedAds(localAds);
-        } else {
-          // Using remote data
-          setFetchedAds(advertisements.map(remoteToDisplayAd));
-        }
+        const { advertisements } = await fetchAdvertisements(placement);
+        setFetchedAds(advertisements.map(toDisplayAd));
       } catch (error) {
-        console.warn('Failed to fetch ads, using local:', error);
-        const localAds = getActiveAdvertisements().map(localToDisplayAd);
-        setFetchedAds(localAds);
+        console.warn('Failed to fetch ads:', error);
+        setFetchedAds([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadAds();
-  }, [propAds, placement, useLocalOnly]);
+  }, [placement]);
 
   // Get ads to display
-  const originalAds: DisplayAd[] = propAds
-    ? propAds.map(localToDisplayAd)
-    : useLocalOnly
-    ? getActiveAdvertisements().map(localToDisplayAd)
-    : fetchedAds;
+  const originalAds: DisplayAd[] = fetchedAds;
 
   // Create circular array: [last, ...original, first] for infinite scroll
   // Only do this if we have more than 1 ad
@@ -258,7 +214,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
     if (originalAds.length === 0 || !isFocused) return;
 
     const currentAd = originalAds[currentIndex];
-    if (!currentAd?.isRemote) return;
+    if (!currentAd) return;
 
     // Start the 1-second viewability timer
     viewabilityTimer.current = setTimeout(() => {
@@ -285,10 +241,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   }
 
   const handlePress = async (ad: DisplayAd) => {
-    // Track click for remote ads
-    if (ad.isRemote) {
-      trackAdClick(ad.id);
-    }
+    trackAdClick(ad.id);
 
     if (onPress) {
       onPress(ad);
@@ -357,27 +310,15 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   };
 
   const renderAdImage = (ad: DisplayAd) => {
-    if (ad.isRemote && typeof ad.image === 'string') {
-      // Remote image URL - use ExpoImage for better caching
-      return (
-        <ExpoImage
-          source={{ uri: ad.image }}
-          style={styles.image}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={200}
-        />
-      );
-    } else {
-      // Local image - use standard Image
-      return (
-        <Image
-          source={ad.image as ImageSourcePropType}
-          style={styles.image}
-          resizeMode="cover"
-        />
-      );
-    }
+    return (
+      <ExpoImage
+        source={{ uri: ad.imageUrl }}
+        style={styles.image}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={200}
+      />
+    );
   };
 
   const renderAd = (ad: DisplayAd, index: number) => (

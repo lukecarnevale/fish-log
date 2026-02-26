@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors } from '../styles/common';
 import { APP_VERSION } from '../config/appConfig';
 import { usePartners } from '../hooks/usePartners';
+import { trackPartnerClick } from '../services/partnersService';
 import { GhostFish, WaveTransition, FOOTER_BG } from './icons/FooterIcons';
 
 interface FooterProps {
@@ -32,7 +33,8 @@ const Footer: React.FC<FooterProps> = ({
 }) => {
   const { partners } = usePartners();
 
-  const handlePartnerPress = (url: string) => {
+  const handlePartnerPress = (partnerId: string, url: string) => {
+    trackPartnerClick(partnerId);
     Linking.openURL(url).catch((err) =>
       console.error('An error occurred', err)
     );
@@ -64,7 +66,7 @@ const Footer: React.FC<FooterProps> = ({
                 <TouchableOpacity
                   key={partner.id}
                   style={styles.partnerCard}
-                  onPress={() => handlePartnerPress(partner.websiteUrl)}
+                  onPress={() => handlePartnerPress(partner.id, partner.websiteUrl)}
                   activeOpacity={0.8}
                 >
                   <View style={styles.partnerLogoContainer}>

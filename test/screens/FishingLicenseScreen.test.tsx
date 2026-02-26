@@ -142,20 +142,12 @@ describe('FishingLicenseScreen', () => {
       expect(await findByText(/Required for anglers 16/)).toBeTruthy();
     });
 
-    it('shows How to Purchase expandable section', async () => {
+    it('shows Where to Get a License expandable section', async () => {
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      expect(await findByText('How to Purchase')).toBeTruthy();
-    });
-
-    it('shows FAQs expandable section', async () => {
-      const { findByText } = render(
-        <FishingLicenseScreen navigation={mockNavigation} />
-      );
-
-      expect(await findByText('FAQs')).toBeTruthy();
+      expect(await findByText('Where to Get a License')).toBeTruthy();
     });
 
     it('renders NC Wildlife License Information external link', async () => {
@@ -219,40 +211,61 @@ describe('FishingLicenseScreen', () => {
       expect(await findByText('Annual Coastal Recreational Fishing License')).toBeTruthy();
     });
 
-    it('renders Edit License button', async () => {
+    it('renders edit pencil button on the license card', async () => {
+      const { findByTestId } = render(
+        <FishingLicenseScreen navigation={mockNavigation} />
+      );
+
+      expect(await findByTestId('license-edit-button')).toBeTruthy();
+    });
+
+    it('enters edit mode when pencil button is pressed', async () => {
+      const { findByTestId, findByText } = render(
+        <FishingLicenseScreen navigation={mockNavigation} />
+      );
+
+      fireEvent.press(await findByTestId('license-edit-button'));
+      expect(await findByText('Edit License', {}, { timeout: 2000 })).toBeTruthy();
+    });
+
+    it('shows License Information section header and expandable sections', async () => {
+      const { findAllByText, findByText } = render(
+        <FishingLicenseScreen navigation={mockNavigation} />
+      );
+
+      // 'License Information' appears twice: once in the card section title, once as the eyebrow header
+      const matches = await findAllByText('License Information');
+      expect(matches.length).toBeGreaterThanOrEqual(2);
+      // Expandable sections are also present
+      expect(await findByText('License Requirements')).toBeTruthy();
+    });
+
+    it('shows expandable sections below the filled license card', async () => {
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      expect(await findByText('Edit License')).toBeTruthy();
+      expect(await findByText('License Requirements')).toBeTruthy();
+      expect(await findByText('Where to Get a License')).toBeTruthy();
     });
 
-    it('renders NC Wildlife Website button', async () => {
+    it('shows NC Wildlife License Information external link', async () => {
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      expect(await findByText('NC Wildlife Website')).toBeTruthy();
+      expect(await findByText('NC Wildlife License Information')).toBeTruthy();
     });
 
-    it('opens NC Wildlife when website button is pressed', async () => {
+    it('opens NC Wildlife when external link is pressed', async () => {
       const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as any);
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      fireEvent.press(await findByText('NC Wildlife Website'));
-      expect(openURL).toHaveBeenCalledWith('https://www.ncwildlife.org/');
+      fireEvent.press(await findByText('NC Wildlife License Information'));
+      expect(openURL).toHaveBeenCalledWith('https://www.ncwildlife.gov/fishing');
       openURL.mockRestore();
-    });
-
-    it('shows license information section', async () => {
-      const { findByText } = render(
-        <FishingLicenseScreen navigation={mockNavigation} />
-      );
-
-      expect(await findByText('Fishing License Information')).toBeTruthy();
-      expect(await findByText(/Most anglers in North Carolina/)).toBeTruthy();
     });
 
     it('renders disclaimer text about official license', async () => {
@@ -302,25 +315,15 @@ describe('FishingLicenseScreen', () => {
       expect(await findByText('Cancel')).toBeTruthy();
     });
 
-    it('shows Profile link in edit mode', async () => {
-      const { findByText } = render(
+    it('does not show Profile Information card in edit mode', async () => {
+      const { findByText, queryByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
       fireEvent.press(await findByText('Add License'));
 
-      expect(await findByText('Go to Profile')).toBeTruthy();
-    });
-
-    it('navigates to Profile when Go to Profile is pressed', async () => {
-      const { findByText } = render(
-        <FishingLicenseScreen navigation={mockNavigation} />
-      );
-
-      fireEvent.press(await findByText('Add License'));
-      fireEvent.press(await findByText('Go to Profile'));
-
-      expect(mockNavigation.navigate).toHaveBeenCalledWith('Profile');
+      expect(queryByText('Profile Information')).toBeNull();
+      expect(queryByText('Go to Profile')).toBeNull();
     });
   });
 

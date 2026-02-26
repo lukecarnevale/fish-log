@@ -34,7 +34,14 @@ yarn-error.*
 .env
 .env.local
 .env*.local
+.env.development
 .env.production
+
+# Backup files
+*.backup
+
+# Test scripts with credentials
+scripts/testSupabase.*
 
 # typescript
 *.tsbuildinfo
