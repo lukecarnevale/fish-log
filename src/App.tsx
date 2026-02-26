@@ -41,6 +41,9 @@ import { BulletinProvider } from './contexts/BulletinContext';
 // Import Species Alerts context for species-specific bulletins (closures, regulation changes)
 import { SpeciesAlertsProvider } from './contexts/SpeciesAlertsContext';
 
+// Import Force Update context for blocking outdated app versions
+import { ForceUpdateProvider } from './contexts/ForceUpdateContext';
+
 // Import Supabase config check
 import { isSupabaseConfigured } from './config/supabase';
 import { env } from './config/env';
@@ -348,17 +351,19 @@ const App: React.FC = () => {
       <AnimatedSplashScreen ready={appReady}>
         <Provider store={store}>
           <QueryClientProvider client={queryClient}>
-            <RewardsProvider>
-              <AchievementProvider>
-                <BulletinProvider>
-                  <SpeciesAlertsProvider>
-                    <SafeAreaProvider>
-                      <AppContent />
-                    </SafeAreaProvider>
-                  </SpeciesAlertsProvider>
-                </BulletinProvider>
-              </AchievementProvider>
-            </RewardsProvider>
+            <ForceUpdateProvider>
+              <RewardsProvider>
+                <AchievementProvider>
+                  <BulletinProvider>
+                    <SpeciesAlertsProvider>
+                      <SafeAreaProvider>
+                        <AppContent />
+                      </SafeAreaProvider>
+                    </SpeciesAlertsProvider>
+                  </BulletinProvider>
+                </AchievementProvider>
+              </RewardsProvider>
+            </ForceUpdateProvider>
           </QueryClientProvider>
         </Provider>
       </AnimatedSplashScreen>
