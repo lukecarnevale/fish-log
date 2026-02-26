@@ -3,10 +3,10 @@
 // Application configuration for DMF submission modes and feature flags.
 // Mode is now determined by environment variables at build time.
 
+import Constants from 'expo-constants';
 import { env, isTestMode, isProductionMode, isProduction } from './env';
-import appJson from '../../app.json';
 
-export const APP_VERSION = appJson.expo.version;
+export const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
 
 export type AppMode = 'mock' | 'production';
 

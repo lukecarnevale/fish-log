@@ -19,9 +19,15 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase configuration
-const SUPABASE_URL = 'https://qygvvgbateuorpxntdbq.supabase.co';
-const SUPABASE_ANON_KEY = '***REDACTED_SUPABASE_KEY***';
+// Supabase configuration - reads from environment variables
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error('Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+  console.error('Run with: node --env-file=.env.development scripts/importSpeciesData.mjs');
+  process.exit(1);
+}
 
 // Use service_role key if available (bypasses RLS), otherwise use anon key
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY;
