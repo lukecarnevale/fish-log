@@ -46,6 +46,10 @@ export interface PendingAuth {
   zipCode?: string;
   wrcId?: string;
   sentAt: string;
+  /** Intent for email-switching flow: update existing account or start fresh */
+  intent?: 'update_email' | 'new_account';
+  /** The existing user ID to update when intent is 'update_email' */
+  existingUserId?: string;
 }
 
 // =============================================================================
@@ -134,6 +138,26 @@ export async function clearPendingAuth(): Promise<void> {
     await AsyncStorage.removeItem(STORAGE_KEYS.pendingAuth);
   } catch (error) {
     console.error('Failed to clear pending auth:', error);
+  }
+}
+
+/**
+ * Clear pending auth if it's older than the specified duration.
+ * Call on app launch to prevent stale intents from affecting future sign-in flows.
+ * Default threshold: 2 hours (magic links typically expire in 1 hour).
+ */
+export async function clearStalePendingAuth(maxAgeMs: number = 2 * 60 * 60 * 1000): Promise<void> {
+  try {
+    const pendingAuth = await getPendingAuth();
+    if (!pendingAuth?.sentAt) return;
+
+    const ageMs = Date.now() - new Date(pendingAuth.sentAt).getTime();
+    if (ageMs > maxAgeMs) {
+      console.log(`⏰ Clearing stale pending auth (age: ${Math.round(ageMs / 1000 / 60)}m)`);
+      await clearPendingAuth();
+    }
+  } catch (error) {
+    console.warn('Failed to check for stale pending auth:', error);
   }
 }
 
@@ -257,6 +281,10 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
     if (error) {
       return { success: false, error: error.message };
     }
+
+    // Clear any pending auth from previous signup attempt so it doesn't
+    // interfere with a future sign-in using a different email
+    await clearPendingAuth();
 
     console.log('✅ User signed out');
     return { success: true };

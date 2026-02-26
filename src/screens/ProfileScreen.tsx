@@ -18,7 +18,9 @@ import {
   Dimensions,
   Modal,
   StyleSheet,
+  StatusBar,
 } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -124,6 +126,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   // Floating back button animation (appears when static header scrolls away)
   const { scrollY, floatingOpacity, floatingTranslateXLeft } = useFloatingHeaderAnimation();
+
+  // Dynamic status bar: light (white) icons over the dark-blue header, dark icons once scrolled into light content
+  const [statusBarStyle, setStatusBarStyle] = useState<'light-content' | 'dark-content'>('light-content');
+  const statusBarStyleRef = useRef(statusBarStyle);
+  statusBarStyleRef.current = statusBarStyle;
+  const profileHeaderHeightRef = useRef<number>(0);
 
   // Load profile data from AsyncStorage (merge with fishingLicense data)
   useEffect(() => {
@@ -1214,7 +1222,19 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          {
+            useNativeDriver: true,
+            listener: (event: any) => {
+              const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 50;
+              const headerHeight = profileHeaderHeightRef.current || 300;
+              const threshold = headerHeight - statusBarHeight - 24;
+              const scrollPosition = event.nativeEvent.contentOffset.y;
+              const newStyle = scrollPosition > threshold ? 'dark-content' : 'light-content';
+              if (newStyle !== statusBarStyleRef.current) {
+                setStatusBarStyle(newStyle);
+              }
+            },
+          }
         )}
         scrollEventThrottle={16}
       >
@@ -1222,7 +1242,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.topBounceArea} />
 
         {/* Header content - scrolls with back button inside */}
-        <View style={styles.profileHeader}>
+        <View
+          style={styles.profileHeader}
+          onLayout={(e) => { profileHeaderHeightRef.current = e.nativeEvent.layout.height; }}
+        >
           {/* Header row with back button */}
           <View style={styles.headerRow}>
             <TouchableOpacity
@@ -1637,6 +1660,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
+      <StatusBar
+        barStyle={isEditing ? 'light-content' : statusBarStyle}
+        backgroundColor={isEditing || statusBarStyle === 'light-content' ? colors.primary : colors.background}
+        translucent
+        animated
+      />
       {/* Always render profile underneath */}
       {renderProfile()}
 

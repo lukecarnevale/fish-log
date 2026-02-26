@@ -22,9 +22,10 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../styles/common';
 import { useRewards } from '../contexts/RewardsContext';
-import { sendMagicLink, storePendingAuth, onAuthStateChange } from '../services/authService';
+import { sendMagicLink, storePendingAuth, onAuthStateChange, PendingAuth } from '../services/authService';
 import { dismissRewardsPrompt, getDeviceId } from '../services/anonymousUserService';
 import { savePendingSubmission } from '../services/pendingSubmissionService';
+import { findUserByDeviceId, findUserByEmail } from '../services/userService';
 
 interface RewardsPromptModalProps {
   visible: boolean;
@@ -144,7 +145,71 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
     onClose();
   };
 
-  // Handle send magic link
+  // Mask an email for display (e.g., "john@gmail.com" → "j•••@gmail.com")
+  const maskEmail = (emailAddr: string): string => {
+    const [local, domain] = emailAddr.split('@');
+    if (!local || !domain) return emailAddr;
+    return `${local[0]}•••@${domain}`;
+  };
+
+  // Core logic: save pending data and send the magic link.
+  // Extracted so both the normal path and dialog callbacks can use it without recursion.
+  const proceedWithMagicLink = async (
+    targetEmail: string,
+    intent?: PendingAuth['intent'],
+    existingUserId?: string,
+  ) => {
+    const deviceId = await getDeviceId();
+
+    // Save pending submission for mid-auth recovery
+    await savePendingSubmission({
+      deviceId,
+      email: targetEmail.toLowerCase(),
+      formData: {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim() || undefined,
+        harvestReportId: reportId,
+      },
+    });
+    console.log('✅ Pending submission saved for recovery');
+
+    // Store pending auth data (including intent if switching emails)
+    await storePendingAuth({
+      email: targetEmail.toLowerCase(),
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: phone.trim() || undefined,
+      zipCode: initialZipCode?.trim() || undefined,
+      wrcId: initialWrcId?.trim() || undefined,
+      sentAt: new Date().toISOString(),
+      ...(intent && { intent }),
+      ...(existingUserId && { existingUserId }),
+    });
+
+    // Send magic link
+    const result = await sendMagicLink(targetEmail, {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: phone.trim() || undefined,
+      zipCode: initialZipCode?.trim() || undefined,
+      wrcId: initialWrcId?.trim() || undefined,
+    });
+
+    if (result.success) {
+      console.log('✅ Magic link sent successfully, showing email-sent step');
+      Alert.alert(
+        'Email Sent!',
+        `We've sent a sign-in link to ${targetEmail}. Check your inbox!`,
+        [{ text: 'OK', onPress: () => setStep('email-sent') }]
+      );
+    } else {
+      console.error('❌ Magic link failed:', result.error);
+      Alert.alert('Error', result.error || 'Failed to send verification email.');
+    }
+  };
+
+  // Handle send magic link — validates input, checks for device conflicts, then sends
   const handleSendMagicLink = async () => {
     // Validate
     if (!firstName.trim() || !lastName.trim()) {
@@ -155,7 +220,6 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       Alert.alert('Email Required', 'Please enter your email address.');
       return;
     }
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       Alert.alert('Invalid Email', 'Please enter a valid email address.');
@@ -165,53 +229,85 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Save pending submission for mid-auth recovery
-      // This preserves the submission context if the user closes the app
       const deviceId = await getDeviceId();
-      await savePendingSubmission({
-        deviceId,
-        email: email.trim().toLowerCase(),
-        formData: {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          phone: phone.trim() || undefined,
-          harvestReportId: reportId,
-        },
-      });
-      console.log('✅ Pending submission saved for recovery');
+      const newEmail = email.trim().toLowerCase();
 
-      // Store pending auth data
-      await storePendingAuth({
-        email: email.trim().toLowerCase(),
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phone: phone.trim() || undefined,
-        zipCode: initialZipCode?.trim() || undefined,
-        wrcId: initialWrcId?.trim() || undefined,
-        sentAt: new Date().toISOString(),
-      });
+      // Check if this device already has a rewards account with a different email
+      const existingDeviceUser = await findUserByDeviceId(deviceId);
 
-      // Send magic link
-      const result = await sendMagicLink(email.trim(), {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phone: phone.trim() || undefined,
-        zipCode: initialZipCode?.trim() || undefined,
-        wrcId: initialWrcId?.trim() || undefined,
-      });
+      if (existingDeviceUser?.email && existingDeviceUser.email !== newEmail) {
+        const maskedExisting = maskEmail(existingDeviceUser.email);
 
-      if (result.success) {
-        console.log('✅ Magic link sent successfully, showing email-sent step');
-        // Show a brief alert to confirm, then display the email-sent step
+        // Check if the new email is already taken by a different user
+        const newEmailUser = await findUserByEmail(newEmail);
+
+        if (newEmailUser) {
+          // New email is already taken — can't update to it or create with it
+          setIsSubmitting(false);
+          Alert.alert(
+            'Email Already In Use',
+            `The email ${newEmail} is already connected to another rewards account.\n\nYour device is currently linked to ${maskedExisting}.`,
+            [
+              {
+                text: `Sign In As ${maskedExisting}`,
+                onPress: () => setEmail(existingDeviceUser.email!),
+              },
+              {
+                text: 'Use a Different Email',
+                style: 'cancel',
+              },
+            ]
+          );
+          return;
+        }
+
+        // New email is available — give user three options
+        setIsSubmitting(false);
         Alert.alert(
-          'Email Sent!',
-          `We've sent a sign-in link to ${email.trim()}. Check your inbox!`,
-          [{ text: 'OK', onPress: () => setStep('email-sent') }]
+          'Existing Rewards Account',
+          `This device is linked to a rewards account under ${maskedExisting}.\n\nYou're signing in with ${newEmail}.`,
+          [
+            {
+              text: 'Update Email (Recommended)',
+              onPress: async () => {
+                setIsSubmitting(true);
+                try {
+                  await proceedWithMagicLink(newEmail, 'update_email', existingDeviceUser.id);
+                } catch (err) {
+                  console.error('Error sending magic link:', err);
+                  Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+                } finally {
+                  setIsSubmitting(false);
+                }
+              },
+            },
+            {
+              text: `Sign In As ${maskedExisting}`,
+              onPress: () => setEmail(existingDeviceUser.email!),
+            },
+            {
+              text: 'Start Fresh with New Account',
+              style: 'destructive',
+              onPress: async () => {
+                setIsSubmitting(true);
+                try {
+                  await proceedWithMagicLink(newEmail, 'new_account');
+                } catch (err) {
+                  console.error('Error sending magic link:', err);
+                  Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+                } finally {
+                  setIsSubmitting(false);
+                }
+              },
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]
         );
-      } else {
-        console.error('❌ Magic link failed:', result.error);
-        Alert.alert('Error', result.error || 'Failed to send verification email.');
+        return;
       }
+
+      // No conflict — proceed with normal flow
+      await proceedWithMagicLink(email.trim());
     } catch (error) {
       console.error('Error sending magic link:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');

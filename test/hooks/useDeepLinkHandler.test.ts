@@ -16,6 +16,7 @@ jest.mock('../../src/services/authService', () => ({
   handleMagicLinkCallback: jest.fn(() =>
     Promise.resolve({ success: true })
   ),
+  clearStalePendingAuth: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock('../../src/services/rewardsConversionService', () => ({

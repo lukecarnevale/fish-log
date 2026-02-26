@@ -1,0 +1,59 @@
+const { version } = require("./package.json");
+
+module.exports = {
+  expo: {
+    name: "Fish Log Co.",
+    slug: "fish-log",
+    version,
+    scheme: "fishlog",
+    orientation: "portrait",
+    icon: "./assets/icon.png",
+    userInterfaceStyle: "light",
+    splash: {
+      backgroundColor: "#1B808C",
+    },
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: "io.fishlog.app",
+      infoPlist: {
+        NSCameraUsageDescription:
+          "Fish Log Co. needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
+        NSPhotoLibraryUsageDescription:
+          "Fish Log Co. needs access to your photo library to select photos of your catch for harvest reports and your profile picture.",
+        ITSAppUsesNonExemptEncryption: false,
+      },
+    },
+    jsEngine: "hermes",
+    android: {
+      adaptiveIcon: {
+        foregroundImage: "./assets/icon.png",
+        backgroundColor: "#ffffff",
+      },
+      package: "com.fishlog.app",
+      permissions: ["android.permission.RECORD_AUDIO"],
+    },
+    web: {
+      favicon: "./assets/icon.png",
+    },
+    plugins: [
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          cameraPermission:
+            "Fish Log Co. needs access to your camera to take photos of your catch for harvest reports and the rewards raffle.",
+          photosPermission:
+            "Fish Log Co. needs access to your photo library to select photos of your catch for harvest reports and your profile picture.",
+        },
+      ],
+      "expo-secure-store",
+      "expo-splash-screen",
+    ],
+    extra: {
+      eas: {
+        projectId: "74ddedce-1140-4116-b211-76e1a61e9bc0",
+      },
+    },
+    owner: "lukecarnevale",
+  },
+};

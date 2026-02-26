@@ -1,14 +1,13 @@
 // services/partnersService.ts
 //
 // Service for fetching partner data from Supabase.
-// Uses a 3-tier caching strategy (memory → AsyncStorage → network)
-// with a static fallback to ensure the footer always renders.
+// Uses a 3-tier caching strategy (memory → AsyncStorage → network).
+// Shows no partners when offline.
 //
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Partner, transformPartner } from '../types/partner';
 import { supabase } from '../config/supabase';
-import { SPONSORS } from '../constants/sponsorsData';
 
 // =============================================================================
 // Constants
@@ -27,25 +26,6 @@ const CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
 let memoryCache: Partner[] | null = null;
 let memoryCacheTimestamp = 0;
 let memoryCacheIsAuthoritative = false;
-
-// =============================================================================
-// Static Fallback
-// =============================================================================
-
-/**
- * Convert the existing static SPONSORS array into Partner objects.
- * Ensures the footer always has data to render, even on first launch offline.
- */
-function getStaticFallback(): Partner[] {
-  return SPONSORS.map((s, index) => ({
-    id: s.id,
-    name: s.name,
-    iconUrl: s.icon,
-    websiteUrl: s.website,
-    displayOrder: index + 1,
-    isActive: true,
-  }));
-}
 
 // =============================================================================
 // AsyncStorage Helpers
@@ -107,7 +87,7 @@ async function fetchPartnersFromSupabase(): Promise<Partner[]> {
 
 export interface PartnersResult {
   partners: Partner[];
-  source: 'memory' | 'cache' | 'network' | 'fallback';
+  source: 'memory' | 'cache' | 'network' | 'offline';
   /** True when the authoritative source (Supabase) was reachable. */
   isAuthoritative: boolean;
 }
@@ -118,10 +98,8 @@ export interface PartnersResult {
  *   1. In-memory cache (instant)
  *   2. AsyncStorage cache (fast, survives restarts)
  *   3. Supabase network request (authoritative)
- *   4. Static fallback (always available)
  *
- * The function returns whichever tier resolves first with valid data,
- * then silently refreshes from Supabase in the background.
+ * Returns an empty array when offline and no cache is available.
  */
 export async function fetchPartners(): Promise<PartnersResult> {
   // Tier 1: In-memory cache
@@ -157,12 +135,9 @@ export async function fetchPartners(): Promise<PartnersResult> {
     console.warn('⚠️ Supabase partners fetch failed:', error);
   }
 
-  // Tier 4: Static fallback (only when Supabase is unreachable)
-  const fallback = getStaticFallback();
-  memoryCache = fallback;
-  memoryCacheTimestamp = Date.now();
-  memoryCacheIsAuthoritative = false;
-  return { partners: fallback, source: 'fallback', isAuthoritative: false };
+  // Offline with no cache — show no partners
+  console.log('📢 Offline — skipping partners');
+  return { partners: [], source: 'offline', isAuthoritative: false };
 }
 
 /**
@@ -212,5 +187,27 @@ export async function clearPartnersCache(): Promise<void> {
     await AsyncStorage.multiRemove([STORAGE_KEY, STORAGE_TIMESTAMP_KEY]);
   } catch (error) {
     console.error('Failed to clear partners cache:', error);
+  }
+}
+
+// =============================================================================
+// Click Tracking
+// =============================================================================
+
+/**
+ * Track a partner card click.
+ * Uses an atomic RPC function to safely increment the counter.
+ */
+export async function trackPartnerClick(partnerId: string): Promise<void> {
+  try {
+    const { error } = await supabase.rpc('increment_partner_click', {
+      partner_id: partnerId,
+    });
+
+    if (error) {
+      console.warn('Failed to track partner click:', error.message);
+    }
+  } catch (error) {
+    console.warn('Failed to track partner click:', error);
   }
 }

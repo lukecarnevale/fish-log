@@ -11,6 +11,7 @@ import { fetchUserProfile } from '../store/slices/userSlice';
 import {
   isMagicLinkCallback,
   handleMagicLinkCallback,
+  clearStalePendingAuth,
 } from '../services/authService';
 import {
   createRewardsMemberFromAuthUser,
@@ -111,6 +112,12 @@ export function useDeepLinkHandler() {
   }, []);
 
   useEffect(() => {
+    // Clean up stale pending auth on app launch to prevent old intents
+    // from interfering with future sign-in flows
+    clearStalePendingAuth().catch((err) => {
+      console.warn('Failed to clear stale pending auth:', err);
+    });
+
     // Handle deep links - check for initial URL (app opened via link)
     Linking.getInitialURL()
       .then((url) => {

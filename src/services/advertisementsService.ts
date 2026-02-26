@@ -1,11 +1,10 @@
 // services/advertisementsService.ts
 //
 // Service for fetching advertisements from Supabase.
-// Falls back to local data if Supabase is unavailable.
+// Shows no ads when offline — avoids displaying stale promo codes or expired deals.
 
 import { supabase, isSupabaseConnected } from '../config/supabase';
 import { withConnection } from './base';
-import { advertisements as localAdvertisements, Advertisement as LocalAdvertisement } from '../data/advertisementsData';
 import {
   transformAdvertisement,
   type Advertisement,
@@ -18,29 +17,6 @@ import {
 
 // Re-export types for backwards compatibility
 export type { Advertisement, AdPlacement };
-
-/**
- * Convert local advertisement to the new format.
- */
-function convertLocalAdvertisement(local: LocalAdvertisement): Advertisement {
-  return {
-    id: local.id,
-    companyName: local.companyName,
-    promoText: local.promoText,
-    promoCode: local.promoCode,
-    linkUrl: local.linkUrl,
-    imageUrl: '', // Local ads use require(), not URLs
-    isActive: local.isActive,
-    priority: local.priority || 99,
-    placements: ['home'], // Default placement
-    startDate: local.startDate,
-    endDate: local.endDate,
-    clickCount: 0,
-    impressionCount: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-}
 
 // =============================================================================
 // Fetch Functions
@@ -55,70 +31,49 @@ export async function fetchAdvertisements(
 ): Promise<{ advertisements: Advertisement[]; fromCache: boolean }> {
   const connected = await isSupabaseConnected();
 
-  if (connected) {
-    try {
-      let query = supabase
-        .from('advertisements')
-        .select('*')
-        .eq('is_active', true)
-        .order('priority', { ascending: true });
-
-      // Filter by placement if specified
-      if (placement) {
-        query = query.contains('placements', [placement]);
-      }
-
-      // Filter by date range
-      const now = new Date().toISOString();
-      query = query
-        .or(`start_date.is.null,start_date.lte.${now}`)
-        .or(`end_date.is.null,end_date.gte.${now}`);
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.warn('Error fetching advertisements:', error.message);
-        throw error;
-      }
-
-      if (data && data.length > 0) {
-        const ads = data.map(row => transformAdvertisement(row as Record<string, unknown>));
-
-        // Check if any image URLs are placeholder URLs (not yet configured)
-        const hasPlaceholderUrls = ads.some(ad =>
-          ad.imageUrl.includes('your-supabase-url') ||
-          ad.imageUrl.includes('placeholder') ||
-          !ad.imageUrl.startsWith('https://')
-        );
-
-        if (hasPlaceholderUrls) {
-          console.log('📢 Supabase ads have placeholder URLs, using local data');
-          throw new Error('Placeholder URLs detected');
-        }
-
-        console.log(`📢 Fetched ${ads.length} advertisements from Supabase`);
-        return { advertisements: ads, fromCache: false };
-      }
-
-      // Supabase query succeeded but returned 0 active ads — this is a valid
-      // "no active partnerships" state. Return empty so the UI hides the ad
-      // section cleanly instead of falling through to stale local data.
-      console.log('📢 No active advertisements in Supabase');
-      return { advertisements: [], fromCache: false };
-    } catch (error) {
-      console.warn('Failed to fetch advertisements from Supabase, using local data:', error);
-    }
+  if (!connected) {
+    // No connection — show no ads rather than risk stale promo codes or expired deals
+    console.log('📢 Offline — skipping advertisements');
+    return { advertisements: [], fromCache: false };
   }
 
-  // Fall back to local data only when Supabase is unreachable or errored.
-  // This ensures offline users still see sponsor content.
-  console.log('📢 Using local advertisement data (offline fallback)');
-  const localAds = localAdvertisements
-    .filter(ad => ad.isActive)
-    .sort((a, b) => (a.priority || 99) - (b.priority || 99))
-    .map(convertLocalAdvertisement);
+  try {
+    let query = supabase
+      .from('advertisements')
+      .select('*')
+      .eq('is_active', true)
+      .order('priority', { ascending: true });
 
-  return { advertisements: localAds, fromCache: true };
+    // Filter by placement if specified
+    if (placement) {
+      query = query.contains('placements', [placement]);
+    }
+
+    // Filter by date range
+    const now = new Date().toISOString();
+    query = query
+      .or(`start_date.is.null,start_date.lte.${now}`)
+      .or(`end_date.is.null,end_date.gte.${now}`);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.warn('Error fetching advertisements:', error.message);
+      return { advertisements: [], fromCache: false };
+    }
+
+    if (data && data.length > 0) {
+      const ads = data.map(row => transformAdvertisement(row as Record<string, unknown>));
+      console.log(`📢 Fetched ${ads.length} advertisements from Supabase`);
+      return { advertisements: ads, fromCache: false };
+    }
+
+    console.log('📢 No active advertisements in Supabase');
+    return { advertisements: [], fromCache: false };
+  } catch (error) {
+    console.warn('Failed to fetch advertisements:', error);
+    return { advertisements: [], fromCache: false };
+  }
 }
 
 /**
@@ -127,26 +82,26 @@ export async function fetchAdvertisements(
 export async function fetchAdvertisementById(id: string): Promise<Advertisement | null> {
   const connected = await isSupabaseConnected();
 
-  if (connected) {
-    const result = await withConnection(
-      async () =>
-        await supabase
-          .from('advertisements')
-          .select('*')
-          .eq('id', id)
-          .single(),
-      `fetchAdvertisementById(${id})`,
-      null
-    );
-
-    if (result) {
-      return transformAdvertisement(result as Record<string, unknown>);
-    }
+  if (!connected) {
+    return null;
   }
 
-  // Fall back to local data
-  const localAd = localAdvertisements.find(ad => ad.id === id);
-  return localAd ? convertLocalAdvertisement(localAd) : null;
+  const result = await withConnection(
+    async () =>
+      await supabase
+        .from('advertisements')
+        .select('*')
+        .eq('id', id)
+        .single(),
+    `fetchAdvertisementById(${id})`,
+    null
+  );
+
+  if (result) {
+    return transformAdvertisement(result as Record<string, unknown>);
+  }
+
+  return null;
 }
 
 /**

@@ -815,12 +815,13 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
             </View>
 
             <View style={styles.detailsColumn}>
-              <Text style={styles.detailsLabel}>Max Size</Text>
+              <Text style={styles.detailsLabel}>Max Growth Size</Text>
               <Text style={styles.detailsValue}>{selectedSpecies.maxSize}</Text>
             </View>
           </View>
 
-          <View style={styles.divider} />
+          {/* Regulations section */}
+          {renderRegulations()}
 
           <Text style={styles.sectionTitle}>Description</Text>
           <Text style={styles.sectionText}>
@@ -833,9 +834,6 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
           <Text style={styles.sectionTitle}>Habitat & Distribution</Text>
           <Text style={styles.sectionText}>{selectedSpecies.habitat}</Text>
           <Text style={styles.sectionText}>{selectedSpecies.distribution}</Text>
-
-          {/* Regulations section */}
-          {renderRegulations()}
 
           {/* Conservation status */}
           <View style={[

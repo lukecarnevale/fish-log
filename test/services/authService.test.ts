@@ -9,6 +9,7 @@ import {
   storePendingAuth,
   getPendingAuth,
   clearPendingAuth,
+  clearStalePendingAuth,
   ensureValidSession,
   getAuthState,
   getCurrentAuthUser,
@@ -276,6 +277,125 @@ describe('authService', () => {
       const result = await updateUserMetadata({ displayName: 'Test' });
       expect(result.success).toBe(false);
       expect(result.error).toBe('Update failed');
+    });
+  });
+
+  // ============================================================
+  // PendingAuth with intent fields
+  // ============================================================
+  describe('PendingAuth intent fields', () => {
+    it('stores and retrieves intent and existingUserId', async () => {
+      const data = {
+        email: 'new@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        sentAt: '2026-01-15T00:00:00.000Z',
+        intent: 'update_email' as const,
+        existingUserId: 'user-123',
+      };
+      await storePendingAuth(data);
+
+      const retrieved = await getPendingAuth();
+      expect(retrieved?.intent).toBe('update_email');
+      expect(retrieved?.existingUserId).toBe('user-123');
+    });
+
+    it('stores pending auth without intent (backward compatible)', async () => {
+      const data = {
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        sentAt: '2026-01-15T00:00:00.000Z',
+      };
+      await storePendingAuth(data);
+
+      const retrieved = await getPendingAuth();
+      expect(retrieved?.intent).toBeUndefined();
+      expect(retrieved?.existingUserId).toBeUndefined();
+    });
+  });
+
+  // ============================================================
+  // clearStalePendingAuth
+  // ============================================================
+  describe('clearStalePendingAuth', () => {
+    it('clears pending auth older than maxAgeMs', async () => {
+      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+      await storePendingAuth({
+        email: 'stale@example.com',
+        firstName: 'Stale',
+        lastName: 'Auth',
+        sentAt: threeHoursAgo,
+      });
+
+      await clearStalePendingAuth(2 * 60 * 60 * 1000);
+
+      const retrieved = await getPendingAuth();
+      expect(retrieved).toBeNull();
+    });
+
+    it('keeps pending auth newer than maxAgeMs', async () => {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      await storePendingAuth({
+        email: 'fresh@example.com',
+        firstName: 'Fresh',
+        lastName: 'Auth',
+        sentAt: tenMinutesAgo,
+      });
+
+      await clearStalePendingAuth(2 * 60 * 60 * 1000);
+
+      const retrieved = await getPendingAuth();
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.email).toBe('fresh@example.com');
+    });
+
+    it('does nothing when no pending auth exists', async () => {
+      // Should not throw
+      await clearStalePendingAuth();
+      const retrieved = await getPendingAuth();
+      expect(retrieved).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // signOut clears pending auth
+  // ============================================================
+  describe('signOut clears pending auth', () => {
+    it('clears pending auth on successful sign-out', async () => {
+      mockSupabase.auth.signOut.mockResolvedValue({ error: null });
+
+      await storePendingAuth({
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        sentAt: new Date().toISOString(),
+      });
+
+      const result = await signOut();
+      expect(result.success).toBe(true);
+
+      const pendingAuth = await getPendingAuth();
+      expect(pendingAuth).toBeNull();
+    });
+
+    it('does not clear pending auth when sign-out fails', async () => {
+      mockSupabase.auth.signOut.mockResolvedValue({
+        error: { message: 'Sign out failed' },
+      });
+
+      await storePendingAuth({
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        sentAt: new Date().toISOString(),
+      });
+
+      const result = await signOut();
+      expect(result.success).toBe(false);
+
+      const pendingAuth = await getPendingAuth();
+      expect(pendingAuth).not.toBeNull();
     });
   });
 });
