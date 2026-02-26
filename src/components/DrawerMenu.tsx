@@ -335,6 +335,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             onPress={() => handleNavigate("Promotions")}
             iconBgColor="#FFF3E0"
             iconColor="#FF7F25"
+            disabled={!isSignedIn}
+            onDisabledPress={() => handleNavigate("Profile")}
           />
 
           <Text style={styles.sectionHeader}>External Links</Text>
