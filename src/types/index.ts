@@ -60,6 +60,21 @@ export {
   transformPartner,
 } from './partner';
 
+// Community Stats Types
+export {
+  type LeaderboardPeriod,
+  type CommunityStat,
+  type LeaderboardEntry,
+  type SeasonalTrend,
+  type CommunityStatsSnapshot,
+  type CommunityStatsBySpeciesRow,
+  type CommunityStatsOverallRow,
+  type LeaderboardEnhancedRow,
+  transformCommunityStatBySpecies,
+  transformCommunityStatOverall,
+  transformLeaderboardEntry,
+} from './communityStats';
+
 // Legal Document Types
 export type LegalDocumentType = 'privacy' | 'terms' | 'licenses';
 

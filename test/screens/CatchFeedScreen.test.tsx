@@ -24,16 +24,25 @@ jest.mock('react-native-svg', () => {
 // --- Services ---
 
 const mockFetchRecentCatches = jest.fn();
-const mockFetchTopAnglers = jest.fn();
 const mockLikeCatch = jest.fn();
 const mockUnlikeCatch = jest.fn();
+const mockGetLeaderboard = jest.fn();
 jest.mock('../../src/services/catchFeedService', () => ({
   fetchRecentCatches: (...args: any[]) => mockFetchRecentCatches(...args),
-  fetchTopAnglers: (...args: any[]) => mockFetchTopAnglers(...args),
   likeCatch: (...args: any[]) => mockLikeCatch(...args),
   unlikeCatch: (...args: any[]) => mockUnlikeCatch(...args),
   enrichCatchesWithLikes: jest.fn((catches: any) => catches),
   clearCatchFeedCache: jest.fn(),
+}));
+
+jest.mock('../../src/services/communityStatsService', () => ({
+  getLeaderboard: (...args: any[]) => mockGetLeaderboard(...args),
+  formatLeaderboardDisplayName: jest.fn((entry: any) => {
+    const first = entry.firstName || 'Anonymous';
+    const last = entry.lastName ? `${entry.lastName.charAt(0)}.` : '';
+    return `${first} ${last}`.trim();
+  }),
+  formatStatCount: jest.fn((n: number) => n.toString()),
 }));
 
 jest.mock('../../src/services/rewardsConversionService', () => ({
@@ -123,15 +132,13 @@ jest.mock('../../src/components/FeedAdCard', () => {
   };
 });
 
-jest.mock('../../src/components/TopAnglersSection', () => {
+jest.mock('../../src/components/EnhancedTopAnglersSection', () => {
   const { View, Text } = require('react-native');
   return {
     __esModule: true,
-    default: ({ anglers }: any) => (
-      <View testID="top-anglers-section">
-        {anglers.map((a: any) => (
-          <Text key={a.userId}>{a.displayName}</Text>
-        ))}
+    default: () => (
+      <View testID="enhanced-top-anglers-section">
+        <Text>Enhanced Top Anglers</Text>
       </View>
     ),
   };
@@ -229,7 +236,7 @@ describe('CatchFeedScreen', () => {
       hasMore: false,
       nextOffset: 0,
     });
-    mockFetchTopAnglers.mockResolvedValue([]);
+    mockGetLeaderboard.mockResolvedValue([]);
   });
 
   // ===== Rendering =====
@@ -274,7 +281,6 @@ describe('CatchFeedScreen', () => {
     it('shows skeleton loader while data is loading', () => {
       // fetchRecentCatches returns a pending promise (never resolves during this test)
       mockFetchRecentCatches.mockReturnValue(new Promise(() => {}));
-      mockFetchTopAnglers.mockReturnValue(new Promise(() => {}));
 
       const { getByTestId } = render(
         <CatchFeedScreen navigation={mockNavigation} />
@@ -365,34 +371,16 @@ describe('CatchFeedScreen', () => {
     });
   });
 
-  // ===== Top Anglers =====
+  // ===== Enhanced Top Anglers =====
 
-  describe('Top Anglers Section', () => {
-    it('renders top anglers section', async () => {
-      mockFetchTopAnglers.mockResolvedValue([
-        makeTopAngler({ userId: 'a1', displayName: 'Top Angler Joe' }),
-      ]);
-
+  describe('Enhanced Top Anglers Section', () => {
+    it('renders enhanced top anglers section', async () => {
       const { findByTestId, findByText } = render(
         <CatchFeedScreen navigation={mockNavigation} />
       );
 
-      expect(await findByTestId('top-anglers-section')).toBeTruthy();
-      expect(await findByText('Top Angler Joe')).toBeTruthy();
-    });
-
-    it('renders multiple top anglers', async () => {
-      mockFetchTopAnglers.mockResolvedValue([
-        makeTopAngler({ userId: 'a1', displayName: 'Angler One' }),
-        makeTopAngler({ userId: 'a2', displayName: 'Angler Two', type: 'species' }),
-      ]);
-
-      const { findByText } = render(
-        <CatchFeedScreen navigation={mockNavigation} />
-      );
-
-      expect(await findByText('Angler One')).toBeTruthy();
-      expect(await findByText('Angler Two')).toBeTruthy();
+      expect(await findByTestId('enhanced-top-anglers-section')).toBeTruthy();
+      expect(await findByText('Enhanced Top Anglers')).toBeTruthy();
     });
   });
 
@@ -485,20 +473,11 @@ describe('CatchFeedScreen', () => {
       });
     });
 
-    it('calls fetchTopAnglers on initial load', async () => {
-      render(<CatchFeedScreen navigation={mockNavigation} />);
-
-      await waitFor(() => {
-        expect(mockFetchTopAnglers).toHaveBeenCalled();
-      });
-    });
-
-    it('fetches data in parallel (catches and top anglers together)', async () => {
+    it('fetches catches on initial load', async () => {
       render(<CatchFeedScreen navigation={mockNavigation} />);
 
       await waitFor(() => {
         expect(mockFetchRecentCatches).toHaveBeenCalledTimes(1);
-        expect(mockFetchTopAnglers).toHaveBeenCalledTimes(1);
       });
     });
   });

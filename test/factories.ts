@@ -205,6 +205,52 @@ export function makeUser(overrides?: Partial<User>): User {
   };
 }
 
+// Community stat (aggregate stats for a species or overall)
+export function makeCommunityStat(overrides?: Partial<import('../src/types/communityStats').CommunityStat>): import('../src/types/communityStats').CommunityStat {
+  return {
+    species: 'Red Drum',
+    totalFishCount: 1234,
+    totalReports: 456,
+    uniqueAnglers: 78,
+    avgFishPerReport: 2.71,
+    ...overrides,
+  };
+}
+
+// Leaderboard entry (single row in a leaderboard)
+export function makeLeaderboardEntry(overrides?: Partial<import('../src/types/communityStats').LeaderboardEntry>): import('../src/types/communityStats').LeaderboardEntry {
+  return {
+    rank: 1,
+    userId: uuid(),
+    firstName: 'Test',
+    lastName: 'Angler',
+    profileImageUrl: null,
+    totalFish: 42,
+    totalReports: 15,
+    primarySpecies: 'Red Drum',
+    ...overrides,
+  };
+}
+
+// Community stats snapshot (full dashboard data)
+export function makeCommunityStatsSnapshot(
+  overrides?: Partial<import('../src/types/communityStats').CommunityStatsSnapshot>
+): import('../src/types/communityStats').CommunityStatsSnapshot {
+  return {
+    overallStats: makeCommunityStat({ species: null }),
+    speciesStats: {
+      'Red Drum': makeCommunityStat({ species: 'Red Drum', totalFishCount: 500 }),
+      'Southern Flounder': makeCommunityStat({ species: 'Southern Flounder', totalFishCount: 200 }),
+    },
+    weeklyLeaderboard: [makeLeaderboardEntry({ rank: 1 }), makeLeaderboardEntry({ rank: 2, userId: uuid() })],
+    monthlyLeaderboard: [makeLeaderboardEntry({ rank: 1 })],
+    alltimeLeaderboard: [makeLeaderboardEntry({ rank: 1, totalFish: 999 })],
+    year: new Date().getFullYear(),
+    computedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
 // AsyncStorage seeding helper
 export async function seedAsyncStorage(overrides: Record<string, any> = {}) {
   const AsyncStorage = require('@react-native-async-storage/async-storage');

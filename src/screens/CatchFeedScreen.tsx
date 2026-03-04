@@ -24,8 +24,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import Svg, { Path, Ellipse, Circle, G } from 'react-native-svg';
 import { RootStackParamList } from '../types';
-import { CatchFeedEntry, TopAngler } from '../types/catchFeed';
-import { fetchRecentCatches, fetchTopAnglers, likeCatch, unlikeCatch, enrichCatchesWithLikes, PaginatedCatchFeed } from '../services/catchFeedService';
+import { CatchFeedEntry } from '../types/catchFeed';
+import { fetchRecentCatches, likeCatch, unlikeCatch, enrichCatchesWithLikes, PaginatedCatchFeed } from '../services/catchFeedService';
 import { getRewardsMemberForAnonymousUser } from '../services/rewardsConversionService';
 import { onAuthStateChange } from '../services/authService';
 import { SPECIES_ALIASES } from '../constants/speciesAliases';
@@ -36,7 +36,7 @@ import FeedAdCard from '../components/FeedAdCard';
 import AnglerProfileModal from '../components/AnglerProfileModal';
 import BottomDrawer from '../components/BottomDrawer';
 import WaveBackground from '../components/WaveBackground';
-import TopAnglersSection from '../components/TopAnglersSection';
+import EnhancedTopAnglersSection from '../components/EnhancedTopAnglersSection';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { HEADER_HEIGHT } from '../constants/ui';
 import { CatchFeedSkeletonLoader } from '../components/SkeletonLoader';
@@ -239,7 +239,6 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [entries, setEntries] = useState<CatchFeedEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [topAnglers, setTopAnglers] = useState<TopAngler[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [nextOffset, setNextOffset] = useState(0);
 
@@ -457,21 +456,16 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     try {
       setError(null);
 
-      // Fetch catches and top anglers in parallel
-      const [catchResult, topAnglersResult] = await Promise.all([
-        fetchRecentCatches({ forceRefresh, limit: PAGE_SIZE, offset: 0 }),
-        fetchTopAnglers(),
-      ]);
+      // Fetch catches (EnhancedTopAnglersSection handles its own data loading)
+      const catchResult = await fetchRecentCatches({ forceRefresh, limit: PAGE_SIZE, offset: 0 });
 
       let feedData = catchResult.entries;
       // Enrich with like data
       feedData = await enrichCatchesWithLikes(feedData, currentUserId ?? undefined);
       setHasMore(catchResult.hasMore);
       setNextOffset(catchResult.nextOffset);
-      const anglersData = topAnglersResult;
 
       setEntries(feedData);
-      setTopAnglers(anglersData);
 
       // Reset filters on refresh
       if (forceRefresh) {
@@ -681,8 +675,11 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   // Memoized list header (top anglers + filters)
   const renderListHeader = useCallback(() => (
     <View>
-      {/* Top Anglers Section */}
-      <TopAnglersSection anglers={topAnglers} />
+      {/* Enhanced Top Anglers Section with period tabs + species filter */}
+      <EnhancedTopAnglersSection
+        onAnglerPress={(entry) => handleAnglerPress(entry.userId)}
+        displayLimit={5}
+      />
 
       {/* Filter Row */}
       <View style={styles.filterRow}>
@@ -723,7 +720,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         />
       </View>
     </View>
-  ), [topAnglers, selectedArea, selectedSpecies, showPhotosOnly]);
+  ), [selectedArea, selectedSpecies, showPhotosOnly, handleAnglerPress]);
 
   const renderListFooter = useCallback(() => {
     if (feedItems.length === 0) return null;

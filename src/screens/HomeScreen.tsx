@@ -21,6 +21,7 @@ import { localStyles } from "../styles/homeScreenLocalStyles";
 import { RootStackParamList } from "../types";
 import { colors } from "../styles/common";
 import QuarterlyRewardsCard from "../components/QuarterlyRewardsCard";
+import CommunityStatsHero from "../components/CommunityStatsHero";
 import Footer from "../components/Footer";
 import AdvertisementBanner from "../components/AdvertisementBanner";
 import MandatoryHarvestCard from "../components/MandatoryHarvestCard";
@@ -637,7 +638,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
         {/* Quick Action Cards Grid */}
         <QuickActionGrid onNavigate={navigateToScreen} isSignedIn={rewardsMember} badgeData={badgeData} />
-        
+
+        {/* Community Stats Hero - aggregate fish counts + species breakdown */}
+        <CommunityStatsHero
+          onPress={() => navigateToScreen("CatchFeed")}
+        />
+
         {/* Quarterly Rewards Card */}
         <QuarterlyRewardsCard
           onReportPress={() => navigateToScreen("ReportForm")}
