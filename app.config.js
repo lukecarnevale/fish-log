@@ -31,7 +31,7 @@ module.exports = {
         foregroundImage: "./assets/icon.png",
         backgroundColor: "#ffffff",
       },
-      package: "com.fishlog.app",
+      package: "io.fishlog.app",
       permissions: ["android.permission.RECORD_AUDIO"],
     },
     web: {
