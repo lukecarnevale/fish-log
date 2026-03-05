@@ -48,6 +48,8 @@ import { HEADER_HEIGHT } from '../constants/ui';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { usePulseAnimation } from '../hooks/usePulseAnimation';
 import { useBadgeData } from '../hooks/useBadgeData';
+import { useBulletins } from '../contexts/BulletinContext';
+import BulletinCard from '../components/BulletinCard';
 import { BADGE_CACHE_TTL, badgeDataCache, PERSISTENT_CACHE_KEYS, NAUTICAL_GREETINGS } from './home/homeScreenConstants';
 
 // Update the navigation type to be compatible with React Navigation v7
@@ -61,6 +63,14 @@ interface HomeScreenProps {
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Achievement notifications - flush any pending achievements when this screen gains focus
   const { flushPendingAchievements } = useAchievements();
+  // Bulletin card — non-critical bulletins shown inline on HomeScreen
+  const {
+    allBulletins,
+    cardBulletins,
+    showBulletinDetail,
+    dismissAllCardBulletins,
+    permanentlyDismissBulletin,
+  } = useBulletins();
 
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>("");
@@ -378,6 +388,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         isSignedIn={rewardsMember}
         profileImage={profileImage}
         hasProfileEmail={hasProfileEmail}
+        bulletins={allBulletins}
+        onBulletinPress={showBulletinDetail}
+        onViewAllBulletins={() => navigateToScreen('Bulletins')}
+        onDismissBulletin={permanentlyDismissBulletin}
       />
 
       {/* Overlay when menu is open */}
@@ -637,7 +651,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
         {/* Quick Action Cards Grid */}
         <QuickActionGrid onNavigate={navigateToScreen} isSignedIn={rewardsMember} badgeData={badgeData} />
-        
+
         {/* Quarterly Rewards Card */}
         <QuarterlyRewardsCard
           onReportPress={() => navigateToScreen("ReportForm")}
@@ -646,6 +660,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
         {/* Advertisement Banner */}
         <AdvertisementBanner />
+
+        {/* Bulletin Card — non-critical bulletins shown inline */}
+        {cardBulletins.length > 0 && (
+          <BulletinCard
+            bulletins={cardBulletins}
+            onBulletinPress={showBulletinDetail}
+            onDismissAll={dismissAllCardBulletins}
+            onViewAll={() => navigation.navigate('Bulletins')}
+          />
+        )}
 
         {showInfoCard && (
           <MandatoryHarvestCard

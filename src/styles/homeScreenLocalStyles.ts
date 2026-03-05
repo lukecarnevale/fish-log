@@ -12,6 +12,10 @@ interface HomeScreenLocalStyles {
   contentContainer: ViewStyle;
   floatingMenuButton: ViewStyle;
   floatingMenuTouchable: ViewStyle;
+  menuBulletinBadge: ViewStyle;
+  menuBulletinBadgeText: TextStyle;
+  floatingBulletinBadge: ViewStyle;
+  floatingBulletinBadgeText: TextStyle;
   footerContainer: ViewStyle;
   footerBottomArea: ViewStyle;
   hamburgerBadge: ViewStyle;
@@ -101,6 +105,46 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
   },
   floatingMenuTouchable: {
     padding: spacing.sm,
+  },
+  // Bulletin count badge on the hamburger menu icon in the fixed header
+  menuBulletinBadge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: colors.error,
+    borderRadius: 11,
+    minWidth: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  menuBulletinBadgeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  // Bulletin count badge on the floating hamburger button
+  floatingBulletinBadge: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    backgroundColor: colors.error,
+    borderRadius: 11,
+    minWidth: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  floatingBulletinBadgeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '700',
   },
   footerContainer: {
     position: 'relative',

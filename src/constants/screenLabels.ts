@@ -30,6 +30,10 @@ export const SCREEN_LABELS = {
     title: 'Fishing License',
     subtitle: 'View license info',
   },
+  bulletins: {
+    title: 'Bulletins',
+    subtitle: 'NC fishing advisories',
+  },
   profile: {
     title: 'Profile',
     subtitle: 'View Profile',

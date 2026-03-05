@@ -27,12 +27,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MaskInput from 'react-native-mask-input';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Instead of using GooglePlacesAutocomplete which causes UUID issues
 import { UserProfile } from "../types";
 import { colors, spacing, borderRadius, shadows, typography } from "../styles/common";
 import { clearCatchFeedCache } from "../services/catchFeedService";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
+import { WaveBackground } from "../components/WaveBackground";
 import { StoredReport } from "../types/report";
 import {
   getPendingAuth,
@@ -1246,6 +1248,14 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           style={styles.profileHeader}
           onLayout={(e) => { profileHeaderHeightRef.current = e.nativeEvent.layout.height; }}
         >
+          <LinearGradient
+            colors={['#05626C', '#06747F', '#0A8C96']}
+            locations={[0, 0.4, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <WaveBackground />
           {/* Header row with back button */}
           <View style={styles.headerRow}>
             <TouchableOpacity
@@ -1274,11 +1284,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             )}
           </TouchableOpacity>
           {(profile.firstName || profile.lastName) && (
-            <Text style={styles.profileName}>
-              {profile.firstName && profile.lastName
-                ? `${profile.firstName} ${profile.lastName}`
-                : profile.firstName || profile.lastName}
-            </Text>
+            <View style={styles.profileNamePill}>
+              <Text style={styles.profileName}>
+                {profile.firstName && profile.lastName
+                  ? `${profile.firstName} ${profile.lastName}`
+                  : profile.firstName || profile.lastName}
+              </Text>
+            </View>
           )}
         </View>
 
@@ -1662,7 +1674,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
       <StatusBar
         barStyle={isEditing ? 'light-content' : statusBarStyle}
-        backgroundColor={isEditing || statusBarStyle === 'light-content' ? colors.primary : colors.background}
+        backgroundColor={isEditing || statusBarStyle === 'light-content' ? colors.secondary : colors.background}
         translucent
         animated
       />

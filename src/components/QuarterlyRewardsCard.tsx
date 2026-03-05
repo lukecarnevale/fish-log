@@ -674,7 +674,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               style={StyleSheet.absoluteFill}
             />
             <View style={styles.notificationIcon}>
-              <Feather name="bell" size={18} color="white" />
+              <Feather name="mail" size={18} color="white" />
             </View>
             <Text style={styles.notificationText}>
               Selected contributors will be notified via email. Make sure your account info is up to date!

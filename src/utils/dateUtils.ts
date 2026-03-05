@@ -74,3 +74,21 @@ export function getQuarterEndDate(quarter: Quarter, year: number): string {
 export function formatQuarterDisplay(quarter: Quarter, year: number): string {
   return `Q${quarter} ${year}`;
 }
+
+/**
+ * Format a YYYY-MM-DD date string to a short display format (e.g., "Mar 4").
+ * Appends 'T00:00:00' to prevent timezone-shifting issues with date-only strings.
+ */
+export function formatBulletinDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/**
+ * Format a YYYY-MM-DD date string to a long display format (e.g., "Mar 4, 2026").
+ * Used in detail views where the year provides useful context.
+ */
+export function formatBulletinDateLong(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
