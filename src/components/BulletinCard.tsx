@@ -74,7 +74,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
         <View style={styles.headerWrapper}>
           {/* Amber gradient */}
           <LinearGradient
-            colors={['#F5E6C8', '#E8C98A']}
+            colors={['#5C3D0E', '#44300A']}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={StyleSheet.absoluteFill}
@@ -105,7 +105,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
           <View style={styles.headerContent}>
             {/* Boxed bell icon */}
             <View style={styles.iconBox}>
-              <Feather name="bell" size={22} color="#78350F" />
+              <Feather name="bell" size={22} color="#F5E6C8" />
             </View>
 
             {/* Title + subtitle */}
@@ -118,7 +118,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
             <Feather
               name={expanded ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color="#8B6914"
+              color="#E8C98A"
             />
           </View>
         </View>
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(120,53,15,0.10)',
+    backgroundColor: 'rgba(245,230,200,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -244,14 +244,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#5C3D0E',
+    color: '#F5E6C8',
     lineHeight: 24,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#A3865A',
+    color: '#E8C98A',
     marginTop: 2,
     textAlign: 'center',
   },

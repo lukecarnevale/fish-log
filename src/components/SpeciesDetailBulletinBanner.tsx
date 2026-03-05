@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, borderRadius, spacing, shadows } from '../styles/common';
-import BulletinModal from './BulletinModal';
+import { useBulletins } from '../contexts/BulletinContext';
 import type { Bulletin, BulletinType } from '../types/bulletin';
 import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
@@ -50,8 +50,8 @@ interface SpeciesDetailBulletinBannerProps {
 export const SpeciesDetailBulletinBanner: React.FC<
   SpeciesDetailBulletinBannerProps
 > = ({ bulletins, onDismiss }) => {
+  const { showBulletinDetail } = useBulletins();
   const [dismissed, setDismissed] = useState(false);
-  const [selectedBulletin, setSelectedBulletin] = useState<Bulletin | null>(null);
   const entranceAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -89,89 +89,70 @@ export const SpeciesDetailBulletinBanner: React.FC<
   };
 
   const handleViewDetails = () => {
-    setSelectedBulletin(primaryBulletin);
+    showBulletinDetail(primaryBulletin);
   };
-
-  const handleModalClose = () => {
-    setSelectedBulletin(null);
-  };
-
-  // handleDismiss is intentionally not called from modal —
-  // permanent dismissal is handled by the BulletinModal's "Don't show again" button
 
   return (
-    <>
-      <Animated.View
-        style={[
-          styles.banner,
-          {
-            backgroundColor: bannerStyle.backgroundColor,
-            opacity: entranceAnim,
-            transform: [{ translateY }],
-          },
-        ]}
-        accessibilityRole="alert"
-        accessibilityLabel={`${typeConfig.label}: ${primaryBulletin.title}`}
-      >
-        {/* Icon + Content */}
-        <View style={styles.content}>
-          <Feather name={typeConfig.icon} size={20} color={iconColor} />
-          <View style={styles.textContent}>
-            <View style={styles.labelRow}>
-              <Text style={[styles.label, { color: iconColor }]}>
-                {typeConfig.label}
-              </Text>
-              {bulletins.length > 1 && (
-                <Text style={styles.moreCount}>
-                  +{bulletins.length - 1} more
-                </Text>
-              )}
-            </View>
-            <Text style={styles.title} numberOfLines={2}>
-              {primaryBulletin.title}
+    <Animated.View
+      style={[
+        styles.banner,
+        {
+          backgroundColor: bannerStyle.backgroundColor,
+          opacity: entranceAnim,
+          transform: [{ translateY }],
+        },
+      ]}
+      accessibilityRole="alert"
+      accessibilityLabel={`${typeConfig.label}: ${primaryBulletin.title}`}
+    >
+      {/* Icon + Content */}
+      <View style={styles.content}>
+        <Feather name={typeConfig.icon} size={20} color={iconColor} />
+        <View style={styles.textContent}>
+          <View style={styles.labelRow}>
+            <Text style={[styles.label, { color: iconColor }]}>
+              {typeConfig.label}
             </Text>
-            {primaryBulletin.description && (
-              <Text style={styles.description} numberOfLines={1}>
-                {primaryBulletin.description}
+            {bulletins.length > 1 && (
+              <Text style={styles.moreCount}>
+                +{bulletins.length - 1} more
               </Text>
             )}
           </View>
-        </View>
-
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.viewButton}
-            onPress={handleViewDetails}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.viewButtonText, { color: iconColor }]}>
-              View Details
+          <Text style={styles.title} numberOfLines={2}>
+            {primaryBulletin.title}
+          </Text>
+          {primaryBulletin.description && (
+            <Text style={styles.description} numberOfLines={1}>
+              {primaryBulletin.description}
             </Text>
-            <Feather name="chevron-right" size={14} color={iconColor} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dismissButton}
-            onPress={handleDismiss}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="x" size={16} color={colors.darkGray} />
-          </TouchableOpacity>
+          )}
         </View>
-        <WaveAccent {...(BANNER_WAVE_MAP[primaryBulletin.bulletinType] ?? WAVE_PRESETS.primary)} />
-      </Animated.View>
+      </View>
 
-      {/* BulletinModal — reuses existing modal component */}
-      <BulletinModal
-        visible={selectedBulletin !== null}
-        bulletin={selectedBulletin}
-        onClose={handleModalClose}
-        onDismiss={() => {
-          handleModalClose();
-        }}
-      />
-    </>
+      {/* Actions */}
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={styles.viewButton}
+          onPress={handleViewDetails}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.viewButtonText, { color: iconColor }]}>
+            View Details
+          </Text>
+          <Feather name="chevron-right" size={14} color={iconColor} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.dismissButton}
+          onPress={handleDismiss}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="x" size={16} color={colors.darkGray} />
+        </TouchableOpacity>
+      </View>
+      <WaveAccent {...(BANNER_WAVE_MAP[primaryBulletin.bulletinType] ?? WAVE_PRESETS.primary)} />
+    </Animated.View>
   );
 };
 
