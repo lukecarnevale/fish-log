@@ -72,6 +72,7 @@ export type RootStackParamList = {
   SpeciesInfo: { showRequiredOnly?: boolean; fromAlertBadge?: boolean } | undefined;
   LicenseDetails: undefined;
   CatchFeed: undefined;
+  Bulletins: undefined;
   Profile: undefined;
   LegalDocument: { type: LegalDocumentType };
 };

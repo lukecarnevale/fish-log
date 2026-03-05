@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, borderRadius, spacing, shadows } from '../styles/common';
-import BulletinModal from './BulletinModal';
+import { useBulletins } from '../contexts/BulletinContext';
 import type { Bulletin, BulletinType } from '../types/bulletin';
+import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 
 const BANNER_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof WAVE_PRESETS]> = {
@@ -24,40 +25,15 @@ const BANNER_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof WAV
   info: WAVE_PRESETS.info,
 };
 
-// =============================================================================
-// Type configuration per bulletin type (matches BulletinModal pattern)
-// =============================================================================
-
-const BANNER_CONFIG: Record<BulletinType, {
+// Banner-specific background/border colors (design system tokens, not parchment palette)
+const BANNER_STYLE_CONFIG: Record<BulletinType, {
   backgroundColor: string;
   borderColor: string;
-  iconName: keyof typeof Feather.glyphMap;
-  label: string;
 }> = {
-  closure: {
-    backgroundColor: colors.dangerLight,
-    borderColor: colors.error,
-    iconName: 'alert-octagon',
-    label: 'CLOSURE',
-  },
-  advisory: {
-    backgroundColor: colors.warningLight,
-    borderColor: colors.warning,
-    iconName: 'alert-triangle',
-    label: 'ADVISORY',
-  },
-  educational: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
-    iconName: 'book-open',
-    label: 'NOTICE',
-  },
-  info: {
-    backgroundColor: colors.lightestGray,
-    borderColor: colors.secondary,
-    iconName: 'info',
-    label: 'INFO',
-  },
+  closure: { backgroundColor: colors.dangerLight, borderColor: colors.error },
+  advisory: { backgroundColor: colors.warningLight, borderColor: colors.warning },
+  educational: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  info: { backgroundColor: colors.lightestGray, borderColor: colors.secondary },
 };
 
 // =============================================================================
@@ -74,8 +50,8 @@ interface SpeciesDetailBulletinBannerProps {
 export const SpeciesDetailBulletinBanner: React.FC<
   SpeciesDetailBulletinBannerProps
 > = ({ bulletins, onDismiss }) => {
+  const { showBulletinDetail } = useBulletins();
   const [dismissed, setDismissed] = useState(false);
-  const [selectedBulletin, setSelectedBulletin] = useState<Bulletin | null>(null);
   const entranceAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -92,13 +68,9 @@ export const SpeciesDetailBulletinBanner: React.FC<
 
   // Show the most urgent bulletin first
   const primaryBulletin = bulletins[0];
-  const config = BANNER_CONFIG[primaryBulletin.bulletinType] ?? BANNER_CONFIG.info;
-  const iconColor =
-    primaryBulletin.bulletinType === 'closure'
-      ? colors.error
-      : primaryBulletin.bulletinType === 'advisory'
-        ? colors.warning
-        : colors.primary;
+  const typeConfig = BULLETIN_TYPE_CONFIG[primaryBulletin.bulletinType];
+  const bannerStyle = BANNER_STYLE_CONFIG[primaryBulletin.bulletinType];
+  const iconColor = typeConfig.color;
 
   const translateY = entranceAnim.interpolate({
     inputRange: [0, 1],
@@ -117,89 +89,70 @@ export const SpeciesDetailBulletinBanner: React.FC<
   };
 
   const handleViewDetails = () => {
-    setSelectedBulletin(primaryBulletin);
+    showBulletinDetail(primaryBulletin);
   };
-
-  const handleModalClose = () => {
-    setSelectedBulletin(null);
-  };
-
-  // handleDismiss is intentionally not called from modal —
-  // permanent dismissal is handled by the BulletinModal's "Don't show again" button
 
   return (
-    <>
-      <Animated.View
-        style={[
-          styles.banner,
-          {
-            backgroundColor: config.backgroundColor,
-            opacity: entranceAnim,
-            transform: [{ translateY }],
-          },
-        ]}
-        accessibilityRole="alert"
-        accessibilityLabel={`${config.label}: ${primaryBulletin.title}`}
-      >
-        {/* Icon + Content */}
-        <View style={styles.content}>
-          <Feather name={config.iconName} size={20} color={iconColor} />
-          <View style={styles.textContent}>
-            <View style={styles.labelRow}>
-              <Text style={[styles.label, { color: iconColor }]}>
-                {config.label}
-              </Text>
-              {bulletins.length > 1 && (
-                <Text style={styles.moreCount}>
-                  +{bulletins.length - 1} more
-                </Text>
-              )}
-            </View>
-            <Text style={styles.title} numberOfLines={2}>
-              {primaryBulletin.title}
+    <Animated.View
+      style={[
+        styles.banner,
+        {
+          backgroundColor: bannerStyle.backgroundColor,
+          opacity: entranceAnim,
+          transform: [{ translateY }],
+        },
+      ]}
+      accessibilityRole="alert"
+      accessibilityLabel={`${typeConfig.label}: ${primaryBulletin.title}`}
+    >
+      {/* Icon + Content */}
+      <View style={styles.content}>
+        <Feather name={typeConfig.icon} size={20} color={iconColor} />
+        <View style={styles.textContent}>
+          <View style={styles.labelRow}>
+            <Text style={[styles.label, { color: iconColor }]}>
+              {typeConfig.label}
             </Text>
-            {primaryBulletin.description && (
-              <Text style={styles.description} numberOfLines={1}>
-                {primaryBulletin.description}
+            {bulletins.length > 1 && (
+              <Text style={styles.moreCount}>
+                +{bulletins.length - 1} more
               </Text>
             )}
           </View>
-        </View>
-
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.viewButton}
-            onPress={handleViewDetails}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.viewButtonText, { color: iconColor }]}>
-              View Details
+          <Text style={styles.title} numberOfLines={2}>
+            {primaryBulletin.title}
+          </Text>
+          {primaryBulletin.description && (
+            <Text style={styles.description} numberOfLines={1}>
+              {primaryBulletin.description}
             </Text>
-            <Feather name="chevron-right" size={14} color={iconColor} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dismissButton}
-            onPress={handleDismiss}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="x" size={16} color={colors.darkGray} />
-          </TouchableOpacity>
+          )}
         </View>
-        <WaveAccent {...(BANNER_WAVE_MAP[primaryBulletin.bulletinType] ?? WAVE_PRESETS.primary)} />
-      </Animated.View>
+      </View>
 
-      {/* BulletinModal — reuses existing modal component */}
-      <BulletinModal
-        visible={selectedBulletin !== null}
-        bulletin={selectedBulletin}
-        onClose={handleModalClose}
-        onDismiss={() => {
-          handleModalClose();
-        }}
-      />
-    </>
+      {/* Actions */}
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={styles.viewButton}
+          onPress={handleViewDetails}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.viewButtonText, { color: iconColor }]}>
+            View Details
+          </Text>
+          <Feather name="chevron-right" size={14} color={iconColor} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.dismissButton}
+          onPress={handleDismiss}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="x" size={16} color={colors.darkGray} />
+        </TouchableOpacity>
+      </View>
+      <WaveAccent {...(BANNER_WAVE_MAP[primaryBulletin.bulletinType] ?? WAVE_PRESETS.primary)} />
+    </Animated.View>
   );
 };
 

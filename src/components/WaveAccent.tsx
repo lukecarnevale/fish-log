@@ -126,4 +126,10 @@ export const WAVE_PRESETS = {
     gradientId: 'error',
     borderRadius: br.md,
   },
+  profile: {
+    accentColor: '#0a4a50',
+    darkShade: '#0D5C63',
+    lightShade: '#1a8a7a',
+    gradientId: 'profile',
+  },
 } as const;
