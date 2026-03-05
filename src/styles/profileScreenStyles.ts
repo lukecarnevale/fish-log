@@ -17,9 +17,9 @@ export const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
   },
-  // Invisible spacer that shows primary color when pulling down at top
+  // Invisible spacer that shows teal when pulling down at top
   topBounceArea: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.secondary,
     height: 500,
     marginTop: -500,
   },
@@ -54,7 +54,7 @@ export const styles = StyleSheet.create({
   },
   // Profile Header
   profileHeader: {
-    backgroundColor: colors.primary,
+    backgroundColor: 'transparent',
     paddingTop: 60,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.lg,
@@ -100,10 +100,17 @@ export const styles = StyleSheet.create({
     borderColor: 'rgba(0, 0, 0, 0.08)',
     ...shadows.small,
   },
+  profileNamePill: {
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginBottom: spacing.xxs,
+  },
   profileName: {
     ...typography.h1,
     color: colors.white,
-    marginBottom: spacing.xxs,
+    marginBottom: 0,
   },
   profileSubtitle: {
     ...typography.body,

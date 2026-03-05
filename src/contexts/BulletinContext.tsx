@@ -10,6 +10,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   ReactNode,
 } from 'react';
@@ -62,9 +63,6 @@ interface BulletinContextValue {
   /** Open the detail modal for a specific bulletin. Pass allowDismiss=false to hide "Don't show again". */
   showBulletinDetail: (bulletin: Bulletin, allowDismiss?: boolean) => void;
 
-  /** Dismiss a card bulletin for this session only. */
-  dismissCardBulletin: (id: string) => void;
-
   /** Dismiss all card bulletins for this session. */
   dismissAllCardBulletins: () => void;
 
@@ -83,7 +81,6 @@ const defaultContextValue: BulletinContextValue = {
   cardBulletins: [],
   selectedBulletin: null,
   showBulletinDetail: () => {},
-  dismissCardBulletin: () => {},
   dismissAllCardBulletins: () => {},
   permanentlyDismissBulletin: () => {},
   refreshBulletins: () => {},
@@ -120,6 +117,8 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   const [detailAllowDismiss, setDetailAllowDismiss] = useState(true);
   // Track whether we've fetched bulletins this session
   const hasFetched = useRef(false);
+  // In-memory source of truth for dismissed IDs — eliminates read-modify-write races
+  const dismissedIdsRef = useRef<Set<string>>(new Set());
 
   const currentCritical = criticalQueue.length > 0 ? criticalQueue[0] : null;
 
@@ -135,31 +134,31 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   // Dismissed bulletin management
   // =========================================================================
 
-  const getDismissedIds = useCallback(async (): Promise<Set<string>> => {
+  /** Load dismissed IDs from AsyncStorage into the in-memory ref. */
+  const loadDismissedIds = useCallback(async (): Promise<Set<string>> => {
     try {
       const raw = await AsyncStorage.getItem(DISMISSED_BULLETINS_KEY);
       if (raw) {
         const ids: string[] = JSON.parse(raw);
-        return new Set(ids);
+        dismissedIdsRef.current = new Set(ids);
       }
     } catch (error) {
       console.warn('Failed to load dismissed bulletins:', error);
     }
-    return new Set();
+    return dismissedIdsRef.current;
   }, []);
 
-  const addDismissedId = useCallback(async (bulletinId: string) => {
-    try {
-      const dismissed = await getDismissedIds();
-      dismissed.add(bulletinId);
-      await AsyncStorage.setItem(
-        DISMISSED_BULLETINS_KEY,
-        JSON.stringify([...dismissed])
-      );
-    } catch (error) {
+  /** Add a dismissed ID to the in-memory set and persist. Race-safe because the
+   *  ref is mutated synchronously — concurrent calls always see the latest state. */
+  const addDismissedId = useCallback((bulletinId: string) => {
+    dismissedIdsRef.current.add(bulletinId);
+    AsyncStorage.setItem(
+      DISMISSED_BULLETINS_KEY,
+      JSON.stringify([...dismissedIdsRef.current])
+    ).catch((error) => {
       console.warn('Failed to save dismissed bulletin:', error);
-    }
-  }, [getDismissedIds]);
+    });
+  }, []);
 
   // =========================================================================
   // Fetch and split bulletins into critical vs. card
@@ -169,7 +168,7 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
     try {
       const [bulletins, dismissedIds] = await Promise.all([
         fetchActiveBulletins(),
-        getDismissedIds(),
+        loadDismissedIds(),
       ]);
 
       // Store the full server list (never filtered — for the Bulletins page)
@@ -208,7 +207,7 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
     } catch (error) {
       console.warn('Failed to load bulletins:', error);
     }
-  }, [getDismissedIds]);
+  }, [loadDismissedIds]);
 
   // Fetch bulletins once on mount
   useEffect(() => {
@@ -263,10 +262,6 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
     setSelectedBulletin(bulletin);
   }, []);
 
-  const dismissCardBulletin = useCallback((id: string) => {
-    setCardBulletins((prev) => prev.filter((b) => b.id !== id));
-  }, []);
-
   const dismissAllCardBulletins = useCallback(() => {
     setCardBulletins([]);
   }, []);
@@ -289,7 +284,7 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   // Context value
   // =========================================================================
 
-  const contextValue: BulletinContextValue = {
+  const contextValue: BulletinContextValue = useMemo(() => ({
     isShowingBulletin,
     criticalBulletinCount: criticalQueue.length,
     fetchedBulletins,
@@ -297,11 +292,21 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
     cardBulletins,
     selectedBulletin,
     showBulletinDetail,
-    dismissCardBulletin,
     dismissAllCardBulletins,
     permanentlyDismissBulletin,
     refreshBulletins,
-  };
+  }), [
+    isShowingBulletin,
+    criticalQueue.length,
+    fetchedBulletins,
+    allBulletins,
+    cardBulletins,
+    selectedBulletin,
+    showBulletinDetail,
+    dismissAllCardBulletins,
+    permanentlyDismissBulletin,
+    refreshBulletins,
+  ]);
 
   return (
     <BulletinContext.Provider value={contextValue}>
@@ -331,13 +336,7 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
  * Must be used within a BulletinProvider.
  */
 export function useBulletins(): BulletinContextValue {
-  const context = useContext(BulletinContext);
-
-  if (context === undefined) {
-    throw new Error('useBulletins must be used within a BulletinProvider');
-  }
-
-  return context;
+  return useContext(BulletinContext);
 }
 
 // =============================================================================

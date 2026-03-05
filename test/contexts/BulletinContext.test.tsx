@@ -50,7 +50,6 @@ function TestConsumer() {
     criticalBulletinCount,
     cardBulletins,
     showBulletinDetail,
-    dismissCardBulletin,
     dismissAllCardBulletins,
     permanentlyDismissBulletin,
     refreshBulletins,
@@ -76,10 +75,6 @@ function TestConsumer() {
           <TouchableOpacity
             testID={`card-detail-${b.id}`}
             onPress={() => showBulletinDetail(b)}
-          />
-          <TouchableOpacity
-            testID={`card-dismiss-${b.id}`}
-            onPress={() => dismissCardBulletin(b.id)}
           />
           <TouchableOpacity
             testID={`card-perm-dismiss-${b.id}`}

@@ -83,3 +83,12 @@ export function formatBulletinDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
+
+/**
+ * Format a YYYY-MM-DD date string to a long display format (e.g., "Mar 4, 2026").
+ * Used in detail views where the year provides useful context.
+ */
+export function formatBulletinDateLong(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}

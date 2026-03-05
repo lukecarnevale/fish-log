@@ -21,6 +21,7 @@ import AnimatedModal from './AnimatedModal';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
 import type { Bulletin } from '../types/bulletin';
 import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { formatBulletinDateLong } from '../utils/dateUtils';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -110,31 +111,13 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
     setActiveImageIndex(index);
   };
 
-  /**
-   * Format a date range for display.
-   */
-  const formatDateRange = (): string | null => {
-    if (!bulletin.effectiveDate && !bulletin.expirationDate) return null;
-
-    const formatDate = (dateStr: string) => {
-      const date = new Date(dateStr + 'T00:00:00');
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    };
-
-    if (bulletin.effectiveDate && bulletin.expirationDate) {
-      return `${formatDate(bulletin.effectiveDate)} \u2013 ${formatDate(bulletin.expirationDate)}`;
-    }
-    if (bulletin.effectiveDate) {
-      return `Effective ${formatDate(bulletin.effectiveDate)}`;
-    }
-    return `Until ${formatDate(bulletin.expirationDate!)}`;
-  };
-
-  const dateRange = formatDateRange();
+  const dateRange = bulletin.effectiveDate || bulletin.expirationDate
+    ? bulletin.effectiveDate && bulletin.expirationDate
+      ? `${formatBulletinDateLong(bulletin.effectiveDate)} \u2013 ${formatBulletinDateLong(bulletin.expirationDate)}`
+      : bulletin.effectiveDate
+        ? `Effective ${formatBulletinDateLong(bulletin.effectiveDate)}`
+        : `Until ${formatBulletinDateLong(bulletin.expirationDate!)}`
+    : null;
 
   return (
     <AnimatedModal
@@ -270,7 +253,9 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
         )}
       </View>
 
-      {/* Fullscreen image viewer */}
+      {/* Fullscreen image viewer — rendered inside AnimatedModal so it presents
+          on top of the existing native Modal (sibling Modals can't present when
+          another Modal already owns the root view controller on iOS). */}
       <Modal
         visible={!!fullscreenImageUrl}
         transparent
@@ -300,6 +285,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
           )}
         </Pressable>
       </Modal>
+
     </AnimatedModal>
   );
 };

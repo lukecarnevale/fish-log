@@ -26,7 +26,7 @@ import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../styles/common';
 import { RootStackParamList } from '../types';
-import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
+import { WaveBackground } from './WaveBackground';
 import { devConfig } from '../config/devConfig';
 import { setAppModeWithWarning, AppMode, APP_VERSION } from '../config/appConfig';
 import { SCREEN_LABELS } from '../constants/screenLabels';
@@ -275,7 +275,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#0a4a50', '#0D5C63', '#1a8a7a']}
+              colors={['#05626C', '#06747F', '#0A8C96']}
               locations={[0, 0.4, 1]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -308,7 +308,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                 </Text>
               </View>
               <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.6)" />
-              <WaveAccent {...WAVE_PRESETS.profile} borderRadius={14} />
+              <WaveBackground />
             </LinearGradient>
           </TouchableOpacity>
 
@@ -568,10 +568,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  appSubtitleText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.8)',
-  },
   closeButton: {
     padding: 8,
   },
@@ -755,11 +751,6 @@ const styles = StyleSheet.create({
   },
 
   // Bulletin items in drawer — parchment aesthetic
-  bulletinCountInline: {
-    fontSize: 10,
-    fontWeight: '400',
-    color: '#888888',
-  },
   // Parchment wrapper around all bulletin items
   bulletinParchmentSection: {
     marginHorizontal: 14,

@@ -57,7 +57,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
 
   if (bulletins.length === 0) return null;
 
-  const subtitle = `${bulletins.length} update${bulletins.length === 1 ? '' : 's'} this week`;
+  const subtitle = `${bulletins.length} active update${bulletins.length === 1 ? '' : 's'}`;
 
   return (
     <View style={styles.container}>
