@@ -2,7 +2,7 @@ const { version } = require("./package.json");
 
 module.exports = {
   expo: {
-    name: "Fish Log Co.",
+    name: "Fish Log Co",
     slug: "fish-log",
     version,
     scheme: "fishlog",
@@ -10,6 +10,8 @@ module.exports = {
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
     splash: {
+      image: "./assets/splash-icon.png",
+      resizeMode: "contain",
       backgroundColor: "#1B808C",
     },
     ios: {
@@ -29,7 +31,7 @@ module.exports = {
         foregroundImage: "./assets/icon.png",
         backgroundColor: "#ffffff",
       },
-      package: "com.fishlog.app",
+      package: "io.fishlog.app",
       permissions: ["android.permission.RECORD_AUDIO"],
     },
     web: {
