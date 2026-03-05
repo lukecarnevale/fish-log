@@ -32,33 +32,8 @@ import { setAppModeWithWarning, AppMode, APP_VERSION } from '../config/appConfig
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { AppLogoIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, MultipleFishIcon, LicenseCardIcon } from './icons/DrawerMenuIcons';
 import DefaultAnglerAvatarIcon from './icons/DefaultAnglerAvatarIcon';
-import type { Bulletin, BulletinType } from '../types/bulletin';
-
-// ============================================
-// BULLETIN DISPLAY CONFIG (warm parchment palette)
-// ============================================
-
-interface DrawerBulletinConfig {
-  dotColor: string;
-  icon: string;
-  label: string;
-  textColor: string;
-  badgeBg: string;
-}
-
-function getDrawerBulletinConfig(type: BulletinType): DrawerBulletinConfig {
-  switch (type) {
-    case 'advisory':
-      return { dotColor: '#EA580C', icon: 'alert-triangle', label: 'ADVISORY', textColor: '#EA580C', badgeBg: 'rgba(234,88,12,0.10)' };
-    case 'educational':
-      return { dotColor: '#0D5C63', icon: 'book-open', label: 'EDUCATIONAL', textColor: '#0D5C63', badgeBg: 'rgba(13,92,99,0.08)' };
-    case 'closure':
-      return { dotColor: '#D32F2F', icon: 'alert-octagon', label: 'CLOSURE', textColor: '#D32F2F', badgeBg: 'rgba(211,47,47,0.10)' };
-    case 'info':
-    default:
-      return { dotColor: '#06747F', icon: 'info', label: 'INFO', textColor: '#06747F', badgeBg: 'rgba(6,116,127,0.08)' };
-  }
-}
+import type { Bulletin } from '../types/bulletin';
+import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 
 // ============================================
 // TYPES
@@ -342,7 +317,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             <>
               <View style={styles.bulletinParchmentSection}>
                 {bulletins.slice(0, 3).map((bulletin) => {
-                  const cfg = getDrawerBulletinConfig(bulletin.bulletinType);
+                  const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
                   const renderRightActions = (
                     _progress: Animated.AnimatedInterpolation<number>,
                     dragX: Animated.AnimatedInterpolation<number>
@@ -380,11 +355,11 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                         }}
                         activeOpacity={0.7}
                       >
-                        <View style={[styles.bulletinDot, { backgroundColor: cfg.dotColor }]} />
+                        <View style={[styles.bulletinDot, { backgroundColor: cfg.color }]} />
                         <View style={styles.bulletinItemContent}>
                           <View style={[styles.bulletinTypeBadge, { backgroundColor: cfg.badgeBg }]}>
-                            <Feather name={cfg.icon as any} size={8} color={cfg.textColor} style={styles.bulletinBadgeIcon} />
-                            <Text style={[styles.bulletinTypeBadgeText, { color: cfg.textColor }]}>{cfg.label}</Text>
+                            <Feather name={cfg.icon} size={8} color={cfg.color} style={styles.bulletinBadgeIcon} />
+                            <Text style={[styles.bulletinTypeBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
                           </View>
                           <Text style={styles.bulletinItemTitle} numberOfLines={2}>{bulletin.title}</Text>
                         </View>

@@ -25,7 +25,8 @@ import { SCREEN_LABELS } from '../constants/screenLabels';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { formatBulletinDate } from '../utils/dateUtils';
 import { colors, spacing } from '../styles/common';
-import type { Bulletin, BulletinType } from '../types/bulletin';
+import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import type { Bulletin } from '../types/bulletin';
 
 // =============================================================================
 // Navigation Types
@@ -38,31 +39,6 @@ type BulletinsScreenNavigationProp = StackNavigationProp<
 
 interface BulletinsScreenProps {
   navigation: BulletinsScreenNavigationProp;
-}
-
-// =============================================================================
-// Per-type display config (parchment palette)
-// =============================================================================
-
-interface BulletinCardConfig {
-  icon: string;
-  label: string;
-  badgeColor: string;
-  badgeBg: string;
-}
-
-function getBulletinCardConfig(type: BulletinType): BulletinCardConfig {
-  switch (type) {
-    case 'closure':
-      return { icon: 'alert-octagon', label: 'CLOSURE', badgeColor: '#DC2626', badgeBg: 'rgba(220,38,38,0.10)' };
-    case 'advisory':
-      return { icon: 'alert-triangle', label: 'ADVISORY', badgeColor: '#EA580C', badgeBg: 'rgba(234,88,12,0.10)' };
-    case 'educational':
-      return { icon: 'book-open', label: 'EDUCATIONAL', badgeColor: '#0D5C63', badgeBg: 'rgba(13,92,99,0.10)' };
-    case 'info':
-    default:
-      return { icon: 'info', label: 'INFO', badgeColor: '#06747F', badgeBg: 'rgba(6,116,127,0.08)' };
-  }
 }
 
 // =============================================================================
@@ -105,7 +81,7 @@ interface BulletinCardProps {
 }
 
 const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress }) => {
-  const cfg = getBulletinCardConfig(bulletin.bulletinType);
+  const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
 
   const dateText =
     bulletin.effectiveDate || bulletin.expirationDate
@@ -125,8 +101,8 @@ const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress }) => {
       {/* Top row — status badge (left) + date (right) */}
       <View style={styles.cardTopRow}>
         <View style={[styles.cardBadge, { backgroundColor: cfg.badgeBg }]}>
-          <Feather name={cfg.icon as any} size={10} color={cfg.badgeColor} style={styles.cardBadgeIcon} />
-          <Text style={[styles.cardBadgeText, { color: cfg.badgeColor }]}>
+          <Feather name={cfg.icon} size={10} color={cfg.color} style={styles.cardBadgeIcon} />
+          <Text style={[styles.cardBadgeText, { color: cfg.color }]}>
             {cfg.label}
           </Text>
         </View>

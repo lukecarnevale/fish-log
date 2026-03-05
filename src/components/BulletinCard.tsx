@@ -17,60 +17,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
-import { colors, spacing } from '../styles/common';
+import { spacing } from '../styles/common';
 import { formatBulletinDate } from '../utils/dateUtils';
-import type { Bulletin, BulletinType } from '../types/bulletin';
+import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import type { Bulletin } from '../types/bulletin';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-// =============================================================================
-// Per-type display config for parchment aesthetic
-// =============================================================================
-
-interface BulletinDisplayConfig {
-  icon: string;
-  label: string;
-  /** Badge text color */
-  badgeColor: string;
-  /** Badge background (semi-transparent) */
-  badgeBg: string;
-}
-
-function getBulletinDisplayConfig(type: BulletinType): BulletinDisplayConfig {
-  switch (type) {
-    case 'advisory':
-      return {
-        icon: 'alert-triangle',
-        label: 'ADVISORY',
-        badgeColor: '#EA580C',
-        badgeBg: 'rgba(234,88,12,0.10)',
-      };
-    case 'educational':
-      return {
-        icon: 'book-open',
-        label: 'EDUCATIONAL',
-        badgeColor: '#0D5C63',
-        badgeBg: 'rgba(13,92,99,0.08)',
-      };
-    case 'closure':
-      return {
-        icon: 'alert-octagon',
-        label: 'CLOSURE',
-        badgeColor: colors.error,
-        badgeBg: `${colors.error}18`,
-      };
-    case 'info':
-    default:
-      return {
-        icon: 'info',
-        label: 'INFO',
-        badgeColor: colors.secondary,
-        badgeBg: `${colors.secondary}15`,
-      };
-  }
 }
 
 // =============================================================================
@@ -175,7 +129,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
         <>
           <View style={styles.bulletinList}>
             {bulletins.slice(0, MAX_VISIBLE).map((bulletin) => {
-              const cfg = getBulletinDisplayConfig(bulletin.bulletinType);
+              const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
 
               return (
                 <TouchableOpacity
@@ -187,8 +141,8 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                   <View style={styles.bulletinCardBody}>
                     {/* Category badge */}
                     <View style={[styles.badge, { backgroundColor: cfg.badgeBg }]}>
-                      <Feather name={cfg.icon as any} size={10} color={cfg.badgeColor} style={styles.badgeIcon} />
-                      <Text style={[styles.badgeText, { color: cfg.badgeColor }]}>
+                      <Feather name={cfg.icon} size={10} color={cfg.color} style={styles.badgeIcon} />
+                      <Text style={[styles.badgeText, { color: cfg.color }]}>
                         {cfg.label}
                       </Text>
                     </View>

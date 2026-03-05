@@ -19,35 +19,11 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
-import type { Bulletin, BulletinType } from '../types/bulletin';
+import type { Bulletin } from '../types/bulletin';
+import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// =============================================================================
-// Per-type display config — consistent with homepage card, drawer, and bulletins page
-// =============================================================================
-
-interface ModalBulletinConfig {
-  icon: string;
-  label: string;
-  color: string;
-  badgeBg: string;
-}
-
-function getModalBulletinConfig(type: BulletinType): ModalBulletinConfig {
-  switch (type) {
-    case 'closure':
-      return { icon: 'alert-octagon', label: 'CLOSURE', color: '#DC2626', badgeBg: 'rgba(220,38,38,0.10)' };
-    case 'advisory':
-      return { icon: 'alert-triangle', label: 'ADVISORY', color: '#EA580C', badgeBg: 'rgba(234,88,12,0.10)' };
-    case 'educational':
-      return { icon: 'book-open', label: 'EDUCATIONAL', color: '#0D5C63', badgeBg: 'rgba(13,92,99,0.10)' };
-    case 'info':
-    default:
-      return { icon: 'info', label: 'INFO', color: '#06747F', badgeBg: 'rgba(6,116,127,0.08)' };
-  }
-}
 const IMAGE_WIDTH = SCREEN_WIDTH - spacing.lg * 4; // Modal padding + content padding
 
 // =============================================================================
@@ -115,7 +91,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
 
   if (!bulletin) return null;
 
-  const config = getModalBulletinConfig(bulletin.bulletinType);
+  const config = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
   const hasImages = bulletin.imageUrls.length > 0;
   const hasMultipleImages = bulletin.imageUrls.length > 1;
 
@@ -171,7 +147,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
     >
       {/* Type Badge */}
       <View style={[styles.typeBadge, { backgroundColor: config.badgeBg }]}>
-        <Feather name={config.icon as any} size={14} color={config.color} />
+        <Feather name={config.icon} size={14} color={config.color} />
         <Text style={[styles.typeBadgeText, { color: config.color }]}>
           {config.label}
         </Text>

@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, borderRadius, spacing, shadows } from '../styles/common';
 import BulletinModal from './BulletinModal';
 import type { Bulletin, BulletinType } from '../types/bulletin';
+import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 
 const BANNER_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof WAVE_PRESETS]> = {
@@ -24,40 +25,15 @@ const BANNER_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof WAV
   info: WAVE_PRESETS.info,
 };
 
-// =============================================================================
-// Type configuration per bulletin type (matches BulletinModal pattern)
-// =============================================================================
-
-const BANNER_CONFIG: Record<BulletinType, {
+// Banner-specific background/border colors (design system tokens, not parchment palette)
+const BANNER_STYLE_CONFIG: Record<BulletinType, {
   backgroundColor: string;
   borderColor: string;
-  iconName: keyof typeof Feather.glyphMap;
-  label: string;
 }> = {
-  closure: {
-    backgroundColor: colors.dangerLight,
-    borderColor: colors.error,
-    iconName: 'alert-octagon',
-    label: 'CLOSURE',
-  },
-  advisory: {
-    backgroundColor: colors.warningLight,
-    borderColor: colors.warning,
-    iconName: 'alert-triangle',
-    label: 'ADVISORY',
-  },
-  educational: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
-    iconName: 'book-open',
-    label: 'NOTICE',
-  },
-  info: {
-    backgroundColor: colors.lightestGray,
-    borderColor: colors.secondary,
-    iconName: 'info',
-    label: 'INFO',
-  },
+  closure: { backgroundColor: colors.dangerLight, borderColor: colors.error },
+  advisory: { backgroundColor: colors.warningLight, borderColor: colors.warning },
+  educational: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+  info: { backgroundColor: colors.lightestGray, borderColor: colors.secondary },
 };
 
 // =============================================================================
@@ -92,13 +68,9 @@ export const SpeciesDetailBulletinBanner: React.FC<
 
   // Show the most urgent bulletin first
   const primaryBulletin = bulletins[0];
-  const config = BANNER_CONFIG[primaryBulletin.bulletinType] ?? BANNER_CONFIG.info;
-  const iconColor =
-    primaryBulletin.bulletinType === 'closure'
-      ? colors.error
-      : primaryBulletin.bulletinType === 'advisory'
-        ? colors.warning
-        : colors.primary;
+  const typeConfig = BULLETIN_TYPE_CONFIG[primaryBulletin.bulletinType];
+  const bannerStyle = BANNER_STYLE_CONFIG[primaryBulletin.bulletinType];
+  const iconColor = typeConfig.color;
 
   const translateY = entranceAnim.interpolate({
     inputRange: [0, 1],
@@ -133,21 +105,21 @@ export const SpeciesDetailBulletinBanner: React.FC<
         style={[
           styles.banner,
           {
-            backgroundColor: config.backgroundColor,
+            backgroundColor: bannerStyle.backgroundColor,
             opacity: entranceAnim,
             transform: [{ translateY }],
           },
         ]}
         accessibilityRole="alert"
-        accessibilityLabel={`${config.label}: ${primaryBulletin.title}`}
+        accessibilityLabel={`${typeConfig.label}: ${primaryBulletin.title}`}
       >
         {/* Icon + Content */}
         <View style={styles.content}>
-          <Feather name={config.iconName} size={20} color={iconColor} />
+          <Feather name={typeConfig.icon} size={20} color={iconColor} />
           <View style={styles.textContent}>
             <View style={styles.labelRow}>
               <Text style={[styles.label, { color: iconColor }]}>
-                {config.label}
+                {typeConfig.label}
               </Text>
               {bulletins.length > 1 && (
                 <Text style={styles.moreCount}>
