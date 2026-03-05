@@ -69,6 +69,7 @@ import PastReportsScreen from "./screens/PastReportsScreen";
 import SpeciesInfoScreen from "./screens/SpeciesInfoScreen";
 import FishingLicenseScreen from "./screens/FishingLicenseScreen";
 import CatchFeedScreen from "./screens/CatchFeedScreen";
+import BulletinsScreen from "./screens/BulletinsScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import LegalDocumentScreen from "./screens/LegalDocumentScreen";
 
@@ -162,6 +163,7 @@ const AppContent: React.FC = () => {
           SpeciesInfo: 'species',
           LicenseDetails: 'license',
           CatchFeed: 'catchfeed',
+          Bulletins: 'bulletins',
           Profile: 'profile',
           Confirmation: 'confirmation',
           LegalDocument: 'legal/:type',
@@ -256,6 +258,13 @@ const AppContent: React.FC = () => {
           <Stack.Screen
             name="CatchFeed"
             component={CatchFeedScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="Bulletins"
+            component={BulletinsScreen}
             options={{
               headerShown: false,
             }}

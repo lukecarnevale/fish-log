@@ -17,6 +17,7 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import type { Bulletin, BulletinType } from '../types/bulletin';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 
@@ -25,20 +26,6 @@ const BULLETIN_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof W
   advisory: WAVE_PRESETS.warning,
   educational: WAVE_PRESETS.primary,
   info: WAVE_PRESETS.info,
-};
-
-// =============================================================================
-// Type-based styling
-// =============================================================================
-
-const BULLETIN_CONFIG: Record<
-  BulletinType,
-  { color: string; icon: keyof typeof Feather.glyphMap; label: string }
-> = {
-  closure: { color: colors.error, icon: 'alert-octagon', label: 'CLOSURE' },
-  advisory: { color: colors.warning, icon: 'alert-triangle', label: 'ADVISORY' },
-  educational: { color: colors.primary, icon: 'book-open', label: 'EDUCATIONAL' },
-  info: { color: colors.secondary, icon: 'info', label: 'INFO' },
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -52,7 +39,7 @@ interface BulletinModalProps {
   visible: boolean;
   bulletin: Bulletin | null;
   onClose: () => void;
-  onDismiss: (bulletinId: string) => void;
+  onDismiss?: (bulletinId: string) => void;
 }
 
 /**
@@ -108,7 +95,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
 
   if (!bulletin) return null;
 
-  const config = BULLETIN_CONFIG[bulletin.bulletinType] ?? BULLETIN_CONFIG.info;
+  const config = BULLETIN_TYPE_CONFIG[bulletin.bulletinType] ?? BULLETIN_TYPE_CONFIG.info;
   const hasImages = bulletin.imageUrls.length > 0;
   const hasMultipleImages = bulletin.imageUrls.length > 1;
 
@@ -119,7 +106,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
   };
 
   const handleDismiss = () => {
-    onDismiss(bulletin.id);
+    onDismiss?.(bulletin.id);
   };
 
   const handleImageScroll = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
@@ -272,13 +259,15 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
           <Text style={styles.primaryButtonText}>Got It</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.dismissButton}
-          onPress={handleDismiss}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.dismissButtonText}>Don't show again</Text>
-        </TouchableOpacity>
+        {onDismiss && (
+          <TouchableOpacity
+            style={styles.dismissButton}
+            onPress={handleDismiss}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.dismissButtonText}>Don't show again</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </AnimatedModal>
   );

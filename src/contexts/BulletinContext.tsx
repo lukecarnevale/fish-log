@@ -1,8 +1,8 @@
 // contexts/BulletinContext.tsx
 //
 // React Context for managing app bulletin notifications.
-// Fetches active bulletins on app start, filters dismissed ones,
-// and displays them one at a time without interfering with other modals.
+// Uses a hybrid approach: urgent closures/advisories get an auto-show modal,
+// while everything else surfaces as a non-blocking card on the HomeScreen.
 
 import React, {
   createContext,
@@ -25,16 +25,51 @@ import type { Bulletin } from '../types/bulletin';
 
 const DISMISSED_BULLETINS_KEY = 'dismissed_bulletin_ids';
 
+/**
+ * Determines whether a bulletin is "critical" and should auto-show as a modal.
+ * Only urgent closures and advisories qualify — these have legal/safety implications.
+ */
+function isCriticalBulletin(b: Bulletin): boolean {
+  return (
+    b.priority === 'urgent' &&
+    (b.bulletinType === 'closure' || b.bulletinType === 'advisory')
+  );
+}
+
 // =============================================================================
 // Context Types
 // =============================================================================
 
 interface BulletinContextValue {
-  /** Whether a bulletin modal is currently showing. */
+  /** Whether a bulletin modal is currently showing (critical auto-show or detail view). */
   isShowingBulletin: boolean;
 
-  /** Number of bulletins remaining in the queue. */
-  bulletinCount: number;
+  /** Number of critical bulletins remaining in the auto-show queue. */
+  criticalBulletinCount: number;
+
+  /** All active bulletins from the server (never filtered by dismissals). For the Bulletins page. */
+  fetchedBulletins: Bulletin[];
+
+  /** Active, undismissed bulletins (critical + non-critical). For badge counts, drawer, and card. */
+  allBulletins: Bulletin[];
+
+  /** Non-critical bulletins for the HomeScreen card. */
+  cardBulletins: Bulletin[];
+
+  /** The bulletin currently being viewed in the detail modal (tapped from card). */
+  selectedBulletin: Bulletin | null;
+
+  /** Open the detail modal for a specific bulletin. Pass allowDismiss=false to hide "Don't show again". */
+  showBulletinDetail: (bulletin: Bulletin, allowDismiss?: boolean) => void;
+
+  /** Dismiss a card bulletin for this session only. */
+  dismissCardBulletin: (id: string) => void;
+
+  /** Dismiss all card bulletins for this session. */
+  dismissAllCardBulletins: () => void;
+
+  /** Permanently dismiss a bulletin (won't show again across sessions). */
+  permanentlyDismissBulletin: (id: string) => void;
 
   /** Manually refresh bulletins from the server. */
   refreshBulletins: () => void;
@@ -42,7 +77,15 @@ interface BulletinContextValue {
 
 const defaultContextValue: BulletinContextValue = {
   isShowingBulletin: false,
-  bulletinCount: 0,
+  criticalBulletinCount: 0,
+  fetchedBulletins: [],
+  allBulletins: [],
+  cardBulletins: [],
+  selectedBulletin: null,
+  showBulletinDetail: () => {},
+  dismissCardBulletin: () => {},
+  dismissAllCardBulletins: () => {},
+  permanentlyDismissBulletin: () => {},
   refreshBulletins: () => {},
 };
 
@@ -63,23 +106,35 @@ interface BulletinProviderProps {
 export function BulletinProvider({ children }: BulletinProviderProps): React.ReactElement {
   const { isShowingAchievement } = useAchievements();
 
-  // Queue of bulletins to display
-  const [queue, setQueue] = useState<Bulletin[]>([]);
+  // All active bulletins from the server (never filtered — for the Bulletins page)
+  const [fetchedBulletins, setFetchedBulletins] = useState<Bulletin[]>([]);
+  // Active, undismissed bulletins (for badge counts, drawer, card)
+  const [allBulletins, setAllBulletins] = useState<Bulletin[]>([]);
+  // Critical bulletins auto-shown as modals (at most 1 at a time)
+  const [criticalQueue, setCriticalQueue] = useState<Bulletin[]>([]);
+  // Non-critical bulletins shown as a card on the HomeScreen
+  const [cardBulletins, setCardBulletins] = useState<Bulletin[]>([]);
+  // Bulletin selected from the card for detail view
+  const [selectedBulletin, setSelectedBulletin] = useState<Bulletin | null>(null);
+  // Whether the detail modal should show the "Don't show again" option
+  const [detailAllowDismiss, setDetailAllowDismiss] = useState(true);
   // Track whether we've fetched bulletins this session
   const hasFetched = useRef(false);
 
-  const currentBulletin = queue.length > 0 ? queue[0] : null;
+  const currentCritical = criticalQueue.length > 0 ? criticalQueue[0] : null;
 
-  // Only show a bulletin when there's one in queue AND no achievement is showing
-  const shouldShow = currentBulletin !== null && !isShowingAchievement;
+  // Show the critical modal OR the detail modal, but not while achievements are showing
+  const isShowingCritical = currentCritical !== null && !isShowingAchievement;
+  const isShowingDetail = selectedBulletin !== null && !isShowingAchievement && !isShowingCritical;
+  const isShowingBulletin = isShowingCritical || isShowingDetail;
+
+  // The bulletin currently visible in the modal (critical takes priority)
+  const visibleBulletin = isShowingCritical ? currentCritical : isShowingDetail ? selectedBulletin : null;
 
   // =========================================================================
   // Dismissed bulletin management
   // =========================================================================
 
-  /**
-   * Load the set of permanently dismissed bulletin IDs from AsyncStorage.
-   */
   const getDismissedIds = useCallback(async (): Promise<Set<string>> => {
     try {
       const raw = await AsyncStorage.getItem(DISMISSED_BULLETINS_KEY);
@@ -93,9 +148,6 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
     return new Set();
   }, []);
 
-  /**
-   * Persist a bulletin ID as permanently dismissed.
-   */
   const addDismissedId = useCallback(async (bulletinId: string) => {
     try {
       const dismissed = await getDismissedIds();
@@ -110,7 +162,7 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   }, [getDismissedIds]);
 
   // =========================================================================
-  // Fetch and filter bulletins
+  // Fetch and split bulletins into critical vs. card
   // =========================================================================
 
   const loadBulletins = useCallback(async () => {
@@ -120,17 +172,39 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
         getDismissedIds(),
       ]);
 
-      // Filter out permanently dismissed bulletins
+      // Store the full server list (never filtered — for the Bulletins page)
+      setFetchedBulletins(bulletins);
+
       const undismissed = bulletins.filter((b) => !dismissedIds.has(b.id));
 
-      if (undismissed.length > 0) {
+      // Split into critical (auto-modal) and card (non-blocking) buckets
+      const critical: Bulletin[] = [];
+      const card: Bulletin[] = [];
+
+      for (const b of undismissed) {
+        if (isCriticalBulletin(b)) {
+          critical.push(b);
+        } else {
+          card.push(b);
+        }
+      }
+
+      if (critical.length > 0) {
         console.log(
-          `📋 Showing ${undismissed.length} bulletin(s):`,
-          undismissed.map((b) => b.title).join(', ')
+          `🚨 ${critical.length} critical bulletin(s) will auto-show:`,
+          critical.map((b) => b.title).join(', ')
+        );
+      }
+      if (card.length > 0) {
+        console.log(
+          `📋 ${card.length} bulletin(s) on HomeScreen card:`,
+          card.map((b) => b.title).join(', ')
         );
       }
 
-      setQueue(undismissed);
+      setAllBulletins(undismissed);
+      setCriticalQueue(critical);
+      setCardBulletins(card);
     } catch (error) {
       console.warn('Failed to load bulletins:', error);
     }
@@ -149,26 +223,63 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   // =========================================================================
 
   /**
-   * "Got it" — dismiss the current bulletin for this session only.
+   * Close the current modal — handles both critical auto-show and detail view.
    */
   const handleClose = useCallback(() => {
-    setQueue((prev) => prev.slice(1));
-  }, []);
+    if (isShowingCritical) {
+      // Advance the critical queue
+      setCriticalQueue((prev) => prev.slice(1));
+    } else {
+      // Close the detail view
+      setSelectedBulletin(null);
+    }
+  }, [isShowingCritical]);
 
   /**
-   * "Don't show again" — dismiss permanently and remove from queue.
+   * "Don't show again" — permanently dismiss the currently visible bulletin.
    */
-  const handleDismiss = useCallback(
+  const handlePermanentDismiss = useCallback(
     (bulletinId: string) => {
       addDismissedId(bulletinId);
-      setQueue((prev) => prev.slice(1));
+      // Remove from the all-bulletins list (affects badge counts and drawer display)
+      setAllBulletins((prev) => prev.filter((b) => b.id !== bulletinId));
+      if (isShowingCritical) {
+        setCriticalQueue((prev) => prev.slice(1));
+      } else {
+        setSelectedBulletin(null);
+        // Also remove from card list
+        setCardBulletins((prev) => prev.filter((b) => b.id !== bulletinId));
+      }
+    },
+    [addDismissedId, isShowingCritical]
+  );
+
+  // =========================================================================
+  // Card handlers (exposed via context)
+  // =========================================================================
+
+  const showBulletinDetail = useCallback((bulletin: Bulletin, allowDismiss = true) => {
+    setDetailAllowDismiss(allowDismiss);
+    setSelectedBulletin(bulletin);
+  }, []);
+
+  const dismissCardBulletin = useCallback((id: string) => {
+    setCardBulletins((prev) => prev.filter((b) => b.id !== id));
+  }, []);
+
+  const dismissAllCardBulletins = useCallback(() => {
+    setCardBulletins([]);
+  }, []);
+
+  const permanentlyDismissBulletin = useCallback(
+    (id: string) => {
+      addDismissedId(id);
+      setAllBulletins((prev) => prev.filter((b) => b.id !== id));
+      setCardBulletins((prev) => prev.filter((b) => b.id !== id));
     },
     [addDismissedId]
   );
 
-  /**
-   * Manual refresh (e.g., pull-to-refresh or after returning from background).
-   */
   const refreshBulletins = useCallback(() => {
     hasFetched.current = false;
     loadBulletins();
@@ -179,8 +290,16 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   // =========================================================================
 
   const contextValue: BulletinContextValue = {
-    isShowingBulletin: shouldShow,
-    bulletinCount: queue.length,
+    isShowingBulletin,
+    criticalBulletinCount: criticalQueue.length,
+    fetchedBulletins,
+    allBulletins,
+    cardBulletins,
+    selectedBulletin,
+    showBulletinDetail,
+    dismissCardBulletin,
+    dismissAllCardBulletins,
+    permanentlyDismissBulletin,
     refreshBulletins,
   };
 
@@ -188,12 +307,16 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
     <BulletinContext.Provider value={contextValue}>
       {children}
 
-      {/* Bulletin Modal — rendered at provider level, controlled by queue */}
+      {/* Bulletin Modal — shows critical auto-show OR detail view from card tap */}
       <BulletinModal
-        visible={shouldShow}
-        bulletin={currentBulletin}
+        visible={isShowingBulletin}
+        bulletin={visibleBulletin}
         onClose={handleClose}
-        onDismiss={handleDismiss}
+        onDismiss={
+          // Critical auto-show modals always allow permanent dismiss.
+          // Detail view respects the flag set by the caller of showBulletinDetail.
+          isShowingCritical || detailAllowDismiss ? handlePermanentDismiss : undefined
+        }
       />
     </BulletinContext.Provider>
   );
@@ -221,5 +344,5 @@ export function useBulletins(): BulletinContextValue {
 // Exports
 // =============================================================================
 
-export { BulletinContext };
+export { BulletinContext, isCriticalBulletin };
 export type { BulletinContextValue, BulletinProviderProps };

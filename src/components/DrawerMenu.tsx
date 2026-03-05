@@ -27,8 +27,10 @@ import { RootStackParamList } from '../types';
 import { devConfig } from '../config/devConfig';
 import { setAppModeWithWarning, AppMode, APP_VERSION } from '../config/appConfig';
 import { SCREEN_LABELS } from '../constants/screenLabels';
+import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { AppLogoIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, MultipleFishIcon, LicenseCardIcon } from './icons/DrawerMenuIcons';
 import DefaultAnglerAvatarIcon from './icons/DefaultAnglerAvatarIcon';
+import type { Bulletin } from '../types/bulletin';
 
 // ============================================
 // TYPES
@@ -51,6 +53,12 @@ interface DrawerMenuProps {
   profileImage?: string | null;
   /** Whether the user has an email in their profile (to show "Sign In" vs "Join") */
   hasProfileEmail?: boolean;
+  /** All active bulletins to show in the drawer (capped at 3 inline) */
+  bulletins?: Bulletin[];
+  /** Called when a bulletin is tapped to view details */
+  onBulletinPress?: (bulletin: Bulletin) => void;
+  /** Navigate to the full Bulletins page */
+  onViewAllBulletins?: () => void;
 }
 
 // ============================================
@@ -73,6 +81,8 @@ interface MenuItemProps {
   disabled?: boolean;
   /** Callback when disabled item is pressed */
   onDisabledPress?: () => void;
+  /** Numeric count badge shown on the icon (e.g. bulletin count) */
+  badgeCount?: number;
 }
 
 const MenuItem: React.FC<MenuItemProps> = ({
@@ -89,6 +99,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
   isExternal,
   disabled = false,
   onDisabledPress,
+  badgeCount,
 }) => (
   <TouchableOpacity
     style={[styles.menuItem, disabled && styles.menuItemDisabled]}
@@ -103,6 +114,11 @@ const MenuItem: React.FC<MenuItemProps> = ({
         <Animated.View style={[styles.menuBadge, { transform: [{ scale: badgeScale }] }]}>
           <Animated.View style={[styles.menuBadgeDot, { borderColor: badgeBorderColor }]} />
         </Animated.View>
+      )}
+      {typeof badgeCount === 'number' && badgeCount > 0 && (
+        <View style={styles.menuCountBadge}>
+          <Text style={styles.menuCountBadgeText}>{badgeCount}</Text>
+        </View>
       )}
     </View>
     <View style={styles.menuItemContent}>
@@ -138,6 +154,9 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   isSignedIn = false,
   profileImage,
   hasProfileEmail = false,
+  bulletins = [],
+  onBulletinPress,
+  onViewAllBulletins,
 }) => {
   const menuScrollRef = useRef<ScrollView>(null);
 
@@ -278,7 +297,73 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.6)" />
           </TouchableOpacity>
 
+          {/* Bulletins Section — inline previews (capped at 3) when bulletins exist */}
+          {bulletins.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>
+                Bulletins
+                <Text style={styles.bulletinCountInline}> ({bulletins.length})</Text>
+              </Text>
+              {bulletins.slice(0, 3).map((bulletin) => {
+                const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType] ?? BULLETIN_TYPE_CONFIG.info;
+                return (
+                  <TouchableOpacity
+                    key={bulletin.id}
+                    style={styles.bulletinItem}
+                    onPress={() => {
+                      onClose();
+                      setTimeout(() => onBulletinPress?.(bulletin), 0);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.bulletinDot, { backgroundColor: cfg.color }]} />
+                    <View style={styles.bulletinItemContent}>
+                      <View style={[styles.bulletinTypeBadge, { backgroundColor: `${cfg.color}15` }]}>
+                        <Feather name={cfg.icon as any} size={9} color={cfg.color} />
+                        <Text style={[styles.bulletinTypeBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+                      </View>
+                      <Text style={styles.bulletinItemTitle} numberOfLines={2}>{bulletin.title}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={14} color="#ccc" />
+                  </TouchableOpacity>
+                );
+              })}
+              {/* View All Bulletins link */}
+              {onViewAllBulletins && (
+                <TouchableOpacity
+                  style={styles.bulletinViewAll}
+                  onPress={() => {
+                    onClose();
+                    setTimeout(() => onViewAllBulletins(), 0);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.bulletinViewAllText}>
+                    View All Bulletins ({bulletins.length})
+                  </Text>
+                  <Feather name="chevron-right" size={14} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+              <View style={styles.divider} />
+            </>
+          )}
+
           <Text style={styles.sectionHeader}>Quick Actions</Text>
+
+          {/* Bulletins menu item — shown only when no inline previews above */}
+          {bulletins.length === 0 && (
+            <MenuItem
+              icon="bell"
+              label={SCREEN_LABELS.bulletins.title}
+              subtitle={SCREEN_LABELS.bulletins.subtitle}
+              onPress={() => {
+                onClose();
+                setTimeout(() => onViewAllBulletins?.(), 0);
+              }}
+              iconBgColor="#FFF3E0"
+              iconColor="#F57C00"
+            />
+          )}
 
           <MenuItem
             customIcon={<JumpingFishIcon />}
@@ -576,6 +661,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B6B',
     borderWidth: 2,
   },
+  menuCountBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -7,
+    backgroundColor: '#D32F2F',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#E8F5F4',
+  },
+  menuCountBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
 
   // Divider
   divider: {
@@ -599,6 +703,65 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#bbbbbb',
     marginTop: 6,
+  },
+
+  // Bulletin items in drawer
+  bulletinCountInline: {
+    fontSize: 10,
+    fontWeight: '400',
+    color: '#888888',
+  },
+  bulletinItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  bulletinDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 10,
+    marginTop: 1,
+    alignSelf: 'flex-start',
+  },
+  bulletinItemContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  bulletinTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 100,
+    marginBottom: 3,
+  },
+  bulletinTypeBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginLeft: 3,
+  },
+  bulletinItemTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    lineHeight: 18,
+  },
+  bulletinViewAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    gap: 4,
+  },
+  bulletinViewAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });
 
