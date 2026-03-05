@@ -16,21 +16,49 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../styles/common';
 import { RootStackParamList } from '../types';
+import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 import { devConfig } from '../config/devConfig';
 import { setAppModeWithWarning, AppMode, APP_VERSION } from '../config/appConfig';
 import { SCREEN_LABELS } from '../constants/screenLabels';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { AppLogoIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, MultipleFishIcon, LicenseCardIcon } from './icons/DrawerMenuIcons';
 import DefaultAnglerAvatarIcon from './icons/DefaultAnglerAvatarIcon';
-import type { Bulletin } from '../types/bulletin';
+import type { Bulletin, BulletinType } from '../types/bulletin';
+
+// ============================================
+// BULLETIN DISPLAY CONFIG (warm parchment palette)
+// ============================================
+
+interface DrawerBulletinConfig {
+  dotColor: string;
+  icon: string;
+  label: string;
+  textColor: string;
+  badgeBg: string;
+}
+
+function getDrawerBulletinConfig(type: BulletinType): DrawerBulletinConfig {
+  switch (type) {
+    case 'advisory':
+      return { dotColor: '#EA580C', icon: 'alert-triangle', label: 'ADVISORY', textColor: '#EA580C', badgeBg: 'rgba(234,88,12,0.10)' };
+    case 'educational':
+      return { dotColor: '#0D5C63', icon: 'book-open', label: 'EDUCATIONAL', textColor: '#0D5C63', badgeBg: 'rgba(13,92,99,0.08)' };
+    case 'closure':
+      return { dotColor: '#D32F2F', icon: 'alert-octagon', label: 'CLOSURE', textColor: '#D32F2F', badgeBg: 'rgba(211,47,47,0.10)' };
+    case 'info':
+    default:
+      return { dotColor: '#06747F', icon: 'info', label: 'INFO', textColor: '#06747F', badgeBg: 'rgba(6,116,127,0.08)' };
+  }
+}
 
 // ============================================
 // TYPES
@@ -59,6 +87,8 @@ interface DrawerMenuProps {
   onBulletinPress?: (bulletin: Bulletin) => void;
   /** Navigate to the full Bulletins page */
   onViewAllBulletins?: () => void;
+  /** Permanently dismiss a single bulletin by id (swipe-to-dismiss) */
+  onDismissBulletin?: (id: string) => void;
 }
 
 // ============================================
@@ -157,6 +187,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   bulletins = [],
   onBulletinPress,
   onViewAllBulletins,
+  onDismissBulletin,
 }) => {
   const menuScrollRef = useRef<ScrollView>(null);
 
@@ -264,86 +295,121 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
 
           {/* Profile Card */}
           <TouchableOpacity
-            style={styles.profileCard}
+            style={styles.profileCardOuter}
             onPress={() => handleNavigate("Profile")}
             activeOpacity={0.8}
           >
-            <View style={styles.profileAvatarContainer}>
-              <View style={styles.profileAvatar}>
-                {profileImage ? (
-                  <Image
-                    source={{ uri: profileImage }}
-                    style={styles.profileAvatarImage}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    transition={150}
-                  />
-                ) : (
-                  <DefaultAnglerAvatarIcon size={44} />
+            <LinearGradient
+              colors={['#0a4a50', '#0D5C63', '#1a8a7a']}
+              locations={[0, 0.4, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.profileCard}
+            >
+              <View style={styles.profileAvatarContainer}>
+                <View style={styles.profileAvatar}>
+                  {profileImage ? (
+                    <Image
+                      source={{ uri: profileImage }}
+                      style={styles.profileAvatarImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={150}
+                    />
+                  ) : (
+                    <DefaultAnglerAvatarIcon size={44} />
+                  )}
+                </View>
+                {pendingAuth && (
+                  <Animated.View style={[styles.profileBadge, { transform: [{ scale: badgeScale }] }]}>
+                    <Animated.View style={[styles.profileBadgeDot, { borderColor: badgeBorderColor }]} />
+                  </Animated.View>
                 )}
               </View>
-              {pendingAuth && (
-                <Animated.View style={[styles.profileBadge, { transform: [{ scale: badgeScale }] }]}>
-                  <Animated.View style={[styles.profileBadgeDot, { borderColor: badgeBorderColor }]} />
-                </Animated.View>
-              )}
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{SCREEN_LABELS.profile.title}</Text>
-              <Text style={styles.profileSubtitle}>
-                {isSignedIn ? SCREEN_LABELS.profile.subtitle : hasProfileEmail ? 'Sign In' : 'Join'}
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.6)" />
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{SCREEN_LABELS.profile.title}</Text>
+                <Text style={styles.profileSubtitle}>
+                  {isSignedIn ? SCREEN_LABELS.profile.subtitle : hasProfileEmail ? 'Sign In' : 'Join'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.6)" />
+              <WaveAccent {...WAVE_PRESETS.profile} borderRadius={14} />
+            </LinearGradient>
           </TouchableOpacity>
 
-          {/* Bulletins Section — inline previews (capped at 3) when bulletins exist */}
+          {/* Bulletins Section — parchment-styled inline previews (capped at 3) */}
           {bulletins.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>
-                Bulletins
-                <Text style={styles.bulletinCountInline}> ({bulletins.length})</Text>
-              </Text>
-              {bulletins.slice(0, 3).map((bulletin) => {
-                const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType] ?? BULLETIN_TYPE_CONFIG.info;
-                return (
+              <View style={styles.bulletinParchmentSection}>
+                {bulletins.slice(0, 3).map((bulletin) => {
+                  const cfg = getDrawerBulletinConfig(bulletin.bulletinType);
+                  const renderRightActions = (
+                    _progress: Animated.AnimatedInterpolation<number>,
+                    dragX: Animated.AnimatedInterpolation<number>
+                  ) => {
+                    const translateX = dragX.interpolate({
+                      inputRange: [-SWIPE_ACTION_WIDTH, 0],
+                      outputRange: [0, SWIPE_ACTION_WIDTH],
+                      extrapolate: 'clamp',
+                    });
+                    return (
+                      <Animated.View style={[styles.bulletinSwipeAction, { transform: [{ translateX }] }]}>
+                        <TouchableOpacity
+                          style={styles.bulletinSwipeActionInner}
+                          onPress={() => onDismissBulletin?.(bulletin.id)}
+                          activeOpacity={0.85}
+                        >
+                          <Feather name="x" size={18} color="#fff" />
+                          <Text style={styles.bulletinSwipeActionText}>Dismiss</Text>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  };
+                  return (
+                    <Swipeable
+                      key={bulletin.id}
+                      renderRightActions={renderRightActions}
+                      rightThreshold={40}
+                      overshootRight={false}
+                    >
+                      <TouchableOpacity
+                        style={styles.bulletinItem}
+                        onPress={() => {
+                          onClose();
+                          setTimeout(() => onBulletinPress?.(bulletin), 0);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.bulletinDot, { backgroundColor: cfg.dotColor }]} />
+                        <View style={styles.bulletinItemContent}>
+                          <View style={[styles.bulletinTypeBadge, { backgroundColor: cfg.badgeBg }]}>
+                            <Feather name={cfg.icon as any} size={8} color={cfg.textColor} style={styles.bulletinBadgeIcon} />
+                            <Text style={[styles.bulletinTypeBadgeText, { color: cfg.textColor }]}>{cfg.label}</Text>
+                          </View>
+                          <Text style={styles.bulletinItemTitle} numberOfLines={2}>{bulletin.title}</Text>
+                        </View>
+                        <Feather name="chevron-right" size={14} color="#C9B68E" />
+                      </TouchableOpacity>
+                    </Swipeable>
+                  );
+                })}
+                {/* View All Bulletins link */}
+                {onViewAllBulletins && (
                   <TouchableOpacity
-                    key={bulletin.id}
-                    style={styles.bulletinItem}
+                    style={styles.bulletinViewAll}
                     onPress={() => {
                       onClose();
-                      setTimeout(() => onBulletinPress?.(bulletin), 0);
+                      setTimeout(() => onViewAllBulletins(), 0);
                     }}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.bulletinDot, { backgroundColor: cfg.color }]} />
-                    <View style={styles.bulletinItemContent}>
-                      <View style={[styles.bulletinTypeBadge, { backgroundColor: `${cfg.color}15` }]}>
-                        <Feather name={cfg.icon as any} size={9} color={cfg.color} />
-                        <Text style={[styles.bulletinTypeBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
-                      </View>
-                      <Text style={styles.bulletinItemTitle} numberOfLines={2}>{bulletin.title}</Text>
-                    </View>
-                    <Feather name="chevron-right" size={14} color="#ccc" />
+                    <Text style={styles.bulletinViewAllText}>
+                      View All Bulletins ({bulletins.length})
+                    </Text>
+                    <Feather name="chevron-right" size={14} color="#EA580C" />
                   </TouchableOpacity>
-                );
-              })}
-              {/* View All Bulletins link */}
-              {onViewAllBulletins && (
-                <TouchableOpacity
-                  style={styles.bulletinViewAll}
-                  onPress={() => {
-                    onClose();
-                    setTimeout(() => onViewAllBulletins(), 0);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.bulletinViewAllText}>
-                    View All Bulletins ({bulletins.length})
-                  </Text>
-                  <Feather name="chevron-right" size={14} color={colors.primary} />
-                </TouchableOpacity>
-              )}
+                )}
+              </View>
               <View style={styles.divider} />
             </>
           )}
@@ -485,6 +551,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
 // ============================================
 
 const MENU_WIDTH = 320;
+const SWIPE_ACTION_WIDTH = 72;
 
 // Extra width to hide spring bounce overshoot
 const BOUNCE_BUFFER = 30;
@@ -535,9 +602,16 @@ const styles = StyleSheet.create({
   },
 
   // Profile Card
-  profileCard: {
+  profileCardOuter: {
     margin: 14,
-    backgroundColor: colors.primary,
+    borderRadius: 14,
+    shadowColor: '#d8a837',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  profileCard: {
     borderRadius: 14,
     padding: 14,
     flexDirection: 'row',
@@ -705,24 +779,35 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 
-  // Bulletin items in drawer
+  // Bulletin items in drawer — parchment aesthetic
   bulletinCountInline: {
     fontSize: 10,
     fontWeight: '400',
     color: '#888888',
   },
+  // Parchment wrapper around all bulletin items
+  bulletinParchmentSection: {
+    marginHorizontal: 14,
+    marginTop: 4,
+    backgroundColor: '#FEF9F0',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8DCC8',
+    overflow: 'hidden',
+  },
   bulletinItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    backgroundColor: '#FEF9F0',
   },
   bulletinDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     marginRight: 10,
-    marginTop: 1,
+    marginTop: 2,
     alignSelf: 'flex-start',
   },
   bulletinItemContent: {
@@ -733,35 +818,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 100,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
     marginBottom: 3,
+  },
+  bulletinBadgeIcon: {
+    marginRight: 3,
   },
   bulletinTypeBadgeText: {
     fontSize: 8,
     fontWeight: '700',
     letterSpacing: 0.5,
-    marginLeft: 3,
   },
   bulletinItemTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: '#44300A',
     lineHeight: 18,
+  },
+  // Swipe-to-dismiss action button
+  bulletinSwipeAction: {
+    width: SWIPE_ACTION_WIDTH,
+    backgroundColor: '#DC2626',
+    overflow: 'hidden',
+  },
+  bulletinSwipeActionInner: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bulletinSwipeActionText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
   },
   bulletinViewAll: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     gap: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#E8DCC8',
   },
   bulletinViewAllText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
+    color: '#EA580C',
   },
 });
 

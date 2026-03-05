@@ -12,23 +12,42 @@ import {
   ScrollView,
   Linking,
   Dimensions,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import type { Bulletin, BulletinType } from '../types/bulletin';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 
-const BULLETIN_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof WAVE_PRESETS]> = {
-  closure: WAVE_PRESETS.error,
-  advisory: WAVE_PRESETS.warning,
-  educational: WAVE_PRESETS.primary,
-  info: WAVE_PRESETS.info,
-};
-
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// =============================================================================
+// Per-type display config — consistent with homepage card, drawer, and bulletins page
+// =============================================================================
+
+interface ModalBulletinConfig {
+  icon: string;
+  label: string;
+  color: string;
+  badgeBg: string;
+}
+
+function getModalBulletinConfig(type: BulletinType): ModalBulletinConfig {
+  switch (type) {
+    case 'closure':
+      return { icon: 'alert-octagon', label: 'CLOSURE', color: '#DC2626', badgeBg: 'rgba(220,38,38,0.10)' };
+    case 'advisory':
+      return { icon: 'alert-triangle', label: 'ADVISORY', color: '#EA580C', badgeBg: 'rgba(234,88,12,0.10)' };
+    case 'educational':
+      return { icon: 'book-open', label: 'EDUCATIONAL', color: '#0D5C63', badgeBg: 'rgba(13,92,99,0.10)' };
+    case 'info':
+    default:
+      return { icon: 'info', label: 'INFO', color: '#06747F', badgeBg: 'rgba(6,116,127,0.08)' };
+  }
+}
 const IMAGE_WIDTH = SCREEN_WIDTH - spacing.lg * 4; // Modal padding + content padding
 
 // =============================================================================
@@ -92,10 +111,11 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
   onDismiss,
 }) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
 
   if (!bulletin) return null;
 
-  const config = BULLETIN_TYPE_CONFIG[bulletin.bulletinType] ?? BULLETIN_TYPE_CONFIG.info;
+  const config = getModalBulletinConfig(bulletin.bulletinType);
   const hasImages = bulletin.imageUrls.length > 0;
   const hasMultipleImages = bulletin.imageUrls.length > 1;
 
@@ -147,10 +167,11 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
       scrollable={true}
       avoidKeyboard={false}
       closeOnOverlayPress={false}
+      containerStyle={styles.modalContainer}
     >
       {/* Type Badge */}
-      <View style={[styles.typeBadge, { backgroundColor: `${config.color}15` }]}>
-        <Feather name={config.icon} size={14} color={config.color} />
+      <View style={[styles.typeBadge, { backgroundColor: config.badgeBg }]}>
+        <Feather name={config.icon as any} size={14} color={config.color} />
         <Text style={[styles.typeBadgeText, { color: config.color }]}>
           {config.label}
         </Text>
@@ -182,13 +203,14 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
                 style={styles.imageCarousel}
               >
                 {bulletin.imageUrls.map((url, index) => (
-                  <Image
-                    key={index}
-                    source={{ uri: url }}
-                    style={styles.carouselImage}
-                    contentFit="contain"
-                    cachePolicy="memory-disk"
-                  />
+                  <Pressable key={index} onPress={() => setFullscreenImageUrl(url)}>
+                    <Image
+                      source={{ uri: url }}
+                      style={styles.carouselImage}
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
+                    />
+                  </Pressable>
                 ))}
               </ScrollView>
               {/* Pagination dots */}
@@ -208,12 +230,14 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
               </View>
             </>
           ) : (
-            <Image
-              source={{ uri: bulletin.imageUrls[0] }}
-              style={styles.singleImage}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-            />
+            <Pressable onPress={() => setFullscreenImageUrl(bulletin.imageUrls[0])}>
+              <Image
+                source={{ uri: bulletin.imageUrls[0] }}
+                style={styles.singleImage}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
+            </Pressable>
           )}
         </View>
       )}
@@ -231,7 +255,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
             style={styles.notesIcon}
           />
           {renderLinkedText(bulletin.notes, styles.notesText)}
-          <WaveAccent {...(BULLETIN_WAVE_MAP[bulletin.bulletinType] ?? WAVE_PRESETS.primary)} height={20} />
+          <WaveAccent {...WAVE_PRESETS.primary} height={20} />
         </View>
       )}
 
@@ -269,6 +293,37 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Fullscreen image viewer */}
+      <Modal
+        visible={!!fullscreenImageUrl}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFullscreenImageUrl(null)}
+      >
+        <Pressable
+          style={styles.fullscreenOverlay}
+          onPress={() => setFullscreenImageUrl(null)}
+        >
+          <View style={styles.fullscreenCloseRow}>
+            <TouchableOpacity
+              onPress={() => setFullscreenImageUrl(null)}
+              style={styles.fullscreenCloseButton}
+              activeOpacity={0.7}
+            >
+              <Feather name="x" size={24} color={colors.white} />
+            </TouchableOpacity>
+          </View>
+          {fullscreenImageUrl && (
+            <Image
+              source={{ uri: fullscreenImageUrl }}
+              style={styles.fullscreenImage}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
+          )}
+        </Pressable>
+      </Modal>
     </AnimatedModal>
   );
 };
@@ -295,7 +350,8 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
-    color: colors.textPrimary,
+    fontFamily: 'Georgia',
+    color: '#44300A',
     marginBottom: spacing.sm,
   },
   dateContainer: {
@@ -310,6 +366,7 @@ const styles = StyleSheet.create({
   dateText: {
     ...typography.bodySmall,
     fontWeight: '600',
+    color: '#A3865A',
     marginLeft: spacing.xs,
   },
   imageSection: {
@@ -349,7 +406,7 @@ const styles = StyleSheet.create({
   },
   description: {
     ...typography.body,
-    color: colors.textPrimary,
+    color: '#44300A',
     lineHeight: 22,
     marginBottom: spacing.md,
   },
@@ -367,7 +424,7 @@ const styles = StyleSheet.create({
   },
   notesText: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: '#000000',
     flex: 1,
     lineHeight: 20,
   },
@@ -404,7 +461,34 @@ const styles = StyleSheet.create({
   },
   dismissButtonText: {
     ...typography.bodySmall,
-    color: colors.textTertiary,
+    color: '#8B7355',
+  },
+  modalContainer: {
+    backgroundColor: '#FFFDF8',
+  },
+  fullscreenOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenCloseRow: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 10,
+  },
+  fullscreenCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullscreenImage: {
+    width: SCREEN_WIDTH - spacing.lg * 2,
+    height: '70%',
   },
 });
 

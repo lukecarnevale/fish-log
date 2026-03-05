@@ -1,8 +1,8 @@
 // components/BulletinCard.tsx
 //
 // Non-blocking bulletin card for the HomeScreen.
-// Displays a collapsible list of non-critical bulletins that users can
-// browse at their own pace, replacing the old sequential modal flow.
+// Displays a collapsible list of non-critical bulletins using a warm
+// parchment aesthetic that differentiates it from the MHR card.
 
 import React, { useState, useCallback } from 'react';
 import {
@@ -16,14 +16,61 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, typography, shadows } from '../styles/common';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
+import { colors, spacing } from '../styles/common';
 import { formatBulletinDate } from '../utils/dateUtils';
-import type { Bulletin } from '../types/bulletin';
+import type { Bulletin, BulletinType } from '../types/bulletin';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// =============================================================================
+// Per-type display config for parchment aesthetic
+// =============================================================================
+
+interface BulletinDisplayConfig {
+  icon: string;
+  label: string;
+  /** Badge text color */
+  badgeColor: string;
+  /** Badge background (semi-transparent) */
+  badgeBg: string;
+}
+
+function getBulletinDisplayConfig(type: BulletinType): BulletinDisplayConfig {
+  switch (type) {
+    case 'advisory':
+      return {
+        icon: 'alert-triangle',
+        label: 'ADVISORY',
+        badgeColor: '#EA580C',
+        badgeBg: 'rgba(234,88,12,0.10)',
+      };
+    case 'educational':
+      return {
+        icon: 'book-open',
+        label: 'EDUCATIONAL',
+        badgeColor: '#0D5C63',
+        badgeBg: 'rgba(13,92,99,0.08)',
+      };
+    case 'closure':
+      return {
+        icon: 'alert-octagon',
+        label: 'CLOSURE',
+        badgeColor: colors.error,
+        badgeBg: `${colors.error}18`,
+      };
+    case 'info':
+    default:
+      return {
+        icon: 'info',
+        label: 'INFO',
+        badgeColor: colors.secondary,
+        badgeBg: `${colors.secondary}15`,
+      };
+  }
 }
 
 // =============================================================================
@@ -56,61 +103,93 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
 
   if (bulletins.length === 0) return null;
 
+  const subtitle = `${bulletins.length} update${bulletins.length === 1 ? '' : 's'} this week`;
+
   return (
     <View style={styles.container}>
-      {/* Gradient header */}
-      <TouchableOpacity onPress={onViewAll} activeOpacity={0.8}>
-        <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
-        >
+      {/* Parchment gradient background for the whole card */}
+      <LinearGradient
+        colors={['#FEF9F0', '#FDF6E9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <TouchableOpacity onPress={toggleExpanded} activeOpacity={0.8}>
+        <View style={styles.headerWrapper}>
+          {/* Amber gradient */}
+          <LinearGradient
+            colors={['#F5E6C8', '#F0DCBA']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+
+          {/* Dot pattern overlay via react-native-svg */}
+          <Svg
+            width="100%"
+            height="100%"
+            style={[StyleSheet.absoluteFill, { opacity: 0.06 }]}
+          >
+            <Defs>
+              <Pattern
+                id="bulletinDots"
+                x="0"
+                y="0"
+                width="12"
+                height="12"
+                patternUnits="userSpaceOnUse"
+              >
+                <Circle cx="6" cy="6" r="1" fill="#78350F" />
+              </Pattern>
+            </Defs>
+            <Rect width="100%" height="100%" fill="url(#bulletinDots)" />
+          </Svg>
+
+          {/* Content row — renders above the absolute layers */}
           <View style={styles.headerContent}>
-            <View style={styles.iconBadge}>
-              <Feather name="bell" size={18} color={colors.primary} />
+            {/* Boxed bell icon */}
+            <View style={styles.iconBox}>
+              <Feather name="bell" size={16} color="#78350F" />
             </View>
-            <Text style={styles.headerTitle}>Bulletin Board</Text>
-            <TouchableOpacity
-              onPress={toggleExpanded}
-              activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Feather
-                name={expanded ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color="rgba(255,255,255,0.8)"
-              />
-            </TouchableOpacity>
+
+            {/* Title + subtitle */}
+            <View style={styles.headerTextGroup}>
+              <Text style={styles.headerTitle}>Bulletin Board</Text>
+              <Text style={styles.headerSubtitle}>{subtitle}</Text>
+            </View>
+
+            {/* Collapse chevron */}
+            <Feather
+              name={expanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color="#8B6914"
+            />
           </View>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
 
-      {/* Bulletin list */}
+      {/* ── Bulletin list ──────────────────────────────────────────────────── */}
       {expanded && (
-        <View style={styles.bulletinList}>
-          {bulletins.slice(0, MAX_VISIBLE).map((bulletin, index) => {
-            const config = BULLETIN_TYPE_CONFIG[bulletin.bulletinType] ?? BULLETIN_TYPE_CONFIG.info;
-            const visibleCount = Math.min(bulletins.length, MAX_VISIBLE);
-            const isLast = index === visibleCount - 1;
+        <>
+          <View style={styles.bulletinList}>
+            {bulletins.slice(0, MAX_VISIBLE).map((bulletin) => {
+              const cfg = getBulletinDisplayConfig(bulletin.bulletinType);
 
-            return (
-              <TouchableOpacity
-                key={bulletin.id}
-                style={[styles.bulletinRow, !isLast && styles.bulletinRowBorder]}
-                onPress={() => onBulletinPress(bulletin)}
-                activeOpacity={0.6}
-              >
-                {/* Colored left accent bar */}
-                <View style={[styles.accentBar, { backgroundColor: config.color }]} />
-
-                <View style={styles.bulletinContent}>
-                  <View style={styles.bulletinText}>
-                    {/* Type badge */}
-                    <View style={[styles.typeBadge, { backgroundColor: `${config.color}15` }]}>
-                      <Feather name={config.icon} size={10} color={config.color} />
-                      <Text style={[styles.typeBadgeText, { color: config.color }]}>
-                        {config.label}
+              return (
+                <TouchableOpacity
+                  key={bulletin.id}
+                  style={styles.bulletinCard}
+                  onPress={() => onBulletinPress(bulletin)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.bulletinCardBody}>
+                    {/* Category badge */}
+                    <View style={[styles.badge, { backgroundColor: cfg.badgeBg }]}>
+                      <Feather name={cfg.icon as any} size={10} color={cfg.badgeColor} style={styles.badgeIcon} />
+                      <Text style={[styles.badgeText, { color: cfg.badgeColor }]}>
+                        {cfg.label}
                       </Text>
                     </View>
 
@@ -131,14 +210,13 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                     )}
                   </View>
 
-                  {/* Tap chevron */}
-                  <Feather name="chevron-right" size={16} color={colors.lightGray} />
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                  <Feather name="chevron-right" size={16} color="#C9B68E" />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-          {/* Footer actions row */}
+          {/* ── Footer buttons ─────────────────────────────────────────────── */}
           <View style={styles.footerRow}>
             {onViewAll && (
               <TouchableOpacity
@@ -146,21 +224,18 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                 onPress={onViewAll}
                 activeOpacity={0.7}
               >
-                <Feather name="list" size={13} color={colors.primary} />
                 <Text style={styles.viewAllText}>View All Bulletins</Text>
-                <Feather name="chevron-right" size={13} color={colors.primary} />
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              style={styles.dismissAllButton}
+              style={[styles.dismissButton, !onViewAll && { flex: 1 }]}
               onPress={onDismissAll}
               activeOpacity={0.7}
             >
-              <Feather name="check-circle" size={13} color={colors.textTertiary} />
-              <Text style={styles.dismissAllText}>Dismiss All</Text>
+              <Text style={styles.dismissText}>Dismiss All</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </>
       )}
     </View>
   );
@@ -171,133 +246,146 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
 // =============================================================================
 
 const styles = StyleSheet.create({
+  // --- Card shell ---
   container: {
-    backgroundColor: colors.pearlWhite,
     borderRadius: 16,
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
-    ...shadows.medium,
+    borderWidth: 1,
+    borderColor: '#E8DCC8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
     overflow: 'hidden',
   } as any,
 
   // --- Header ---
-  headerGradient: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
+  headerWrapper: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    overflow: 'hidden',
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  iconBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+  iconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: 'rgba(120,53,15,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 10,
   },
-  headerTitle: {
-    ...typography.h4,
-    color: colors.white,
-    flex: 1,
-    textAlign: 'center',
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-
-  // --- Bulletin list ---
-  bulletinList: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  bulletinRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    paddingVertical: spacing.sm,
-  },
-  bulletinRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
-  accentBar: {
-    width: 3,
-    borderRadius: 2,
-    marginRight: spacing.sm,
-  },
-  bulletinContent: {
-    flex: 1,
-    flexDirection: 'row',
+  headerTextGroup: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
-  bulletinText: {
-    flex: 1,
-    marginRight: spacing.xs,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#5C3D0E',
+    lineHeight: 24,
+    textAlign: 'center',
   },
-  typeBadge: {
+  headerSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#A3865A',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+
+  // --- Bulletin items ---
+  bulletinList: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  bulletinCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFDF8',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EDE3D0',
+    padding: 14,
+    marginBottom: 8,
+  },
+  bulletinCardBody: {
+    flex: 1,
+    marginRight: 8,
+  },
+  badge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: borderRadius.circle,
-    marginBottom: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginBottom: 6,
   },
-  typeBadgeText: {
-    fontSize: 9,
+  badgeIcon: {
+    marginRight: 3,
+  },
+  badgeText: {
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.8,
-    marginLeft: 3,
   },
   bulletinTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
+    fontSize: 15,
     fontWeight: '600',
-    lineHeight: 20,
+    color: '#44300A',
+    fontFamily: 'Georgia',
+    lineHeight: 21,
+    marginBottom: 4,
   },
   bulletinDate: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    marginTop: 2,
+    fontSize: 13,
+    color: '#A3865A',
   },
 
-  // --- Footer actions ---
+  // --- Footer ---
   footerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-    marginTop: spacing.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.divider,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    gap: 12,
   },
   viewAllButton: {
-    flexDirection: 'row',
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#EA580C',
     alignItems: 'center',
-    backgroundColor: `${colors.primary}10`,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    gap: 4,
+    justifyContent: 'center',
   },
   viewAllText: {
-    ...typography.bodySmall,
-    color: colors.primary,
+    fontSize: 14,
     fontWeight: '600',
+    color: '#EA580C',
   },
-  dismissAllButton: {
-    flexDirection: 'row',
+  dismissButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#D4C5A9',
     alignItems: 'center',
-    backgroundColor: `${colors.textTertiary}10`,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    gap: 4,
+    justifyContent: 'center',
   },
-  dismissAllText: {
-    ...typography.bodySmall,
-    color: colors.textTertiary,
+  dismissText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8B7355',
   },
 });
 

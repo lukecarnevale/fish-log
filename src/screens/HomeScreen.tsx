@@ -69,6 +69,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     cardBulletins,
     showBulletinDetail,
     dismissAllCardBulletins,
+    permanentlyDismissBulletin,
   } = useBulletins();
 
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
@@ -390,6 +391,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         bulletins={allBulletins}
         onBulletinPress={showBulletinDetail}
         onViewAllBulletins={() => navigateToScreen('Bulletins')}
+        onDismissBulletin={permanentlyDismissBulletin}
       />
 
       {/* Overlay when menu is open */}
@@ -441,11 +443,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
                   ]} />
                 </Animated.View>
               )}
-              {allBulletins.length > 0 && (
-                <View style={localStyles.menuBulletinBadge}>
-                  <Text style={localStyles.menuBulletinBadgeText}>{allBulletins.length}</Text>
-                </View>
-              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -480,11 +477,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
                   { borderColor: badgeBorderColor }
                 ]} />
               </Animated.View>
-            )}
-            {allBulletins.length > 0 && (
-              <View style={localStyles.floatingBulletinBadge}>
-                <Text style={localStyles.floatingBulletinBadgeText}>{allBulletins.length}</Text>
-              </View>
             )}
           </TouchableOpacity>
         </Animated.View>

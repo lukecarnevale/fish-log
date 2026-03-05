@@ -5,7 +5,7 @@
 // Follows the same animation patterns as CounterBubble and NewDotNotification.
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../styles/common';
 
@@ -27,7 +27,6 @@ export const SpeciesAlertBadge: React.FC<SpeciesAlertBadgeProps> = ({
   delay = 400,
 }) => {
   const entranceAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const hasClosure = closureCount > 0;
   const hasAdvisory = advisoryCount > 0;
@@ -37,40 +36,19 @@ export const SpeciesAlertBadge: React.FC<SpeciesAlertBadgeProps> = ({
     if (!hasAny) return;
 
     const timer = setTimeout(() => {
-      // Spring entrance
       Animated.spring(entranceAnim, {
         toValue: 1,
         tension: 60,
         friction: 6,
         useNativeDriver: true,
-      }).start(() => {
-        // Pulse loop after entrance
-        const pulse = Animated.loop(
-          Animated.sequence([
-            Animated.timing(pulseAnim, {
-              toValue: 1.1,
-              duration: hasClosure ? 800 : 1000,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-            Animated.timing(pulseAnim, {
-              toValue: 1,
-              duration: hasClosure ? 800 : 1000,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-          ])
-        );
-        pulse.start();
-      });
+      }).start();
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [hasAny, hasClosure, entranceAnim, pulseAnim, delay]);
+  }, [hasAny, entranceAnim, delay]);
 
   if (!hasAny) return null;
 
-  const combinedScale = Animated.multiply(entranceAnim, pulseAnim);
   const badgeColor = hasClosure ? colors.error : colors.warning;
   const iconName = hasClosure ? 'alert-octagon' : 'alert-triangle';
   const label = hasClosure
@@ -84,7 +62,7 @@ export const SpeciesAlertBadge: React.FC<SpeciesAlertBadgeProps> = ({
         {
           backgroundColor: badgeColor,
           opacity: entranceAnim,
-          transform: [{ scale: combinedScale }],
+          transform: [{ scale: entranceAnim }],
         },
       ]}
       accessibilityRole="text"

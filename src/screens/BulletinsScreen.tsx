@@ -1,8 +1,8 @@
 // screens/BulletinsScreen.tsx
 //
-// Dedicated Bulletins page — shows all active bulletins (including dismissed
-// ones) in a full-page FlatList. Matches the CatchFeed "card sliding over
-// header" visual pattern with a floating back button that appears on scroll.
+// Dedicated Bulletins page — shows all active bulletins in a full-page
+// FlatList. Uses the warm parchment aesthetic for the list body while
+// keeping the existing teal header unchanged.
 
 import React, { useCallback } from 'react';
 import {
@@ -22,11 +22,10 @@ import Svg, { Path, Circle, Ellipse, G } from 'react-native-svg';
 import { RootStackParamList } from '../types';
 import { useBulletins } from '../contexts/BulletinContext';
 import { SCREEN_LABELS } from '../constants/screenLabels';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { formatBulletinDate } from '../utils/dateUtils';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
-import type { Bulletin } from '../types/bulletin';
+import { colors, spacing } from '../styles/common';
+import type { Bulletin, BulletinType } from '../types/bulletin';
 
 // =============================================================================
 // Navigation Types
@@ -42,16 +41,39 @@ interface BulletinsScreenProps {
 }
 
 // =============================================================================
+// Per-type display config (parchment palette)
+// =============================================================================
+
+interface BulletinCardConfig {
+  icon: string;
+  label: string;
+  badgeColor: string;
+  badgeBg: string;
+}
+
+function getBulletinCardConfig(type: BulletinType): BulletinCardConfig {
+  switch (type) {
+    case 'closure':
+      return { icon: 'alert-octagon', label: 'CLOSURE', badgeColor: '#DC2626', badgeBg: 'rgba(220,38,38,0.10)' };
+    case 'advisory':
+      return { icon: 'alert-triangle', label: 'ADVISORY', badgeColor: '#EA580C', badgeBg: 'rgba(234,88,12,0.10)' };
+    case 'educational':
+      return { icon: 'book-open', label: 'EDUCATIONAL', badgeColor: '#0D5C63', badgeBg: 'rgba(13,92,99,0.10)' };
+    case 'info':
+    default:
+      return { icon: 'info', label: 'INFO', badgeColor: '#06747F', badgeBg: 'rgba(6,116,127,0.08)' };
+  }
+}
+
+// =============================================================================
 // Empty State Illustration
 // =============================================================================
 
 const EmptyBulletinIllustration: React.FC = () => (
   <Svg width={160} height={120} viewBox="0 0 160 120">
-    {/* Decorative bubbles */}
     <Circle cx={25} cy={35} r={3} fill={colors.primaryLight} opacity={0.5} />
     <Circle cx={140} cy={25} r={4} fill={colors.primaryLight} opacity={0.4} />
     <Circle cx={130} cy={90} r={3} fill={colors.primaryLight} opacity={0.5} />
-    {/* Bell icon */}
     <G transform="translate(50, 20)">
       <Ellipse cx={30} cy={50} rx={22} ry={6} fill={colors.primaryLight} opacity={0.3} />
       <Path
@@ -61,7 +83,6 @@ const EmptyBulletinIllustration: React.FC = () => (
       />
       <Circle cx={30} cy={8} r={3} fill={colors.secondary} />
       <Ellipse cx={30} cy={48} rx={5} ry={3} fill={colors.secondary} opacity={0.9} />
-      {/* Check mark */}
       <Path
         d="M22 28 L28 34 L38 24"
         stroke={colors.white}
@@ -75,64 +96,54 @@ const EmptyBulletinIllustration: React.FC = () => (
 );
 
 // =============================================================================
-// Bulletin Row Component
+// Bulletin Card Component
 // =============================================================================
 
-interface BulletinRowProps {
+interface BulletinCardProps {
   bulletin: Bulletin;
   onPress: (bulletin: Bulletin) => void;
-  isLast: boolean;
 }
 
-const BulletinRow: React.FC<BulletinRowProps> = ({ bulletin, onPress, isLast }) => {
-  const config = BULLETIN_TYPE_CONFIG[bulletin.bulletinType] ?? BULLETIN_TYPE_CONFIG.info;
+const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress }) => {
+  const cfg = getBulletinCardConfig(bulletin.bulletinType);
+
+  const dateText =
+    bulletin.effectiveDate || bulletin.expirationDate
+      ? bulletin.effectiveDate && bulletin.expirationDate
+        ? `${formatBulletinDate(bulletin.effectiveDate)} – ${formatBulletinDate(bulletin.expirationDate)}`
+        : bulletin.effectiveDate
+          ? `From ${formatBulletinDate(bulletin.effectiveDate)}`
+          : `Until ${formatBulletinDate(bulletin.expirationDate!)}`
+      : null;
 
   return (
     <TouchableOpacity
-      style={[styles.bulletinRow, !isLast && styles.bulletinRowBorder]}
+      style={styles.bulletinCard}
       onPress={() => onPress(bulletin)}
-      activeOpacity={0.6}
+      activeOpacity={0.7}
     >
-      <View style={styles.bulletinContent}>
-        {/* Type indicator dot */}
-        <View style={[styles.typeDot, { backgroundColor: config.color }]} />
-
-        <View style={styles.bulletinText}>
-          {/* Type badge */}
-          <View style={[styles.typeBadge, { backgroundColor: `${config.color}15` }]}>
-            <Feather name={config.icon} size={10} color={config.color} />
-            <Text style={[styles.typeBadgeText, { color: config.color }]}>
-              {config.label}
-            </Text>
-          </View>
-
-          {/* Title */}
-          <Text style={styles.bulletinTitle} numberOfLines={2}>
-            {bulletin.title}
+      {/* Top row — status badge (left) + date (right) */}
+      <View style={styles.cardTopRow}>
+        <View style={[styles.cardBadge, { backgroundColor: cfg.badgeBg }]}>
+          <Feather name={cfg.icon as any} size={10} color={cfg.badgeColor} style={styles.cardBadgeIcon} />
+          <Text style={[styles.cardBadgeText, { color: cfg.badgeColor }]}>
+            {cfg.label}
           </Text>
-
-          {/* Description preview */}
-          {bulletin.description && (
-            <Text style={styles.bulletinDescription} numberOfLines={2}>
-              {bulletin.description}
-            </Text>
-          )}
-
-          {/* Date range */}
-          {(bulletin.effectiveDate || bulletin.expirationDate) && (
-            <Text style={styles.bulletinDate}>
-              {bulletin.effectiveDate && bulletin.expirationDate
-                ? `${formatBulletinDate(bulletin.effectiveDate)} – ${formatBulletinDate(bulletin.expirationDate)}`
-                : bulletin.effectiveDate
-                  ? `From ${formatBulletinDate(bulletin.effectiveDate)}`
-                  : `Until ${formatBulletinDate(bulletin.expirationDate!)}`}
-            </Text>
-          )}
         </View>
-
-        {/* Tap chevron */}
-        <Feather name="chevron-right" size={16} color={colors.lightGray} />
+        {dateText && <Text style={styles.cardDate}>{dateText}</Text>}
       </View>
+
+      {/* Title */}
+      <Text style={styles.cardTitle} numberOfLines={2}>
+        {bulletin.title}
+      </Text>
+
+      {/* Description */}
+      {bulletin.description && (
+        <Text style={styles.cardDescription} numberOfLines={2} ellipsizeMode="tail">
+          {bulletin.description}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 };
@@ -150,7 +161,6 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
     floatingTranslateXLeft: floatingBackTranslateX,
   } = useFloatingHeaderAnimation();
 
-  // Rename for clarity
   const floatingBackOpacity = floatingOpacity;
 
   const handleGoBack = useCallback(() => {
@@ -159,21 +169,16 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
 
   const handleBulletinPress = useCallback(
     (bulletin: Bulletin) => {
-      // Bulletins page always shows all bulletins, so don't offer "Don't show again"
       showBulletinDetail(bulletin, false);
     },
     [showBulletinDetail]
   );
 
   const renderItem = useCallback(
-    ({ item, index }: { item: Bulletin; index: number }) => (
-      <BulletinRow
-        bulletin={item}
-        onPress={handleBulletinPress}
-        isLast={index === fetchedBulletins.length - 1}
-      />
+    ({ item }: { item: Bulletin }) => (
+      <BulletinCard bulletin={item} onPress={handleBulletinPress} />
     ),
-    [handleBulletinPress, fetchedBulletins.length]
+    [handleBulletinPress]
   );
 
   const keyExtractor = useCallback((item: Bulletin) => item.id, []);
@@ -197,7 +202,7 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
 
-        {/* Floating back button - appears when header scrolls away */}
+        {/* Floating back button */}
         <Animated.View
           style={[
             styles.floatingBackButton,
@@ -220,7 +225,7 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Main FlatList - header scrolls with content (CatchFeed pattern) */}
+        {/* Main FlatList */}
         <Animated.FlatList
           data={fetchedBulletins}
           renderItem={renderItem}
@@ -238,7 +243,7 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
           scrollEventThrottle={16}
           ListHeaderComponent={
             <View style={{ backgroundColor: colors.primary }}>
-              {/* Scrolling header — dark blue gradient */}
+              {/* Teal header — unchanged */}
               <LinearGradient
                 colors={[colors.primary, colors.primary]}
                 style={styles.scrollingHeader}
@@ -262,7 +267,6 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
                     </Text>
                   </View>
 
-                  {/* Bulletin count badge */}
                   {fetchedBulletins.length > 0 && (
                     <View style={styles.countBadge}>
                       <Feather name="bell" size={14} color={colors.white} />
@@ -274,12 +278,11 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
                 </View>
               </LinearGradient>
 
-              {/* Content area with rounded corners sliding over header */}
+              {/* Parchment area — rounded corners sliding over header */}
               <View style={styles.contentContainer} />
             </View>
           }
           ListEmptyComponent={renderEmptyState}
-          // Performance
           removeClippedSubviews={Platform.OS === 'android'}
           maxToRenderPerBatch={10}
           windowSize={7}
@@ -304,7 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
 
-  // Scrolling header
+  // ── Teal header (unchanged) ────────────────────────────────────────────────
   scrollingHeader: {
     paddingTop: Platform.OS === 'android' ? 16 : 8,
     paddingBottom: 36,
@@ -318,7 +321,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -337,12 +340,10 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     marginTop: 2,
   },
-
-  // Count badge in header
   countBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
@@ -354,7 +355,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
-  // Floating back button
+  // ── Floating back button ───────────────────────────────────────────────────
   floatingBackButton: {
     position: 'absolute',
     left: 16,
@@ -374,88 +375,80 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // FlatList
+  // ── FlatList ───────────────────────────────────────────────────────────────
   flatList: {
     flex: 1,
     backgroundColor: colors.primary,
   },
   flatListContent: {
-    backgroundColor: colors.background,
+    backgroundColor: '#FEF9F0',
     flexGrow: 1,
+    paddingBottom: 32,
   },
   emptyListContent: {
     flexGrow: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FEF9F0',
   },
 
-  // Content container — rounded corners sliding over header
+  // Parchment area — rounded corners sliding over teal header
   contentContainer: {
-    backgroundColor: colors.background,
+    backgroundColor: '#FEF9F0',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: spacing.md,
     marginTop: -12,
   },
 
-  // Bulletin rows
-  bulletinRow: {
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
+  // ── Bulletin card ──────────────────────────────────────────────────────────
+  bulletinCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EDE3D0',
+    padding: 14,
+    marginBottom: 8,
+    marginHorizontal: 16,
   },
-  bulletinRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
-  bulletinContent: {
+  cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  typeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: spacing.sm,
-    marginTop: 2,
-    alignSelf: 'flex-start',
-  },
-  bulletinText: {
-    flex: 1,
-    marginRight: spacing.xs,
-  },
-  typeBadge: {
+  cardBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: borderRadius.circle,
-    marginBottom: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
-  typeBadgeText: {
-    fontSize: 9,
+  cardBadgeIcon: {
+    marginRight: 3,
+  },
+  cardBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.8,
-    marginLeft: 3,
   },
-  bulletinTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
+  cardDate: {
+    fontSize: 12,
+    color: '#A3865A',
+  },
+  cardTitle: {
+    fontSize: 16,
     fontWeight: '600',
+    color: '#44300A',
+    fontFamily: 'Georgia',
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: '#8B7355',
     lineHeight: 20,
   },
-  bulletinDescription: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  bulletinDate: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    marginTop: 4,
-  },
 
-  // Empty state
+  // ── Empty state ────────────────────────────────────────────────────────────
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -466,12 +459,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: '#44300A',
     marginTop: spacing.md,
   },
   emptySubtext: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#8B7355',
     textAlign: 'center',
     marginTop: spacing.sm,
     lineHeight: 20,
