@@ -20,38 +20,6 @@ import {
 // Re-export types for backwards compatibility
 export type { Advertisement, AdPlacement, AdCategory };
 
-/**
- * Convert local advertisement to the new format.
- */
-function convertLocalAdvertisement(local: LocalAdvertisement): Advertisement {
-  return {
-    id: local.id,
-    companyName: local.companyName,
-    promoText: local.promoText,
-    promoCode: local.promoCode,
-    linkUrl: local.linkUrl,
-    imageUrl: '', // Local ads use require(), not URLs
-    isActive: local.isActive,
-    priority: local.priority || 99,
-    placements: ['home'], // Default placement
-    startDate: local.startDate,
-    endDate: local.endDate,
-    clickCount: 0,
-    impressionCount: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    // Promotions Hub fields - use local ad extended fields if available
-    category: (local as any).category || 'promotion',
-    areaCodes: (local as any).areaCodes || [],
-    description: (local as any).description,
-    contactPhone: (local as any).contactPhone,
-    contactEmail: (local as any).contactEmail,
-    contactWebsite: (local as any).contactWebsite,
-    featured: (local as any).featured || false,
-    badgeText: (local as any).badgeText,
-  };
-}
-
 // =============================================================================
 // Fetch Functions
 // =============================================================================
@@ -65,14 +33,19 @@ export async function fetchAdvertisements(
 ): Promise<{ advertisements: Advertisement[]; fromCache: boolean }> {
   const connected = await isSupabaseConnected();
 
-  if (connected) {
-    try {
-      let query = supabase
-        .from('advertisements')
-        .select('*')
-        .eq('is_active', true)
-        .order('priority', { ascending: true })
-        .limit(100);
+  if (!connected) {
+    // No connection — show no ads rather than risk stale promo codes or expired deals
+    console.log('📢 Offline — skipping advertisements');
+    return { advertisements: [], fromCache: false };
+  }
+
+  try {
+    let query = supabase
+      .from('advertisements')
+      .select('*')
+      .eq('is_active', true)
+      .order('priority', { ascending: true })
+      .limit(100);
 
     // Filter by placement if specified
     if (placement) {
@@ -92,26 +65,26 @@ export async function fetchAdvertisements(
       return { advertisements: [], fromCache: false };
     }
 
-      if (data && data.length > 0) {
-        const ads = data
-          .map(row => transformAdvertisementSafe(row as Record<string, unknown>))
-          .filter((ad): ad is Advertisement => ad !== null);
+    if (data && data.length > 0) {
+      const ads = data
+        .map(row => transformAdvertisementSafe(row as Record<string, unknown>))
+        .filter((ad): ad is Advertisement => ad !== null);
 
-        // Check if any image URLs are placeholder URLs (not yet configured)
-        const hasPlaceholderUrls = ads.some(ad =>
-          ad.imageUrl.includes('your-supabase-url') ||
-          ad.imageUrl.includes('placeholder') ||
-          !ad.imageUrl.startsWith('https://')
-        );
+      // Check if any image URLs are placeholder URLs (not yet configured)
+      const hasPlaceholderUrls = ads.some(ad =>
+        ad.imageUrl.includes('your-supabase-url') ||
+        ad.imageUrl.includes('placeholder') ||
+        !ad.imageUrl.startsWith('https://')
+      );
 
-        if (hasPlaceholderUrls) {
-          console.log('📢 Supabase ads have placeholder URLs, using local data');
-          throw new Error('Placeholder URLs detected');
-        }
-
-        console.log(`📢 Fetched ${ads.length} advertisements from Supabase`);
-        return { advertisements: ads, fromCache: false };
+      if (hasPlaceholderUrls) {
+        console.log('📢 Supabase ads have placeholder URLs');
+        return { advertisements: [], fromCache: false };
       }
+
+      console.log(`📢 Fetched ${ads.length} advertisements from Supabase`);
+      return { advertisements: ads, fromCache: false };
+    }
 
     console.log('📢 No active advertisements in Supabase');
     return { advertisements: [], fromCache: false };

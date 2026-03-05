@@ -4,7 +4,6 @@
 // and handles partner inquiry submissions.
 
 import { supabase, isSupabaseConnected } from '../config/supabase';
-import { advertisements as localAdvertisements } from '../data/advertisementsData';
 import {
   transformAdvertisementSafe,
   type Advertisement,
@@ -16,13 +15,6 @@ import { addToInquiryQueue } from './partnerInquiryQueue';
 
 // Re-export for convenience
 export type { Advertisement, AdCategory };
-
-// Valid categories for local data validation
-const VALID_CATEGORIES: AdCategory[] = ['promotion', 'charter', 'gear', 'service', 'experience'];
-
-function validateCategory(value: unknown): AdCategory {
-  return VALID_CATEGORIES.includes(value as AdCategory) ? (value as AdCategory) : 'promotion';
-}
 
 // =============================================================================
 // Fetch Promotions
@@ -111,55 +103,17 @@ export async function fetchPromotions(options?: {
         return { promotions: dateFiltered, fromCache: false, total: count ?? undefined };
       }
 
-      // No results from Supabase — fall through to local data
-      // (Supabase category/area data may not be populated yet)
-      console.log('🏪 No matching promotions in Supabase, falling back to local data');
+      // No results from Supabase
+      console.log('🏪 No matching promotions in Supabase');
+      return { promotions: [], fromCache: false, total: 0 };
     } catch (error) {
-      console.warn('Failed to fetch promotions from Supabase, using local data:', error);
+      console.warn('Failed to fetch promotions from Supabase:', error);
     }
   }
 
-  // Fall back to local data
-  console.log('🏪 Using local promotion data (offline fallback)');
-  const localPromos = localAdvertisements
-    .filter(ad => ad.isActive)
-    .sort((a, b) => (a.priority || 99) - (b.priority || 99))
-    .map(local => ({
-      id: local.id,
-      companyName: local.companyName,
-      promoText: local.promoText,
-      promoCode: local.promoCode,
-      linkUrl: local.linkUrl,
-      imageUrl: '',
-      isActive: local.isActive,
-      priority: local.priority || 99,
-      placements: ['home' as const],
-      startDate: local.startDate,
-      endDate: local.endDate,
-      clickCount: 0,
-      impressionCount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      category: validateCategory((local as any).category),
-      areaCodes: Array.isArray((local as any).areaCodes) ? (local as any).areaCodes : [],
-      description: typeof (local as any).description === 'string' ? (local as any).description : undefined,
-      contactPhone: typeof (local as any).contactPhone === 'string' ? (local as any).contactPhone : undefined,
-      contactEmail: typeof (local as any).contactEmail === 'string' ? (local as any).contactEmail : undefined,
-      contactWebsite: typeof (local as any).contactWebsite === 'string' ? (local as any).contactWebsite : undefined,
-      featured: (local as any).featured === true,
-      badgeText: typeof (local as any).badgeText === 'string' ? (local as any).badgeText : undefined,
-    }));
-
-  // Apply local filters
-  let filtered = localPromos;
-  if (options?.category) {
-    filtered = filtered.filter(p => p.category === options.category);
-  }
-  if (options?.area) {
-    filtered = filtered.filter(p => p.areaCodes.length === 0 || p.areaCodes.includes(options.area!));
-  }
-
-  return { promotions: filtered, fromCache: true };
+  // No connection — show no promotions rather than risk stale promo codes or expired deals
+  console.log('📢 Offline — skipping promotions');
+  return { promotions: [], fromCache: false };
 }
 
 /**

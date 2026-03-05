@@ -39,7 +39,6 @@ import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation'
 import { colors, spacing, borderRadius } from '../styles/common';
 import { type Advertisement, type AdCategory } from '../services/promotionsService';
 import { usePromotions } from '../api/promotionsApi';
-import { advertisements as localAdsData } from '../data/advertisementsData';
 import type { RootStackParamList, UserProfile } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -50,12 +49,6 @@ const CARD_GAP = spacing.sm;
 const CARD_WIDTH = (SCREEN_WIDTH - spacing.md * 2 - CARD_GAP) / 2;
 // Estimated row height for getItemLayout (image 100 + content ~90 + margin 8)
 const ESTIMATED_ROW_HEIGHT = 198 + spacing.sm;
-
-// Map local ad IDs to their require() images for offline display
-const LOCAL_IMAGE_MAP: Record<string, any> = {};
-localAdsData.forEach((ad) => {
-  LOCAL_IMAGE_MAP[ad.id] = ad.image;
-});
 
 const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -152,7 +145,6 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
       >
         <PromotionCard
           promotion={item}
-          localImage={LOCAL_IMAGE_MAP[item.id]}
         />
       </View>
     ),
@@ -236,7 +228,6 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
           {featured && (
             <FeaturedPromotionCard
               promotion={featured}
-              localImage={LOCAL_IMAGE_MAP[featured.id]}
             />
           )}
 
