@@ -13,7 +13,7 @@ import type { Bulletin } from '../types/bulletin';
 /**
  * Transform a Supabase row into a typed Bulletin object.
  */
-function transformBulletin(row: Record<string, unknown>): Bulletin {
+export function transformBulletin(row: Record<string, unknown>): Bulletin {
   return {
     id: row.id as string,
     title: row.title as string,
@@ -38,11 +38,24 @@ function transformBulletin(row: Record<string, unknown>): Bulletin {
 // Priority ordering for sorting
 // =============================================================================
 
-const PRIORITY_ORDER: Record<string, number> = {
+export const PRIORITY_ORDER: Record<string, number> = {
   urgent: 0,
   important: 1,
   normal: 2,
 };
+
+/**
+ * Sort bulletins by priority (urgent first), then by display_order.
+ * Mutates the array in place and returns it for convenience.
+ */
+export function sortBulletinsByPriority(bulletins: Bulletin[]): Bulletin[] {
+  return bulletins.sort((a, b) => {
+    const priorityDiff =
+      (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2);
+    if (priorityDiff !== 0) return priorityDiff;
+    return a.displayOrder - b.displayOrder;
+  });
+}
 
 // =============================================================================
 // Fetch Functions
@@ -83,13 +96,7 @@ export async function fetchActiveBulletins(): Promise<Bulletin[]> {
       transformBulletin(row as Record<string, unknown>)
     );
 
-    // Sort by priority (urgent first), then by display_order
-    bulletins.sort((a, b) => {
-      const priorityDiff =
-        (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2);
-      if (priorityDiff !== 0) return priorityDiff;
-      return a.displayOrder - b.displayOrder;
-    });
+    sortBulletinsByPriority(bulletins);
 
     console.log(`📋 Fetched ${bulletins.length} active bulletin(s)`);
     return bulletins;

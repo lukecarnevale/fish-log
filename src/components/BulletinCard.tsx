@@ -74,7 +74,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
         <View style={styles.headerWrapper}>
           {/* Amber gradient */}
           <LinearGradient
-            colors={['#F5E6C8', '#F0DCBA']}
+            colors={['#F5E6C8', '#E8C98A']}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={StyleSheet.absoluteFill}
@@ -105,7 +105,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
           <View style={styles.headerContent}>
             {/* Boxed bell icon */}
             <View style={styles.iconBox}>
-              <Feather name="bell" size={16} color="#78350F" />
+              <Feather name="bell" size={22} color="#78350F" />
             </View>
 
             {/* Title + subtitle */}
@@ -227,9 +227,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   iconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     backgroundColor: 'rgba(120,53,15,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
