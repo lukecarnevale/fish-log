@@ -6,7 +6,7 @@ import {
   View,
   FlatList,
   TouchableOpacity,
-  Image,
+  Image as RNImage,
   TextInput,
   ScrollView,
   Dimensions,
@@ -17,6 +17,7 @@ import {
   GestureResponderEvent,
   LayoutChangeEvent,
 } from "react-native";
+import { Image } from "expo-image";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../types";
@@ -384,11 +385,14 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
             <Image
               source={{ uri: item.images.primary }}
               style={styles.speciesImage}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="disk"
+              recyclingKey={`species-${item.id}`}
+              transition={200}
             />
           ) : (
             <View style={styles.placeholderImageContainer}>
-              <Image 
+              <RNImage
                 source={{ uri: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAYLlVAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAAmJLR0QA/4ePzL8AAAAHdElNRQfeCxIPFR/9TNibAAAEzklEQVRo3u2ZW0hUQRjHf3vUI5pk27YVlSWUERFFF6JWsizsQRS9h70EPfRWDz1EQRF090IPUhFJQaRpRPdITLOkNM1S2qJM19XS2s35evhmd0/n7Dln95y1Ivz2ZWdn5vt/MzPf981cFDLLBAp6zDJUUcBCiimgCPBRQh9qmUUB9CMVZCT5NhrZRTHmqGIOpZznBRrQRqLXKSLRF6FzgRzDuecxgyruo4HuOF0DnYmeoJDLtP0zHQRwl/nkM5kxZKMyjAVs4RrvoXeS9xFdA5c9y9XTQbCQCRRQxH5eQpAj5AOVtPcQH6CKGWR21N8gO3KU0xD0hqt6iL/KDtJRRupd5FXRjxWcpS7Cq+Y0FcwXDrSYU+LwbuD4y4xGZaRRy0aW6yYfZCcqKbgTawt+0sSzJPHvsJSt7kYHKGMrL2mmnWbquGCqZUzpvKKVVlqYj+JOBA2/1+vSrKzK8VWrM01Y09E+atzS6YBsG1OWZnx2rvuSsrIrWWvHUO3Ct8yBuYbDSdFVlgirXuTCtyGEv+ZAhVF6n6To/uaVA2dA+C1xYRZQlSRdFw8dOFqoBcdxYDZTnxTdM1o5J6zQI/wWGgHYa3YkQXeN0S6sF5H+WcZDYCSVtjtNm8sZmHDcn4sBGhNofkU32VB5TBtP+cpkChkHKAymHRk/Wy4qN7nBW1ppm2CsaFEOi5LQQV/4rYpw2WQ4c5nKSMrZyidB101ql8Jz82kH00UKjM8f0eONLqP4xjb+SkSWYYBxjdgwhQmUMImxFDGCPH5HGh50xRfwJg+vHnkP6cDnIh/CiNUo3LGWY8JqOl9Y8SjWcFhYocd6LgQRnozSLbUwVoWS+rrIbqwBrEGixe3CeW2RjJ4ZX+nnuCdwE5jBIW6FtukDFUSXjO7Fdb5zlhKT/pKnhK2eQ3WTrcNhDyT+/IQGCJv1i0oKAHZwhrO0R/pneDKrLrscYgGfNpB6pnOVl9xgJhMoZYGXXLBJ8Uw1aFNtoTFgH2VoQDsTGOUoFzhJK97ZTDHrOAUE0cLjZyxRDUDjO02ii+2U4EtGBx36BocVy5hlvLS1WELrUHSdMzT8YXK9YJRRTnmBxlvepHLrDvALNJ5EtI8k3X+BMtZw1ArGYWHXSwzgBS9TOPGQKbPPTBXD6Mdt2imPsGOE2Wa8O48y5tJAA400k2enMxwrHQywh0P0YQtPQ52zTLItfBIHGMhdrllG+LlpZgEW4GO03UyTY5TLwsZ9nKWPwg3mhL9fPbA3tBY+7jMKlaHZiAEMtdJ9CbTiC5vAT16zm8Ee0CfHTGcPUCHK2Ik1UD0e2BGNvS5YsIe0Rx3dAEUstB5zcZDnXKfe0Nz0QB44xCg7gHQUlOxNp/nOajZRAFTxMol0UBKMKGOTsRtaKcHlKxGy11jOLp6HeozpIeB9SzFXN9ARZW6s5wkDuRCZGvyf6cAlxH0GGMM2wCOaQ4OBJFClcBCdh6xnBDnkxsQKIuWPU4q3NzLZQRMBmlnj2hJkpgqmcpBnvBGn0HWbTTGtVKIXVhNQ9nCXcLO1wXzrB9bTmTlk00/4dB8KcA9sKkr4P7KF4Gj5Ykr19gBtBOH98mDMAAAAAElFTkSuQmCC' }}
                 style={styles.placeholderImage}
                 resizeMode="contain"
@@ -529,11 +533,14 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
             const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
             setCurrentImageIndex(index);
           }}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <Image
               source={{ uri: item }}
               style={[styles.galleryImage, { width: screenWidth }]}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="disk"
+              recyclingKey={`gallery-${index}-${item}`}
+              transition={200}
             />
           )}
         />
@@ -961,6 +968,10 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
               keyExtractor={(item) => item.id}
               contentContainerStyle={localStyles.listContent}
               showsVerticalScrollIndicator={false}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={8}
+              windowSize={7}
+              initialNumToRender={8}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   {error ? (

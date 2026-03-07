@@ -231,6 +231,9 @@ const FeedFooter: React.FC = () => (
 
 // Page size for infinite scroll (similar to Instagram ~12 posts per load)
 const PAGE_SIZE = 12;
+// Maximum entries held in memory to prevent unbounded growth.
+// Older entries beyond this cap are released; scrolling back up triggers a refresh.
+const MAX_ENTRIES_IN_MEMORY = 60;
 
 const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -503,11 +506,15 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       // Enrich new entries with like data
       newEntries = await enrichCatchesWithLikes(newEntries, currentUserId ?? undefined);
 
-      // Append to existing entries, avoiding duplicates
+      // Append to existing entries, avoiding duplicates, with memory cap
       setEntries(prev => {
         const existingIds = new Set(prev.map(e => e.id));
         const uniqueNew = newEntries.filter(e => !existingIds.has(e.id));
-        return [...prev, ...uniqueNew];
+        const combined = [...prev, ...uniqueNew];
+        // Cap to prevent unbounded memory growth — keep the newest entries
+        return combined.length > MAX_ENTRIES_IN_MEMORY
+          ? combined.slice(combined.length - MAX_ENTRIES_IN_MEMORY)
+          : combined;
       });
       setHasMore(result.hasMore);
       setNextOffset(result.nextOffset);

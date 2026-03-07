@@ -368,7 +368,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               source={{ uri: prize.imageUrl }}
               style={styles.prizeImage}
               contentFit="contain"
-              cachePolicy="memory-disk"
+              cachePolicy="disk"
             />
           ) : (
             getPrizeIllustration(prize.category)
@@ -457,7 +457,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                         source={{ uri: prize.imageUrl }}
                         style={styles.modalPrizeImage}
                         contentFit="contain"
-                        cachePolicy="memory-disk"
+                        cachePolicy="disk"
                       />
                       <View style={styles.modalPrizeCardBody}>
                         <Text style={styles.modalPrizeCardName}>{prize.name}</Text>

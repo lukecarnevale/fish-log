@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   TextInput,
-  Image,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +19,7 @@ import {
   StyleSheet,
   StatusBar,
 } from "react-native";
+import { Image } from "expo-image";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -842,6 +842,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <Image
                 source={{ uri: formData.profileImage }}
                 style={styles.profileImage}
+                contentFit="cover"
+                cachePolicy="disk"
+                recyclingKey={`profile-edit-${formData.profileImage}`}
+                transition={200}
               />
             ) : (
               <DefaultAnglerAvatarIcon size={160} />
@@ -1278,6 +1282,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <Image
                 source={{ uri: profile.profileImage }}
                 style={styles.profileImage}
+                contentFit="cover"
+                cachePolicy="disk"
+                recyclingKey={`profile-view-${profile.profileImage}`}
+                transition={200}
               />
             ) : (
               <DefaultAnglerAvatarIcon size={160} />
@@ -1702,6 +1710,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <Image
                   source={{ uri: profile.profileImage }}
                   style={photoPreviewStyles.image}
+                  contentFit="contain"
+                  cachePolicy="disk"
+                  recyclingKey={`profile-preview-${profile.profileImage}`}
+                  transition={300}
                 />
               ) : (
                 <View style={photoPreviewStyles.avatarFallback}>

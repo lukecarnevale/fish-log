@@ -74,7 +74,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
         <View style={styles.headerWrapper}>
           {/* Amber gradient */}
           <LinearGradient
-            colors={['#5C3D0E', '#44300A']}
+            colors={['#8B6331', '#44300A']}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={StyleSheet.absoluteFill}
@@ -204,6 +204,7 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: 16,
     marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: '#E8DCC8',
@@ -244,7 +245,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#F5E6C8',
+    color: '#FBF5EA',
     lineHeight: 24,
     textAlign: 'center',
   },

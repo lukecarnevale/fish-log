@@ -8,7 +8,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Modal,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -22,6 +21,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, shadows } from '../styles/common';
 import { FeedbackType } from '../types/feedback';
 import { submitFeedback } from '../services/feedbackService';
+import LazyModal from './LazyModal';
 
 interface FeedbackModalProps {
   visible: boolean;
@@ -98,7 +98,7 @@ export function FeedbackModal({
   };
 
   return (
-    <Modal
+    <LazyModal
       visible={visible}
       transparent
       animationType="fade"
@@ -202,7 +202,7 @@ export function FeedbackModal({
           </View>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </LazyModal>
   );
 }
 

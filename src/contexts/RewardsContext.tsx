@@ -369,24 +369,37 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
 
   // Refresh rewards data when user signs in or out
   useEffect(() => {
+    let authTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
     const authUnsubscribe = onAuthStateChange((event, _session) => {
+      // Clear any pending timeout from a previous auth event
+      if (authTimeoutId) {
+        clearTimeout(authTimeoutId);
+        authTimeoutId = null;
+      }
+
       if (event === 'SIGNED_IN') {
         console.log('🔄 RewardsContext - Refreshing after sign in...');
         // Delay to allow createRewardsMemberFromAuthUser to complete
-        setTimeout(() => {
+        authTimeoutId = setTimeout(() => {
+          authTimeoutId = null;
           refresh();
         }, 2000);
       } else if (event === 'SIGNED_OUT') {
         console.log('🔄 RewardsContext - Refreshing after sign out...');
         // Short delay to let session fully clear, then refresh
         // with device-based fallback to preserve rewards status
-        setTimeout(() => {
+        authTimeoutId = setTimeout(() => {
+          authTimeoutId = null;
           refresh();
         }, 500);
       }
     });
 
     return () => {
+      if (authTimeoutId) {
+        clearTimeout(authTimeoutId);
+      }
       authUnsubscribe?.();
     };
   }, [refresh]);

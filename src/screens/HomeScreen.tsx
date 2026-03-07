@@ -5,12 +5,13 @@ import {
   Text,
   View,
   TouchableOpacity,
-  Image,
+  Image as RNImage,
   Animated,
   TouchableWithoutFeedback,
   StatusBar,
   Platform,
 } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -228,8 +229,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     });
 
     // Set up an auth state listener to refresh when user signs in
+    // Track all timeout IDs so we can clean them up on unmount
+    const authTimeoutIds: ReturnType<typeof setTimeout>[] = [];
+
     const authUnsubscribe = onAuthStateChange((event, _session) => {
       if (event === 'SIGNED_IN') {
+        // Clear any pending timeouts from a previous auth event
+        authTimeoutIds.forEach(id => clearTimeout(id));
+        authTimeoutIds.length = 0;
+
         // Delay to allow createRewardsMemberFromAuthUser to complete
         // Then retry if still not showing as member (database operations can take time)
         const attemptReload = async (attempt: number) => {
@@ -240,17 +248,20 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           const isMember = await isRewardsMember();
           if (!isMember && attempt < 3) {
             // Retry after another delay
-            setTimeout(() => attemptReload(attempt + 1), 1000);
+            const id = setTimeout(() => attemptReload(attempt + 1), 1000);
+            authTimeoutIds.push(id);
           }
         };
 
         // Initial delay to let createRewardsMemberFromAuthUser start
-        setTimeout(() => attemptReload(1), 1500);
+        const initialId = setTimeout(() => attemptReload(1), 1500);
+        authTimeoutIds.push(initialId);
       }
     });
 
-    // Clean up the listeners when component unmounts
+    // Clean up the listeners and all pending timeouts when component unmounts
     return () => {
+      authTimeoutIds.forEach(id => clearTimeout(id));
       focusUnsubscribe();
       authUnsubscribe?.();
     };
@@ -412,7 +423,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         <View style={styles.headerContent}>
           <View style={styles.headerLeftSection}>
             <View style={styles.logoContainer}>
-              <Image
+              <RNImage
                 source={require("../assets/adaptive-icon.png")}
                 style={styles.logo}
                 resizeMode="contain"
@@ -537,6 +548,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
                     <Image
                       source={{ uri: profileImage }}
                       style={{ width: 44, height: 44, borderRadius: 22 }}
+                      contentFit="cover"
+                      cachePolicy="disk"
+                      recyclingKey={`home-avatar-${profileImage}`}
+                      transition={200}
                     />
                   ) : (
                     <Feather name="anchor" size={22} color={colors.white} />

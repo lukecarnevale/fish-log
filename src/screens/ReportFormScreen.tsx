@@ -1314,7 +1314,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={{ paddingBottom: 34 }}
         scrollEnabled={pickerData[currentPicker as keyof PickerData]?.length > 8}
-        removeClippedSubviews={false}
+        removeClippedSubviews={true}
       />
     </BottomDrawer>
   );

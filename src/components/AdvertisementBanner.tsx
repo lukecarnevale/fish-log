@@ -315,7 +315,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
         source={{ uri: ad.imageUrl }}
         style={styles.image}
         contentFit="cover"
-        cachePolicy="memory-disk"
+        cachePolicy="disk"
         transition={200}
       />
     );

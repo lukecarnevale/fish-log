@@ -4,7 +4,6 @@ import React from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   Image,
@@ -13,6 +12,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, shadows } from '../styles/common';
 import { APP_VERSION } from '../config/appConfig';
+import LazyModal from './LazyModal';
 
 interface AboutModalProps {
   visible: boolean;
@@ -21,7 +21,7 @@ interface AboutModalProps {
 
 export function AboutModal({ visible, onClose }: AboutModalProps): React.ReactElement {
   return (
-    <Modal
+    <LazyModal
       visible={visible}
       transparent
       animationType="fade"
@@ -72,7 +72,7 @@ export function AboutModal({ visible, onClose }: AboutModalProps): React.ReactEl
           </TouchableOpacity>
         </View>
       </View>
-    </Modal>
+    </LazyModal>
   );
 }
 

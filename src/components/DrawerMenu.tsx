@@ -4,7 +4,7 @@
 // Extracted from HomeScreen to reduce clutter.
 //
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -246,6 +246,25 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
     }
   };
 
+  // Track whether the drawer has ever been opened so we can defer rendering
+  // the heavy content tree until needed, but keep it alive once shown for smooth
+  // slide-out animations.
+  const [hasBeenOpened, setHasBeenOpened] = useState(false);
+
+  useEffect(() => {
+    if (visible && !hasBeenOpened) {
+      setHasBeenOpened(true);
+    }
+  }, [visible, hasBeenOpened]);
+
+  // Don't render the full menu tree until the drawer is opened at least once.
+  // After that, keep it mounted for smooth close animation.
+  if (!hasBeenOpened) {
+    return (
+      <Animated.View style={[styles.menuContainer, { transform: [{ translateX: slideAnim }] }]} />
+    );
+  }
+
   return (
     <Animated.View style={[styles.menuContainer, { transform: [{ translateX: slideAnim }] }]}>
       <SafeAreaView style={styles.menuSafeArea} edges={["left", "right"]}>
@@ -288,7 +307,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                       source={{ uri: profileImage }}
                       style={styles.profileAvatarImage}
                       contentFit="cover"
-                      cachePolicy="memory-disk"
+                      cachePolicy="disk"
                       transition={150}
                     />
                   ) : (
@@ -576,10 +595,10 @@ const styles = StyleSheet.create({
   profileCardOuter: {
     margin: 14,
     borderRadius: 14,
-    shadowColor: '#d8a837',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
     elevation: 6,
   },
   profileCard: {
