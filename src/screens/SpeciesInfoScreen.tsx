@@ -199,16 +199,17 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
     setFiltersExpanded(fromBadge);
   }, [route.params?.fromAlertBadge]);
 
-  // Animation for detail view
-  const detailAnim = useRef(new Animated.Value(0)).current;
+  // Horizontal position of the detail overlay (0 = fully visible, screenWidth = off-screen right).
+  // Drives enter slide, swipe-to-dismiss, and back-button close — single source of truth.
+  const swipeX = useRef(new Animated.Value(0)).current;
 
-  // Handle selecting a species with animation
+  // Handle selecting a species — slide detail in from the right
   const handleSelectSpecies = (species: EnhancedFishSpecies) => {
     setSelectedSpecies(species);
     setCurrentImageIndex(0);
-    detailAnim.setValue(0);
-    Animated.spring(detailAnim, {
-      toValue: 1,
+    swipeX.setValue(screenWidth);
+    Animated.spring(swipeX, {
+      toValue: 0,
       useNativeDriver: true,
       tension: 65,
       friction: 11,
@@ -218,30 +219,83 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
     markSpeciesAlertSeen(species.id);
   };
 
-  // Handle closing detail view with animation
+  // Handle closing detail view — slide out to the right, then unmount.
+  // Do NOT reset swipeX here; the overlay unmounts after setSelectedSpecies(null),
+  // and resetting before that causes a one-frame flash. handleSelectSpecies
+  // will set swipeX to screenWidth before the next open anyway.
   const handleCloseDetail = useCallback(() => {
-    Animated.timing(detailAnim, {
-      toValue: 0,
-      duration: 200,
+    Animated.timing(swipeX, {
+      toValue: screenWidth,
+      duration: 250,
       useNativeDriver: true,
     }).start(() => {
       setSelectedSpecies(null);
     });
-  }, [detailAnim]);
+  }, [swipeX, screenWidth]);
 
-  // Intercept back navigation when viewing species detail
-  // This prevents swipe-back from going to HomeScreen instead of back to list
+  // PanResponder for swipe-to-dismiss on the detail overlay.
+  // Lets the user swipe right to reveal the species list underneath,
+  // mimicking the native iOS back-swipe.
+  const SWIPE_THRESHOLD = 80;
+  const detailSwipePanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gestureState) =>
+        gestureState.dx > 10 &&
+        Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5,
+      onPanResponderMove: (_evt, gestureState) => {
+        if (gestureState.dx > 0) {
+          swipeX.setValue(gestureState.dx);
+        }
+      },
+      onPanResponderRelease: (_evt, gestureState) => {
+        if (gestureState.dx > SWIPE_THRESHOLD || gestureState.vx > 0.5) {
+          // Exceeded threshold or fast flick — dismiss
+          Animated.timing(swipeX, {
+            toValue: Dimensions.get('window').width,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            setSelectedSpecies(null);
+          });
+        } else {
+          // Snap back
+          Animated.spring(swipeX, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 65,
+            friction: 11,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(swipeX, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }).start();
+      },
+    })
+  ).current;
+
+  // When viewing species detail: disable the Stack gesture so it doesn't
+  // pop back to Home, and intercept the Android hardware back button
+  // via beforeRemove so it closes the detail view instead.
+  // The custom PanResponder above provides swipe-to-dismiss within the detail.
   useEffect(() => {
-    if (!selectedSpecies) return;
+    if (selectedSpecies) {
+      navigation.setOptions({ gestureEnabled: false });
 
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      // Prevent default back behavior
-      e.preventDefault();
-      // Close detail view instead
-      handleCloseDetail();
-    });
+      const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+        e.preventDefault();
+        handleCloseDetail();
+      });
 
-    return unsubscribe;
+      return () => {
+        navigation.setOptions({ gestureEnabled: true });
+        unsubscribe();
+      };
+    }
   }, [navigation, selectedSpecies, handleCloseDetail]);
 
   // Fetch fish species from Supabase
@@ -782,134 +836,150 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
   
   const scrollViewRef = useRef<ScrollView>(null);
   
-  // Animation interpolations for detail view
-  const detailTranslateY = detailAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [50, 0],
+  // Derive opacity from swipeX so the detail fades slightly as it slides away
+  const detailOpacity = swipeX.interpolate({
+    inputRange: [0, screenWidth * 0.5, screenWidth],
+    outputRange: [1, 0.85, 0],
+    extrapolate: 'clamp',
   });
 
-  const detailOpacity = detailAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
+  // Semi-transparent scrim behind the detail, darkens the list while detail is open
+  const scrimOpacity = swipeX.interpolate({
+    inputRange: [0, screenWidth],
+    outputRange: [0.35, 0],
+    extrapolate: 'clamp',
   });
 
-  // When a species is selected, show the detail view
-  if (selectedSpecies) {
+  // Render detail content (extracted to keep the return clean)
+  const renderDetailOverlay = () => {
+    if (!selectedSpecies) return null;
     return (
-      <ScreenLayout
-        navigation={{ goBack: handleCloseDetail }}
-        title={selectedSpecies.name}
-        subtitle={selectedSpecies.scientificName}
-        scrollViewRef={scrollViewRef}
-      >
+      <>
+        {/* Scrim — dims the list underneath while detail is visible */}
         <Animated.View
-          style={{
-            flex: 1,
-            opacity: detailOpacity,
-            transform: [{ translateY: detailTranslateY }],
-          }}
-        >
-          {/* Image gallery */}
-          <View style={styles.imageGallery}>
-            {renderImageGallery()}
-          </View>
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: '#000', opacity: scrimOpacity, zIndex: 10 },
+          ]}
+        />
 
-          <View style={styles.detailInfo}>
-          {/* Bulletin banner (closures, advisories) — fetched via lightweight hook */}
-          <SpeciesDetailBulletinBanner
-            bulletins={speciesBulletins}
-          />
-
-          <Text style={styles.detailName}>{selectedSpecies.name}</Text>
-          <Text style={styles.detailScientific}>
-            {selectedSpecies.scientificName}
-          </Text>
-
-          {selectedSpecies.commonNames && selectedSpecies.commonNames.length > 0 && (
-            <Text style={styles.commonNames}>
-              Also known as: {selectedSpecies.commonNames.join(", ")}
-            </Text>
-          )}
-
-          <View style={styles.detailsRow}>
-            <View style={styles.detailsColumn}>
-              <Text style={styles.detailsLabel}>Type</Text>
-              <Text style={styles.detailsValue}>
-                {selectedSpecies.categories.type.join(", ")}
-              </Text>
-            </View>
-
-            <View style={styles.detailsColumn}>
-              <Text style={styles.detailsLabel}>Max Growth Size</Text>
-              <Text style={styles.detailsValue}>{selectedSpecies.maxSize}</Text>
-            </View>
-          </View>
-
-          {/* Regulations section */}
-          {renderRegulations()}
-
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.sectionText}>
-            {selectedSpecies.description}
-          </Text>
-
-          <Text style={styles.sectionTitle}>Identification</Text>
-          <Text style={styles.sectionText}>{selectedSpecies.identification}</Text>
-
-          <Text style={styles.sectionTitle}>Habitat & Distribution</Text>
-          <Text style={styles.sectionText}>{selectedSpecies.habitat}</Text>
-          <Text style={styles.sectionText}>{selectedSpecies.distribution}</Text>
-
-          {/* Conservation status */}
-          <View style={[
-            styles.conservationStatus,
+        {/* Detail panel — slides from right, user can swipe it back */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
             {
-              backgroundColor:
-                selectedSpecies.conservationStatus === "Least Concern" ? colors.lightestGray :
-                selectedSpecies.conservationStatus === "Near Threatened" ? colors.warningLight :
-                colors.dangerLight
-            }
-          ]}>
-            <Feather
-              name={selectedSpecies.conservationStatus === "Least Concern" ? "check-circle" : "alert-circle"}
-              size={24}
-              color={
-                selectedSpecies.conservationStatus === "Least Concern" ? colors.success :
-                selectedSpecies.conservationStatus === "Near Threatened" ? colors.warning :
-                colors.danger
-              }
-            />
-            <Text style={styles.statusDescription}>
-              Conservation Status: <Text style={{fontWeight: 'bold'}}>{selectedSpecies.conservationStatus}</Text>
-            </Text>
-          </View>
+              zIndex: 11,
+              opacity: detailOpacity,
+              transform: [{ translateX: swipeX }],
+            },
+          ]}
+          {...detailSwipePanResponder.panHandlers}
+        >
+          <ScreenLayout
+            navigation={{ goBack: handleCloseDetail }}
+            title={selectedSpecies.name}
+            subtitle={selectedSpecies.scientificName}
+            scrollViewRef={scrollViewRef}
+          >
+            <View>
+              {/* Image gallery */}
+              <View style={styles.imageGallery}>
+                {renderImageGallery()}
+              </View>
 
-          {/* Fishing tips section */}
-          {renderFishingTips()}
+              <View style={styles.detailInfo}>
+                <SpeciesDetailBulletinBanner bulletins={speciesBulletins} />
 
-          {/* Report button - only show for mandatory harvest report species */}
-          {HARVEST_TRACKED_SPECIES.includes(selectedSpecies.name) && (
-            <TouchableOpacity
-              style={styles.reportButton}
-              onPress={() => {
-                handleCloseDetail();
-                navigation.navigate("ReportForm");
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.reportButtonText}>
-                Report Catching This Species
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+                <Text style={styles.detailName}>{selectedSpecies.name}</Text>
+                <Text style={styles.detailScientific}>
+                  {selectedSpecies.scientificName}
+                </Text>
+
+                {selectedSpecies.commonNames && selectedSpecies.commonNames.length > 0 && (
+                  <Text style={styles.commonNames}>
+                    Also known as: {selectedSpecies.commonNames.join(", ")}
+                  </Text>
+                )}
+
+                <View style={styles.detailsRow}>
+                  <View style={styles.detailsColumn}>
+                    <Text style={styles.detailsLabel}>Type</Text>
+                    <Text style={styles.detailsValue}>
+                      {selectedSpecies.categories.type.join(", ")}
+                    </Text>
+                  </View>
+                  <View style={styles.detailsColumn}>
+                    <Text style={styles.detailsLabel}>Max Growth Size</Text>
+                    <Text style={styles.detailsValue}>{selectedSpecies.maxSize}</Text>
+                  </View>
+                </View>
+
+                {renderRegulations()}
+
+                <Text style={styles.sectionTitle}>Description</Text>
+                <Text style={styles.sectionText}>
+                  {selectedSpecies.description}
+                </Text>
+
+                <Text style={styles.sectionTitle}>Identification</Text>
+                <Text style={styles.sectionText}>{selectedSpecies.identification}</Text>
+
+                <Text style={styles.sectionTitle}>Habitat & Distribution</Text>
+                <Text style={styles.sectionText}>{selectedSpecies.habitat}</Text>
+                <Text style={styles.sectionText}>{selectedSpecies.distribution}</Text>
+
+                <View style={[
+                  styles.conservationStatus,
+                  {
+                    backgroundColor:
+                      selectedSpecies.conservationStatus === "Least Concern" ? colors.lightestGray :
+                      selectedSpecies.conservationStatus === "Near Threatened" ? colors.warningLight :
+                      colors.dangerLight
+                  }
+                ]}>
+                  <Feather
+                    name={selectedSpecies.conservationStatus === "Least Concern" ? "check-circle" : "alert-circle"}
+                    size={24}
+                    color={
+                      selectedSpecies.conservationStatus === "Least Concern" ? colors.success :
+                      selectedSpecies.conservationStatus === "Near Threatened" ? colors.warning :
+                      colors.danger
+                    }
+                  />
+                  <Text style={styles.statusDescription}>
+                    Conservation Status: <Text style={{fontWeight: 'bold'}}>{selectedSpecies.conservationStatus}</Text>
+                  </Text>
+                </View>
+
+                {renderFishingTips()}
+
+                {HARVEST_TRACKED_SPECIES.includes(selectedSpecies.name) && (
+                  <TouchableOpacity
+                    style={styles.reportButton}
+                    onPress={() => {
+                      handleCloseDetail();
+                      navigation.navigate("ReportForm");
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.reportButtonText}>
+                      Report Catching This Species
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </ScreenLayout>
         </Animated.View>
-      </ScreenLayout>
+      </>
     );
-  }
+  };
 
-  // List view of all species
+  // Always render the list; overlay the detail when a species is selected
   return (
+    <View style={{ flex: 1 }}>
+    {renderDetailOverlay()}
     <ScreenLayout
       navigation={navigation}
       title={SCREEN_LABELS.speciesGuide.title}
@@ -1051,6 +1121,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         )}
       </View>
     </ScreenLayout>
+    </View>
   );
 };
 
