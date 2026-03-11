@@ -504,4 +504,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AdvertisementBanner;
+export default React.memo(AdvertisementBanner);

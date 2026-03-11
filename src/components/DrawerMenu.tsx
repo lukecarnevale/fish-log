@@ -4,7 +4,7 @@
 // Extracted from HomeScreen to reduce clutter.
 //
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -46,7 +46,7 @@ interface DrawerMenuProps {
   onNavigate: (screen: keyof RootStackParamList) => void;
   pendingAuth: any | null;
   badgeScale: Animated.AnimatedInterpolation<number>;
-  badgeBorderColor: Animated.AnimatedInterpolation<string>;
+  badgeOpacity: Animated.AnimatedInterpolation<number>;
   currentMode: AppMode;
   setCurrentMode: (mode: AppMode) => void;
   onFeedbackPress?: (type: 'feedback' | 'bug_report') => void;
@@ -80,7 +80,7 @@ interface MenuItemProps {
   iconColor?: string;
   showBadge?: boolean;
   badgeScale?: Animated.AnimatedInterpolation<number>;
-  badgeBorderColor?: Animated.AnimatedInterpolation<string>;
+  badgeOpacity?: Animated.AnimatedInterpolation<number>;
   isExternal?: boolean;
   /** If true, shows lock icon and grayed out state */
   disabled?: boolean;
@@ -100,7 +100,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
   iconColor = colors.primary,
   showBadge,
   badgeScale,
-  badgeBorderColor,
+  badgeOpacity,
   isExternal,
   disabled = false,
   onDisabledPress,
@@ -115,9 +115,9 @@ const MenuItem: React.FC<MenuItemProps> = ({
       {customIcon || (
         <Feather name={icon as any} size={20} color={disabled ? '#999' : iconColor} />
       )}
-      {showBadge && badgeScale && badgeBorderColor && (
-        <Animated.View style={[styles.menuBadge, { transform: [{ scale: badgeScale }] }]}>
-          <Animated.View style={[styles.menuBadgeDot, { borderColor: badgeBorderColor }]} />
+      {showBadge && badgeScale && badgeOpacity && (
+        <Animated.View style={[styles.menuBadge, { opacity: badgeOpacity, transform: [{ scale: badgeScale }] }]}>
+          <View style={styles.menuBadgeDot} />
         </Animated.View>
       )}
       {typeof badgeCount === 'number' && badgeCount > 0 && (
@@ -152,7 +152,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   onNavigate,
   pendingAuth,
   badgeScale,
-  badgeBorderColor,
+  badgeOpacity,
   currentMode,
   setCurrentMode,
   onFeedbackPress,
@@ -173,10 +173,13 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
     }
   }, [visible]);
 
-  const handleNavigate = (screen: keyof RootStackParamList) => {
+  const handleNavigate = useCallback((screen: keyof RootStackParamList) => {
     onClose();
-    setTimeout(() => onNavigate(screen), 0);
-  };
+    // Wait for the close animation to settle before navigating.
+    // This avoids mounting the next screen while the spring is mid-flight,
+    // which causes JS-thread contention and dropped frames.
+    setTimeout(() => onNavigate(screen), 280);
+  }, [onClose, onNavigate]);
 
   const handleExternalLink = (url: string) => {
     onClose();
@@ -246,25 +249,6 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
     }
   };
 
-  // Track whether the drawer has ever been opened so we can defer rendering
-  // the heavy content tree until needed, but keep it alive once shown for smooth
-  // slide-out animations.
-  const [hasBeenOpened, setHasBeenOpened] = useState(false);
-
-  useEffect(() => {
-    if (visible && !hasBeenOpened) {
-      setHasBeenOpened(true);
-    }
-  }, [visible, hasBeenOpened]);
-
-  // Don't render the full menu tree until the drawer is opened at least once.
-  // After that, keep it mounted for smooth close animation.
-  if (!hasBeenOpened) {
-    return (
-      <Animated.View style={[styles.menuContainer, { transform: [{ translateX: slideAnim }] }]} />
-    );
-  }
-
   return (
     <Animated.View style={[styles.menuContainer, { transform: [{ translateX: slideAnim }] }]}>
       <SafeAreaView style={styles.menuSafeArea} edges={["left", "right"]}>
@@ -315,8 +299,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                   )}
                 </View>
                 {pendingAuth && (
-                  <Animated.View style={[styles.profileBadge, { transform: [{ scale: badgeScale }] }]}>
-                    <Animated.View style={[styles.profileBadgeDot, { borderColor: badgeBorderColor }]} />
+                  <Animated.View style={[styles.profileBadge, { opacity: badgeOpacity, transform: [{ scale: badgeScale }] }]}>
+                    <View style={styles.profileBadgeDot} />
                   </Animated.View>
                 )}
               </View>
@@ -370,7 +354,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                         style={styles.bulletinItem}
                         onPress={() => {
                           onClose();
-                          setTimeout(() => onBulletinPress?.(bulletin), 0);
+                          setTimeout(() => onBulletinPress?.(bulletin), 280);
                         }}
                         activeOpacity={0.7}
                       >
@@ -393,7 +377,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                     style={styles.bulletinViewAll}
                     onPress={() => {
                       onClose();
-                      setTimeout(() => onViewAllBulletins(), 0);
+                      setTimeout(() => onViewAllBulletins(), 280);
                     }}
                     activeOpacity={0.7}
                   >
@@ -418,7 +402,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
               subtitle={SCREEN_LABELS.bulletins.subtitle}
               onPress={() => {
                 onClose();
-                setTimeout(() => onViewAllBulletins?.(), 0);
+                setTimeout(() => onViewAllBulletins?.(), 280);
               }}
               iconBgColor="#FFF3E0"
               iconColor="#F57C00"
@@ -499,7 +483,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             subtitle="Questions, issues, or suggestions"
             onPress={() => {
               onClose();
-              onFeedbackPress?.('feedback');
+              setTimeout(() => onFeedbackPress?.('feedback'), 280);
             }}
             iconBgColor="#E8F5F4"
             iconColor={colors.primary}
@@ -647,6 +631,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#FF6B6B',
     borderWidth: 2,
+    borderColor: '#FF6B6B',
   },
 
   // Menu Content
@@ -724,6 +709,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#FF6B6B',
     borderWidth: 2,
+    borderColor: '#FF6B6B',
   },
   menuCountBadge: {
     position: 'absolute',
@@ -856,4 +842,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default DrawerMenu;
+export default React.memo(DrawerMenu);

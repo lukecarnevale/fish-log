@@ -133,12 +133,12 @@ const SkeletonBox: React.FC<{
         Animated.timing(shimmer, {
           toValue: 1,
           duration: 1000,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(shimmer, {
           toValue: 0,
           duration: 1000,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ])
     );
@@ -146,9 +146,10 @@ const SkeletonBox: React.FC<{
     return () => animation.stop();
   }, [shimmer]);
 
-  const backgroundColor = shimmer.interpolate({
+  // Opacity shimmer instead of color interpolation (native driver compatible)
+  const opacity = shimmer.interpolate({
     inputRange: [0, 1],
-    outputRange: ['#E8EEF4', '#D0DAE4'],
+    outputRange: [0.6, 1],
   });
 
   return (
@@ -158,7 +159,8 @@ const SkeletonBox: React.FC<{
           width,
           height,
           borderRadius,
-          backgroundColor,
+          backgroundColor: '#D0DAE4',
+          opacity,
         },
         style,
       ]}
@@ -282,7 +284,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     isNewQuarter,
   } = useRewards();
 
-  // Slow pulsing animation for progress indicator border
+  // Slow pulsing animation for progress indicator — native driver for smooth 60fps
   const progressPulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -290,13 +292,13 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
       Animated.sequence([
         Animated.timing(progressPulse, {
           toValue: 1,
-          duration: 2000, // Slower - 2 seconds up
-          useNativeDriver: false,
+          duration: 2000,
+          useNativeDriver: true,
         }),
         Animated.timing(progressPulse, {
           toValue: 0,
-          duration: 2000, // Slower - 2 seconds down
-          useNativeDriver: false,
+          duration: 2000,
+          useNativeDriver: true,
         }),
       ])
     );
@@ -315,10 +317,10 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     }
   }, [showDetailsModal, scrollToPrizes]);
 
-  // Border color pulse - white to orange
-  const progressBorderColor = progressPulse.interpolate({
+  // Opacity pulse for progress indicator glow (native driver compatible)
+  const progressIndicatorOpacity = progressPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [COLORS.white, COLORS.orange],
+    outputRange: [0.5, 1],
   });
 
   // Loading state - show skeleton
@@ -611,7 +613,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                   styles.progressIndicator,
                   {
                     left: `${calculated.periodProgress}%`,
-                    borderColor: progressBorderColor,
+                    opacity: progressIndicatorOpacity,
                   },
                 ]}
               />
@@ -880,7 +882,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: COLORS.orange,
     borderWidth: 2.5,
-    borderColor: COLORS.white, // This gets animated to orange
+    borderColor: COLORS.orange, // Static color; opacity is animated instead
     marginLeft: -6,
     // Subtle shadow for depth
     shadowColor: '#000',
@@ -1237,4 +1239,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default QuarterlyRewardsCard;
+export default React.memo(QuarterlyRewardsCard);

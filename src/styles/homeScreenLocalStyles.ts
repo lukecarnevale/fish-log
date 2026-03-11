@@ -169,7 +169,7 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     borderRadius: 6,
     backgroundColor: '#FF6B6B',
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: '#FF6B6B',
   },
   floatingBadge: {
     position: 'absolute',
@@ -182,7 +182,7 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     borderRadius: 6,
     backgroundColor: '#FF6B6B',
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: '#FF6B6B',
   },
   // Unified Welcome Card styles
   welcomeCard: {

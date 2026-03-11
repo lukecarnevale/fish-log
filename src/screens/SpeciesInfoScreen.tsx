@@ -317,6 +317,24 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
     });
   }, []);
 
+  // Fallback for scrollToIndex when the target item hasn't been rendered yet.
+  // Scrolls to the closest rendered item, waits a frame, then retries.
+  const handleScrollToIndexFailed = useCallback((info: {
+    index: number;
+    highestMeasuredFrameIndex: number;
+    averageItemLength: number;
+  }) => {
+    flatListRef.current?.scrollToOffset({
+      offset: info.averageItemLength * info.index,
+      animated: false,
+    });
+    setTimeout(() => {
+      if (flatListRef.current && info.index < (filteredSpeciesRef.current?.length ?? 0)) {
+        flatListRef.current.scrollToIndex({ index: info.index, animated: false, viewPosition: 0 });
+      }
+    }, 100);
+  }, []);
+
   // Handle touch/pan on alphabet sidebar - uses refs to get latest values
   const handleAlphabetTouch = (pageY: number) => {
     const letter = getLetterFromY(pageY);
@@ -972,6 +990,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
               maxToRenderPerBatch={8}
               windowSize={7}
               initialNumToRender={8}
+              onScrollToIndexFailed={handleScrollToIndexFailed}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   {error ? (

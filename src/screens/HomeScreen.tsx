@@ -107,17 +107,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   const statusBarStyleRef = useRef(statusBarStyle);
   statusBarStyleRef.current = statusBarStyle;
 
-  // Pulsing animation for notification badge
+  // Pulsing animation for notification badge — native driver for smooth 60fps
   const { pulseValue: badgePulse } = usePulseAnimation({
     duration: 1000,
     enabled: !!pendingAuth,
-    useNativeDriver: false,
+    useNativeDriver: true,
   });
 
-  // Interpolate border color from white to red
-  const badgeBorderColor = badgePulse.interpolate({
+  // Opacity pulse for badge glow effect (replaces JS-thread color interpolation)
+  const badgeOpacity = badgePulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [colors.white, '#FF6B6B'],
+    outputRange: [0.4, 1],
   });
 
   // Scale pulse effect (subtle grow/shrink)
@@ -267,6 +267,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     };
   }, [navigation, flushPendingAchievements, loadBadgeData]);
   
+  // Memoized callback for DrawerMenu feedback (avoids defeating React.memo)
+  const handleFeedbackPress = useCallback((type: FeedbackType) => {
+    setFeedbackType(type);
+    setFeedbackModalVisible(true);
+  }, []);
+
+  // Memoized callbacks for Footer (avoids defeating React.memo)
+  const handlePrivacyPress = useCallback(() => navigation.navigate('LegalDocument', { type: 'privacy' } as any), [navigation]);
+  const handleTermsPress = useCallback(() => navigation.navigate('LegalDocument', { type: 'terms' } as any), [navigation]);
+  const handleLicensesPress = useCallback(() => navigation.navigate('LegalDocument', { type: 'licenses' } as any), [navigation]);
+  const handleContactPress = useCallback(() => {
+    setFeedbackType('feedback');
+    setFeedbackModalVisible(true);
+  }, []);
+  const handleInfoPress = useCallback(() => setAboutModalVisible(true), []);
+
   // Memoized function to dismiss the info card
   const dismissInfoCard = useCallback(async () => {
     try {
@@ -349,11 +365,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     }
   }, [menuOpen, slideAnim, overlayOpacity]);
 
-  // Memoized navigation function
+  // Memoized navigation function.
+  // NOTE: Does NOT call closeMenu() — the DrawerMenu handles its own close
+  // animation and delays navigation until the animation settles (280ms).
+  // Calling closeMenu() here would cause a redundant state update + animation.
   const navigateToScreen = useCallback((screenName: keyof RootStackParamList, params?: Record<string, any>): void => {
-    // Close the menu first if it's open
-    closeMenu();
-
     // Clear "new" indicators when visiting those screens and invalidate cache
     if (screenName === 'PastReports') {
       AsyncStorage.setItem(BADGE_STORAGE_KEYS.lastViewedPastReports, new Date().toISOString());
@@ -366,15 +382,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       badgeDataCache.timestamp = 0;
     }
 
-    // Use setTimeout to separate navigation from touch event handling
-    setTimeout(() => {
-      if (params) {
-        (navigation.navigate as any)(screenName, params);
-      } else {
-        (navigation.navigate as (screen: keyof RootStackParamList) => void)(screenName);
-      }
-    }, 0);
-  }, [closeMenu, navigation, updateBadgeData]);
+    if (params) {
+      (navigation.navigate as any)(screenName, params);
+    } else {
+      (navigation.navigate as (screen: keyof RootStackParamList) => void)(screenName);
+    }
+  }, [navigation, updateBadgeData]);
+
+  // Memoized callbacks that depend on navigateToScreen (must be declared after it)
+  const handleViewAllBulletins = useCallback(() => navigateToScreen('Bulletins'), [navigateToScreen]);
+  const handleReportPress = useCallback(() => navigateToScreen("ReportForm"), [navigateToScreen]);
 
   return (
     <View style={{flex: 1, backgroundColor: colors.primary}}>
@@ -389,19 +406,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         onNavigate={navigateToScreen}
         pendingAuth={pendingAuth}
         badgeScale={badgeScale}
-        badgeBorderColor={badgeBorderColor}
+        badgeOpacity={badgeOpacity}
         currentMode={currentMode}
         setCurrentMode={setCurrentMode}
-        onFeedbackPress={(type) => {
-          setFeedbackType(type);
-          setFeedbackModalVisible(true);
-        }}
+        onFeedbackPress={handleFeedbackPress}
         isSignedIn={rewardsMember}
         profileImage={profileImage}
         hasProfileEmail={hasProfileEmail}
         bulletins={allBulletins}
         onBulletinPress={showBulletinDetail}
-        onViewAllBulletins={() => navigateToScreen('Bulletins')}
+        onViewAllBulletins={handleViewAllBulletins}
         onDismissBulletin={permanentlyDismissBulletin}
       />
 
@@ -446,12 +460,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               {pendingAuth && (
                 <Animated.View style={[
                   localStyles.hamburgerBadge,
-                  { transform: [{ scale: badgeScale }] }
+                  { opacity: badgeOpacity, transform: [{ scale: badgeScale }] }
                 ]}>
-                  <Animated.View style={[
-                    localStyles.hamburgerBadgeDot,
-                    { borderColor: badgeBorderColor }
-                  ]} />
+                  <View style={localStyles.hamburgerBadgeDot} />
                 </Animated.View>
               )}
             </TouchableOpacity>
@@ -481,12 +492,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             {pendingAuth && (
               <Animated.View style={[
                 localStyles.floatingBadge,
-                { transform: [{ scale: badgeScale }] }
+                { opacity: badgeOpacity, transform: [{ scale: badgeScale }] }
               ]}>
-                <Animated.View style={[
-                  localStyles.floatingBadgeDot,
-                  { borderColor: badgeBorderColor }
-                ]} />
+                <View style={localStyles.floatingBadgeDot} />
               </Animated.View>
             )}
           </TouchableOpacity>
@@ -669,7 +677,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
         {/* Quarterly Rewards Card */}
         <QuarterlyRewardsCard
-          onReportPress={() => navigateToScreen("ReportForm")}
+          onReportPress={handleReportPress}
           isSignedIn={rewardsMember}
         />
 
@@ -697,14 +705,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         <View style={localStyles.footerContainer}>
           <View style={localStyles.footerBottomArea} />
           <Footer
-            onPrivacyPress={() => navigation.navigate('LegalDocument', { type: 'privacy' })}
-            onTermsPress={() => navigation.navigate('LegalDocument', { type: 'terms' })}
-            onLicensesPress={() => navigation.navigate('LegalDocument', { type: 'licenses' })}
-            onContactPress={() => {
-              setFeedbackType('feedback');
-              setFeedbackModalVisible(true);
-            }}
-            onInfoPress={() => setAboutModalVisible(true)}
+            onPrivacyPress={handlePrivacyPress}
+            onTermsPress={handleTermsPress}
+            onLicensesPress={handleLicensesPress}
+            onContactPress={handleContactPress}
+            onInfoPress={handleInfoPress}
           />
         </View>
         </View>
