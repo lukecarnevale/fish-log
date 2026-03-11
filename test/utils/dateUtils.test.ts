@@ -9,38 +9,47 @@ import {
 } from '../../src/utils/dateUtils';
 
 describe('formatRelativeTime', () => {
+  // Use fake timers pinned to a fixed date to avoid DST boundary issues.
+  // When real Date math crosses a DST change the ms diff drifts by ±1 hour,
+  // causing Math.floor to round down unexpectedly.
+  const FIXED_NOW = new Date('2026-01-15T12:00:00Z');
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(FIXED_NOW);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('returns "Just now" for less than 1 minute ago', () => {
     const now = new Date().toISOString();
     expect(formatRelativeTime(now)).toBe('Just now');
   });
 
   it('returns minutes ago for < 60 minutes', () => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - 30);
+    const d = new Date(FIXED_NOW.getTime() - 30 * 60 * 1000);
     expect(formatRelativeTime(d.toISOString())).toBe('30m ago');
   });
 
   it('returns hours ago for < 24 hours', () => {
-    const d = new Date();
-    d.setHours(d.getHours() - 5);
+    const d = new Date(FIXED_NOW.getTime() - 5 * 60 * 60 * 1000);
     expect(formatRelativeTime(d.toISOString())).toBe('5h ago');
   });
 
   it('returns days ago for < 7 days', () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 3);
+    const d = new Date(FIXED_NOW.getTime() - 3 * 24 * 60 * 60 * 1000);
     expect(formatRelativeTime(d.toISOString())).toBe('3d ago');
   });
 
   it('returns weeks ago for < 4 weeks', () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 14);
+    const d = new Date(FIXED_NOW.getTime() - 14 * 24 * 60 * 60 * 1000);
     expect(formatRelativeTime(d.toISOString())).toBe('2w ago');
   });
 
   it('returns months ago for < 12 months', () => {
-    const d = new Date();
-    d.setDate(d.getDate() - 60);
+    const d = new Date(FIXED_NOW.getTime() - 60 * 24 * 60 * 60 * 1000);
     expect(formatRelativeTime(d.toISOString())).toBe('2mo ago');
   });
 
