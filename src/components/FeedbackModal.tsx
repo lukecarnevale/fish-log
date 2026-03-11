@@ -162,6 +162,9 @@ export function FeedbackModal({
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                textContentType="emailAddress"
+                autoComplete="email"
+                returnKeyType="done"
               />
             </View>
 

@@ -70,6 +70,7 @@ import RaffleEntryModal from './reportForm/RaffleEntryModal';
 // Species that require mandatory harvest reporting (matches SpeciesInfoScreen)
 const REPORT_SPECIES = ['Red Drum', 'Southern Flounder', 'Spotted Seatrout', 'Striped Bass', 'Weakfish'];
 
+
 const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // Safe area insets for bottom sheet padding on Android
   const insets = useSafeAreaInsets();
@@ -95,6 +96,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // Keyboard height tracking for scroll-to-center behavior
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Draft text for numeric stepper fields — allows free typing until blur commits the value
+  const [countDraft, setCountDraft] = useState<string | null>(null);
+  const [peopleDraft, setPeopleDraft] = useState<string | null>(null);
+
+  // Track whether a numeric-keyboard field is focused (for the floating Done toolbar)
+  const [numericFieldFocused, setNumericFieldFocused] = useState(false);
   const currentScrollY = useRef(0);
 
   // Track keyboard show/hide for scroll-to-center
@@ -151,6 +159,16 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       );
     }, 100);
   }, [keyboardHeight]);
+
+  // Focus/blur helpers for numeric fields — shows/hides the floating Done toolbar
+  const onNumericFocus = useCallback((event: { target: unknown }) => {
+    setNumericFieldFocused(true);
+    scrollToCenter(event);
+  }, [scrollToCenter]);
+
+  const onNumericBlur = useCallback(() => {
+    setNumericFieldFocused(false);
+  }, []);
 
   // Toast notification
   const toast = useToast();
@@ -1527,13 +1545,20 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <TextInput
                 style={localStyles.countInput}
                 keyboardType="number-pad"
-                value={String(formData.totalPeopleCount)}
+                returnKeyType="done"
+                selectTextOnFocus
+                value={peopleDraft !== null ? peopleDraft : String(formData.totalPeopleCount)}
                 onChangeText={(text) => {
-                  const num = parseInt(text) || 2;
+                  setPeopleDraft(text.replace(/\D/g, ''));
+                }}
+                onFocus={onNumericFocus}
+                onBlur={() => {
+                  onNumericBlur();
+                  const num = parseInt(peopleDraft || '') || 2;
+                  setPeopleDraft(null);
                   setFormData({ ...formData, totalPeopleCount: Math.min(MAX_PEOPLE_COUNT, Math.max(2, num)) });
                 }}
                 maxLength={2}
-                onFocus={scrollToCenter}
               />
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1572,10 +1597,22 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <TextInput
                 style={localStyles.countInput}
                 keyboardType="number-pad"
-                value={String(formData.count)}
-                onChangeText={(text) => handleCountChange(parseInt(text) || 1)}
+                returnKeyType="done"
+                selectTextOnFocus
+                value={countDraft !== null ? countDraft : String(formData.count)}
+                onChangeText={(text) => {
+                  // Store raw text — allow empty/partial values while typing
+                  setCountDraft(text.replace(/\D/g, ''));
+                }}
+                onFocus={onNumericFocus}
+                onBlur={() => {
+                  onNumericBlur();
+                  // Commit the draft value on blur, clamping to valid range
+                  const parsed = parseInt(countDraft || '') || 1;
+                  setCountDraft(null);
+                  handleCountChange(parsed);
+                }}
                 maxLength={2}
-                onFocus={scrollToCenter}
               />
               <TouchableOpacity
                 style={localStyles.countButton}
@@ -1613,10 +1650,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   <TextInput
                     style={styles.input}
                     keyboardType="decimal-pad"
+                    returnKeyType="done"
                     value={formData.lengths[0] || ""}
                     onChangeText={(text) => updateLength(0, text)}
                     placeholder="Enter the length"
-                    onFocus={scrollToCenter}
+                    onFocus={onNumericFocus}
+                    onBlur={onNumericBlur}
                   />
                 ) : (
                   // Multiple fish - numbered inputs
@@ -1627,10 +1666,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                         <TextInput
                           style={localStyles.lengthInput}
                           keyboardType="decimal-pad"
+                          returnKeyType="done"
                           value={length}
                           onChangeText={(text) => updateLength(index, text)}
                           placeholder={`Fish ${index + 1}`}
-                          onFocus={scrollToCenter}
+                          onFocus={onNumericFocus}
+                          onBlur={onNumericBlur}
                         />
                       </View>
                     ))}
@@ -1640,6 +1681,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 <Text style={styles.label}>Tag Number</Text>
                 <TextInput
                   style={styles.input}
+                  returnKeyType="done"
+                  blurOnSubmit={false}
+                  onSubmitEditing={() => Keyboard.dismiss()}
                   value={formData.tagNumber}
                   onChangeText={(text) => setFormData({ ...formData, tagNumber: text })}
                   placeholder="Enter tag number if fish is tagged"
@@ -2019,6 +2063,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               }}
               placeholder="Enter your WRC ID or Customer ID"
               autoCapitalize="characters"
+              returnKeyType="done"
+              blurOnSubmit={false}
+              onSubmitEditing={() => Keyboard.dismiss()}
               onFocus={scrollToCenter}
             />
             {validationErrors.wrcId && (
@@ -2054,6 +2101,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             <View style={localStyles.nameRow}>
               <TextInput
                 style={[styles.input, localStyles.nameInput]}
+                returnKeyType="done"
+                blurOnSubmit={false}
+                onSubmitEditing={() => Keyboard.dismiss()}
                 value={formData.angler.firstName}
                 onChangeText={(text) => {
                   const wasEmpty = !formData.angler.firstName?.trim();
@@ -2071,10 +2121,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="First"
+                textContentType="givenName"
+                autoComplete="given-name"
                 onFocus={scrollToCenter}
               />
               <TextInput
                 style={[styles.input, localStyles.nameInput]}
+                returnKeyType="done"
+                blurOnSubmit={false}
+                onSubmitEditing={() => Keyboard.dismiss()}
                 value={formData.angler.lastName}
                 onChangeText={(text) => {
                   const wasEmpty = !formData.angler.lastName?.trim();
@@ -2092,6 +2147,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="Last"
+                textContentType="familyName"
+                autoComplete="family-name"
                 onFocus={scrollToCenter}
               />
             </View>
@@ -2114,8 +2171,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 }}
                 placeholder="12345"
                 keyboardType="number-pad"
+                textContentType="postalCode"
+                autoComplete="postal-code"
+                returnKeyType="done"
                 maxLength={5}
-                onFocus={scrollToCenter}
+                onFocus={onNumericFocus}
+                onBlur={onNumericBlur}
               />
               {/* ZIP code lookup feedback */}
               {formData.zipCode?.length === 5 && (
@@ -2153,6 +2214,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   localStyles.nameInput,
                   validationErrors.firstName && localStyles.inputError,
                 ]}
+                returnKeyType="done"
+                blurOnSubmit={false}
+                onSubmitEditing={() => Keyboard.dismiss()}
                 value={formData.angler.firstName}
                 onChangeText={(text) => {
                   clearValidationError("firstName");
@@ -2179,6 +2243,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="First"
+                textContentType="givenName"
+                autoComplete="given-name"
                 onFocus={scrollToCenter}
               />
               <TextInput
@@ -2187,6 +2253,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   localStyles.nameInput,
                   validationErrors.lastName && localStyles.inputError,
                 ]}
+                returnKeyType="done"
+                blurOnSubmit={false}
+                onSubmitEditing={() => Keyboard.dismiss()}
                 value={formData.angler.lastName}
                 onChangeText={(text) => {
                   clearValidationError("lastName");
@@ -2213,6 +2282,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="Last"
+                textContentType="familyName"
+                autoComplete="family-name"
                 onFocus={scrollToCenter}
               />
             </View>
@@ -2254,8 +2325,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 }}
                 placeholder="12345"
                 keyboardType="number-pad"
+                textContentType="postalCode"
+                autoComplete="postal-code"
+                returnKeyType="done"
                 maxLength={5}
-                onFocus={scrollToCenter}
+                onFocus={onNumericFocus}
+                onBlur={onNumericBlur}
               />
               {/* ZIP code lookup feedback */}
               {formData.zipCode?.length === 5 && !validationErrors.zipCode && (
@@ -2347,6 +2422,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               placeholder="Your email"
               keyboardType="email-address"
               autoCapitalize="none"
+              textContentType="emailAddress"
+              autoComplete="email"
+              returnKeyType="done"
+              blurOnSubmit={false}
+              onSubmitEditing={() => Keyboard.dismiss()}
               onFocus={scrollToCenter}
               onBlur={() => {
                 const error = validateEmail(formData.angler.email || "");
@@ -2419,9 +2499,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               }}
               placeholder="555-555-5555"
               keyboardType="phone-pad"
+              textContentType="telephoneNumber"
+              autoComplete="tel"
+              returnKeyType="done"
               maxLength={12}
-              onFocus={scrollToCenter}
+              onFocus={onNumericFocus}
               onBlur={() => {
+                onNumericBlur();
                 const error = validatePhone(formData.angler.phone || "");
                 setValidationErrors(prev => ({ ...prev, phone: error }));
               }}
@@ -2617,6 +2701,20 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           toast.show("Rewards Entry Added", "You'll be entered in this quarter's drawing.");
         }}
       />
+
+      {/* Floating Done toolbar for numeric keyboards on iOS (number-pad, decimal-pad, phone-pad lack a return key) */}
+      {numericFieldFocused && keyboardHeight > 0 && (
+        <View style={[localStyles.keyboardAccessory, { position: 'absolute', left: 0, right: 0, bottom: keyboardHeight }]}>
+          <View style={localStyles.keyboardAccessorySpacer} />
+          <TouchableOpacity
+            onPress={() => Keyboard.dismiss()}
+            style={localStyles.keyboardAccessoryButton}
+          >
+            <Text style={localStyles.keyboardAccessoryButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
     </View>
   );
 };
