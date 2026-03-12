@@ -9,9 +9,9 @@ import { createCache } from '../utils/cache';
 import { EnhancedFishSpecies } from '../types/fishSpecies';
 import { transformFishSpecies, type SupabaseFishSpeciesRow } from './transformers/fishSpeciesTransformer';
 
-// Cache instance for fish species with 7-day TTL
+// Cache instance for fish species with 2-hour TTL (reduced from 7 days to free memory sooner)
 const speciesCache = createCache<EnhancedFishSpecies[]>('@fish_species_cache', {
-  ttlMs: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+  ttlMs: 2 * 60 * 60 * 1000, // 2 hours in milliseconds
 });
 
 // =============================================================================

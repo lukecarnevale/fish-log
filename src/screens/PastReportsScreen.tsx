@@ -4,7 +4,7 @@
 // Integrates with offlineQueue service to show synced and pending reports.
 //
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Text,
   View,
@@ -102,11 +102,11 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [datePickerMode, setDatePickerMode] = useState<"from" | "to">("from");
   const [tempDate, setTempDate] = useState<Date>(new Date());
-  const dateFilterHeight = useState(new Animated.Value(0))[0];
+  const dateFilterHeight = useRef(new Animated.Value(0)).current;
 
   // Date picker modal animation values
-  const datePickerOverlayOpacity = useState(new Animated.Value(0))[0];
-  const datePickerSlide = useState(new Animated.Value(300))[0];
+  const datePickerOverlayOpacity = useRef(new Animated.Value(0)).current;
+  const datePickerSlide = useRef(new Animated.Value(300)).current;
   const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   // Fetch species data for stock images
@@ -512,7 +512,8 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                   source={{ uri: reportImage }}
                   style={styles.cardPhoto}
                   contentFit="contain"
-                  cachePolicy="memory-disk"
+                  cachePolicy="disk"
+                  recyclingKey={`report-${item.confirmationNumber}`}
                   transition={200}
                 />
               </View>
@@ -638,7 +639,8 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                   source={{ uri: selectedReport.catchPhoto }}
                   style={styles.modalPhoto}
                   contentFit="cover"
-                  cachePolicy="memory-disk"
+                  cachePolicy="disk"
+                  recyclingKey={`report-modal-${selectedReport.confirmationNumber}`}
                   transition={200}
                 />
               </View>

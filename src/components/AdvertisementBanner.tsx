@@ -315,7 +315,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
         source={{ uri: ad.imageUrl }}
         style={styles.image}
         contentFit="cover"
-        cachePolicy="memory-disk"
+        cachePolicy="disk"
         transition={200}
       />
     );
@@ -504,4 +504,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AdvertisementBanner;
+export default React.memo(AdvertisementBanner);

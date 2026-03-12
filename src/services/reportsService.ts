@@ -766,6 +766,50 @@ export async function getFishEntries(reportId: string): Promise<StoredFishEntry[
 }
 
 /**
+ * Batch-fetch fish entries for multiple reports in a single Supabase query.
+ * Returns a Map of reportId → entries.  Much faster than calling
+ * getFishEntries() in a loop (avoids N+1 round-trips).
+ */
+export async function getFishEntriesBatch(
+  reportIds: string[]
+): Promise<Map<string, StoredFishEntry[]>> {
+  const result = new Map<string, StoredFishEntry[]>();
+  if (reportIds.length === 0) return result;
+
+  // Filter out local-only reports (they have no server-side entries)
+  const remoteIds = reportIds.filter((id) => !id.startsWith('local_'));
+  if (remoteIds.length === 0) return result;
+
+  const connected = await isSupabaseConnected();
+  if (!connected) return result;
+
+  try {
+    const { data, error } = await supabase
+      .from('fish_entries')
+      .select('*')
+      .in('report_id', remoteIds);
+
+    if (error) {
+      console.warn('⚠️ Batch fish entries fetch failed:', error.message);
+      return result;
+    }
+
+    for (const row of data || []) {
+      const entry = transformFishEntry(row);
+      const reportId = row.report_id as string;
+      if (!result.has(reportId)) {
+        result.set(reportId, []);
+      }
+      result.get(reportId)!.push(entry);
+    }
+  } catch (error) {
+    console.warn('⚠️ Batch fish entries fetch failed:', error);
+  }
+
+  return result;
+}
+
+/**
  * Sync pending local reports to Supabase.
  * Call this when network becomes available.
  *

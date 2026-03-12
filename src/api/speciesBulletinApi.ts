@@ -17,6 +17,6 @@ export const useBulletinsForSpecies = (speciesId: string | null) => {
     queryKey: ['bulletins', 'species', speciesId],
     queryFn: () => fetchBulletinsForSpecies(speciesId!),
     enabled: !!speciesId,
-    staleTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };

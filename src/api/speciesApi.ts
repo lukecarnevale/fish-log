@@ -12,9 +12,6 @@ export const QUERY_KEYS = {
   FISH_SPECIES_BY_ID: (id: string) => ['fishSpecies', id],
 };
 
-// 1 day in milliseconds (for cache TTL)
-const ONE_DAY = 24 * 60 * 60 * 1000;
-
 /**
  * Get all fish species from Supabase
  */
@@ -39,7 +36,7 @@ export const useAllFishSpecies = () => {
   return useQuery({
     queryKey: [QUERY_KEYS.FISH_SPECIES],
     queryFn: fetchAllFishSpecies,
-    staleTime: ONE_DAY, // Consider data fresh for a day
+    staleTime: 5 * 60 * 1000, // 5 minutes — species data reloads from disk cache, not network
   });
 };
 

@@ -120,6 +120,7 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: TEAL,
   },
   splashContainer: {
     flex: 1,

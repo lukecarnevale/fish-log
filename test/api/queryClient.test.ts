@@ -17,12 +17,12 @@ describe('queryClient defaults', () => {
     expect(queryClient.getDefaultOptions().queries?.refetchOnReconnect).toBe('always');
   });
 
-  it('has staleTime of 5 minutes', () => {
-    expect(queryClient.getDefaultOptions().queries?.staleTime).toBe(5 * 60 * 1000);
+  it('has staleTime of 2 minutes', () => {
+    expect(queryClient.getDefaultOptions().queries?.staleTime).toBe(2 * 60 * 1000);
   });
 
-  it('has gcTime of 30 minutes', () => {
-    expect(queryClient.getDefaultOptions().queries?.gcTime).toBe(30 * 60 * 1000);
+  it('has gcTime of 3 minutes', () => {
+    expect(queryClient.getDefaultOptions().queries?.gcTime).toBe(3 * 60 * 1000);
   });
 
   it('refetches on window focus', () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getReports, getFishEntries } from '../services/reportsService';
+import { getReports, getFishEntriesBatch } from '../services/reportsService';
 import { FishingStats } from '../screens/profile/profileScreen.types';
 
 export const useFishingStats = () => {
@@ -43,18 +43,22 @@ export const useFishingStats = () => {
         });
         const uniqueSpecies = speciesCaught.size;
 
-        // Find largest fish from fish entries
+        // Batch-fetch all fish entries in a single query (avoids N+1 round-trips)
+        const remoteReportIds = reports
+          .filter((r) => !r.id.startsWith('local_'))
+          .map((r) => r.id);
+
+        const entriesByReport = await getFishEntriesBatch(remoteReportIds);
+
+        // Find largest fish across all entries
         let largestFish: number | null = null;
-        for (const report of reports) {
-          if (!report.id.startsWith('local_')) {
-            const entries = await getFishEntries(report.id);
-            for (const entry of entries) {
-              if (entry.lengths && entry.lengths.length > 0) {
-                for (const lengthStr of entry.lengths) {
-                  const length = parseFloat(lengthStr);
-                  if (!isNaN(length) && (largestFish === null || length > largestFish)) {
-                    largestFish = length;
-                  }
+        for (const entries of entriesByReport.values()) {
+          for (const entry of entries) {
+            if (entry.lengths && entry.lengths.length > 0) {
+              for (const lengthStr of entry.lengths) {
+                const length = parseFloat(lengthStr);
+                if (!isNaN(length) && (largestFish === null || length > largestFish)) {
+                  largestFish = length;
                 }
               }
             }
