@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   TextInput,
-  Image,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +19,7 @@ import {
   StyleSheet,
   StatusBar,
 } from "react-native";
+import { Image } from "expo-image";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -81,6 +81,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [tempDate, setTempDate] = useState<Date>(new Date());
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
 
+  // Keyboard tracking for floating Done toolbar on numeric fields
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [numericFieldFocused, setNumericFieldFocused] = useState(false);
+
   // Load fishing stats using custom hook
   const { fishingStats, statsLoading } = useFishingStats();
 
@@ -134,6 +138,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const statusBarStyleRef = useRef(statusBarStyle);
   statusBarStyleRef.current = statusBarStyle;
   const profileHeaderHeightRef = useRef<number>(0);
+
+  // Track keyboard height for floating Done toolbar
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   // Load profile data from AsyncStorage (merge with fishingLicense data)
   useEffect(() => {
@@ -842,6 +855,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <Image
                 source={{ uri: formData.profileImage }}
                 style={styles.profileImage}
+                contentFit="cover"
+                cachePolicy="disk"
+                recyclingKey={`profile-edit-${formData.profileImage}`}
+                transition={200}
               />
             ) : (
               <DefaultAnglerAvatarIcon size={160} />
@@ -946,6 +963,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   onChangeText={(text) => handleFieldChange('firstName', text)}
                   placeholder="First name"
                   placeholderTextColor={colors.textTertiary}
+                  textContentType="givenName"
+                  autoComplete="given-name"
                   returnKeyType="next"
                   onSubmitEditing={() => lastNameInputRef.current?.focus()}
                   blurOnSubmit={false}
@@ -966,6 +985,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   onChangeText={(text) => handleFieldChange('lastName', text)}
                   placeholder="Last name"
                   placeholderTextColor={colors.textTertiary}
+                  textContentType="familyName"
+                  autoComplete="family-name"
                   returnKeyType="next"
                   onSubmitEditing={() => {
                     if (formData.hasLicense === false) {
@@ -1052,8 +1073,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               placeholder="(555) 123-4567"
               placeholderTextColor={colors.textTertiary}
               keyboardType="phone-pad"
+              textContentType="telephoneNumber"
+              autoComplete="tel"
               mask={PHONE_MASK}
               returnKeyType="next"
+              onFocus={() => setNumericFieldFocused(true)}
+              onBlur={() => setNumericFieldFocused(false)}
               onSubmitEditing={() => zipCodeInputRef.current?.focus()}
             />
             {validationErrors.phone && (
@@ -1080,8 +1105,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 placeholder="12345"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="number-pad"
+                textContentType="postalCode"
+                autoComplete="postal-code"
                 maxLength={5}
                 returnKeyType="done"
+                onFocus={() => setNumericFieldFocused(true)}
+                onBlur={() => setNumericFieldFocused(false)}
               />
               {/* ZIP code lookup feedback */}
               {formData.zipCode?.length === 5 && !validationErrors.zipCode && (
@@ -1203,6 +1232,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         {/* WRC ID Info Modal */}
         <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
       </ScrollView>
+
+      {/* Floating Done toolbar for numeric keyboards (phone-pad, number-pad) */}
+      {numericFieldFocused && keyboardHeight > 0 && (
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: keyboardHeight, flexDirection: 'row', alignItems: 'center', backgroundColor: '#d1d5db', paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#b0b0b0' }}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
+            <Text style={{ color: colors.primary, fontSize: 17, fontWeight: '600' }}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 
@@ -1278,6 +1317,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <Image
                 source={{ uri: profile.profileImage }}
                 style={styles.profileImage}
+                contentFit="cover"
+                cachePolicy="disk"
+                recyclingKey={`profile-view-${profile.profileImage}`}
+                transition={200}
               />
             ) : (
               <DefaultAnglerAvatarIcon size={160} />
@@ -1370,6 +1413,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   placeholderTextColor={colors.textTertiary}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  textContentType="emailAddress"
+                  autoComplete="email"
+                  returnKeyType="done"
+                  blurOnSubmit={false}
+                  onSubmitEditing={() => Keyboard.dismiss()}
                   autoFocus
                 />
               ) : (
@@ -1468,6 +1516,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                       placeholder="First"
                       placeholderTextColor={colors.textTertiary}
                       autoCapitalize="words"
+                      textContentType="givenName"
+                      autoComplete="given-name"
+                      returnKeyType="done"
+                      blurOnSubmit={false}
+                      onSubmitEditing={() => Keyboard.dismiss()}
                     />
                   </View>
                   <View style={[localStyles.signInInputGroup, { flex: 1, marginLeft: 8 }]}>
@@ -1479,6 +1532,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                       placeholder="Last"
                       placeholderTextColor={colors.textTertiary}
                       autoCapitalize="words"
+                      textContentType="familyName"
+                      autoComplete="family-name"
+                      returnKeyType="done"
+                      blurOnSubmit={false}
+                      onSubmitEditing={() => Keyboard.dismiss()}
                     />
                   </View>
                 </View>
@@ -1702,6 +1760,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <Image
                   source={{ uri: profile.profileImage }}
                   style={photoPreviewStyles.image}
+                  contentFit="contain"
+                  cachePolicy="disk"
+                  recyclingKey={`profile-preview-${profile.profileImage}`}
+                  transition={300}
                 />
               ) : (
                 <View style={photoPreviewStyles.avatarFallback}>

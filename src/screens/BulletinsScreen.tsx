@@ -360,6 +360,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF9F0',
     flexGrow: 1,
     paddingBottom: 32,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   emptyListContent: {
     flexGrow: 1,

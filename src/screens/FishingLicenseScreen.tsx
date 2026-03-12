@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Linking,
@@ -68,6 +69,10 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   const [infoModalVisible, setInfoModalVisible] = useState<boolean>(false);
   const [showLicenseNumberInfoModal, setShowLicenseNumberInfoModal] = useState<boolean>(false);
 
+  // Keyboard tracking for floating Done toolbar on numeric fields
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [numericFieldFocused, setNumericFieldFocused] = useState(false);
+
   // Animation for transitioning between view/edit modes
   const slideAnim = useRef(new Animated.Value(0)).current;
   const screenHeight = Dimensions.get('window').height;
@@ -112,6 +117,15 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       setLoading(false);
     }
   };
+
+  // Track keyboard height for floating Done toolbar
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   useEffect(() => {
     loadLicense();
@@ -328,6 +342,11 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                   onChangeText={(text) => setFormData({ ...formData, firstName: text })}
                   placeholder="First"
                   placeholderTextColor={colors.textTertiary}
+                  textContentType="givenName"
+                  autoComplete="given-name"
+                  returnKeyType="done"
+                  blurOnSubmit={false}
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -337,6 +356,11 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                   onChangeText={(text) => setFormData({ ...formData, lastName: text })}
                   placeholder="Last"
                   placeholderTextColor={colors.textTertiary}
+                  textContentType="familyName"
+                  autoComplete="family-name"
+                  returnKeyType="done"
+                  blurOnSubmit={false}
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
               </View>
             </View>
@@ -362,6 +386,10 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               onChangeText={(text) => setFormData({ ...formData, licenseNumber: text })}
               placeholder="Enter license number"
               placeholderTextColor={colors.textTertiary}
+              autoCapitalize="characters"
+              returnKeyType="done"
+              blurOnSubmit={false}
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
           

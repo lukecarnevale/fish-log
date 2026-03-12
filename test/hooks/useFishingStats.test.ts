@@ -2,11 +2,11 @@ import { renderHook, waitFor } from '@testing-library/react-native';
 
 jest.mock('../../src/services/reportsService', () => ({
   getReports: jest.fn(() => Promise.resolve([])),
-  getFishEntries: jest.fn(() => Promise.resolve([])),
+  getFishEntriesBatch: jest.fn(() => Promise.resolve(new Map())),
 }));
 
 import { useFishingStats } from '../../src/hooks/useFishingStats';
-import { getReports, getFishEntries } from '../../src/services/reportsService';
+import { getReports, getFishEntriesBatch } from '../../src/services/reportsService';
 
 describe('useFishingStats', () => {
   it('starts with loading=true and zeroed stats', () => {
@@ -47,6 +47,7 @@ describe('useFishingStats', () => {
         stripedBassCount: 3,
       },
     ]);
+    (getFishEntriesBatch as jest.Mock).mockResolvedValue(new Map());
 
     const { result } = renderHook(() => useFishingStats());
 
@@ -76,6 +77,7 @@ describe('useFishingStats', () => {
         stripedBassCount: 0,
       },
     ]);
+    (getFishEntriesBatch as jest.Mock).mockResolvedValue(new Map());
 
     const { result } = renderHook(() => useFishingStats());
 
@@ -98,9 +100,11 @@ describe('useFishingStats', () => {
         stripedBassCount: 0,
       },
     ]);
-    (getFishEntries as jest.Mock).mockResolvedValue([
-      { species: 'Red Drum', count: 1, lengths: ['22.5', '18.3'] },
-    ]);
+    (getFishEntriesBatch as jest.Mock).mockResolvedValue(
+      new Map([
+        ['server-1', [{ species: 'Red Drum', count: 1, lengths: ['22.5', '18.3'] }]],
+      ])
+    );
 
     const { result } = renderHook(() => useFishingStats());
 
@@ -122,6 +126,7 @@ describe('useFishingStats', () => {
         stripedBassCount: 0,
       },
     ]);
+    (getFishEntriesBatch as jest.Mock).mockResolvedValue(new Map());
 
     const { result } = renderHook(() => useFishingStats());
 
@@ -129,7 +134,8 @@ describe('useFishingStats', () => {
       expect(result.current.statsLoading).toBe(false);
     });
 
-    expect(getFishEntries).not.toHaveBeenCalled();
+    // Should be called with empty array since all reports are local
+    expect(getFishEntriesBatch).toHaveBeenCalledWith([]);
     expect(result.current.fishingStats.largestFish).toBeNull();
   });
 

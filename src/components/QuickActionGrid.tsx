@@ -250,4 +250,4 @@ const badgeStyles = StyleSheet.create({
   },
 });
 
-export default QuickActionGrid;
+export default React.memo(QuickActionGrid);

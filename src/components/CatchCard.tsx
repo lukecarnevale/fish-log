@@ -73,7 +73,8 @@ const CatchCard: React.FC<CatchCardProps> = ({
               style={styles.compactPhoto}
               contentFit="cover"
               transition={200}
-              cachePolicy="memory-disk"
+              cachePolicy="disk"
+              recyclingKey={`compact-photo-${entry.id}`}
             />
           ) : speciesImageUrl ? (
             <Image
@@ -81,7 +82,8 @@ const CatchCard: React.FC<CatchCardProps> = ({
               style={styles.compactPhoto}
               contentFit="cover"
               transition={200}
-              cachePolicy="memory-disk"
+              cachePolicy="disk"
+              recyclingKey={`compact-species-${entry.id}`}
             />
           ) : (
             <SpeciesPlaceholder species={entry.species} size="small" />
@@ -162,7 +164,8 @@ const CatchCard: React.FC<CatchCardProps> = ({
             style={styles.photo}
             contentFit="cover"
             transition={300}
-            cachePolicy="memory-disk"
+            cachePolicy="disk"
+            recyclingKey={`card-photo-${entry.id}`}
             placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
             placeholderContentFit="cover"
           />
@@ -172,7 +175,8 @@ const CatchCard: React.FC<CatchCardProps> = ({
             style={styles.photo}
             contentFit="contain"
             transition={300}
-            cachePolicy="memory-disk"
+            cachePolicy="disk"
+            recyclingKey={`card-species-${entry.id}`}
             placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
             placeholderContentFit="contain"
           />
@@ -195,7 +199,8 @@ const CatchCard: React.FC<CatchCardProps> = ({
                 source={{ uri: entry.anglerProfileImage }}
                 style={styles.topAvatar}
                 contentFit="cover"
-                cachePolicy="memory-disk"
+                cachePolicy="disk"
+                recyclingKey={`card-avatar-${entry.id}`}
                 transition={150}
               />
             ) : (

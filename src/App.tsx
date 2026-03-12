@@ -15,7 +15,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Platform, View, Text, StyleSheet } from 'react-native';
+import { AppState, AppStateStatus, Platform, View, Text, StyleSheet } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 
 // Import Redux store
 import { store } from './store';
@@ -146,6 +147,24 @@ const AppInitializer: React.FC = () => {
   // Listen for auth state changes
   useAuthStateListener();
 
+  // Free expo-image memory cache when the app goes to background.
+  // Images are still on disk and reload fast on return.
+  useEffect(() => {
+    const appStateRef = { current: AppState.currentState };
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextState: AppStateStatus) => {
+        if (
+          appStateRef.current === 'active' &&
+          (nextState === 'background' || nextState === 'inactive')
+        ) {
+          ExpoImage.clearMemoryCache();
+        }
+        appStateRef.current = nextState;
+      },
+    );
+    return () => subscription.remove();
+  }, []);
 
   return null;
 };
@@ -174,6 +193,7 @@ const AppContent: React.FC = () => {
       <AppInitializer />
       <Stack.Navigator
         initialRouteName="Home"
+        detachInactiveScreens={true}
         screenOptions={{
           ...navigationStyles.screenOptions,
           headerBackButtonDisplayMode: 'minimal', // Hide back button title in v7
@@ -186,6 +206,8 @@ const AppContent: React.FC = () => {
               style={{ marginLeft: 4 }}
             />
           ),
+          // Freeze inactive screens to prevent unnecessary re-renders
+          freezeOnBlur: true,
           // Platform-specific transitions to prevent Android flicker
           ...(Platform.OS === 'ios'
             ? TransitionPresets.SlideFromRightIOS
@@ -201,9 +223,7 @@ const AppContent: React.FC = () => {
                 // Critical: these prevent the flicker on Android
                 cardOverlayEnabled: true,
                 cardShadowEnabled: false,
-                // Keep previous screen mounted during transition
-                detachPreviousScreen: false,
-                freezeOnBlur: false,
+                detachPreviousScreen: true,
               }
           ),
           gestureEnabled: true,

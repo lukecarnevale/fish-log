@@ -1261,4 +1261,27 @@ export const localStyles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
   },
+
+  // Keyboard accessory toolbar for iOS numeric keyboards
+  keyboardAccessory: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#d1d5db",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#b0b0b0",
+  },
+  keyboardAccessorySpacer: {
+    flex: 1,
+  },
+  keyboardAccessoryButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  keyboardAccessoryButtonText: {
+    color: colors.primary,
+    fontSize: 17,
+    fontWeight: "600",
+  },
 });

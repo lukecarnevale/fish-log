@@ -87,7 +87,7 @@ const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
           style={styles.photo}
           contentFit="cover"
           transition={300}
-          cachePolicy="memory-disk"
+          cachePolicy="disk"
           placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
           placeholderContentFit="cover"
         />

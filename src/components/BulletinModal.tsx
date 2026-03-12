@@ -167,7 +167,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
                       source={{ uri: url }}
                       style={styles.carouselImage}
                       contentFit="contain"
-                      cachePolicy="memory-disk"
+                      cachePolicy="disk"
                     />
                   </Pressable>
                 ))}
@@ -194,7 +194,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
                 source={{ uri: bulletin.imageUrls[0] }}
                 style={styles.singleImage}
                 contentFit="contain"
-                cachePolicy="memory-disk"
+                cachePolicy="disk"
               />
             </Pressable>
           )}
@@ -280,7 +280,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
               source={{ uri: fullscreenImageUrl }}
               style={styles.fullscreenImage}
               contentFit="contain"
-              cachePolicy="memory-disk"
+              cachePolicy="disk"
             />
           )}
         </Pressable>
