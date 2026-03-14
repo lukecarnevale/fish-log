@@ -35,8 +35,11 @@ export function calculateDaysRemaining(dateString: string): number {
  */
 export function calculatePeriodProgress(startDate: string, endDate: string): number {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
   const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
 
   const totalDuration = end.getTime() - start.getTime();
   const elapsed = today.getTime() - start.getTime();
@@ -70,7 +73,10 @@ export function isWithinPeriod(startDate: string, endDate: string): boolean {
  * @returns Formatted date string (e.g., "January 15, 2026")
  */
 export function formatDate(dateString: string): string {
-  const date = new Date(dateString);
+  // Parse YYYY-MM-DD manually to avoid UTC vs local timezone off-by-one.
+  // new Date('2026-01-15') is UTC midnight, which in US timezones shows as Jan 14.
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
   return date.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',

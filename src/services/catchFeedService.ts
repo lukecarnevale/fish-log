@@ -54,7 +54,7 @@ async function fetchCatchesFromSupabase(
     .from('v_catch_feed')
     .select('*')
     .order('created_at', { ascending: false })
-    .range(offset, offset + limit);
+    .range(offset, offset + limit - 1);
 
   if (error) {
     throw new Error(`Failed to fetch catch feed: ${error.message}`);
@@ -108,9 +108,9 @@ async function fetchCatchesFromSupabase(
     if (speciesList.length === 0) {
       const allSpecies = [
         { species: 'Red Drum', count: row.red_drum_count },
-        { species: 'Southern Flounder', count: row.flounder_count },
-        { species: 'Spotted Seatrout', count: row.spotted_seatrout_count },
-        { species: 'Weakfish', count: row.weakfish_count },
+        { species: 'Flounder', count: row.flounder_count },
+        { species: 'Spotted Seatrout (speckled trout)', count: row.spotted_seatrout_count },
+        { species: 'Weakfish (gray trout)', count: row.weakfish_count },
         { species: 'Striped Bass', count: row.striped_bass_count },
       ];
 

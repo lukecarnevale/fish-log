@@ -109,7 +109,7 @@ const defaultContextValue: RewardsContextValue = {
 // Context Creation
 // =============================================================================
 
-const RewardsContext = createContext<RewardsContextValue>(defaultContextValue);
+const RewardsContext = createContext<RewardsContextValue | undefined>(undefined);
 
 
 // =============================================================================

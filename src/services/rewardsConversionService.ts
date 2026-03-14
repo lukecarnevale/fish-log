@@ -561,9 +561,13 @@ export async function createRewardsMemberFromAuthUser(): Promise<{
 
     // Clear catch feed cache so linked reports appear immediately
     if (rpcResult.reports_linked && rpcResult.reports_linked > 0) {
-      const { clearCatchFeedCache } = await import('./catchFeedService');
-      await clearCatchFeedCache();
-      console.log('🔄 Cleared catch feed cache after linking reports');
+      try {
+        const { clearCatchFeedCache } = await import('./catchFeedService');
+        await clearCatchFeedCache();
+        console.log('🔄 Cleared catch feed cache after linking reports');
+      } catch (cacheError) {
+        console.warn('⚠️ Failed to clear catch feed cache:', cacheError);
+      }
     }
 
     // Migrate local rewards entries to Supabase
