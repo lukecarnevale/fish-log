@@ -7,13 +7,6 @@ import { makeHarvestInput, makeQueuedReport, makeSubmittedReport } from '../fact
 
 // Mock harvestReportService
 const mockSubmitHarvestReport = jest.fn();
-const mockTransformToDMFPayload = jest.fn().mockReturnValue({
-  attributes: { GlobalID: '{MOCK-GUID}', Unique1: '123456' },
-  geometry: { spatialReference: { wkid: 4326 }, x: 0, y: 0, z: 0 },
-});
-const mockTriggerDMFConfirmationWebhook = jest.fn().mockResolvedValue({
-  success: true, webhooksTriggered: 1, errors: [],
-});
 const mockGenerateConfirmationNumber = jest.fn().mockReturnValue({
   dateS: '15', rand: '1234', unique1: '151234',
 });
@@ -21,8 +14,6 @@ const mockGenerateConfirmationNumber = jest.fn().mockReturnValue({
 jest.mock('../../src/services/harvestReportService', () => ({
   submitHarvestReport: (...args: any[]) => mockSubmitHarvestReport(...args),
   generateConfirmationNumber: (...args: any[]) => mockGenerateConfirmationNumber(...args),
-  transformToDMFPayload: (...args: any[]) => mockTransformToDMFPayload(...args),
-  triggerDMFConfirmationWebhook: (...args: any[]) => mockTriggerDMFConfirmationWebhook(...args),
 }));
 
 // Mock reportsService
@@ -77,13 +68,14 @@ describe('offlineQueue', () => {
       expect(queue[0].queuedAt).toBeDefined();
     });
 
-    it('converts Date to ISO string for harvestDate', async () => {
-      const input = makeHarvestInput({ harvestDate: new Date('2026-01-15') });
+    it('converts Date to YYYY-MM-DD string for harvestDate', async () => {
+      // Use T12:00:00 to avoid UTC midnight timezone-shift in test runner
+      const input = makeHarvestInput({ harvestDate: new Date('2026-01-15T12:00:00') });
       await addToQueue(input);
 
       const queue = await getQueue();
       expect(typeof queue[0].harvestDate).toBe('string');
-      expect(queue[0].harvestDate).toContain('2026-01-15');
+      expect(queue[0].harvestDate).toBe('2026-01-15');
     });
 
     it('appends to existing queue', async () => {

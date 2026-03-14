@@ -84,7 +84,13 @@ jest.mock('react-native-svg', () => {
 const mockNavigation = {
   goBack: jest.fn(),
   navigate: jest.fn(),
-  addListener: jest.fn(() => jest.fn()),
+  addListener: jest.fn((event: string, callback: () => void) => {
+    // Simulate React Navigation's behavior: fire 'focus' on mount
+    if (event === 'focus') {
+      setTimeout(callback, 0);
+    }
+    return jest.fn(); // unsubscribe
+  }),
   setOptions: jest.fn(),
 } as any;
 
@@ -289,16 +295,16 @@ describe('PastReportsScreen', () => {
         <PastReportsScreen navigation={mockNavigation} />
       );
 
-      // Initially both are shown
+      // Initially both are shown — submitted shows confirmation, pending shows "Pending"
       expect(await findByText('#DMF-111')).toBeTruthy();
-      expect(await findByText('#LOCAL-222')).toBeTruthy();
+      expect(await findByText('Pending sync to DMF')).toBeTruthy();
 
       // Press Submitted filter
       fireEvent.press(await findByText('Submitted (1)'));
 
-      // Only submitted should remain
+      // Only submitted should remain — pending banner gone
       await waitFor(() => {
-        expect(queryByText('#LOCAL-222')).toBeNull();
+        expect(queryByText('Pending sync to DMF')).toBeNull();
       });
       expect(await findByText('#DMF-111')).toBeTruthy();
     });
@@ -319,7 +325,7 @@ describe('PastReportsScreen', () => {
       await waitFor(() => {
         expect(queryByText('#DMF-111')).toBeNull();
       });
-      expect(await findByText('#LOCAL-222')).toBeTruthy();
+      expect(await findByText('Pending sync to DMF')).toBeTruthy();
     });
 
     it('shows empty pending message when filtering to pending with none', async () => {
@@ -518,10 +524,11 @@ describe('PastReportsScreen', () => {
         <PastReportsScreen navigation={mockNavigation} />
       );
 
-      fireEvent.press(await findByText('#LOCAL-77777'));
+      // Pending cards show "Pending sync to DMF" banner — tap it to open the modal
+      fireEvent.press(await findByText('Pending sync to DMF'));
 
       expect(await findByText('Pending Sync')).toBeTruthy();
-      expect(await findByText('LOCAL CONFIRMATION #')).toBeTruthy();
+      expect(await findByText('Will sync automatically when online')).toBeTruthy();
     });
   });
 });

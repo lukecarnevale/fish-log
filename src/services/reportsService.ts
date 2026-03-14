@@ -515,8 +515,17 @@ export interface CreateReportResult {
  * Create a new harvest report.
  * Saves to Supabase if connected, otherwise saves locally and queues for sync.
  * Uploads photos to Supabase Storage to ensure cross-platform visibility.
+ *
+ * @param input - The report data
+ * @param options - Optional settings
+ * @param options.skipLocalCache - Skip writing to @harvest_reports local cache.
+ *   Used by syncQueuedReports() which already writes to @harvest_history via
+ *   addToHistory(). Writing to both causes duplicates in getHistory() merges.
  */
-export async function createReport(input: ReportInput): Promise<CreateReportResult> {
+export async function createReport(
+  input: ReportInput,
+  options?: { skipLocalCache?: boolean },
+): Promise<CreateReportResult> {
   const connected = await isSupabaseConnected();
 
   // If we have a local photo URI and we're connected, upload it first
@@ -537,8 +546,10 @@ export async function createReport(input: ReportInput): Promise<CreateReportResu
   if (connected) {
     try {
       const report = await createReportInSupabase(input);
-      // Also save locally for offline access
-      await addLocalReport(report);
+      // Save locally for offline access (unless caller manages its own local cache)
+      if (!options?.skipLocalCache) {
+        await addLocalReport(report);
+      }
       console.log('✅ Report saved to Supabase');
 
       // Update user stats if this is a rewards member (has user_id)
@@ -593,7 +604,8 @@ export interface DMFResultData {
  */
 export async function createReportFromHarvestInput(
   harvestInput: HarvestReportInput,
-  dmfResult?: DMFResultData
+  dmfResult?: DMFResultData,
+  options?: { skipLocalCache?: boolean },
 ): Promise<CreateReportResult> {
   // First, get the anonymous user (always exists)
   const anonymousUser = await getOrCreateAnonymousUser();
@@ -650,7 +662,7 @@ export async function createReportFromHarvestInput(
     }
   }
 
-  return createReport(input);
+  return createReport(input, options);
 }
 
 /**

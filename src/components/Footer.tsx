@@ -3,12 +3,12 @@ import React from 'react';
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   StyleSheet,
   Linking,
   ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../styles/common';
 import { APP_VERSION } from '../config/appConfig';
@@ -73,8 +73,11 @@ const Footer: React.FC<FooterProps> = ({
                     <Image
                       source={{ uri: partner.iconUrl }}
                       style={styles.partnerLogo}
-                      resizeMode="contain"
-                      defaultSource={require('../assets/icon.png')}
+                      contentFit="contain"
+                      cachePolicy="disk"
+                      placeholder={require('../assets/icon.png')}
+                      placeholderContentFit="contain"
+                      transition={200}
                     />
                   </View>
                   <Text style={styles.partnerName} numberOfLines={2}>

@@ -252,6 +252,10 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
   // Get current user ID for like functionality (Supabase user ID)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Track whether the initial user ID resolution has completed so we don't
+  // fire loadFeed() before knowing the userId (avoids a race condition that
+  // shows "No catches" on the first render).
+  const [userIdResolved, setUserIdResolved] = useState(false);
 
   // Fetch the user's ID from the users table (not auth.users)
   // The catch_likes table has a foreign key to users table, so we need the users table ID
@@ -262,11 +266,11 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       if (rewardsMember?.id) {
         console.log('✅ Using user ID for likes:', rewardsMember.id);
         setCurrentUserId(rewardsMember.id);
-        return;
+      } else {
+        console.log('ℹ️ No rewards member found for likes');
+        setCurrentUserId(null);
       }
-
-      console.log('ℹ️ No rewards member found for likes');
-      setCurrentUserId(null);
+      setUserIdResolved(true);
     };
 
     fetchUserId();
@@ -528,9 +532,14 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     }
   }, [loadingMore, hasMore, nextOffset, currentUserId, loading, entries.length]);
 
+  // Gate initial feed load on userId resolution to prevent the race condition
+  // where loadFeed fires before we know the current user. Once resolved,
+  // loadFeed is called; subsequent changes to currentUserId recreate loadFeed
+  // via its dependency array and this effect re-fires automatically.
   useEffect(() => {
+    if (!userIdResolved) return;
     loadFeed();
-  }, [loadFeed]);
+  }, [userIdResolved, loadFeed]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);

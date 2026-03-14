@@ -151,15 +151,18 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     }
   }, []);
 
-  // Initial load
+  // Load reports on focus. React Navigation fires 'focus' on initial mount,
+  // so this handles both the first load and subsequent returns to this screen
+  // (e.g. after submission, or after background auto-sync completes).
+  // loading starts as true (line 93), so the first focus shows the skeleton.
   useEffect(() => {
-    const init = async () => {
-      setLoading(true);
+    const focusUnsubscribe = navigation.addListener('focus', async () => {
       await loadReports();
       setLoading(false);
-    };
-    init();
-  }, [loadReports]);
+    });
+
+    return focusUnsubscribe;
+  }, [loadReports, navigation]);
 
   // Pull-to-refresh handler
   const onRefresh = useCallback(async () => {
@@ -398,10 +401,17 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     );
   };
 
-  // Format date
+  // Format date — handles both ISO timestamps and date-only strings.
+  // Appends T12:00:00 to date-only strings to prevent timezone-shift issues
+  // (e.g., "2026-03-14" parsed as UTC midnight shows as March 13 in US timezones).
   const formatDate = (dateString: string): string => {
     if (!dateString) return "Unknown date";
-    const date = new Date(dateString);
+    // If the string looks like a date-only (YYYY-MM-DD), pin to noon local
+    // to avoid off-by-one from UTC midnight conversion
+    const normalized = dateString.length === 10
+      ? dateString + "T12:00:00"
+      : dateString;
+    const date = new Date(normalized);
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -541,13 +551,22 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           <View style={styles.perforationNotchRight} />
         </View>
 
-        {/* Footer - Confirmation Number */}
+        {/* Footer - Confirmation Number (only for submitted reports) */}
         <View style={[
           styles.confirmationRow,
           !isPending && styles.confirmationRowBottom
         ]}>
-          <Text style={styles.confirmationLabel}>Confirmation</Text>
-          <Text style={styles.confirmationNumber}>#{item.confirmationNumber}</Text>
+          {isPending ? (
+            <>
+              <Text style={styles.confirmationLabel}>Status</Text>
+              <Text style={[styles.confirmationNumber, { color: colors.warning }]}>Pending</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.confirmationLabel}>Confirmation</Text>
+              <Text style={styles.confirmationNumber}>#{item.confirmationNumber}</Text>
+            </>
+          )}
         </View>
 
         {/* Wave accent for pending cards */}
@@ -607,30 +626,40 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               </Text>
             </View>
 
-            {/* Confirmation Number */}
-            <TouchableOpacity
-              style={[
-                styles.modalConfirmationBox,
-                selectedReport?.type === "queued" && styles.modalConfirmationBoxPending,
-              ]}
-              onPress={() => selectedReport && handleCopyConfirmation(selectedReport.confirmationNumber)}
-            >
-              <Text style={[
-                styles.modalConfirmationLabel,
-                selectedReport?.type === "queued" && styles.modalConfirmationLabelPending,
-              ]}>
-                {selectedReport?.type === "queued" ? "LOCAL CONFIRMATION #" : "DMF CONFIRMATION #"}
-              </Text>
-              <Text style={[
-                styles.modalConfirmationNumber,
-                selectedReport?.type === "queued" && styles.modalConfirmationNumberPending,
-              ]}>
-                {selectedReport?.confirmationNumber}
-              </Text>
-              <Text style={styles.modalConfirmationHint}>
-                Tap to copy
-              </Text>
-            </TouchableOpacity>
+            {/* Confirmation Number — only show for submitted reports */}
+            {selectedReport?.type === "queued" ? (
+              <View
+                style={[
+                  styles.modalConfirmationBox,
+                  styles.modalConfirmationBoxPending,
+                ]}
+              >
+                <Text style={[styles.modalConfirmationLabel, styles.modalConfirmationLabelPending]}>
+                  STATUS
+                </Text>
+                <Text style={[styles.modalConfirmationNumber, styles.modalConfirmationNumberPending]}>
+                  Pending
+                </Text>
+                <Text style={styles.modalConfirmationHint}>
+                  Will sync automatically when online
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.modalConfirmationBox}
+                onPress={() => selectedReport && handleCopyConfirmation(selectedReport.confirmationNumber)}
+              >
+                <Text style={styles.modalConfirmationLabel}>
+                  DMF CONFIRMATION #
+                </Text>
+                <Text style={styles.modalConfirmationNumber}>
+                  {selectedReport?.confirmationNumber}
+                </Text>
+                <Text style={styles.modalConfirmationHint}>
+                  Tap to copy
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* Photo if available */}
             {selectedReport?.catchPhoto && (

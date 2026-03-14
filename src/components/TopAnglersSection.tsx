@@ -135,7 +135,7 @@ const TopAnglersSection: React.FC<TopAnglersSectionProps> = ({ anglers }) => {
           <View style={styles.headerIconContainer}>
             <Feather name="award" size={18} color={COLORS.gold} />
           </View>
-          <Text style={styles.headerTitle}>This Week's Top Anglers</Text>
+          <Text style={styles.headerTitle}>Top Anglers This Quarter</Text>
         </View>
 
         {/* Angler cards */}
