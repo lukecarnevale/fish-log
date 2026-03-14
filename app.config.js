@@ -28,8 +28,8 @@ module.exports = {
     jsEngine: "hermes",
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/icon.png",
-        backgroundColor: "#ffffff",
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#1B808C",
       },
       package: "io.fishlog.app",
       permissions: ["android.permission.RECORD_AUDIO"],
