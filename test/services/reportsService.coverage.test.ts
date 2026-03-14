@@ -42,8 +42,8 @@ jest.mock('../../src/services/anonymousUserService', () => ({
 const mockEnsurePublicPhotoUrl = jest.fn().mockResolvedValue(null);
 const mockIsLocalUri = jest.fn((uri: string) => uri?.startsWith('file://') || false);
 jest.mock('../../src/services/photoUploadService', () => ({
-  ensurePublicPhotoUrl: (...args: any[]) => mockEnsurePublicPhotoUrl(...args),
-  isLocalUri: (...args: any[]) => mockIsLocalUri(...args),
+  ensurePublicPhotoUrl: (...args: any[]) => mockEnsurePublicPhotoUrl(...(args as [any])),
+  isLocalUri: (...args: any[]) => mockIsLocalUri(...(args as [any])),
 }));
 
 const mockEnsureValidSession = jest.fn().mockResolvedValue({ valid: true, authUserId: 'auth-123' });
@@ -724,7 +724,7 @@ describe('reportsService (coverage gaps)', () => {
       mockIsSupabaseConnected.mockResolvedValue(false);
 
       const errorStatus: DMFStatusUpdate = {
-        dmfStatus: 'error',
+        dmfStatus: 'failed',
         dmfError: 'Submission timed out',
       };
 

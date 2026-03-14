@@ -613,13 +613,13 @@ describe('authService', () => {
       const callback = jest.fn();
       const mockUnsubscribe = jest.fn();
 
-      mockSupabase.auth.onAuthStateChange.mockImplementation((handler: any) => {
+      mockSupabase.auth.onAuthStateChange.mockImplementation(((handler: any) => {
         // Simulate an auth event
         handler('SIGNED_IN', { user: { email: 'test@test.com' } });
         return {
           data: { subscription: { unsubscribe: mockUnsubscribe } },
         };
-      });
+      }) as any);
 
       onAuthStateChange(callback);
 
