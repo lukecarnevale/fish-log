@@ -21,7 +21,7 @@ export function generateUUID(): string {
 
 /**
  * Get or create a unique device ID.
- * This ID persists across app reinstalls (until user clears app data).
+ * This ID persists until the user clears app data or reinstalls the app.
  */
 export async function getDeviceId(): Promise<string> {
   try {

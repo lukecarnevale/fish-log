@@ -4,7 +4,7 @@
 // Extracted from ReportFormScreen.
 //
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Animated } from 'react-native';
 
 interface ToastState {
@@ -81,6 +81,15 @@ export function useToast(): ToastState {
       hide();
     }, 5000);
   }, [animValue, hide]);
+
+  // Clear pending timeout on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    return () => {
+      if (hideTimeout.current) {
+        clearTimeout(hideTimeout.current);
+      }
+    };
+  }, []);
 
   return {
     visible,

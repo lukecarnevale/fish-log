@@ -482,10 +482,10 @@ describe('catchFeedService', () => {
       const result = await fetchRecentCatches();
       expect(result.entries).toHaveLength(1);
       expect(result.entries[0].speciesList).toEqual([
-        { species: 'Southern Flounder', count: 2 },
-        { species: 'Spotted Seatrout', count: 1 },
+        { species: 'Flounder', count: 2 },
+        { species: 'Spotted Seatrout (speckled trout)', count: 1 },
       ]);
-      expect(result.entries[0].species).toBe('Southern Flounder');
+      expect(result.entries[0].species).toBe('Flounder');
       expect(result.entries[0].totalFish).toBe(3);
     });
 

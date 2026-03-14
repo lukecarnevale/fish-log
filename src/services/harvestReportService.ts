@@ -59,7 +59,7 @@ export function generateConfirmationNumber(): ConfirmationNumberParts {
   const dateS = new Date().getDate().toString();
   // Generate random number between 0 and 9999, padded would be more consistent
   // but spec shows unpadded, so we follow that
-  const rand = Math.round(Math.random() * 10000).toString();
+  const rand = Math.floor(Math.random() * 10000).toString();
   return { dateS, rand, unique1: dateS + rand };
 }
 

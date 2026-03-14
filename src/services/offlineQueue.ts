@@ -337,7 +337,16 @@ interface AddToHistoryInput {
  * @param report - The submitted report data
  */
 export async function addToHistory(report: AddToHistoryInput): Promise<void> {
-  const history = await getHistory();
+  // Read local history directly instead of calling getHistory() which does
+  // a Supabase fetch + merge + write-back — that creates a race condition
+  // where concurrent addToHistory calls can overwrite each other's entries.
+  let history: SubmittedReport[] = [];
+  try {
+    const localData = await AsyncStorage.getItem(HISTORY_KEY);
+    history = localData ? JSON.parse(localData) : [];
+  } catch {
+    history = [];
+  }
 
   // Create SubmittedReport from the queued report data
   const submittedReport: SubmittedReport = {

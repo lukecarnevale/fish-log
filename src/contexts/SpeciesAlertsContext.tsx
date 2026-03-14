@@ -59,7 +59,7 @@ const defaultContextValue: SpeciesAlertsContextValue = {
 // Context Creation
 // =============================================================================
 
-const SpeciesAlertsContext = createContext<SpeciesAlertsContextValue>(defaultContextValue);
+const SpeciesAlertsContext = createContext<SpeciesAlertsContextValue | undefined>(undefined);
 
 // =============================================================================
 // Provider Component
@@ -114,39 +114,33 @@ export function SpeciesAlertsProvider({
 
   const markSpeciesAlertSeen = useCallback(
     async (speciesId: string) => {
-      const newSeen = new Set(seenAlertIds);
-      newSeen.add(speciesId);
-      setSeenAlertIds(newSeen);
-
-      try {
-        await AsyncStorage.setItem(
+      setSeenAlertIds((prev) => {
+        const newSeen = new Set(prev);
+        newSeen.add(speciesId);
+        AsyncStorage.setItem(
           SEEN_ALERTS_KEY,
           JSON.stringify([...newSeen])
-        );
-      } catch (error) {
-        console.warn('Failed to save seen species alert:', error);
-      }
+        ).catch((error) => console.warn('Failed to save seen species alert:', error));
+        return newSeen;
+      });
     },
-    [seenAlertIds]
+    []
   );
 
   const markAllSpeciesAlertsSeen = useCallback(
     async (speciesIds: string[]) => {
       if (speciesIds.length === 0) return;
-      const newSeen = new Set(seenAlertIds);
-      speciesIds.forEach((id) => newSeen.add(id));
-      setSeenAlertIds(newSeen);
-
-      try {
-        await AsyncStorage.setItem(
+      setSeenAlertIds((prev) => {
+        const newSeen = new Set(prev);
+        speciesIds.forEach((id) => newSeen.add(id));
+        AsyncStorage.setItem(
           SEEN_ALERTS_KEY,
           JSON.stringify([...newSeen])
-        );
-      } catch (error) {
-        console.warn('Failed to save seen species alerts:', error);
-      }
+        ).catch((error) => console.warn('Failed to save seen species alerts:', error));
+        return newSeen;
+      });
     },
-    [seenAlertIds]
+    []
   );
 
   const hasSeenAlert = useCallback(
@@ -159,20 +153,17 @@ export function SpeciesAlertsProvider({
   const acknowledgeBadgeAlerts = useCallback(
     async (speciesIds: string[]) => {
       if (speciesIds.length === 0) return;
-      const newAcknowledged = new Set(badgeAcknowledgedIds);
-      speciesIds.forEach((id) => newAcknowledged.add(id));
-      setBadgeAcknowledgedIds(newAcknowledged);
-
-      try {
-        await AsyncStorage.setItem(
+      setBadgeAcknowledgedIds((prev) => {
+        const newAcknowledged = new Set(prev);
+        speciesIds.forEach((id) => newAcknowledged.add(id));
+        AsyncStorage.setItem(
           BADGE_ACKNOWLEDGED_KEY,
           JSON.stringify([...newAcknowledged])
-        );
-      } catch (error) {
-        console.warn('Failed to save badge acknowledged alerts:', error);
-      }
+        ).catch((error) => console.warn('Failed to save badge acknowledged alerts:', error));
+        return newAcknowledged;
+      });
     },
-    [badgeAcknowledgedIds]
+    []
   );
 
   const isBadgeAlertAcknowledged = useCallback(

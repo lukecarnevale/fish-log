@@ -16,10 +16,11 @@ import {
 // ============================================
 
 /**
- * Phone number pattern: xxx-xxx-xxxx
- * DMF requires this exact format for text confirmations.
+ * Phone number pattern: 10 digits (after stripping formatting).
+ * The input mask produces (xxx) xxx-xxxx but DMF payload uses raw digits,
+ * so we validate on digit count rather than a specific format.
  */
-const PHONE_REGEX = /^\d{3}-\d{3}-\d{4}$/;
+const PHONE_REGEX = /^\d{10}$/;
 
 /**
  * Email validation pattern.
@@ -180,10 +181,10 @@ export function validateHarvestReport(input: HarvestReportInput): ValidationResu
         field: 'phone',
         message: 'Phone number is required for text confirmation',
       });
-    } else if (!PHONE_REGEX.test(input.phone.trim())) {
+    } else if (!PHONE_REGEX.test(input.phone.replace(/\D/g, ''))) {
       errors.push({
         field: 'phone',
-        message: 'Phone must be in xxx-xxx-xxxx format',
+        message: 'Phone number must be 10 digits',
       });
     }
   }
@@ -209,7 +210,7 @@ export function validateHarvestReport(input: HarvestReportInput): ValidationResu
 
   if (input.enterRaffle) {
     // Raffle requires at least one contact method
-    const hasValidPhone = input.phone && PHONE_REGEX.test(input.phone.trim());
+    const hasValidPhone = input.phone && PHONE_REGEX.test(input.phone.replace(/\D/g, ''));
     const hasValidEmail = input.email && EMAIL_REGEX.test(input.email.trim());
 
     if (!hasValidPhone && !hasValidEmail) {
@@ -251,7 +252,7 @@ export function validateHarvestReport(input: HarvestReportInput): ValidationResu
  */
 export function isValidPhone(phone: string | null | undefined): boolean {
   if (!phone || phone.trim() === '') return true; // Empty is valid (not required by default)
-  return PHONE_REGEX.test(phone.trim());
+  return PHONE_REGEX.test(phone.replace(/\D/g, ''));
 }
 
 /**

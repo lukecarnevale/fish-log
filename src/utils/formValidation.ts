@@ -63,7 +63,7 @@ export const validatePhone = (phone: string): string | undefined => {
   if (!phone.trim()) return undefined; // Phone is optional
   // Remove formatting to check digit count
   const digitsOnly = phone.replace(/\D/g, "");
-  if (digitsOnly.length > 0 && digitsOnly.length < 10) {
+  if (digitsOnly.length > 0 && digitsOnly.length !== 10) {
     return "Please enter a complete 10-digit phone number";
   }
   return undefined;
