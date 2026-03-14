@@ -17,8 +17,10 @@ import {
   signOut,
   onAuthStateChange,
   isMagicLinkCallback,
+  handleMagicLinkCallback,
   updateUserMetadata,
   deleteAccount,
+  getRedirectUrl,
 } from '../../src/services/authService';
 
 describe('authService', () => {

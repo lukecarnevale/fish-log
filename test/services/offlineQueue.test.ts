@@ -45,6 +45,14 @@ import {
   submitWithQueueFallback,
 } from '../../src/services/offlineQueue';
 
+// Grab references to mocked modules so we can override per-test
+const mockCreateReportFromHarvestInput =
+  require('../../src/services/reportsService').createReportFromHarvestInput as jest.Mock;
+const mockGetReports =
+  require('../../src/services/reportsService').getReports as jest.Mock;
+const mockGetRewardsMember =
+  require('../../src/services/rewardsConversionService').getRewardsMemberForAnonymousUser as jest.Mock;
+
 describe('offlineQueue', () => {
   beforeEach(() => {
     jest.clearAllMocks();
