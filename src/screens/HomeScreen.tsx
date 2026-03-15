@@ -5,15 +5,15 @@ import {
   Text,
   View,
   TouchableOpacity,
-  Image as RNImage,
   Animated,
   TouchableWithoutFeedback,
   StatusBar,
   Platform,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -25,11 +25,11 @@ import QuarterlyRewardsCard from "../components/QuarterlyRewardsCard";
 import Footer from "../components/Footer";
 import AdvertisementBanner from "../components/AdvertisementBanner";
 import MandatoryHarvestCard from "../components/MandatoryHarvestCard";
-import { NCFlagIcon } from "../components/NCFlagIcon";
+import LicenseCard from "../components/LicenseCard";
 import FeedbackModal from "../components/FeedbackModal";
 import AboutModal from "../components/AboutModal";
 import QuickActionGrid from "../components/QuickActionGrid";
-import WaveBackground from "../components/WaveBackground";
+import WelcomeCard from "../components/WelcomeCard";
 import WavyMenuIcon from "../components/WavyMenuIcon";
 import DrawerMenu from "../components/DrawerMenu";
 import { FeedbackType } from "../types/feedback";
@@ -42,13 +42,13 @@ import { getCurrentUser, getUserStats } from "../services/userProfileService";
 import { isRewardsMember } from "../services/rewardsConversionService";
 import { UserAchievement } from "../types/user";
 import { BADGE_STORAGE_KEYS } from "../utils/badgeUtils";
-import { SCREEN_LABELS } from "../constants/screenLabels";
 import { useAchievements } from "../contexts/AchievementContext";
-import { getAchievementColor, getAchievementIcon } from '../constants/achievementMappings';
 import { HEADER_HEIGHT } from '../constants/ui';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { usePulseAnimation } from '../hooks/usePulseAnimation';
 import { useBadgeData } from '../hooks/useBadgeData';
+import { useOfflineStatus } from '../hooks/useOfflineStatus';
+import OfflineBanner from '../components/OfflineBanner';
 import { useBulletins } from '../contexts/BulletinContext';
 import BulletinCard from '../components/BulletinCard';
 import { BADGE_CACHE_TTL, badgeDataCache, PERSISTENT_CACHE_KEYS, NAUTICAL_GREETINGS } from './home/homeScreenConstants';
@@ -73,10 +73,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     permanentlyDismissBulletin,
   } = useBulletins();
 
+  // Network connectivity — drives the offline banner.
+  // autoSync is disabled here because the global listener in App.tsx
+  // (useConnectivityMonitoring) is the single owner of auto-sync.
+  const { isOnline, pendingCount, refreshPendingCount } = useOfflineStatus({ autoSync: false });
+
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>("");
   const [showInfoCard, setShowInfoCard] = useState<boolean>(true);
   const [licenseNumber, setLicenseNumber] = useState<string | null>(null);
+  const [licenseType, setLicenseType] = useState<string | null>(null);
+  const [licenseExpiry, setLicenseExpiry] = useState<string | null>(null);
   // Track current DMF mode to force re-render when it changes
   const [currentMode, setCurrentMode] = useState<AppMode>(isTestMode() ? "mock" : "production");
   // Feedback modal state
@@ -126,99 +133,113 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     outputRange: [1, 1.15, 1],
   });
 
-  // Load user preferences and profile data
-  useEffect(() => {
-    const loadUserData = async () => {
-      // PHASE 1: Load cached data immediately for instant UI (optimistic rendering)
-      // This runs synchronously before any awaits
-      AsyncStorage.getItem(PERSISTENT_CACHE_KEYS.rewardsData).then(cached => {
-        if (cached) {
-          try {
-            const { isMember, email, achievements } = JSON.parse(cached);
-            setRewardsMember(isMember);
-            setRewardsMemberEmail(email);
-            setUserAchievements(achievements || []);
-          } catch { /* ignore parse errors */ }
-        }
-      });
-
-      // Start badge data loading immediately (don't wait for other data)
-      loadBadgeData();
-
-      try {
-        // PHASE 2: Load local storage data (fast) - parallelize all reads
-        const [infoCardDismissed, savedProfile, savedLicense, pending] = await Promise.all([
-          AsyncStorage.getItem("infoCardDismissed"),
-          AsyncStorage.getItem("userProfile"),
-          AsyncStorage.getItem("fishingLicense"),
-          getPendingAuth(),
-        ]);
-
-        // Process and update UI immediately with local data
-        if (infoCardDismissed === "true") {
-          setShowInfoCard(false);
-        }
-
-        if (savedProfile) {
-          const parsedProfile = JSON.parse(savedProfile);
-          setUserName(parsedProfile.firstName || parsedProfile.lastName || "");
-          setProfileImage(parsedProfile.profileImage || null);
-          setHasProfileEmail(!!parsedProfile.email);
-        } else {
-          setUserName("");
-          setProfileImage(null);
-          setHasProfileEmail(false);
-        }
-
-        if (savedLicense) {
-          const parsedLicense = JSON.parse(savedLicense);
-          setLicenseNumber(parsedLicense.licenseNumber || null);
-        } else {
-          setLicenseNumber(null);
-        }
-
-        setPendingAuth(pending);
-
-        // PHASE 3: Fetch fresh rewards data from network (slower, runs in background)
-        // This updates the UI when network data arrives
-        const isMember = await isRewardsMember();
-        setRewardsMember(isMember);
-
-        if (isMember) {
-          // Parallelize user data and achievements fetch
-          const [user, stats] = await Promise.all([
-            getCurrentUser(),
-            getUserStats().catch(() => ({ achievements: [] })),
-          ]);
-          const email = user?.email || null;
-          const achievements = stats.achievements || [];
+  // Load user preferences and profile data — extracted so it can be called
+  // from the initial mount effect, focus listener, auth listener, AND pull-to-refresh.
+  const loadUserData = useCallback(async () => {
+    // PHASE 1: Load cached data immediately for instant UI (optimistic rendering)
+    // This runs synchronously before any awaits
+    AsyncStorage.getItem(PERSISTENT_CACHE_KEYS.rewardsData).then(cached => {
+      if (cached) {
+        try {
+          const { isMember, email, achievements } = JSON.parse(cached);
+          setRewardsMember(isMember);
           setRewardsMemberEmail(email);
-          setUserAchievements(achievements);
-
-          // Cache for next app launch (don't await)
-          AsyncStorage.setItem(PERSISTENT_CACHE_KEYS.rewardsData, JSON.stringify({
-            isMember: true,
-            email,
-            achievements,
-          }));
-        } else {
-          setRewardsMemberEmail(null);
-          setUserAchievements([]);
-          // Cache non-member status too
-          AsyncStorage.setItem(PERSISTENT_CACHE_KEYS.rewardsData, JSON.stringify({
-            isMember: false,
-            email: null,
-            achievements: [],
-          }));
-        }
-      } catch (error) {
-        console.error("Error retrieving user data:", error);
-        setUserName("");
-        setLicenseNumber(null);
-        setPendingAuth(null);
+          setUserAchievements(achievements || []);
+        } catch { /* ignore parse errors */ }
       }
-    };
+    });
 
+    // Start badge data loading immediately (don't wait for other data)
+    loadBadgeData();
+
+    try {
+      // PHASE 2: Load local storage data (fast) - parallelize all reads
+      const [infoCardDismissed, savedProfile, savedLicense, pending] = await Promise.all([
+        AsyncStorage.getItem("infoCardDismissed"),
+        AsyncStorage.getItem("userProfile"),
+        AsyncStorage.getItem("fishingLicense"),
+        getPendingAuth(),
+      ]);
+
+      // Process and update UI immediately with local data
+      if (infoCardDismissed === "true") {
+        setShowInfoCard(false);
+      }
+
+      if (savedProfile) {
+        const parsedProfile = JSON.parse(savedProfile);
+        setUserName(parsedProfile.firstName || parsedProfile.lastName || "");
+        setProfileImage(parsedProfile.profileImage || null);
+        setHasProfileEmail(!!parsedProfile.email);
+      } else {
+        setUserName("");
+        setProfileImage(null);
+        setHasProfileEmail(false);
+      }
+
+      if (savedLicense) {
+        const parsedLicense = JSON.parse(savedLicense);
+        setLicenseNumber(parsedLicense.licenseNumber || null);
+        setLicenseType(parsedLicense.licenseType || null);
+        setLicenseExpiry(parsedLicense.expiryDate || null);
+      } else {
+        setLicenseNumber(null);
+        setLicenseType(null);
+        setLicenseExpiry(null);
+      }
+
+      setPendingAuth(pending);
+
+      // PHASE 3: Fetch fresh rewards data from network (slower, runs in background)
+      // This updates the UI when network data arrives
+      const isMember = await isRewardsMember();
+      setRewardsMember(isMember);
+
+      if (isMember) {
+        // Parallelize user data and achievements fetch
+        const [user, stats] = await Promise.all([
+          getCurrentUser(),
+          getUserStats().catch(() => ({ achievements: [] })),
+        ]);
+        const email = user?.email || null;
+        const achievements = stats.achievements || [];
+        setRewardsMemberEmail(email);
+        setUserAchievements(achievements);
+
+        // Cache for next app launch (don't await)
+        AsyncStorage.setItem(PERSISTENT_CACHE_KEYS.rewardsData, JSON.stringify({
+          isMember: true,
+          email,
+          achievements,
+        }));
+      } else {
+        setRewardsMemberEmail(null);
+        setUserAchievements([]);
+        // Cache non-member status too
+        AsyncStorage.setItem(PERSISTENT_CACHE_KEYS.rewardsData, JSON.stringify({
+          isMember: false,
+          email: null,
+          achievements: [],
+        }));
+      }
+    } catch (error) {
+      console.error("Error retrieving user data:", error);
+      setUserName("");
+      setLicenseNumber(null);
+      setPendingAuth(null);
+    }
+  }, [loadBadgeData]);
+
+  // Pull-to-refresh state and handler
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadUserData();
+    await refreshPendingCount();
+    setRefreshing(false);
+  }, [loadUserData, refreshPendingCount]);
+
+  useEffect(() => {
     loadUserData();
 
     // Set up a focus listener to update the data when returning to this screen
@@ -265,7 +286,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       focusUnsubscribe();
       authUnsubscribe?.();
     };
-  }, [navigation, flushPendingAchievements, loadBadgeData]);
+  }, [navigation, flushPendingAchievements, loadUserData]);
   
   // Memoized callback for DrawerMenu feedback (avoids defeating React.memo)
   const handleFeedbackPress = useCallback((type: FeedbackType) => {
@@ -437,10 +458,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         <View style={styles.headerContent}>
           <View style={styles.headerLeftSection}>
             <View style={styles.logoContainer}>
-              <RNImage
+              <Image
                 source={require("../assets/adaptive-icon.png")}
                 style={styles.logo}
-                resizeMode="contain"
+                contentFit="contain"
+                cachePolicy="memory-disk"
               />
             </View>
             <View style={styles.headerTextSection}>
@@ -501,11 +523,28 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         </Animated.View>
       )}
 
+      {/* Pull-to-refresh spinner — sits behind the scrollable card (z-index between header and content) */}
+      {refreshing && (
+        <ActivityIndicator
+          size="large"
+          color={colors.white}
+          style={localStyles.refreshSpinner}
+        />
+      )}
+
       {/* Scrollable content card that slides over the header */}
       <Animated.ScrollView
         style={[localStyles.scrollView, { backgroundColor: 'transparent' }]}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={localStyles.scrollViewContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="transparent"
+            colors={['transparent']}
+          />
+        }
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           {
@@ -544,133 +583,28 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
         {/* Content card with rounded top corners */}
         <View style={localStyles.contentContainer}>
-        {/* Unified Welcome Card - shows greeting and/or rewards status */}
-        {(userName || rewardsMember) && (
-          <View style={localStyles.welcomeCard}>
-            {/* Greeting Section - shows if user has a name */}
-            {userName && (
-              <View style={[localStyles.welcomeGreeting, { position: 'relative', overflow: 'hidden' }]}>
-                <WaveBackground />
-                <View style={localStyles.welcomeGreetingIcon}>
-                  {profileImage ? (
-                    <Image
-                      source={{ uri: profileImage }}
-                      style={{ width: 44, height: 44, borderRadius: 22 }}
-                      contentFit="cover"
-                      cachePolicy="disk"
-                      recyclingKey={`home-avatar-${profileImage}`}
-                      transition={200}
-                    />
-                  ) : (
-                    <Feather name="anchor" size={22} color={colors.white} />
-                  )}
-                </View>
-                <View style={[localStyles.welcomeGreetingText, { zIndex: 1 }]}>
-                  <Text style={localStyles.welcomeGreetingLine}>{nauticalGreeting},</Text>
-                  <Text style={localStyles.welcomeUserName}>{userName}</Text>
-                  <Text style={localStyles.welcomeGreetingLine}>Enjoy your fishing today!</Text>
-                </View>
-              </View>
-            )}
+        {/* Offline Banner — slides in when device loses connectivity */}
+        <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
 
-            {/* Rewards Status Section */}
-            {rewardsMember ? (
-              <TouchableOpacity
-                style={[
-                  localStyles.welcomeRewardsSection,
-                  userName && localStyles.welcomeRewardsSectionWithGreeting
-                ]}
-                onPress={() => navigateToScreen("Profile")}
-                activeOpacity={0.7}
-              >
-                <View style={localStyles.welcomeRewardsIcon}>
-                  <Feather name="award" size={18} color={colors.secondary} />
-                </View>
-                <View style={localStyles.welcomeRewardsContent}>
-                  <Text style={localStyles.welcomeRewardsTitle}>Rewards Member</Text>
-                  <Text style={localStyles.welcomeRewardsEmail}>{rewardsMemberEmail}</Text>
-                </View>
-                {/* Achievement icons - show 3 most recent */}
-                {userAchievements.length > 0 ? (
-                  <View style={localStyles.achievementIconsRow}>
-                    {[...userAchievements]
-                      .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
-                      .slice(0, 3)
-                      .map((ua, index) => {
-                        const category = ua.achievement.category || 'default';
-                        const code = ua.achievement.code;
-                        const iconName = getAchievementIcon(code, ua.achievement.iconName, category);
-                        const bgColor = getAchievementColor(code, category);
-                        return (
-                          <View
-                            key={ua.id}
-                            style={[
-                              localStyles.achievementIconBadge,
-                              { backgroundColor: bgColor },
-                              index > 0 && { marginLeft: -8 },
-                            ]}
-                          >
-                            <Feather
-                              name={iconName}
-                              size={14}
-                              color={colors.white}
-                            />
-                          </View>
-                        );
-                      })}
-                    {userAchievements.length > 3 && (
-                      <View key="achievement-overflow" style={[localStyles.achievementIconBadge, localStyles.achievementCountBadge, { marginLeft: -8 }]}>
-                        <Text style={localStyles.achievementCountText}>+{userAchievements.length - 3}</Text>
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <Feather name="chevron-right" size={18} color={colors.textSecondary} />
-                )}
-              </TouchableOpacity>
-            ) : userName ? (
-              /* Subtle CTA for non-members who have a name */
-              <TouchableOpacity
-                style={localStyles.welcomeJoinRewards}
-                onPress={() => navigateToScreen("Profile")}
-                activeOpacity={0.7}
-              >
-                <View style={localStyles.welcomeJoinIcon}>
-                  <Feather name="gift" size={16} color={colors.secondary} />
-                </View>
-                <Text style={localStyles.welcomeJoinText}>{hasProfileEmail ? 'Sign In to Rewards Program' : 'Join Rewards Program'}</Text>
-                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.7)" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        )}
+        {/* Welcome Card - greeting, rewards status, achievements */}
+        <WelcomeCard
+          userName={userName}
+          profileImage={profileImage}
+          nauticalGreeting={nauticalGreeting}
+          rewardsMember={rewardsMember}
+          rewardsMemberEmail={rewardsMemberEmail}
+          userAchievements={userAchievements}
+          hasProfileEmail={hasProfileEmail}
+          onProfilePress={() => navigateToScreen("Profile")}
+        />
 
         {/* License Card Preview */}
-        <TouchableOpacity
-          style={styles.licenseCardContainer}
+        <LicenseCard
+          licenseNumber={licenseNumber}
+          licenseType={licenseType}
+          expiryDate={licenseExpiry}
           onPress={() => navigateToScreen("LicenseDetails")}
-          activeOpacity={0.7}
-        >
-          <LinearGradient
-            colors={[colors.primary, colors.primaryDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={localStyles.licenseCardGradient}
-          >
-            <View style={styles.licenseHeader}>
-              <NCFlagIcon width={56} height={36} style={{ marginRight: 12 }} />
-              <View>
-                <Text style={localStyles.licenseTitleWhite}>{SCREEN_LABELS.fishingLicense.title}</Text>
-                <Text style={localStyles.licenseSubtitleWhite}>
-                  {licenseNumber
-                    ? `License #${licenseNumber}`
-                    : "Tap to edit or view license details"}
-                </Text>
-              </View>
-            </View>
-            <Feather name="chevron-right" size={24} color={colors.white} />
-          </LinearGradient>
-        </TouchableOpacity>
+        />
 
         {/* Quick Action Cards Grid */}
         <QuickActionGrid onNavigate={navigateToScreen} isSignedIn={rewardsMember} badgeData={badgeData} />
@@ -682,7 +616,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         />
 
         {/* Advertisement Banner */}
-        <AdvertisementBanner />
+        <AdvertisementBanner placement="home" />
 
         {/* Bulletin Card — non-critical bulletins shown inline */}
         {cardBulletins.length > 0 && (

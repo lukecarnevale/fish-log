@@ -108,9 +108,11 @@ async function saveToCache(
 }
 
 /**
- * Save user entry to local storage.
+ * Save user entry to local storage for offline access.
+ * Exported so RewardsContext can cache entries made by anonymous users
+ * who bypass the Supabase-backed `enterRewardsDrawing()` path.
  */
-async function saveUserEntry(entry: UserRewardsEntry): Promise<void> {
+export async function saveUserEntry(entry: UserRewardsEntry): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.userEntry, JSON.stringify(entry));
   } catch (error) {

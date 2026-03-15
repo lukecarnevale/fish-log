@@ -386,8 +386,8 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
         </Text>
         <Text style={styles.subtitle}>
           {requiresSignup
-            ? "Verify your email to create your profile and enter the quarterly drawing!"
-            : "You've successfully submitted your harvest report!"}
+            ? "Verify your email to complete your setup. Your next catch will be entered into the quarterly drawing!"
+            : "You've successfully submitted your harvest report! Sign up so your next catch is entered into the drawing."}
         </Text>
       </View>
 
@@ -400,7 +400,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           <View style={styles.benefitItem}>
             <Feather name="award" size={16} color={colors.success} />
             <Text style={styles.benefitText}>
-              Enter quarterly prize drawings automatically
+              Eligible for quarterly prize drawings with each report
             </Text>
           </View>
           <View style={styles.benefitItem}>

@@ -186,7 +186,7 @@ describe('validateHarvestReport', () => {
     const input = makeHarvestInput({ wantTextConfirmation: true, phone: '1234567' });
     const result = validateHarvestReport(input);
     expect(hasFieldError(result.errors, 'phone')).toBe(true);
-    expect(getFieldError(result.errors, 'phone')).toContain('xxx-xxx-xxxx');
+    expect(getFieldError(result.errors, 'phone')).toContain('10 digits');
   });
 
   it('accepts text confirmation with valid phone', () => {
@@ -282,8 +282,8 @@ describe('isValidPhone', () => {
   it('returns false for partial phone', () => {
     expect(isValidPhone('919-555')).toBe(false);
   });
-  it('returns false for 10 digits without dashes', () => {
-    expect(isValidPhone('9195551234')).toBe(false);
+  it('returns true for 10 digits without dashes', () => {
+    expect(isValidPhone('9195551234')).toBe(true);
   });
   it('handles whitespace trimming', () => {
     expect(isValidPhone(' 919-555-1234 ')).toBe(true);

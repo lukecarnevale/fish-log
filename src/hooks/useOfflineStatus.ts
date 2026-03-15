@@ -189,6 +189,16 @@ export function useOfflineStatus(options: UseOfflineStatusOptions = {}): Offline
       onConnectivityChange(nowOnline);
     }
 
+    // Refresh pending count on any connectivity change so the UI stays current.
+    // When coming back online, also refresh after a delay to catch the result of
+    // the global auto-sync in App.tsx (which runs with a 1-second delay).
+    refreshPendingCount();
+    if (wasOnline === false && nowOnline === true) {
+      setTimeout(() => {
+        if (isMountedRef.current) refreshPendingCount();
+      }, 3000);
+    }
+
     // Check for offline → online transition
     if (autoSync && wasOnline === false && nowOnline === true) {
       console.log('📶 Back online! Checking for queued reports...');
@@ -214,7 +224,7 @@ export function useOfflineStatus(options: UseOfflineStatusOptions = {}): Offline
 
     // Update previous state
     wasOnlineRef.current = nowOnline;
-  }, [autoSync, onConnectivityChange, triggerSync]);
+  }, [autoSync, onConnectivityChange, triggerSync, refreshPendingCount]);
 
   /**
    * Initialize network listener on mount.

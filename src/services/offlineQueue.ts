@@ -15,8 +15,6 @@ import {
 import {
   submitHarvestReport,
   generateConfirmationNumber,
-  transformToDMFPayload,
-  triggerDMFConfirmationWebhook,
 } from './harvestReportService';
 import { createReportFromHarvestInput, getReports } from './reportsService';
 import type { AwardedAchievement } from './reportsService';
@@ -48,8 +46,9 @@ export async function addToQueue(report: HarvestReportInput): Promise<string> {
   const queuedReport: QueuedReport = {
     // Spread all fields except harvestDate (we convert it)
     ...report,
-    // Convert Date to ISO string for JSON serialization
-    harvestDate: report.harvestDate.toISOString(),
+    // Store as local YYYY-MM-DD to avoid timezone-shift issues
+    // (harvestDate is a calendar date, not a timestamp)
+    harvestDate: `${report.harvestDate.getFullYear()}-${String(report.harvestDate.getMonth() + 1).padStart(2, '0')}-${String(report.harvestDate.getDate()).padStart(2, '0')}`,
     // Queue metadata
     queuedAt: new Date().toISOString(),
     localConfirmationNumber: unique1,
@@ -146,7 +145,20 @@ export interface SyncResult {
  *
  * @returns Summary of sync operation
  */
+// Global sync lock — prevents concurrent sync from multiple callers
+// (e.g., App.tsx global listener AND HomeScreen's useOfflineStatus hook
+// both detect the offline→online transition and call syncQueuedReports).
+let _syncInProgress = false;
+
 export async function syncQueuedReports(): Promise<SyncResult> {
+  if (_syncInProgress) {
+    console.log('⏳ syncQueuedReports: already in progress, skipping');
+    return { synced: 0, failed: 0, expired: 0, results: [] };
+  }
+
+  _syncInProgress = true;
+
+  try {
   const queue = await getQueue();
 
   if (queue.length === 0) {
@@ -182,21 +194,30 @@ export async function syncQueuedReports(): Promise<SyncResult> {
       synced++;
       console.log(`✅ Synced: ${result.confirmationNumber}`);
 
-      // Trigger text/email confirmation webhooks for the synced report (fire-and-forget)
+      // NOTE: Webhooks are already triggered inside submitToDMF/mockSubmitToDMF.
+      // Do NOT call triggerDMFConfirmationWebhook here — it would generate a
+      // new confirmation number via transformToDMFPayload, different from the
+      // one actually submitted, causing mismatched data.
+
+      // Save to Supabase so the report appears in the Catch Feed (which reads
+      // from the v_catch_feed Supabase view). skipLocalCache prevents writing to
+      // @harvest_reports, avoiding duplicates with @harvest_history below.
       try {
-        const dmfPayload = transformToDMFPayload(input);
-        triggerDMFConfirmationWebhook(
-          result.objectId!,
-          dmfPayload.attributes.GlobalID,
-          dmfPayload.attributes,
-          dmfPayload.geometry,
-          false,
-        );
-      } catch (webhookErr) {
-        console.warn('⚠️ Failed to trigger webhook for synced report (non-blocking):', webhookErr);
+        const supabaseResult = await createReportFromHarvestInput(input, {
+          confirmationNumber: result.confirmationNumber,
+          objectId: result.objectId,
+          submittedAt: new Date().toISOString(),
+        }, { skipLocalCache: true });
+        if (supabaseResult.success) {
+          console.log('✅ Synced report saved to Supabase:', result.confirmationNumber);
+        } else {
+          console.warn('⚠️ Failed to save synced report to Supabase:', supabaseResult.error);
+        }
+      } catch (supabaseErr) {
+        console.warn('⚠️ Supabase save error for synced report (non-blocking):', supabaseErr);
       }
 
-      // Move to history - extract only HarvestReportInput fields from queuedReport
+      // Move to local history for Past Reports display
       const {
         queuedAt: _queuedAt,
         localConfirmationNumber: _localConfNum,
@@ -230,6 +251,9 @@ export async function syncQueuedReports(): Promise<SyncResult> {
   console.log(`📊 Sync complete: ${synced} synced, ${failed} failed, ${expired} expired`);
 
   return { synced, failed, expired, results };
+  } finally {
+    _syncInProgress = false;
+  }
 }
 
 /**
@@ -251,7 +275,10 @@ function queuedReportToInput(queued: QueuedReport): HarvestReportInput {
 
   return {
     ...inputFields,
-    harvestDate: new Date(harvestDate),
+    // Pin to noon local to avoid timezone-shift when the date is YYYY-MM-DD
+    harvestDate: harvestDate.length === 10
+      ? new Date(harvestDate + 'T12:00:00')
+      : new Date(harvestDate),
   };
 }
 
@@ -310,7 +337,16 @@ interface AddToHistoryInput {
  * @param report - The submitted report data
  */
 export async function addToHistory(report: AddToHistoryInput): Promise<void> {
-  const history = await getHistory();
+  // Read local history directly instead of calling getHistory() which does
+  // a Supabase fetch + merge + write-back — that creates a race condition
+  // where concurrent addToHistory calls can overwrite each other's entries.
+  let history: SubmittedReport[] = [];
+  try {
+    const localData = await AsyncStorage.getItem(HISTORY_KEY);
+    history = localData ? JSON.parse(localData) : [];
+  } catch {
+    history = [];
+  }
 
   // Create SubmittedReport from the queued report data
   const submittedReport: SubmittedReport = {
@@ -426,9 +462,21 @@ export async function getHistory(): Promise<SubmittedReport[]> {
             raffleId: r.rewardsDrawingId || undefined,
           }));
 
+        // Merge Supabase + local history so recently synced reports aren't lost.
+        // Supabase may not have the report yet if it was just synced (race condition),
+        // so we keep local entries that don't exist in Supabase.
+        const supabaseConfirmations = new Set(
+          supabaseHistory.map(r => r.confirmationNumber)
+        );
+        const localOnlyReports = localHistory.filter(
+          r => !supabaseConfirmations.has(r.confirmationNumber)
+        );
+
+        const merged = [...supabaseHistory, ...localOnlyReports];
+
         // Deduplicate by confirmation number (in case of any duplicates)
         const seen = new Set<string>();
-        const dedupedHistory = supabaseHistory.filter(r => {
+        const dedupedHistory = merged.filter(r => {
           if (seen.has(r.confirmationNumber)) {
             return false;
           }
@@ -439,10 +487,10 @@ export async function getHistory(): Promise<SubmittedReport[]> {
         // Sort by submittedAt (newest first)
         dedupedHistory.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
 
-        // For signed-in users, use Supabase as source of truth (replace local cache entirely)
+        // Update local cache with merged data
         await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(dedupedHistory));
 
-        console.log(`✅ getHistory - Loaded ${dedupedHistory.length} reports from Supabase`);
+        console.log(`✅ getHistory - Loaded ${supabaseHistory.length} from Supabase, ${localOnlyReports.length} local-only, ${dedupedHistory.length} total`);
         return dedupedHistory;
       }
     } catch (error) {
@@ -534,10 +582,11 @@ export async function submitWithQueueFallback(
   const result = await submitHarvestReport(input);
 
   if (result.success) {
-    // Save to local history
+    // Save to local history — use local YYYY-MM-DD for harvestDate
+    // to avoid timezone-shift when displaying
     await addToHistory({
       ...input,
-      harvestDate: input.harvestDate.toISOString(),
+      harvestDate: `${input.harvestDate.getFullYear()}-${String(input.harvestDate.getMonth() + 1).padStart(2, '0')}-${String(input.harvestDate.getDate()).padStart(2, '0')}`,
       confirmationNumber: result.confirmationNumber!,
       objectId: result.objectId,
       submittedAt: new Date().toISOString(),
@@ -588,17 +637,10 @@ export async function submitWithQueueFallback(
   if (result.queued || APP_CONFIG.features.offlineQueueEnabled) {
     const localConfirmation = await addToQueue(input);
 
-    // Still save to Supabase even if DMF failed (for user tracking and rewards)
-    try {
-      const supabaseResult = await createReportFromHarvestInput(input);
-      if (supabaseResult.success) {
-        console.log('✅ Queued report saved to Supabase:', supabaseResult.report.id);
-      } else {
-        console.warn('⚠️ Failed to save queued report to Supabase:', supabaseResult.error);
-      }
-    } catch (error) {
-      console.warn('⚠️ Supabase save error for queued report:', error);
-    }
+    // Do NOT save to Supabase here — the report is queued locally and will be
+    // saved to Supabase after successful DMF sync in syncQueuedReports().
+    // Saving here created duplicate entries (one without DMF confirmation,
+    // one with) that showed as multiple reports in Past Reports.
 
     return {
       success: false,

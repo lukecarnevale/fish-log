@@ -6,12 +6,11 @@ import React from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   TouchableOpacity,
   ImageSourcePropType,
-  ImageStyle,
 } from 'react-native';
+import { Image, ImageStyle } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 
 interface QuickActionCardProps {
@@ -84,7 +83,8 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
         <Image
           source={image}
           style={[styles.image, imageStyle, disabled && styles.imageDisabled]}
-          resizeMode="contain"
+          contentFit="contain"
+          cachePolicy="memory-disk"
         />
         {/* Badges layer - positioned absolutely over the fish illustration */}
         {!disabled && renderBadges && (

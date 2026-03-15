@@ -5,6 +5,7 @@ import { colors, spacing, borderRadius } from './common';
 
 interface HomeScreenLocalStyles {
   fixedHeader: ViewStyle;
+  refreshSpinner: ViewStyle;
   scrollView: ViewStyle;
   scrollViewContent: ViewStyle;
   headerSpacer: ViewStyle;
@@ -44,6 +45,8 @@ interface HomeScreenLocalStyles {
   licenseCardGradient: ViewStyle;
   licenseTitleWhite: TextStyle;
   licenseSubtitleWhite: TextStyle;
+  licenseActivePill: ViewStyle;
+  licenseActivePillText: TextStyle;
 }
 
 export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
@@ -56,6 +59,13 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 60,
     paddingBottom: 20,
     zIndex: 1, // Lower z-index so content can scroll over it
+  },
+  refreshSpinner: {
+    position: 'absolute',
+    // Position just above where the content card sits at rest
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 130 : 160,
+    alignSelf: 'center',
+    zIndex: 1, // Behind the scrollable content (z-index 2)
   },
   scrollView: {
     flex: 1,
@@ -332,5 +342,18 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
   licenseSubtitleWhite: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.85)',
+  },
+  licenseActivePill: {
+    backgroundColor: 'hsla(142, 71%, 45%, 0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginRight: 8,
+  },
+  licenseActivePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.white,
+    letterSpacing: 0.3,
   },
 });

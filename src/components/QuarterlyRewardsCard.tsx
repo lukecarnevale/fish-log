@@ -303,7 +303,10 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
       ])
     );
     pulseAnimation.start();
-    return () => pulseAnimation.stop();
+    return () => {
+      pulseAnimation.stop();
+      progressPulse.setValue(0);
+    };
   }, [progressPulse]);
 
   // Scroll to prize section when modal opens via prize card tap
@@ -318,9 +321,10 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
   }, [showDetailsModal, scrollToPrizes]);
 
   // Opacity pulse for progress indicator glow (native driver compatible)
+  // Resting state (value=0) is fully opaque; pulse dims to 0.6 then back
   const progressIndicatorOpacity = progressPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.5, 1],
+    outputRange: [1, 0.6],
   });
 
   // Loading state - show skeleton

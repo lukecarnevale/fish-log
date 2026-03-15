@@ -137,6 +137,7 @@ jest.mock('../../src/services/userProfileService', () => ({
   getCurrentUser: (...args: any[]) => (mockGetCurrentUser as any)(...args),
   updateCurrentUser: (...args: any[]) => (mockUpdateCurrentUser as any)(...args),
   getUserStats: (...args: any[]) => (mockGetUserStats as any)(...args),
+  syncToUserProfile: jest.fn().mockResolvedValue(undefined),
 }));
 
 // userService

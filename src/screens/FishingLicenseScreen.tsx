@@ -1,6 +1,6 @@
 // screens/FishingLicenseScreen.tsx
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   View,
@@ -34,6 +34,7 @@ import WrcIdInfoModal from "../components/WrcIdInfoModal";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 import { getCurrentUser, updateCurrentUser } from "../services/userProfileService";
 import { onAuthStateChange } from "../services/authService";
+import UnsavedChangesModal from "../components/UnsavedChangesModal";
 
 type FishingLicenseScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -73,9 +74,56 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [numericFieldFocused, setNumericFieldFocused] = useState(false);
 
+  // Unsaved changes modal state
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const pendingNavigationAction = useRef<(() => void) | null>(null);
+  const hasConfirmedDiscard = useRef(false);
+
   // Animation for transitioning between view/edit modes
   const slideAnim = useRef(new Animated.Value(0)).current;
   const screenHeight = Dimensions.get('window').height;
+
+  // Check if form data differs from saved license
+  const hasUnsavedChanges = useCallback((): boolean => {
+    if (!isEditing) return false;
+    const fieldsToCheck: (keyof FishingLicense)[] = [
+      'firstName', 'lastName', 'licenseNumber', 'licenseType', 'issueDate', 'expiryDate',
+    ];
+    return fieldsToCheck.some(
+      (key) => (formData[key] ?? '') !== ((license?.[key]) ?? ''),
+    );
+  }, [isEditing, formData, license]);
+
+  // Intercept back navigation when in edit mode with unsaved changes
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!isEditing || hasConfirmedDiscard.current) {
+        hasConfirmedDiscard.current = false;
+        return;
+      }
+
+      if (!hasUnsavedChanges()) {
+        setIsEditing(false);
+        return;
+      }
+
+      e.preventDefault();
+      pendingNavigationAction.current = () => navigation.dispatch(e.data.action);
+      setShowUnsavedModal(true);
+    });
+
+    return unsubscribe;
+  }, [navigation, isEditing, hasUnsavedChanges]);
+
+  // Handle the close button on edit form with dirty check
+  const handleCloseEditForm = () => {
+    if (hasUnsavedChanges()) {
+      pendingNavigationAction.current = null;
+      setShowUnsavedModal(true);
+    } else {
+      toggleEditMode(false);
+    }
+  };
 
   // Toggle edit mode with animation
   const toggleEditMode = (editing: boolean) => {
@@ -315,7 +363,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       <View style={styles.formHeader}>
         <TouchableOpacity
           style={styles.formCloseButton}
-          onPress={() => toggleEditMode(false)}
+          onPress={handleCloseEditForm}
           activeOpacity={0.7}
         >
           <Feather name="x" size={24} color={colors.white} />
@@ -446,7 +494,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
         <View style={styles.formButtonRow}>
           <TouchableOpacity
             style={[styles.formButton, styles.formCancelButton]}
-            onPress={() => toggleEditMode(false)}
+            onPress={handleCloseEditForm}
           >
             <Text style={styles.formCancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -882,6 +930,21 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           {renderLicenseForm()}
         </Animated.View>
       )}
+
+      {/* Unsaved changes confirmation modal */}
+      <UnsavedChangesModal
+        visible={showUnsavedModal}
+        onKeepEditing={() => setShowUnsavedModal(false)}
+        onDiscard={() => {
+          setShowUnsavedModal(false);
+          toggleEditMode(false);
+          if (pendingNavigationAction.current) {
+            hasConfirmedDiscard.current = true;
+            pendingNavigationAction.current();
+            pendingNavigationAction.current = null;
+          }
+        }}
+      />
     </View>
   );
 };

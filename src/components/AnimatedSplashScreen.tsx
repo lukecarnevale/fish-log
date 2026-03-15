@@ -24,11 +24,12 @@ interface Props {
 export default function AnimatedSplashScreen({ children, ready }: Props) {
   const [animationDone, setAnimationDone] = useState(false);
 
-  // Opacity values
-  const iconFade = useRef(new Animated.Value(0)).current;
+  // Icon starts fully visible and at full scale so there is no blank frame
+  // between the native splash hiding and the custom splash appearing.
+  const iconFade = useRef(new Animated.Value(1)).current;
   const textFade = useRef(new Animated.Value(0)).current;
   const splashFade = useRef(new Animated.Value(1)).current;
-  const iconScale = useRef(new Animated.Value(0.85)).current;
+  const iconScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!ready) return;
@@ -37,19 +38,18 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
     const run = async () => {
       await SplashScreen.hideAsync();
 
-      // Phase 1: Icon fades in + subtle scale
-      Animated.parallel([
-        Animated.timing(iconFade, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
+      // Phase 1: Subtle scale pulse on the already-visible icon
+      Animated.timing(iconScale, {
+        toValue: 1.05,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => {
         Animated.timing(iconScale, {
           toValue: 1,
-          duration: 600,
+          duration: 300,
           useNativeDriver: true,
-        }),
-      ]).start();
+        }).start();
+      });
 
       // Phase 2: Text fades in shortly after
       setTimeout(() => {
@@ -58,7 +58,7 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
           duration: 400,
           useNativeDriver: true,
         }).start();
-      }, 350);
+      }, 250);
 
       // Phase 3: Hold, then fade everything out
       setTimeout(() => {
@@ -69,7 +69,7 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
         }).start(() => {
           setAnimationDone(true);
         });
-      }, 1800);
+      }, 1600);
     };
 
     run();

@@ -4,6 +4,7 @@
 // Handles payload transformation, DMF submission, and mock mode for testing.
 //
 
+import NetInfo from '@react-native-community/netinfo';
 import { isTestMode, getDMFEndpoint } from '../config/appConfig';
 import {
   HarvestReportInput,
@@ -58,7 +59,7 @@ export function generateConfirmationNumber(): ConfirmationNumberParts {
   const dateS = new Date().getDate().toString();
   // Generate random number between 0 and 9999, padded would be more consistent
   // but spec shows unpadded, so we follow that
-  const rand = Math.round(Math.random() * 10000).toString();
+  const rand = Math.floor(Math.random() * 10000).toString();
   return { dateS, rand, unique1: dateS + rand };
 }
 
@@ -372,6 +373,21 @@ export async function mockSubmitToDMF(
   console.log('Form Data (edits):');
   console.log(edits);
   console.log('='.repeat(60));
+
+  // Check actual connectivity — mock mode should still respect offline state
+  // so reports are properly queued when the device has no network
+  const netState = await NetInfo.fetch();
+  const isOffline = !netState.isConnected || netState.isInternetReachable === false;
+
+  if (isOffline) {
+    console.log('⚠️ MOCK MODE: Device is offline — simulating network failure for queue');
+    return {
+      success: false,
+      error: 'Device is offline',
+      queued: true,
+      confirmationNumber,
+    };
+  }
 
   // Simulate network delay
   await new Promise<void>(resolve => setTimeout(() => resolve(), delayMs));
