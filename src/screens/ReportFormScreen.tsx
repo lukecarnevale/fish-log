@@ -2698,7 +2698,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         onSubmitRaffle={() => {
           setEnterRaffle(true);
           setShowRaffleModal(false);
-          toast.show("Rewards Entry Added", "You'll be entered in this quarter's drawing.");
+          toast.show("Rewards Entry Added", "Complete sign-up to be entered in this quarter's drawing.");
         }}
       />
 

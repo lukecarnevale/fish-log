@@ -720,7 +720,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           setShowRewardsPrompt(false);
           Alert.alert(
             "Welcome to Rewards!",
-            "You're now a member of the Quarterly Rewards Program. Good luck in the drawing!",
+            "You're now a member of the Quarterly Rewards Program. Submit your next harvest report to be entered in the drawing!",
             [{ text: "Awesome!", style: "default" }]
           );
         }}

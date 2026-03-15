@@ -71,7 +71,7 @@ const defaultContextValue: AchievementContextValue = {
 // Context Creation
 // =============================================================================
 
-const AchievementContext = createContext<AchievementContextValue>(defaultContextValue);
+const AchievementContext = createContext<AchievementContextValue | undefined>(undefined);
 
 // =============================================================================
 // Provider Component

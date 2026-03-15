@@ -54,7 +54,7 @@ async function fetchCatchesFromSupabase(
     .from('v_catch_feed')
     .select('*')
     .order('created_at', { ascending: false })
-    .range(offset, offset + limit);
+    .range(offset, offset + limit - 1);
 
   if (error) {
     throw new Error(`Failed to fetch catch feed: ${error.message}`);
@@ -108,9 +108,9 @@ async function fetchCatchesFromSupabase(
     if (speciesList.length === 0) {
       const allSpecies = [
         { species: 'Red Drum', count: row.red_drum_count },
-        { species: 'Southern Flounder', count: row.flounder_count },
-        { species: 'Spotted Seatrout', count: row.spotted_seatrout_count },
-        { species: 'Weakfish', count: row.weakfish_count },
+        { species: 'Flounder', count: row.flounder_count },
+        { species: 'Spotted Seatrout (speckled trout)', count: row.spotted_seatrout_count },
+        { species: 'Weakfish (gray trout)', count: row.weakfish_count },
         { species: 'Striped Bass', count: row.striped_bass_count },
       ];
 
@@ -296,15 +296,23 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
 // =============================================================================
 
 /**
- * Fetch top anglers for "This Week's Top Anglers" section.
- * Uses the get_leaderboard RPC to fetch aggregated stats for the past week.
+ * Fetch top anglers for the leaderboard section.
+ * Uses the get_leaderboard RPC scoped to the current quarter so the
+ * leaderboard aligns with the Quarterly Rewards period and shows
+ * meaningful data even during slow fishing weeks.
  */
 async function fetchTopAnglersFromSupabase(): Promise<TopAngler[]> {
-  // Calculate days (7 days for "This Week")
-  const periodDays = 7;
+  // Calculate days since the current quarter started.
+  const now = new Date();
+  const quarterMonth = Math.floor(now.getMonth() / 3) * 3; // 0, 3, 6, or 9
+  const quarterStart = new Date(now.getFullYear(), quarterMonth, 1);
+  const periodDays = Math.max(
+    Math.ceil((now.getTime() - quarterStart.getTime()) / (1000 * 60 * 60 * 24)),
+    1, // At least 1 day on the first day of a quarter
+  );
   const limit = 100; // Get top users, then find top by each metric
 
-  // Call get_leaderboard RPC for the past week
+  // Call get_leaderboard RPC for the current quarter
   const { data: leaderboardData, error } = await supabase
     .rpc('get_leaderboard', {
       p_period_days: periodDays,

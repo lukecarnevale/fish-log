@@ -188,6 +188,7 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
   licenseHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   licenseIcon: {
     width: 44,

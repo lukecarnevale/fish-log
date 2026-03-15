@@ -435,7 +435,7 @@ describe('HomeScreen', () => {
 
       const { getByText } = renderHomeScreen();
       await waitFor(() => {
-        expect(getByText('License #NC12345')).toBeTruthy();
+        expect(getByText('#NC12345')).toBeTruthy();
       });
     });
   });

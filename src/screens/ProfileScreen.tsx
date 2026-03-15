@@ -1,6 +1,6 @@
 // screens/ProfileScreen.tsx
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   View,
@@ -46,7 +46,7 @@ import {
   deleteAccount,
   onAuthStateChange,
 } from "../services/authService";
-import { getCurrentUser, updateCurrentUser, getUserStats } from "../services/userProfileService";
+import { getCurrentUser, updateCurrentUser, getUserStats, syncToUserProfile } from "../services/userProfileService";
 import { clearAllUserData } from "../services/userService";
 import { isSupabaseConnected } from "../config/supabase";
 import { isRewardsMember } from "../services/rewardsConversionService";
@@ -65,6 +65,7 @@ import ProfileStats from "./profile/ProfileStats";
 import ProfileAchievements from "./profile/ProfileAchievements";
 import { useFloatingHeaderAnimation } from "../hooks/useFloatingHeaderAnimation";
 import FloatingBackButton from "../components/FloatingBackButton";
+import UnsavedChangesModal from "../components/UnsavedChangesModal";
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [profile, setProfile] = useState<UserProfile>({});
@@ -126,6 +127,11 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const emailInputRef = useRef<TextInput>(null);
   const phoneInputRef = useRef<TextInput>(null);
   
+  // Unsaved changes modal state
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const pendingNavigationAction = useRef<(() => void) | null>(null);
+  const hasConfirmedDiscard = useRef(false);
+
   // Animation for transitioning between view/edit modes
   const slideAnim = useRef(new Animated.Value(0)).current;
   const screenHeight = Dimensions.get('window').height;
@@ -200,6 +206,20 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           const user = await getCurrentUser();
           console.log('🏆 ProfileScreen - Rewards member email:', user?.email);
           setRewardsMemberUser(user);
+
+          // Sync Supabase user data (including profile photo URL) back to
+          // AsyncStorage so it survives app reinstalls and is available offline.
+          if (user) {
+            await syncToUserProfile(user);
+            // Refresh local profileData with the synced data so the UI
+            // immediately reflects the backend state (e.g. profile photo)
+            const refreshedProfile = await AsyncStorage.getItem("userProfile");
+            if (refreshedProfile) {
+              const refreshed = JSON.parse(refreshedProfile);
+              setProfile(refreshed);
+              setFormData(refreshed);
+            }
+          }
 
           // Load user achievements
           try {
@@ -756,6 +776,51 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     });
   };
 
+  // Check if form data differs from saved profile
+  const hasUnsavedChanges = useCallback((): boolean => {
+    if (!isEditing) return false;
+    const fieldsToCheck: (keyof UserProfile)[] = [
+      'firstName', 'lastName', 'email', 'phone', 'zipCode',
+      'wrcId', 'profileImage', 'dateOfBirth',
+    ];
+    return fieldsToCheck.some(
+      (key) => (formData[key] ?? '') !== (profile[key] ?? ''),
+    );
+  }, [isEditing, formData, profile]);
+
+  // Intercept back navigation when in edit mode with unsaved changes
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!isEditing || hasConfirmedDiscard.current) {
+        hasConfirmedDiscard.current = false;
+        return;
+      }
+
+      if (!hasUnsavedChanges()) {
+        // No actual changes — allow navigation and close edit mode
+        setIsEditing(false);
+        return;
+      }
+
+      // Unsaved changes — block navigation and show confirmation
+      e.preventDefault();
+      pendingNavigationAction.current = () => navigation.dispatch(e.data.action);
+      setShowUnsavedModal(true);
+    });
+
+    return unsubscribe;
+  }, [navigation, isEditing, hasUnsavedChanges]);
+
+  // Handle the close button on edit form with dirty check
+  const handleCloseEditForm = () => {
+    if (hasUnsavedChanges()) {
+      pendingNavigationAction.current = null; // Not a navigation action
+      setShowUnsavedModal(true);
+    } else {
+      animateTransition(false);
+    }
+  };
+
   // Animate transition between view/edit modes
   const animateTransition = (toEditing: boolean) => {
     if (toEditing) {
@@ -831,7 +896,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       <View style={styles.formHeader}>
         <TouchableOpacity
           style={styles.formCloseButton}
-          onPress={() => animateTransition(false)}
+          onPress={handleCloseEditForm}
           activeOpacity={0.7}
         >
           <Feather name="x" size={24} color={colors.white} />
@@ -1144,7 +1209,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.formButtonRow}>
           <TouchableOpacity
             style={[styles.formButton, styles.formCancelButton]}
-            onPress={() => animateTransition(false)}
+            onPress={handleCloseEditForm}
           >
             <Text style={styles.formCancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -1774,6 +1839,21 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Unsaved changes confirmation modal */}
+      <UnsavedChangesModal
+        visible={showUnsavedModal}
+        onKeepEditing={() => setShowUnsavedModal(false)}
+        onDiscard={() => {
+          setShowUnsavedModal(false);
+          animateTransition(false);
+          if (pendingNavigationAction.current) {
+            hasConfirmedDiscard.current = true;
+            pendingNavigationAction.current();
+            pendingNavigationAction.current = null;
+          }
+        }}
+      />
     </SafeAreaView>
   );
 };

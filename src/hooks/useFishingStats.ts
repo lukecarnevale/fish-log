@@ -11,10 +11,14 @@ export const useFishingStats = () => {
   const [statsLoading, setStatsLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadFishingStats = async () => {
       setStatsLoading(true);
       try {
         const reports = await getReports();
+
+        if (cancelled) return;
 
         if (reports.length === 0) {
           setFishingStats({ totalCatches: 0, uniqueSpecies: 0, largestFish: null });
@@ -36,9 +40,9 @@ export const useFishingStats = () => {
         const speciesCaught = new Set<string>();
         reports.forEach((report) => {
           if (report.redDrumCount > 0) speciesCaught.add('Red Drum');
-          if (report.flounderCount > 0) speciesCaught.add('Southern Flounder');
-          if (report.spottedSeatroutCount > 0) speciesCaught.add('Spotted Seatrout');
-          if (report.weakfishCount > 0) speciesCaught.add('Weakfish');
+          if (report.flounderCount > 0) speciesCaught.add('Flounder');
+          if (report.spottedSeatroutCount > 0) speciesCaught.add('Spotted Seatrout (speckled trout)');
+          if (report.weakfishCount > 0) speciesCaught.add('Weakfish (gray trout)');
           if (report.stripedBassCount > 0) speciesCaught.add('Striped Bass');
         });
         const uniqueSpecies = speciesCaught.size;
@@ -49,6 +53,8 @@ export const useFishingStats = () => {
           .map((r) => r.id);
 
         const entriesByReport = await getFishEntriesBatch(remoteReportIds);
+
+        if (cancelled) return;
 
         // Find largest fish across all entries
         let largestFish: number | null = null;
@@ -69,11 +75,17 @@ export const useFishingStats = () => {
       } catch (error) {
         console.error('Failed to load fishing stats:', error);
       } finally {
-        setStatsLoading(false);
+        if (!cancelled) {
+          setStatsLoading(false);
+        }
       }
     };
 
     loadFishingStats();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { fishingStats, statsLoading };

@@ -104,13 +104,8 @@ describe('isWithinPeriod', () => {
 
 describe('formatDate', () => {
   it('formats ISO date string to readable format', () => {
-    // Use the same parsing the function uses to get the expected day
-    const parsed = new Date('2026-01-15');
-    const expectedDay = parsed.toLocaleDateString('en-US', { day: 'numeric' });
     const result = formatDate('2026-01-15');
-    expect(result).toContain('January');
-    expect(result).toContain(expectedDay);
-    expect(result).toContain('2026');
+    expect(result).toBe('January 15, 2026');
   });
 });
 

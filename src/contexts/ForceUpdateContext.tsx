@@ -37,7 +37,7 @@ const defaultContextValue: ForceUpdateContextValue = {
 // Context Creation
 // =============================================================================
 
-const ForceUpdateContext = createContext<ForceUpdateContextValue>(defaultContextValue);
+const ForceUpdateContext = createContext<ForceUpdateContextValue | undefined>(undefined);
 
 // =============================================================================
 // Provider Component
@@ -105,7 +105,7 @@ export function ForceUpdateProvider({ children }: ForceUpdateProviderProps): Rea
 export function useForceUpdate(): ForceUpdateContextValue {
   const context = useContext(ForceUpdateContext);
 
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useForceUpdate must be used within a ForceUpdateProvider');
   }
 

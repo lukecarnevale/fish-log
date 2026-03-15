@@ -32,6 +32,7 @@ import {
   setLastSeenDrawingId,
   getPendingDrawingEntry,
   getRewardsStatusByDevice,
+  saveUserEntry,
 } from '../services/rewardsService';
 import { getDeviceId } from '../utils/deviceId';
 import { updatePendingDrawingEntry } from '../services/pendingSubmissionService';
@@ -108,7 +109,7 @@ const defaultContextValue: RewardsContextValue = {
 // Context Creation
 // =============================================================================
 
-const RewardsContext = createContext<RewardsContextValue>(defaultContextValue);
+const RewardsContext = createContext<RewardsContextValue | undefined>(undefined);
 
 
 // =============================================================================
@@ -239,7 +240,13 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
           console.warn('Could not check device rewards status:', err);
         }
       }
-      setUserEntry(finalUserEntry);
+      // Only update userEntry if we got a definitive answer. If the fetch
+      // returned null (e.g. offline / cache miss) but we already hold a
+      // valid entry in state, preserve it so offline users still see
+      // "You're entered!" instead of the status being reset.
+      if (finalUserEntry) {
+        setUserEntry(finalUserEntry);
+      }
 
       // For authenticated users the Supabase userEntry is the source of truth;
       // clear stale legacy IDs so they can't override it.
@@ -252,7 +259,8 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
       console.error('Failed to load rewards data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load rewards');
 
-      // Use fallback data on error
+      // Use fallback data on error — but preserve existing userEntry
+      // so offline users don't lose their "entered" status
       setConfig(FALLBACK_CONFIG);
       setCurrentDrawing(FALLBACK_DRAWING);
     } finally {
@@ -312,7 +320,11 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
           console.warn('Could not check device rewards status during refresh:', err);
         }
       }
-      setUserEntry(finalUserEntry);
+      // Only update userEntry if we got a definitive answer; preserve existing
+      // state on offline/cache-miss so "You're entered!" persists.
+      if (finalUserEntry) {
+        setUserEntry(finalUserEntry);
+      }
 
       // For authenticated users, the Supabase userEntry is the source of truth —
       // clear stale legacy IDs so they can't override it.
@@ -440,15 +452,19 @@ export function RewardsProvider({ children, userId }: RewardsProviderProps): Rea
           console.warn('Could not save pending drawing entry:', err);
         }
 
-        setEnteredDrawingIds((prev) => [...prev, currentDrawing.id]);
-        setUserEntry({
+        const localEntry: UserRewardsEntry = {
           userId: 'local',
           drawingId: currentDrawing.id,
           isEntered: true,
           entryMethod: 'app',
           enteredAt: new Date().toISOString(),
           associatedReportIds: reportId ? [reportId] : [],
-        });
+        };
+
+        setEnteredDrawingIds((prev) => [...prev, currentDrawing.id]);
+        setUserEntry(localEntry);
+        // Persist to AsyncStorage so entry status survives offline transitions
+        await saveUserEntry(localEntry);
         return true;
       }
 

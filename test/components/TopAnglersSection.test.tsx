@@ -33,7 +33,7 @@ describe('TopAnglersSection', () => {
     const anglers = [makeAngler()];
     const { getByText } = render(<TopAnglersSection anglers={anglers} />);
 
-    expect(getByText("This Week's Top Anglers")).toBeTruthy();
+    expect(getByText("Top Anglers This Quarter")).toBeTruthy();
   });
 
   it('renders angler display names', () => {

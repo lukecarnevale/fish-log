@@ -65,7 +65,10 @@ export function usePulseAnimation(options: PulseAnimationOptions = {}): PulseAni
     );
 
     animation.start();
-    return () => animation.stop();
+    return () => {
+      animation.stop();
+      pulseValue.setValue(0);
+    };
   }, [enabled, duration, useNativeDriver, pulseValue]);
 
   return { pulseValue };
