@@ -164,8 +164,8 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
     family_count: input.familyCount || null,
     notes: input.notes || null,
     photo_url: input.photoUrl || null,
-    gps_latitude: input.gpsLatitude || null,
-    gps_longitude: input.gpsLongitude || null,
+    gps_latitude: input.gpsLatitude ?? null,
+    gps_longitude: input.gpsLongitude ?? null,
     entered_rewards: input.enteredRewards || false,
     rewards_drawing_id: input.rewardsDrawingId || null,
     fish_entries: input.fishEntries?.map((entry) => ({
