@@ -14,7 +14,6 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -26,11 +25,11 @@ import QuarterlyRewardsCard from "../components/QuarterlyRewardsCard";
 import Footer from "../components/Footer";
 import AdvertisementBanner from "../components/AdvertisementBanner";
 import MandatoryHarvestCard from "../components/MandatoryHarvestCard";
-import { NCFlagIcon } from "../components/NCFlagIcon";
+import LicenseCard from "../components/LicenseCard";
 import FeedbackModal from "../components/FeedbackModal";
 import AboutModal from "../components/AboutModal";
 import QuickActionGrid from "../components/QuickActionGrid";
-import WaveBackground from "../components/WaveBackground";
+import WelcomeCard from "../components/WelcomeCard";
 import WavyMenuIcon from "../components/WavyMenuIcon";
 import DrawerMenu from "../components/DrawerMenu";
 import { FeedbackType } from "../types/feedback";
@@ -43,9 +42,7 @@ import { getCurrentUser, getUserStats } from "../services/userProfileService";
 import { isRewardsMember } from "../services/rewardsConversionService";
 import { UserAchievement } from "../types/user";
 import { BADGE_STORAGE_KEYS } from "../utils/badgeUtils";
-import { SCREEN_LABELS } from "../constants/screenLabels";
 import { useAchievements } from "../contexts/AchievementContext";
-import { getAchievementColor, getAchievementIcon } from '../constants/achievementMappings';
 import { HEADER_HEIGHT } from '../constants/ui';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { usePulseAnimation } from '../hooks/usePulseAnimation';
@@ -85,6 +82,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   const [userName, setUserName] = useState<string>("");
   const [showInfoCard, setShowInfoCard] = useState<boolean>(true);
   const [licenseNumber, setLicenseNumber] = useState<string | null>(null);
+  const [licenseType, setLicenseType] = useState<string | null>(null);
+  const [licenseExpiry, setLicenseExpiry] = useState<string | null>(null);
   // Track current DMF mode to force re-render when it changes
   const [currentMode, setCurrentMode] = useState<AppMode>(isTestMode() ? "mock" : "production");
   // Feedback modal state
@@ -181,8 +180,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       if (savedLicense) {
         const parsedLicense = JSON.parse(savedLicense);
         setLicenseNumber(parsedLicense.licenseNumber || null);
+        setLicenseType(parsedLicense.licenseType || null);
+        setLicenseExpiry(parsedLicense.expiryDate || null);
       } else {
         setLicenseNumber(null);
+        setLicenseType(null);
+        setLicenseExpiry(null);
       }
 
       setPendingAuth(pending);
@@ -583,133 +586,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         {/* Offline Banner — slides in when device loses connectivity */}
         <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
 
-        {/* Unified Welcome Card - shows greeting and/or rewards status */}
-        {(userName || rewardsMember) && (
-          <View style={localStyles.welcomeCard}>
-            {/* Greeting Section - shows if user has a name */}
-            {userName && (
-              <View style={[localStyles.welcomeGreeting, { position: 'relative', overflow: 'hidden' }]}>
-                <WaveBackground />
-                <View style={localStyles.welcomeGreetingIcon}>
-                  {profileImage ? (
-                    <Image
-                      source={{ uri: profileImage }}
-                      style={{ width: 44, height: 44, borderRadius: 22 }}
-                      contentFit="cover"
-                      cachePolicy="disk"
-                      recyclingKey={`home-avatar-${profileImage}`}
-                      transition={200}
-                    />
-                  ) : (
-                    <Feather name="anchor" size={22} color={colors.white} />
-                  )}
-                </View>
-                <View style={[localStyles.welcomeGreetingText, { zIndex: 1 }]}>
-                  <Text style={localStyles.welcomeGreetingLine}>{nauticalGreeting},</Text>
-                  <Text style={localStyles.welcomeUserName}>{userName}</Text>
-                  <Text style={localStyles.welcomeGreetingLine}>Enjoy your fishing today!</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Rewards Status Section */}
-            {rewardsMember ? (
-              <TouchableOpacity
-                style={[
-                  localStyles.welcomeRewardsSection,
-                  userName && localStyles.welcomeRewardsSectionWithGreeting
-                ]}
-                onPress={() => navigateToScreen("Profile")}
-                activeOpacity={0.7}
-              >
-                <View style={localStyles.welcomeRewardsIcon}>
-                  <Feather name="award" size={18} color={colors.secondary} />
-                </View>
-                <View style={localStyles.welcomeRewardsContent}>
-                  <Text style={localStyles.welcomeRewardsTitle}>Rewards Member</Text>
-                  <Text style={localStyles.welcomeRewardsEmail}>{rewardsMemberEmail}</Text>
-                </View>
-                {/* Achievement icons - show 3 most recent */}
-                {userAchievements.length > 0 ? (
-                  <View style={localStyles.achievementIconsRow}>
-                    {[...userAchievements]
-                      .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
-                      .slice(0, 3)
-                      .map((ua, index) => {
-                        const category = ua.achievement.category || 'default';
-                        const code = ua.achievement.code;
-                        const iconName = getAchievementIcon(code, ua.achievement.iconName, category);
-                        const bgColor = getAchievementColor(code, category);
-                        return (
-                          <View
-                            key={ua.id}
-                            style={[
-                              localStyles.achievementIconBadge,
-                              { backgroundColor: bgColor },
-                              index > 0 && { marginLeft: -8 },
-                            ]}
-                          >
-                            <Feather
-                              name={iconName}
-                              size={14}
-                              color={colors.white}
-                            />
-                          </View>
-                        );
-                      })}
-                    {userAchievements.length > 3 && (
-                      <View key="achievement-overflow" style={[localStyles.achievementIconBadge, localStyles.achievementCountBadge, { marginLeft: -8 }]}>
-                        <Text style={localStyles.achievementCountText}>+{userAchievements.length - 3}</Text>
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <Feather name="chevron-right" size={18} color={colors.textSecondary} />
-                )}
-              </TouchableOpacity>
-            ) : userName ? (
-              /* Subtle CTA for non-members who have a name */
-              <TouchableOpacity
-                style={localStyles.welcomeJoinRewards}
-                onPress={() => navigateToScreen("Profile")}
-                activeOpacity={0.7}
-              >
-                <View style={localStyles.welcomeJoinIcon}>
-                  <Feather name="gift" size={16} color={colors.secondary} />
-                </View>
-                <Text style={localStyles.welcomeJoinText}>{hasProfileEmail ? 'Sign In to Rewards Program' : 'Join Rewards Program'}</Text>
-                <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.7)" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        )}
+        {/* Welcome Card - greeting, rewards status, achievements */}
+        <WelcomeCard
+          userName={userName}
+          profileImage={profileImage}
+          nauticalGreeting={nauticalGreeting}
+          rewardsMember={rewardsMember}
+          rewardsMemberEmail={rewardsMemberEmail}
+          userAchievements={userAchievements}
+          hasProfileEmail={hasProfileEmail}
+          onProfilePress={() => navigateToScreen("Profile")}
+        />
 
         {/* License Card Preview */}
-        <TouchableOpacity
-          style={styles.licenseCardContainer}
+        <LicenseCard
+          licenseNumber={licenseNumber}
+          licenseType={licenseType}
+          expiryDate={licenseExpiry}
           onPress={() => navigateToScreen("LicenseDetails")}
-          activeOpacity={0.7}
-        >
-          <LinearGradient
-            colors={[colors.primary, colors.primaryDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={localStyles.licenseCardGradient}
-          >
-            <View style={styles.licenseHeader}>
-              <NCFlagIcon width={56} height={36} style={{ marginRight: 12 }} />
-              <View>
-                <Text style={localStyles.licenseTitleWhite}>{SCREEN_LABELS.fishingLicense.title}</Text>
-                <Text style={localStyles.licenseSubtitleWhite}>
-                  {licenseNumber
-                    ? `License #${licenseNumber}`
-                    : "Tap to edit or view license details"}
-                </Text>
-              </View>
-            </View>
-            <Feather name="chevron-right" size={24} color={colors.white} />
-          </LinearGradient>
-        </TouchableOpacity>
+        />
 
         {/* Quick Action Cards Grid */}
         <QuickActionGrid onNavigate={navigateToScreen} isSignedIn={rewardsMember} badgeData={badgeData} />

@@ -45,6 +45,8 @@ interface HomeScreenLocalStyles {
   licenseCardGradient: ViewStyle;
   licenseTitleWhite: TextStyle;
   licenseSubtitleWhite: TextStyle;
+  licenseActivePill: ViewStyle;
+  licenseActivePillText: TextStyle;
 }
 
 export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
@@ -340,5 +342,18 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
   licenseSubtitleWhite: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.85)',
+  },
+  licenseActivePill: {
+    backgroundColor: 'hsla(142, 71%, 45%, 0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginRight: 8,
+  },
+  licenseActivePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.white,
+    letterSpacing: 0.3,
   },
 });
