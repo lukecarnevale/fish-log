@@ -57,6 +57,9 @@ interface ScreenLayoutProps {
 
   // Additional ScrollView props
   scrollViewProps?: ScrollViewProps;
+
+  // Override the status bar style (default: light-content for dark header)
+  statusBarStyle?: 'light-content' | 'dark-content';
 }
 
 const ScreenLayout: React.FC<ScreenLayoutProps> = ({
@@ -75,6 +78,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   loadingComponent,
   scrollViewRef,
   scrollViewProps,
+  statusBarStyle = 'light-content',
 }) => {
   const internalScrollRef = useRef<ScrollView>(null);
   const activeScrollRef = scrollViewRef || internalScrollRef;
@@ -83,7 +87,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   if (loading && loadingComponent) {
     return (
       <SafeAreaView style={styles.container} edges={["left", "right"]}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
         <View style={styles.loadingContainer}>
           {loadingComponent}
         </View>
@@ -122,7 +126,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   if (noScroll) {
     return (
       <SafeAreaView style={styles.noScrollContainer} edges={["left", "right"]}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
         {renderHeader()}
         <View style={styles.noScrollContentWrapper}>
           <View style={[styles.noScrollContent, contentContainerStyle]}>
@@ -136,7 +140,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   // Scrollable layout with bounce areas
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
       <ScrollView
         ref={activeScrollRef}
         style={styles.scrollView}

@@ -67,8 +67,10 @@ import AreaInfoModal from './reportForm/AreaInfoModal';
 import RaffleEntryModal from './reportForm/RaffleEntryModal';
 
 
-// Species that require mandatory harvest reporting (matches SpeciesInfoScreen)
-const REPORT_SPECIES = ['Red Drum', 'Southern Flounder', 'Spotted Seatrout', 'Striped Bass', 'Weakfish'];
+// Species that require mandatory harvest reporting.
+// Uses display names from SPECIES_DISPLAY_NAMES — "Flounder" not "Southern Flounder".
+// The aggregation layer (getSpeciesCountKey) handles mapping back to DMF fields.
+const REPORT_SPECIES = ['Red Drum', 'Flounder', 'Spotted Seatrout', 'Striped Bass', 'Weakfish'];
 
 
 const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
@@ -178,15 +180,41 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   const speciesPickerItems = useMemo(() => {
     if (allSpecies.length === 0) {
-      return REPORT_SPECIES.map(name => ({ name, harvestStatus: 'open' as const }));
+      return REPORT_SPECIES.map(name => ({ name, harvestStatus: 'open' as const, note: undefined as string | undefined }));
     }
     return REPORT_SPECIES.map(speciesName => {
+      // Flounder: aggregate harvest status across all flounder sub-species.
+      // DMF treats them as one ("NumF"), but each can be open/closed independently.
+      if (speciesName === 'Flounder') {
+        const flounderSpecies = allSpecies.filter(s => s.name.includes('Flounder'));
+        if (flounderSpecies.length === 0) {
+          return { name: speciesName, harvestStatus: 'open' as const, note: undefined };
+        }
+        const openFlounder = flounderSpecies.filter(s => s.harvestStatus === 'open');
+        const allOpen = openFlounder.length === flounderSpecies.length;
+        const allClosed = openFlounder.length === 0;
+
+        if (allOpen) {
+          return { name: speciesName, harvestStatus: 'open' as const, note: undefined };
+        } else if (allClosed) {
+          return { name: speciesName, harvestStatus: 'closed' as const, note: undefined };
+        } else {
+          const openNames = openFlounder.map(s => s.name).join(', ');
+          return {
+            name: speciesName,
+            harvestStatus: 'restricted' as const,
+            note: `${openNames} open`,
+          };
+        }
+      }
+
       const match = allSpecies.find(s =>
         s.name === speciesName || s.name.includes(speciesName) || speciesName.includes(s.name)
       );
       return {
         name: speciesName,
         harvestStatus: match?.harvestStatus ?? 'open',
+        note: undefined as string | undefined,
       };
     });
   }, [allSpecies]);
@@ -1315,10 +1343,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
-                <Text style={[
-                  styles.optionText,
-                  isSelected && localStyles.optionTextSelected
-                ]}>{item}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[
+                    styles.optionText,
+                    isSelected && localStyles.optionTextSelected
+                  ]}>{item}</Text>
+                  {speciesItem?.note && (
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{speciesItem.note}</Text>
+                  )}
+                </View>
                 {speciesItem && speciesItem.harvestStatus !== 'open' && (
                   <SpeciesListBulletinIndicator harvestStatus={speciesItem.harvestStatus} showLabels />
                 )}
@@ -1362,7 +1395,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         >
           {rawValue ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
-              <Text style={styles.selectorText}>{String(rawValue)}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.selectorText}>{String(rawValue)}</Text>
+                {speciesItem?.note && (
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{speciesItem.note}</Text>
+                )}
+              </View>
               {speciesItem && speciesItem.harvestStatus !== 'open' && (
                 <SpeciesListBulletinIndicator harvestStatus={speciesItem.harvestStatus} showLabels />
               )}

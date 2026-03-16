@@ -172,6 +172,13 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
 
           {/* ── Footer buttons ─────────────────────────────────────────────── */}
           <View style={styles.footerRow}>
+            <TouchableOpacity
+              style={[styles.dismissButton, !onViewAll && { flex: 1 }]}
+              onPress={onDismissAll}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.dismissText}>Dismiss All</Text>
+            </TouchableOpacity>
             {onViewAll && (
               <TouchableOpacity
                 style={styles.viewAllButton}
@@ -181,13 +188,6 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                 <Text style={styles.viewAllText}>View All Bulletins</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity
-              style={[styles.dismissButton, !onViewAll && { flex: 1 }]}
-              onPress={onDismissAll}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.dismissText}>Dismiss All</Text>
-            </TouchableOpacity>
           </View>
         </>
       )}

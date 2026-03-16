@@ -29,7 +29,7 @@ jest.mock('../../src/api/speciesApi', () => ({
   useAllFishSpecies: jest.fn(() => ({
     data: [
       { id: '1', name: 'Red Drum', images: { primary: '' } },
-      { id: '2', name: 'Southern Flounder', images: { primary: '' } },
+      { id: '2', name: 'Flounder', images: { primary: '' } },
       { id: '3', name: 'Spotted Seatrout', images: { primary: '' } },
       { id: '4', name: 'Striped Bass', images: { primary: '' } },
       { id: '5', name: 'Weakfish', images: { primary: '' } },
@@ -705,7 +705,7 @@ describe('ReportFormScreen', () => {
 
       // All five report species should appear in the picker
       expect(getByText('Red Drum')).toBeTruthy();
-      expect(getByText('Southern Flounder')).toBeTruthy();
+      expect(getByText('Flounder')).toBeTruthy();
       expect(getByText('Spotted Seatrout')).toBeTruthy();
       expect(getByText('Striped Bass')).toBeTruthy();
       expect(getByText('Weakfish')).toBeTruthy();
@@ -718,10 +718,10 @@ describe('ReportFormScreen', () => {
 
       fireEvent.press(getByText('Myself Only'));
       fireEvent.press(getByText('Select species'));
-      fireEvent.press(getByText('Southern Flounder'));
+      fireEvent.press(getByText('Flounder'));
 
       // The selector should now display the selected species
-      expect(getByText('Southern Flounder')).toBeTruthy();
+      expect(getByText('Flounder')).toBeTruthy();
       // The placeholder should be gone
       expect(queryByText('Select species')).toBeNull();
     });
