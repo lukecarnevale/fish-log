@@ -233,16 +233,7 @@ describe('PastReportsScreen', () => {
       expect(await findByText(/Sync failed \(2x\)/)).toBeTruthy();
     });
 
-    it('renders subtitle with report counts', async () => {
-      mockGetHistory.mockResolvedValue([submittedReport]);
-      mockGetQueue.mockResolvedValue([queuedReport]);
-
-      const { findByText } = render(
-        <PastReportsScreen navigation={mockNavigation} />
-      );
-
-      expect(await findByText('1 submitted • 1 pending')).toBeTruthy();
-    });
+    // Subtitle removed — counts are shown in the filter tabs instead
   });
 
   // ===== Filter Tabs =====

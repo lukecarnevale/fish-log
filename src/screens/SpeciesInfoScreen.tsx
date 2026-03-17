@@ -1235,7 +1235,7 @@ const localStyles = StyleSheet.create({
     borderRightColor: colors.accent,
   },
   listContent: {
-    paddingTop: 84, // Space for floating search bar + filter dropdown
+    paddingTop: 64, // Space for floating search bar + filter dropdown
     paddingHorizontal: 16,
     paddingBottom: 24,
     paddingRight: 32, // Extra space for alphabet sidebar
