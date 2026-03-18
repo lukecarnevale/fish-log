@@ -28,6 +28,7 @@ import { colors } from '../styles/common';
 import { RootStackParamList } from '../types';
 import { WaveBackground } from './WaveBackground';
 import { devConfig } from '../config/devConfig';
+import { useFeatureFlag } from '../api/featureFlagsApi';
 import { setAppModeWithWarning, AppMode, APP_VERSION } from '../config/appConfig';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { AppLogoIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, MultipleFishIcon, LicenseCardIcon } from './icons/DrawerMenuIcons';
@@ -165,6 +166,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   onDismissBulletin,
 }) => {
   const menuScrollRef = useRef<ScrollView>(null);
+  const { enabled: promotionsEnabled } = useFeatureFlag('promotions_hub');
 
   // Reset scroll position when menu opens
   useEffect(() => {
@@ -452,18 +454,22 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             iconBgColor="#E3EBF6"
           />
 
-          <View style={styles.divider} />
+          {promotionsEnabled && (
+            <>
+              <View style={styles.divider} />
 
-          <MenuItem
-            icon="tag"
-            label={SCREEN_LABELS.promotions.title}
-            subtitle={SCREEN_LABELS.promotions.subtitle}
-            onPress={() => handleNavigate("Promotions")}
-            iconBgColor="#FFF3E0"
-            iconColor="#FF7F25"
-            disabled={!isSignedIn}
-            onDisabledPress={() => handleNavigate("Profile")}
-          />
+              <MenuItem
+                icon="tag"
+                label={SCREEN_LABELS.promotions.title}
+                subtitle={SCREEN_LABELS.promotions.subtitle}
+                onPress={() => handleNavigate("Promotions")}
+                iconBgColor="#FFF3E0"
+                iconColor="#FF7F25"
+                disabled={!isSignedIn}
+                onDisabledPress={() => handleNavigate("Profile")}
+              />
+            </>
+          )}
 
           <Text style={styles.sectionHeader}>External Links</Text>
 
