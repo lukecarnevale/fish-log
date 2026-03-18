@@ -7,8 +7,10 @@ import { supabase, isSupabaseConnected } from '../config/supabase';
 import { withConnection } from './base';
 import {
   transformAdvertisement,
+  transformAdvertisementSafe,
   type Advertisement,
   type AdPlacement,
+  type AdCategory,
 } from './transformers/advertisementTransformer';
 
 // =============================================================================
@@ -16,7 +18,7 @@ import {
 // =============================================================================
 
 // Re-export types for backwards compatibility
-export type { Advertisement, AdPlacement };
+export type { Advertisement, AdPlacement, AdCategory };
 
 // =============================================================================
 // Fetch Functions
@@ -42,7 +44,8 @@ export async function fetchAdvertisements(
       .from('advertisements')
       .select('*')
       .eq('is_active', true)
-      .order('priority', { ascending: true });
+      .order('priority', { ascending: true })
+      .limit(100);
 
     // Filter by placement if specified
     if (placement) {
@@ -63,7 +66,22 @@ export async function fetchAdvertisements(
     }
 
     if (data && data.length > 0) {
-      const ads = data.map(row => transformAdvertisement(row as Record<string, unknown>));
+      const ads = data
+        .map(row => transformAdvertisementSafe(row as Record<string, unknown>))
+        .filter((ad): ad is Advertisement => ad !== null);
+
+      // Check if any image URLs are placeholder URLs (not yet configured)
+      const hasPlaceholderUrls = ads.some(ad =>
+        ad.imageUrl.includes('your-supabase-url') ||
+        ad.imageUrl.includes('placeholder') ||
+        !ad.imageUrl.startsWith('https://')
+      );
+
+      if (hasPlaceholderUrls) {
+        console.log('📢 Supabase ads have placeholder URLs');
+        return { advertisements: [], fromCache: false };
+      }
+
       console.log(`📢 Fetched ${ads.length} advertisements from Supabase`);
       return { advertisements: ads, fromCache: false };
     }

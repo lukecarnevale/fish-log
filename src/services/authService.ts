@@ -21,11 +21,20 @@ const APP_SCHEME = 'fishlog';
 /**
  * Get the redirect URL for magic link authentication.
  * Must be called at runtime (not module load) to ensure Expo linking is ready.
- * In Expo Go: exp://192.168.x.x:8081/--/auth/callback
- * In standalone: fishlog://auth/callback
+ *
+ * URL formats by environment:
+ *   Production:    fishlog://auth/callback
+ *   Dev client:    exp+fishlog://auth/callback  (or fishlog:// depending on SDK)
+ *   Expo Go:       exp://192.168.x.x:8081/--/auth/callback
+ *
+ * IMPORTANT: Whatever URL this returns MUST be added to Supabase Dashboard →
+ * Authentication → URL Configuration → Redirect URLs.  Both the production
+ * AND development URLs must be listed there for magic link to work in both.
  */
 function getRedirectURL(): string {
-  return Linking.createURL('auth/callback');
+  const url = Linking.createURL('auth/callback');
+  console.log(`🔗 [Auth] Redirect URL for this build: ${url}`);
+  return url;
 }
 
 // =============================================================================
@@ -424,19 +433,30 @@ export async function handleMagicLinkCallback(
 
 /**
  * Check if a URL is a magic link callback.
- * Handles both Expo Go URLs (exp://.../--/auth/callback) and standalone URLs (fishlog://auth/callback)
+ * Handles all Expo URL formats:
+ *   - Production:    fishlog://auth/callback
+ *   - Dev client:    exp+fishlog://auth/callback
+ *   - Expo Go:       exp://192.168.x.x:8081/--/auth/callback
+ *   - Legacy:        expo-development-client://auth/callback
  */
 export function isMagicLinkCallback(url: string): boolean {
-  // Check for standalone app scheme
-  if (url.startsWith(`${APP_SCHEME}://auth/callback`)) {
-    return true;
+  // Normalize: any URL containing /auth/callback (with optional /--/ prefix) is a candidate
+  // as long as the scheme is one we recognise.
+  const AUTH_CALLBACK_PATTERN = /\/(?:--\/)?auth\/callback/;
+
+  if (!AUTH_CALLBACK_PATTERN.test(url)) {
+    return false;
   }
-  // Check for Expo Go scheme (exp:// or expo-development-client://)
-  // The path will contain /--/auth/callback or /auth/callback
-  if (url.includes('/auth/callback') && (url.startsWith('exp://') || url.startsWith('expo-development-client://'))) {
-    return true;
-  }
-  return false;
+
+  // Accept any scheme that belongs to our app
+  const knownPrefixes = [
+    `${APP_SCHEME}://`,           // Production: fishlog://
+    `exp+${APP_SCHEME}://`,       // Expo Dev Client: exp+fishlog://
+    'exp://',                      // Expo Go
+    'expo-development-client://',  // Legacy Expo Dev Client
+  ];
+
+  return knownPrefixes.some(prefix => url.startsWith(prefix));
 }
 
 // =============================================================================

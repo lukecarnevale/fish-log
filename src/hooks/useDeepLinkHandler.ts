@@ -19,6 +19,10 @@ import {
 import {
   completePendingSubmissionByEmail,
 } from '../services/pendingSubmissionService';
+import {
+  consumeBufferedUrl,
+  stopBuffering,
+} from '../services/deepLinkBuffer';
 
 /**
  * Hook for handling deep links (magic link authentication).
@@ -30,6 +34,7 @@ import {
  * - Shows user welcome message with claimed catches info
  * - Listens for incoming deep links while app is running
  * - Handles initial URL when app opens via deep link
+ * - Consumes any URLs buffered during splash screen animation
  */
 export function useDeepLinkHandler() {
   /**
@@ -118,10 +123,22 @@ export function useDeepLinkHandler() {
       console.warn('Failed to clear stale pending auth:', err);
     });
 
-    // Handle deep links - check for initial URL (app opened via link)
+    // 1) Check if a deep link arrived during the splash screen animation
+    //    (captured by the module-level buffer in deepLinkBuffer.ts).
+    const earlyUrl = consumeBufferedUrl();
+    if (earlyUrl) {
+      console.log('📦 Processing buffered deep link:', earlyUrl);
+      handleDeepLink(earlyUrl);
+    }
+
+    // 2) Stop the module-level buffer — this hook's listener takes over.
+    stopBuffering();
+
+    // 3) Handle cold start — check for the URL that launched the app.
     Linking.getInitialURL()
       .then((url) => {
-        if (url) {
+        if (url && url !== earlyUrl) {
+          // Only process if it wasn't already consumed from the buffer
           handleDeepLink(url);
         }
       })
@@ -129,7 +146,7 @@ export function useDeepLinkHandler() {
         console.warn('Failed to get initial URL:', error);
       });
 
-    // Listen for deep links while app is running
+    // 4) Listen for deep links while app is running (warm start / foreground).
     const linkingSubscription = Linking.addEventListener('url', (event) => {
       handleDeepLink(event.url);
     });

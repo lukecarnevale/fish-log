@@ -60,6 +60,13 @@ export {
   transformPartner,
 } from './partner';
 
+// Partner Inquiry Types (Promotions Hub)
+export {
+  type PartnerInquiry,
+  type BusinessType,
+  BUSINESS_TYPE_OPTIONS,
+} from './partnerInquiry';
+
 // Legal Document Types
 export type LegalDocumentType = 'privacy' | 'terms' | 'licenses';
 
@@ -75,6 +82,8 @@ export type RootStackParamList = {
   Bulletins: undefined;
   Profile: undefined;
   LegalDocument: { type: LegalDocumentType };
+  Promotions: undefined;
+  PartnerInquiry: undefined;
 };
 
 // Fish Report Types
