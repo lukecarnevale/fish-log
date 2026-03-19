@@ -63,21 +63,22 @@ describe('fetchPromotions', () => {
     expect(chain.eq).toHaveBeenCalledWith('category', 'charter');
   });
 
-  it('falls back to local data when offline', async () => {
+  it('returns empty promotions when offline', async () => {
     mockIsSupabaseConnected.mockResolvedValue(false);
 
     const result = await fetchPromotions();
 
-    expect(result.fromCache).toBe(true);
-    expect(result.promotions.length).toBeGreaterThanOrEqual(0);
+    expect(result.fromCache).toBe(false);
+    expect(result.promotions).toEqual([]);
   });
 
-  it('falls back to local data on Supabase error', async () => {
+  it('returns empty promotions on Supabase error', async () => {
     mockQuery(null, { message: 'Connection refused' });
 
     const result = await fetchPromotions();
 
-    expect(result.fromCache).toBe(true);
+    expect(result.fromCache).toBe(false);
+    expect(result.promotions).toEqual([]);
   });
 
   it('skips invalid rows via safe transform and still returns valid ones', async () => {
@@ -143,17 +144,18 @@ describe('fetchPromotions', () => {
     expect(result.promotions).toHaveLength(1);
   });
 
-  it('falls back to local data when all transforms fail', async () => {
+  it('returns empty when all transforms fail', async () => {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
     mockQuery([{ id: '', company_name: '' }], null, 1);
 
     const result = await fetchPromotions();
 
-    expect(result.fromCache).toBe(true);
+    expect(result.fromCache).toBe(false);
+    expect(result.promotions).toEqual([]);
     consoleSpy.mockRestore();
   });
 
-  it('detects placeholder URLs and falls back to local data', async () => {
+  it('returns empty when placeholder URLs detected', async () => {
     const placeholder = makeSupabaseAdvertisementRow({
       image_url: 'https://your-supabase-url.com/placeholder.jpg',
     });
@@ -161,7 +163,8 @@ describe('fetchPromotions', () => {
 
     const result = await fetchPromotions();
 
-    expect(result.fromCache).toBe(true);
+    expect(result.fromCache).toBe(false);
+    expect(result.promotions).toEqual([]);
   });
 
   it('applies limit and offset when provided', async () => {
@@ -173,13 +176,14 @@ describe('fetchPromotions', () => {
     expect(chain.range).toHaveBeenCalledWith(20, 29);
   });
 
-  it('returns empty from Supabase when no promotions match and falls back', async () => {
+  it('returns empty from Supabase when no promotions match', async () => {
     mockQuery([], null, 0);
 
     const result = await fetchPromotions();
 
-    // Empty Supabase result falls through to local data
-    expect(result.fromCache).toBe(true);
+    expect(result.fromCache).toBe(false);
+    expect(result.promotions).toEqual([]);
+    expect(result.total).toBe(0);
   });
 });
 
