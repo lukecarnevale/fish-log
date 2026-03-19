@@ -436,6 +436,8 @@ const styles = StyleSheet.create({
   flatListContent: {
     backgroundColor: colors.background,
     flexGrow: 1,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   columnWrapper: {
     paddingHorizontal: spacing.md,

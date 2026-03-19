@@ -670,10 +670,12 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               style={StyleSheet.absoluteFill}
             />
             <View style={styles.prizeSectionHeader}>
-              <Feather name="award" size={18} color={COLORS.orange} />
-              <Text style={styles.prizeSectionCardTitle}>
-                Current Quarter Prize
-              </Text>
+              <View style={styles.prizeSectionHeaderPill}>
+                <Feather name="award" size={14} color={COLORS.orange} />
+                <Text style={styles.prizeSectionCardTitle}>
+                  Current Quarter Prize
+                </Text>
+              </View>
             </View>
             {renderPrizeItem(currentDrawing.prizes?.[0])}
           </TouchableOpacity>
@@ -952,16 +954,22 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   prizeSectionHeader: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  prizeSectionHeaderPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
+    backgroundColor: 'rgba(255,143,0,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
     gap: 6,
   },
   prizeSectionCardTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.navyDark,
+    color: COLORS.textPrimary,
     letterSpacing: 0.3,
   },
   // Legacy — used in modal

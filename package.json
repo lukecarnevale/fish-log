@@ -17,7 +17,9 @@
     "release:patch": "standard-version --release-as patch",
     "release:minor": "standard-version --release-as minor",
     "release:major": "standard-version --release-as major",
-    "release:dry": "standard-version --dry-run"
+    "release:dry": "standard-version --dry-run",
+    "bulletin": "node --env-file=.env.development scripts/postBulletin.mjs",
+    "bulletin:prod": "node --env-file=.env.production scripts/postBulletin.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
