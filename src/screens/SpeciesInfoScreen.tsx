@@ -16,6 +16,7 @@ import {
   PanResponder,
   GestureResponderEvent,
   LayoutChangeEvent,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -34,6 +35,8 @@ import { SpeciesDetailBulletinBanner } from "../components/SpeciesDetailBulletin
 import { useSpeciesAlerts } from "../contexts/SpeciesAlertsContext";
 import { useBulletinsForSpecies } from "../api/speciesBulletinApi";
 import SpeciesFilterChips from "../components/SpeciesFilterChips";
+import FloatingBackButton from "../components/FloatingBackButton";
+import { useFloatingHeaderAnimation } from "../hooks/useFloatingHeaderAnimation";
 
 type SpeciesInfoScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -207,6 +210,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
   const handleSelectSpecies = (species: EnhancedFishSpecies) => {
     setSelectedSpecies(species);
     setCurrentImageIndex(0);
+    detailScrollY.setValue(0);
     swipeX.setValue(screenWidth);
     Animated.spring(swipeX, {
       toValue: 0,
@@ -835,7 +839,22 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
   };
   
   const scrollViewRef = useRef<ScrollView>(null);
-  
+
+  // Scroll animation for floating back button in detail view
+  const { scrollY: detailScrollY, floatingOpacity: detailFloatingOpacity, floatingTranslateXLeft: detailFloatingTranslateX } = useFloatingHeaderAnimation();
+
+  // Track scroll position for dynamic status bar style in detail view
+  const [detailStatusBarStyle, setDetailStatusBarStyle] = useState<'light-content' | 'dark-content'>('light-content');
+  const detailStatusBarStyleRef = useRef(detailStatusBarStyle);
+  detailStatusBarStyleRef.current = detailStatusBarStyle;
+
+  // Reset status bar style when detail closes
+  useEffect(() => {
+    if (!selectedSpecies) {
+      setDetailStatusBarStyle('light-content');
+    }
+  }, [selectedSpecies]);
+
   // Derive opacity from swipeX so the detail fades slightly as it slides away
   const detailOpacity = swipeX.interpolate({
     inputRange: [0, screenWidth * 0.5, screenWidth],
@@ -876,11 +895,33 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
           ]}
           {...detailSwipePanResponder.panHandlers}
         >
+          <FloatingBackButton
+            opacity={detailFloatingOpacity}
+            translateX={detailFloatingTranslateX}
+            onPress={handleCloseDetail}
+          />
           <ScreenLayout
             navigation={{ goBack: handleCloseDetail }}
             title={selectedSpecies.name}
             subtitle={selectedSpecies.scientificName}
             scrollViewRef={scrollViewRef}
+            statusBarStyle={detailStatusBarStyle}
+            scrollViewProps={{
+              onScroll: (e: any) => {
+                const y = e.nativeEvent.contentOffset.y;
+                detailScrollY.setValue(y);
+
+                // Switch status bar when the dark header scrolls past the status bar area.
+                // ScreenLayout header: ~145px total (paddingTop 60 + row 40 + subtitle ~20 + paddingBottom ~24).
+                // iOS status bar: ~50px. Threshold ≈ 145 - 50 - 12 (border radius) ≈ 83.
+                const threshold = Platform.OS === 'android' ? 60 : 83;
+                const newStyle = y > threshold ? 'dark-content' : 'light-content';
+                if (newStyle !== detailStatusBarStyleRef.current) {
+                  setDetailStatusBarStyle(newStyle);
+                }
+              },
+              scrollEventThrottle: 16,
+            }}
           >
             <View>
               {/* Image gallery */}
@@ -1194,7 +1235,7 @@ const localStyles = StyleSheet.create({
     borderRightColor: colors.accent,
   },
   listContent: {
-    paddingTop: 84, // Space for floating search bar + filter dropdown
+    paddingTop: 64, // Space for floating search bar + filter dropdown
     paddingHorizontal: 16,
     paddingBottom: 24,
     paddingRight: 32, // Extra space for alphabet sidebar

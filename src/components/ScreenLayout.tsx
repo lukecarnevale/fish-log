@@ -6,7 +6,7 @@
 // - ScrollView with proper bounce colors (dark blue top, light background bottom)
 // - Content container with flexGrow: 1
 
-import React, { ReactNode, useRef } from 'react';
+import React, { ReactNode, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import {
   RefreshControl,
   ScrollViewProps,
   StatusBar,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -57,6 +59,9 @@ interface ScreenLayoutProps {
 
   // Additional ScrollView props
   scrollViewProps?: ScrollViewProps;
+
+  // Override the status bar style (default: light-content for dark header)
+  statusBarStyle?: 'light-content' | 'dark-content';
 }
 
 const ScreenLayout: React.FC<ScreenLayoutProps> = ({
@@ -75,15 +80,31 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   loadingComponent,
   scrollViewRef,
   scrollViewProps,
+  statusBarStyle = 'light-content',
 }) => {
   const internalScrollRef = useRef<ScrollView>(null);
   const activeScrollRef = scrollViewRef || internalScrollRef;
+
+  // Dynamically switch status bar when header scrolls out of view
+  const [activeBarStyle, setActiveBarStyle] = useState(statusBarStyle);
+  const HEADER_SCROLL_THRESHOLD = 100; // approx header height
+
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const y = e.nativeEvent.contentOffset.y;
+      const newStyle = y > HEADER_SCROLL_THRESHOLD ? 'dark-content' : 'light-content';
+      setActiveBarStyle((prev) => (prev !== newStyle ? newStyle : prev));
+      // Forward to any existing onScroll from scrollViewProps
+      scrollViewProps?.onScroll?.(e);
+    },
+    [scrollViewProps],
+  );
 
   // Loading state render
   if (loading && loadingComponent) {
     return (
       <SafeAreaView style={styles.container} edges={["left", "right"]}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
         <View style={styles.loadingContainer}>
           {loadingComponent}
         </View>
@@ -122,7 +143,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   if (noScroll) {
     return (
       <SafeAreaView style={styles.noScrollContainer} edges={["left", "right"]}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
         {renderHeader()}
         <View style={styles.noScrollContentWrapper}>
           <View style={[styles.noScrollContent, contentContainerStyle]}>
@@ -136,12 +157,13 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   // Scrollable layout with bounce areas
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+      <StatusBar barStyle={activeBarStyle} backgroundColor={activeBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
       <ScrollView
         ref={activeScrollRef}
         style={styles.scrollView}
         contentContainerStyle={[styles.contentContainer, contentContainerStyle]}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
         refreshControl={
           onRefresh ? (
             <RefreshControl
@@ -153,6 +175,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
           ) : undefined
         }
         {...scrollViewProps}
+        onScroll={handleScroll}
       >
         {/* Top bounce area - dark blue for overscroll at top */}
         <View style={styles.topBounceArea} />

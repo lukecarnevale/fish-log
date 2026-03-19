@@ -69,14 +69,7 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
                     ? cleanLicenseType(licenseType)
                     : SCREEN_LABELS.fishingLicense.title}
                 </Text>
-                <View style={styles.numberRow}>
-                  <Text style={styles.title}>#{licenseNumber}</Text>
-                  {expiryDate && (
-                    <Text style={styles.expiry}>
-                      Exp. {formatExpiry(expiryDate)}
-                    </Text>
-                  )}
-                </View>
+                <Text style={styles.licenseNumber}>#{licenseNumber}</Text>
               </>
             ) : (
               <>
@@ -87,11 +80,18 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
           </View>
         </View>
         <View style={styles.rightSection}>
-          {expiryDate && isActive(expiryDate) && (
-            <View style={styles.activePill}>
-              <Text style={styles.activePillText}>Active</Text>
-            </View>
-          )}
+          <View style={styles.statusColumn}>
+            {expiryDate && isActive(expiryDate) && (
+              <View style={styles.activePill}>
+                <Text style={styles.activePillText}>Active</Text>
+              </View>
+            )}
+            {expiryDate && (
+              <Text style={styles.expiry}>
+                Exp. {formatExpiry(expiryDate)}
+              </Text>
+            )}
+          </View>
           <Feather name="chevron-right" size={24} color={colors.white} />
         </View>
       </LinearGradient>
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   gradient: {
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    padding: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -128,26 +128,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.85)',
   },
-  numberRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+  licenseNumber: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: colors.white,
     marginTop: 4,
-  },
-  expiry: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.6)',
-    marginLeft: 20,
   },
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  statusColumn: {
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  expiry: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 8,
   },
   activePill: {
     backgroundColor: 'hsla(142, 71%, 45%, 0.5)',
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 10,
-    marginRight: 8,
   },
   activePillText: {
     fontSize: 11,

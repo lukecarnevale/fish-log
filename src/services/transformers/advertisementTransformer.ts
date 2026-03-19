@@ -3,9 +3,14 @@
  *
  * Transformer for converting Supabase advertisement rows to camelCase TypeScript types.
  * Consolidates snake_case -> camelCase transformations for the Advertisement entity.
+ * Uses Zod validation to ensure data integrity at runtime.
  */
 
-export type AdPlacement = 'home' | 'catch_feed' | 'past_reports' | 'more_menu' | 'profile';
+import { AdvertisementRowSchema } from '../validators/promotionSchemas';
+
+export type AdPlacement = 'home' | 'catch_feed' | 'past_reports' | 'more_menu' | 'profile' | 'promotions';
+
+export type AdCategory = 'promotion' | 'charter' | 'gear' | 'service' | 'experience';
 
 /**
  * Advertisement type (camelCase, TypeScript-friendly).
@@ -27,6 +32,15 @@ export interface Advertisement {
   impressionCount: number;
   createdAt: string;
   updatedAt: string;
+  // Promotions Hub fields
+  category: AdCategory;
+  areaCodes: string[];
+  description?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  contactWebsite?: string;
+  featured: boolean;
+  badgeText?: string;
 }
 
 /**
@@ -49,6 +63,15 @@ export interface SupabaseAdvertisement {
   impression_count: number;
   created_at: string;
   updated_at: string;
+  // Promotions Hub fields
+  category?: string;
+  area_codes?: string[];
+  description?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  contact_website?: string;
+  featured?: boolean;
+  badge_text?: string;
 }
 
 /**
@@ -69,29 +92,57 @@ export interface SupabaseAdvertisement {
  * - updated_at -> updatedAt
  */
 export function transformAdvertisement(row: Record<string, unknown>): Advertisement {
+  // Validate with Zod schema for runtime safety
+  const validated = AdvertisementRowSchema.parse(row);
+
   return {
-    id: row.id as string,
-    companyName: row.company_name as string,
-    promoText: row.promo_text as string,
-    promoCode: row.promo_code as string | undefined,
-    linkUrl: row.link_url as string,
-    imageUrl: row.image_url as string,
-    isActive: row.is_active as boolean,
-    priority: row.priority as number,
-    placements: row.placements as AdPlacement[],
-    location: row.location as string | undefined,
-    startDate: row.start_date as string | undefined,
-    endDate: row.end_date as string | undefined,
-    clickCount: row.click_count as number,
-    impressionCount: row.impression_count as number,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
+    id: validated.id,
+    companyName: validated.company_name,
+    promoText: validated.promo_text,
+    promoCode: validated.promo_code ?? undefined,
+    linkUrl: validated.link_url ?? '',
+    imageUrl: validated.image_url ?? '',
+    isActive: validated.is_active,
+    priority: validated.priority,
+    placements: validated.placements as AdPlacement[],
+    location: validated.location ?? undefined,
+    startDate: validated.start_date ?? undefined,
+    endDate: validated.end_date ?? undefined,
+    clickCount: validated.click_count,
+    impressionCount: validated.impression_count,
+    createdAt: validated.created_at,
+    updatedAt: validated.updated_at,
+    // Promotions Hub fields
+    category: validated.category as AdCategory,
+    areaCodes: validated.area_codes,
+    description: validated.description ?? undefined,
+    contactPhone: validated.contact_phone ?? undefined,
+    contactEmail: validated.contact_email ?? undefined,
+    contactWebsite: validated.contact_website ?? undefined,
+    featured: validated.featured,
+    badgeText: validated.badge_text ?? undefined,
   };
 }
 
 /**
+ * Safe version of transformAdvertisement that returns null on invalid data
+ * instead of throwing. Use when processing lists where some rows may be corrupted.
+ */
+export function transformAdvertisementSafe(row: Record<string, unknown>): Advertisement | null {
+  try {
+    return transformAdvertisement(row);
+  } catch (error) {
+    console.warn('Skipping invalid advertisement:', (error as Error).message);
+    return null;
+  }
+}
+
+/**
  * Transform a list of Supabase advertisement rows to camelCase Advertisement types.
+ * Skips invalid rows gracefully using transformAdvertisementSafe.
  */
 export function transformAdvertisementList(rows: Record<string, unknown>[]): Advertisement[] {
-  return rows.map(transformAdvertisement);
+  return rows
+    .map(transformAdvertisementSafe)
+    .filter((ad): ad is Advertisement => ad !== null);
 }
