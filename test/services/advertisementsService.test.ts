@@ -58,10 +58,11 @@ describe('advertisementsService', () => {
 
     it('fetches and transforms advertisements from Supabase', async () => {
       // The chain ends with the second .or() call (date range filter)
-      // Build chain: .from().select().eq().order().contains?().or().or()
+      // Build chain: .from().select().eq().order().limit().or().or()
       const orMock2 = jest.fn().mockResolvedValue({ data: [mockAdRow], error: null });
       const orMock1 = jest.fn().mockReturnValue({ or: orMock2 });
-      const orderMock = jest.fn().mockReturnValue({ or: orMock1 });
+      const limitMock = jest.fn().mockReturnValue({ or: orMock1 });
+      const orderMock = jest.fn().mockReturnValue({ limit: limitMock });
       const eqMock = jest.fn().mockReturnValue({ order: orderMock });
       const selectMock = jest.fn().mockReturnValue({ eq: eqMock });
 
@@ -81,7 +82,8 @@ describe('advertisementsService', () => {
       const orMock2 = jest.fn().mockResolvedValue({ data: [mockAdRow], error: null });
       const orMock1 = jest.fn().mockReturnValue({ or: orMock2 });
       const containsMock = jest.fn().mockReturnValue({ or: orMock1 });
-      const orderMock = jest.fn().mockReturnValue({ contains: containsMock });
+      const limitMock = jest.fn().mockReturnValue({ contains: containsMock });
+      const orderMock = jest.fn().mockReturnValue({ limit: limitMock });
       const eqMock = jest.fn().mockReturnValue({ order: orderMock });
       const selectMock = jest.fn().mockReturnValue({ eq: eqMock });
 

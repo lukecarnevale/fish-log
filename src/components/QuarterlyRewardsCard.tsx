@@ -33,6 +33,8 @@ interface QuarterlyRewardsCardProps {
   onReportPress?: () => void;
   /** Whether the user is signed in (rewards member) */
   isSignedIn?: boolean;
+  /** Whether the user has an email in their profile */
+  hasProfileEmail?: boolean;
 }
 
 // ============================================
@@ -267,7 +269,7 @@ const QuarterlyRewardsCardSkeleton: React.FC = () => {
 // MAIN COMPONENT
 // ============================================
 
-const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false }) => {
+const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false, hasProfileEmail = false }) => {
   const navigation = useNavigation<NavigationProp>();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [scrollToPrizes, setScrollToPrizes] = useState(false);
@@ -655,38 +657,51 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             </View>
           </View>
 
-          {/* Prize Section */}
+          {/* Prize Section — eye-catching card */}
           <TouchableOpacity
-            style={styles.prizeSection}
+            style={styles.prizeSectionCard}
             onPress={() => { setScrollToPrizes(true); setShowDetailsModal(true); }}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <Text style={styles.prizeSectionTitle}>
-              Current Quarter Prize
-            </Text>
+            <LinearGradient
+              colors={['#FFECB3', '#FFFDF5']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.prizeSectionHeader}>
+              <View style={styles.prizeSectionHeaderPill}>
+                <Feather name="award" size={14} color={COLORS.orange} />
+                <Text style={styles.prizeSectionCardTitle}>
+                  Current Quarter Prize
+                </Text>
+              </View>
+            </View>
             {renderPrizeItem(currentDrawing.prizes?.[0])}
           </TouchableOpacity>
 
-          {/* Notification Banner */}
-          <TouchableOpacity
-            style={styles.notificationBanner}
-            onPress={() => navigation.navigate('Profile')}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={[COLORS.navyDark, COLORS.navyLight]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.notificationIcon}>
-              <Feather name="mail" size={18} color="white" />
-            </View>
-            <Text style={styles.notificationText}>
-              Selected contributors will be notified via email. Make sure your account info is up to date!
-            </Text>
-            <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.6)" />
-          </TouchableOpacity>
+          {/* Notification Banner - only show if user hasn't added email to profile */}
+          {!hasProfileEmail && (
+            <TouchableOpacity
+              style={styles.notificationBanner}
+              onPress={() => navigation.navigate('Profile')}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={[COLORS.navyDark, COLORS.navyLight]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.notificationIcon}>
+                <Feather name="mail" size={18} color="white" />
+              </View>
+              <Text style={styles.notificationText}>
+                Selected contributors will be notified via email. Make sure your account info is up to date!
+              </Text>
+              <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+          )}
 
         </View>
       </View>
@@ -929,6 +944,35 @@ const styles = StyleSheet.create({
   },
 
   // Prize Section
+  prizeSectionCard: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#FFD54F',
+    padding: 14,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  prizeSectionHeader: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  prizeSectionHeaderPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,143,0,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 6,
+  },
+  prizeSectionCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    letterSpacing: 0.3,
+  },
+  // Legacy — used in modal
   prizeSection: {
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -943,35 +987,35 @@ const styles = StyleSheet.create({
   prizeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: 'rgba(255,255,255,0.7)',
     borderRadius: 12,
     padding: 12,
   },
   prizeIllustration: {
-    width: 60,
-    height: 50,
+    width: 68,
+    height: 58,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   prizeImage: {
-    width: 60,
-    height: 50,
-    borderRadius: 8,
+    width: 68,
+    height: 58,
+    borderRadius: 10,
   },
   prizeDetails: {
     flex: 1,
   },
   prizeName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: COLORS.textPrimary,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   prizeValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.navyDark,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.orange,
   },
   prizeSponsor: {
     fontSize: 12,

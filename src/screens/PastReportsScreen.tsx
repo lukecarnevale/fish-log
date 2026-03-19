@@ -890,6 +890,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       <ScreenLayout
         navigation={navigation}
         title={SCREEN_LABELS.pastReports.title}
+        headerStyle={{ paddingBottom: 12 }}
         noScroll
       >
         <PastReportsSkeletonLoader />
@@ -901,8 +902,8 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     <ScreenLayout
       navigation={navigation}
       title={SCREEN_LABELS.pastReports.title}
-      subtitle={`${submittedReports.length} submitted • ${queuedReports.length} pending`}
       headerRight={headerRight}
+      headerStyle={{ paddingBottom: 12 }}
       noScroll
     >
       {/* Pending Banner */}

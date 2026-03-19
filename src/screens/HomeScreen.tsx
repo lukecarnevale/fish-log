@@ -613,6 +613,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         <QuarterlyRewardsCard
           onReportPress={handleReportPress}
           isSignedIn={rewardsMember}
+          hasProfileEmail={hasProfileEmail}
         />
 
         {/* Advertisement Banner */}

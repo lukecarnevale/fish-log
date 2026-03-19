@@ -16,10 +16,11 @@ export const SPECIES_ALIASES: Record<string, string[]> = {
   'specks': ['spotted seatrout', 'speckled trout', 'seatrout', 'speck', 'spotted sea trout'],
   'speck': ['spotted seatrout', 'speckled trout', 'seatrout', 'specks', 'spotted sea trout'],
   'seatrout': ['spotted seatrout', 'speckled trout', 'specks', 'speck', 'spotted sea trout'],
-  // Flounder variations
-  'flounder': ['southern flounder', 'summer flounder', 'fluke'],
-  'southern flounder': ['flounder', 'summer flounder', 'fluke'],
-  'summer flounder': ['flounder', 'southern flounder', 'fluke'],
+  // Flounder variations (three NC species: Southern, Summer, Gulf)
+  'flounder': ['southern flounder', 'summer flounder', 'gulf flounder', 'fluke'],
+  'southern flounder': ['flounder', 'summer flounder', 'gulf flounder', 'fluke'],
+  'summer flounder': ['flounder', 'southern flounder', 'gulf flounder', 'fluke'],
+  'gulf flounder': ['flounder', 'southern flounder', 'summer flounder'],
   // Red Drum variations
   'red drum': ['redfish', 'channel bass', 'puppy drum', 'red'],
   'redfish': ['red drum', 'channel bass', 'puppy drum'],
