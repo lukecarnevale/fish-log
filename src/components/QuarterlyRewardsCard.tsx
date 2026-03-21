@@ -604,7 +604,9 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             <View style={styles.progressHeader}>
               <Text style={styles.progressLabel}>Quarter Progress</Text>
               <Text style={styles.daysLeft}>
-                {calculated.daysRemaining} {calculated.daysRemaining === 1 ? 'day' : 'days'} left!
+                {calculated.daysRemaining === 0
+                  ? 'Last day to enter!'
+                  : `${calculated.daysRemaining} ${calculated.daysRemaining === 1 ? 'day' : 'days'} left!`}
               </Text>
             </View>
             <View style={styles.progressBarBg}>

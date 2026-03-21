@@ -252,9 +252,8 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
   // Get current user ID for like functionality (Supabase user ID)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  // Track whether the initial user ID resolution has completed so we don't
-  // fire loadFeed() before knowing the userId (avoids a race condition that
-  // shows "No catches" on the first render).
+  // Track whether the initial user ID resolution has completed so we can
+  // re-enrich entries with like data once we know the current user.
   const [userIdResolved, setUserIdResolved] = useState(false);
 
   // Fetch the user's ID from the users table (not auth.users)
@@ -532,14 +531,28 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     }
   }, [loadingMore, hasMore, nextOffset, currentUserId, loading, entries.length]);
 
-  // Gate initial feed load on userId resolution to prevent the race condition
-  // where loadFeed fires before we know the current user. Once resolved,
-  // loadFeed is called; subsequent changes to currentUserId recreate loadFeed
-  // via its dependency array and this effect re-fires automatically.
+  // Load feed immediately on mount — don't wait for userId resolution.
+  // The feed content is independent of the current user; only the "liked by
+  // me" state needs the userId, and that is patched in by the effect below.
   useEffect(() => {
-    if (!userIdResolved) return;
     loadFeed();
-  }, [userIdResolved, loadFeed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
+  // Once the userId resolves (or changes), re-enrich the existing entries
+  // with accurate like data instead of re-fetching the entire feed.
+  useEffect(() => {
+    if (!userIdResolved || entries.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const enriched = await enrichCatchesWithLikes(entries, currentUserId ?? undefined);
+      if (!cancelled) {
+        setEntries(enriched);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when userId changes
+  }, [userIdResolved, currentUserId]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);

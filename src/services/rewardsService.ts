@@ -237,13 +237,29 @@ async function fetchConfigFromSupabase(): Promise<RewardsConfig> {
 
 /**
  * Fetch current active drawing from Supabase with its prizes.
+ *
+ * Selection is date-driven: the query returns the drawing whose
+ * `start_date..end_date` window contains today AND whose `is_active`
+ * flag is true.  This enables **staging** future drawings: insert a
+ * new drawing with `is_active = true` and a future `start_date`, and
+ * it will automatically become current when that date arrives — no
+ * manual flag-toggling required.  `is_active` remains available as a
+ * kill-switch to pull a drawing at any time.
+ *
+ * If multiple drawings somehow overlap (misconfiguration), the one
+ * with the latest `start_date` wins.
  */
 async function fetchCurrentDrawingFromSupabase(): Promise<RewardsDrawing | null> {
-  // First, get the active drawing
+  // Format today as YYYY-MM-DD for Postgres date comparison.
+  const today = new Date().toISOString().split('T')[0];
+
   const { data: drawingData, error: drawingError } = await supabase
     .from('rewards_drawings')
     .select('*')
     .eq('is_active', true)
+    .lte('start_date', today)
+    .gte('end_date', today)
+    .order('start_date', { ascending: false })
     .limit(1)
     .single();
 

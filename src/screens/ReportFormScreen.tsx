@@ -2613,7 +2613,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       {/* Only show Raffle and Submit after all required sections are visible */}
       {formData.reportingType && (formData.species || fishEntries.length > 0) && formData.waterbody && (formData.usedHookAndLine || formData.gearType) && (
       <>
-      {/* Raffle Entry Section */}
+      {/* Raffle Entry Section — hidden when no active drawing */}
+      {currentDrawing && (
       <View style={[
         localStyles.raffleSection,
         (hasEnteredCurrentRaffle || enterRaffle) && localStyles.raffleSectionEntered,
@@ -2689,6 +2690,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </>
         )}
       </View>
+      )}
 
       <TouchableOpacity
         style={styles.submitButton}

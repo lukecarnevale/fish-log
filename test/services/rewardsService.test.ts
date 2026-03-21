@@ -292,6 +292,9 @@ describe('rewardsService', () => {
           return {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
+            lte: jest.fn().mockReturnThis(),
+            gte: jest.fn().mockReturnThis(),
+            order: jest.fn().mockReturnThis(),
             limit: jest.fn().mockReturnThis(),
             single: jest.fn().mockResolvedValue({ data: drawingRow, error: null }),
           };
