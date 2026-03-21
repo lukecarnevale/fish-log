@@ -394,128 +394,201 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
   };
 
   // Details Modal
-  const renderDetailsModal = () => (
-    <Modal
-      visible={showDetailsModal}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowDetailsModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <ScrollView ref={modalScrollViewRef} contentContainerStyle={styles.modalScrollContent}>
-            <Text style={styles.modalHeader}>{currentDrawing.name}</Text>
+  const renderDetailsModal = () => {
+    const drawingDateObj = new Date(currentDrawing.drawingDate);
+    const drawingMonth = drawingDateObj.toLocaleDateString('en-US', { month: 'short' });
+    const drawingDay = drawingDateObj.getDate();
 
-            <View style={styles.modalSection}>
-              <Text style={styles.modalText}>{currentDrawing.description}</Text>
-            </View>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Your Entry Status</Text>
-              {hasEnteredCurrentRaffle ? (
-                <>
-                  <View style={styles.eligibilityBadge}>
-                    <Feather name="check-circle" size={16} color="#4CAF50" />
-                    <Text style={styles.eligibilityBadgeText}>You're entered!</Text>
-                  </View>
-                  <Text style={styles.modalText}>
-                    You're in the {calculated.quarterDisplay} drawing. Good luck!
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <View style={[styles.eligibilityBadge, styles.eligibilityBadgeInactive]}>
-                    <Feather name="alert-circle" size={16} color="#FF9800" />
-                    <Text style={[styles.eligibilityBadgeText, styles.eligibilityBadgeTextInactive]}>Not yet entered</Text>
-                  </View>
-                  <Text style={styles.modalText}>
-                    Tap "Enter Drawing" on the rewards card to join this quarter's prize drawing.
-                  </Text>
-                </>
-              )}
-              {renderLinkedText(
-                config?.alternativeEntryText || 'No purchase or report necessary to enter.',
-                styles.modalText,
-              )}
-            </View>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Entry Period</Text>
-              <Text style={styles.modalText}>
-                Start: {formatDate(currentDrawing.startDate)}
-              </Text>
-              <Text style={styles.modalText}>
-                End: {formatDate(currentDrawing.endDate)}
-              </Text>
-              <Text style={styles.modalText}>
-                Drawing Date: {formatDate(currentDrawing.drawingDate)}
-              </Text>
-            </View>
-
-            <View
-              style={styles.modalSection}
-              onLayout={(e) => { prizeSectionY.current = e.nativeEvent.layout.y; }}
+    return (
+      <Modal
+        visible={showDetailsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDetailsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Gradient Header Banner */}
+            <LinearGradient
+              colors={[COLORS.navyDark, COLORS.navyLight]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.modalBanner}
             >
-              <Text style={styles.modalSectionTitle}>Prize List</Text>
-              {currentDrawing.prizes && currentDrawing.prizes.length > 0 ? (
-                currentDrawing.prizes.map((prize) => (
-                  prize.imageUrl ? (
-                    <View key={prize.id} style={styles.modalPrizeCard}>
-                      <Image
-                        source={{ uri: prize.imageUrl }}
-                        style={styles.modalPrizeImage}
-                        contentFit="contain"
-                        cachePolicy="disk"
-                      />
-                      <View style={styles.modalPrizeCardBody}>
-                        <Text style={styles.modalPrizeCardName}>{prize.name}</Text>
-                        <Text style={styles.modalPrizeCardValue}>{prize.value}</Text>
-                        {prize.description ? (
-                          <Text style={styles.modalPrizeCardDescription}>{prize.description}</Text>
-                        ) : null}
-                        {prize.sponsor ? (
-                          <Text style={styles.modalPrizeCardSponsor}>Sponsored by {prize.sponsor}</Text>
-                        ) : null}
-                      </View>
-                    </View>
-                  ) : (
-                    <View key={prize.id} style={styles.modalPrizeItem}>
-                      <Feather
-                        name={getPrizeIcon(prize.category)}
-                        size={20}
-                        color={COLORS.primary}
-                      />
-                      <Text style={styles.modalPrizeText}>
-                        {prize.name} ({prize.value})
-                      </Text>
-                    </View>
-                  )
-                ))
-              ) : (
-                <Text style={styles.modalText}>
-                  Prizes for this quarter will be announced soon.
+              <WaveBackground />
+              <View style={styles.modalBannerContent}>
+                {/* Entry Status Chip — top right */}
+                <View style={[
+                  styles.modalStatusChip,
+                  hasEnteredCurrentRaffle ? styles.modalStatusChipEntered : styles.modalStatusChipNotEntered,
+                ]}>
+                  <Feather
+                    name={hasEnteredCurrentRaffle ? 'check-circle' : 'alert-circle'}
+                    size={14}
+                    color={hasEnteredCurrentRaffle ? '#4CAF50' : '#FF9800'}
+                  />
+                  <Text style={[
+                    styles.modalStatusChipText,
+                    hasEnteredCurrentRaffle ? styles.modalStatusChipTextEntered : styles.modalStatusChipTextNotEntered,
+                  ]}>
+                    {hasEnteredCurrentRaffle ? "You're Entered" : 'Not Yet Entered'}
+                  </Text>
+                </View>
+                <Text style={styles.modalBannerTitle}>{currentDrawing.name}</Text>
+                <Text style={styles.modalBannerSubtitle}>
+                  {currentDrawing.description}
                 </Text>
-              )}
-            </View>
+              </View>
+            </LinearGradient>
 
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Eligibility Requirements</Text>
-              {currentDrawing.eligibilityRequirements.map((req, idx) => (
-                <Text key={idx} style={styles.modalText}>• {req}</Text>
-              ))}
-            </View>
-          </ScrollView>
+            <ScrollView ref={modalScrollViewRef} contentContainerStyle={styles.modalScrollContent}>
 
-          <TouchableOpacity
-            style={styles.modalButton}
-            onPress={() => setShowDetailsModal(false)}
-          >
-            <Text style={styles.modalButtonText}>Close</Text>
-          </TouchableOpacity>
+              {/* Entry Status Detail */}
+              <View style={styles.modalSection}>
+                <Text style={styles.modalText}>
+                  {hasEnteredCurrentRaffle
+                    ? `You're in the ${calculated.quarterDisplay} drawing. Good luck!`
+                    : 'Tap "Enter Drawing" on the rewards card to join this quarter\'s prize drawing.'}
+                </Text>
+                {renderLinkedText(
+                  config?.alternativeEntryText || 'No purchase or report necessary to enter.',
+                  styles.modalText,
+                )}
+              </View>
+
+              {/* Date Cards Row */}
+              <View style={styles.modalDatesRow}>
+                <View style={styles.modalDateCard}>
+                  <View style={[styles.modalDateIconCircle, { backgroundColor: '#E3F2FD' }]}>
+                    <Feather name="play-circle" size={18} color={COLORS.navyDark} />
+                  </View>
+                  <Text style={styles.modalDateLabel}>Opens</Text>
+                  <Text style={styles.modalDateValue}>{formatDate(currentDrawing.startDate)}</Text>
+                </View>
+                <View style={styles.modalDateCard}>
+                  <View style={[styles.modalDateIconCircle, { backgroundColor: '#FFF3E0' }]}>
+                    <Feather name="x-circle" size={18} color={COLORS.orange} />
+                  </View>
+                  <Text style={styles.modalDateLabel}>Closes</Text>
+                  <Text style={styles.modalDateValue}>{formatDate(currentDrawing.endDate)}</Text>
+                </View>
+                <View style={[styles.modalDateCard, styles.modalDateCardHighlight]}>
+                  <View style={styles.modalDrawingDateBadge}>
+                    <Text style={styles.modalDrawingMonth}>{drawingMonth}</Text>
+                    <Text style={styles.modalDrawingDay}>{drawingDay}</Text>
+                  </View>
+                  <Text style={styles.modalDateLabel}>Drawing</Text>
+                  <Text style={[styles.modalDateValue, { color: COLORS.navyDark, fontWeight: '700' }]}>
+                    {formatDate(currentDrawing.drawingDate)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Prize List */}
+              <View
+                style={styles.modalSection}
+                onLayout={(e) => { prizeSectionY.current = e.nativeEvent.layout.y; }}
+              >
+                <View style={styles.modalSectionHeader}>
+                  <Feather name="gift" size={18} color={COLORS.navyDark} />
+                  <Text style={styles.modalSectionTitle}>Prizes</Text>
+                  {currentDrawing.prizes && currentDrawing.prizes.length > 0 && (
+                    <View style={styles.modalPrizeCountBadge}>
+                      <Text style={styles.modalPrizeCountText}>{currentDrawing.prizes.length}</Text>
+                    </View>
+                  )}
+                </View>
+                {currentDrawing.prizes && currentDrawing.prizes.length > 0 ? (
+                  currentDrawing.prizes.map((prize) => (
+                    prize.imageUrl ? (
+                      <View key={prize.id} style={styles.modalPrizeCard}>
+                        <Image
+                          source={{ uri: prize.imageUrl }}
+                          style={styles.modalPrizeImage}
+                          contentFit="contain"
+                          cachePolicy="disk"
+                        />
+                        <View style={styles.modalPrizeCardBody}>
+                          <Text style={styles.modalPrizeCardName}>{prize.name}</Text>
+                          <View style={styles.modalPrizeValueBadge}>
+                            <Text style={styles.modalPrizeValueBadgeText}>{prize.value}</Text>
+                          </View>
+                          {prize.description ? (
+                            <Text style={styles.modalPrizeCardDescription}>{prize.description}</Text>
+                          ) : null}
+                          {prize.sponsor ? (
+                            <View style={styles.modalPrizeSponsorRow}>
+                              <Feather name="heart" size={11} color={COLORS.textSecondary} />
+                              <Text style={styles.modalPrizeCardSponsor}>Sponsored by {prize.sponsor}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View>
+                    ) : (
+                      <View key={prize.id} style={styles.modalPrizeItemRow}>
+                        <View style={styles.modalPrizeItemIcon}>
+                          <Feather
+                            name={getPrizeIcon(prize.category)}
+                            size={18}
+                            color={COLORS.navyDark}
+                          />
+                        </View>
+                        <View style={styles.modalPrizeItemContent}>
+                          <Text style={styles.modalPrizeItemName}>{prize.name}</Text>
+                          {prize.description ? (
+                            <Text style={styles.modalPrizeItemDesc}>{prize.description}</Text>
+                          ) : null}
+                        </View>
+                        <View style={styles.modalPrizeValueBadgeSmall}>
+                          <Text style={styles.modalPrizeValueBadgeSmallText}>{prize.value}</Text>
+                        </View>
+                      </View>
+                    )
+                  ))
+                ) : (
+                  <Text style={styles.modalText}>
+                    Prizes for this quarter will be announced soon.
+                  </Text>
+                )}
+              </View>
+
+              {/* Eligibility */}
+              <View style={styles.modalSection}>
+                <View style={styles.modalSectionHeader}>
+                  <Feather name="shield" size={18} color={COLORS.navyDark} />
+                  <Text style={styles.modalSectionTitle}>Eligibility</Text>
+                </View>
+                <View style={styles.modalEligibilityList}>
+                  {currentDrawing.eligibilityRequirements.map((req, idx) => (
+                    <View key={idx} style={styles.modalEligibilityItem}>
+                      <View style={styles.modalEligibilityBullet}>
+                        <Feather name="check" size={12} color={COLORS.navyDark} />
+                      </View>
+                      <Text style={styles.modalEligibilityText}>{req}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowDetailsModal(false)}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={[COLORS.navyDark, COLORS.navyLight]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </Modal>
-  );
+      </Modal>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -660,27 +733,69 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
           </View>
 
           {/* Prize Section — eye-catching card */}
-          <TouchableOpacity
-            style={styles.prizeSectionCard}
-            onPress={() => { setScrollToPrizes(true); setShowDetailsModal(true); }}
-            activeOpacity={0.85}
-          >
-            <LinearGradient
-              colors={['#FFECB3', '#FFFDF5']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.prizeSectionHeader}>
-              <View style={styles.prizeSectionHeaderPill}>
-                <Feather name="award" size={14} color={COLORS.orange} />
-                <Text style={styles.prizeSectionCardTitle}>
-                  Current Quarter Prize
-                </Text>
-              </View>
+          {(currentDrawing.prizes?.length ?? 0) > 1 ? (
+            <View style={styles.prizeSectionCard}>
+              <LinearGradient
+                colors={['#FFECB3', '#FFFDF5']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <TouchableOpacity
+                onPress={() => { setScrollToPrizes(true); setShowDetailsModal(true); }}
+                activeOpacity={0.85}
+              >
+                <View style={styles.prizeSectionHeader}>
+                  <View style={styles.prizeSectionHeaderPill}>
+                    <Feather name="award" size={14} color={COLORS.orange} />
+                    <Text style={styles.prizeSectionCardTitle}>
+                      Current Quarter Prizes
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.prizeScrollContent}
+              >
+                {currentDrawing.prizes!.map((prize, index) => (
+                  <TouchableOpacity
+                    key={prize.name + index}
+                    style={styles.prizeScrollItem}
+                    onPress={() => { setScrollToPrizes(true); setShowDetailsModal(true); }}
+                    activeOpacity={0.85}
+                  >
+                    {renderPrizeItem(prize)}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
-            {renderPrizeItem(currentDrawing.prizes?.[0])}
-          </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.prizeSectionCard}
+              onPress={() => { setScrollToPrizes(true); setShowDetailsModal(true); }}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#FFECB3', '#FFFDF5']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.prizeSectionHeader}>
+                <View style={styles.prizeSectionHeaderPill}>
+                  <Feather name="award" size={14} color={COLORS.orange} />
+                  <Text style={styles.prizeSectionCardTitle}>
+                    Current Quarter Prize
+                  </Text>
+                </View>
+              </View>
+              <View style={{ paddingHorizontal: 14 }}>
+                {renderPrizeItem(currentDrawing.prizes?.[0])}
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Notification Banner - only show if user hasn't added email to profile */}
           {!hasProfileEmail && (
@@ -951,13 +1066,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: '#FFD54F',
-    padding: 14,
+    paddingVertical: 14,
     marginTop: 4,
     marginBottom: 4,
   },
   prizeSectionHeader: {
     alignItems: 'center',
     marginBottom: 10,
+    paddingHorizontal: 14,
   },
   prizeSectionHeaderPill: {
     flexDirection: 'row',
@@ -985,6 +1101,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textPrimary,
     marginBottom: 12,
+  },
+  prizeScrollContent: {
+    gap: 10,
+    paddingVertical: 2,
+  },
+  prizeScrollItem: {
+    width: 220,
   },
   prizeItem: {
     flexDirection: 'row',
@@ -1100,35 +1223,86 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   modalContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.bgCard,
     borderRadius: 20,
     width: '100%',
-    maxHeight: '80%',
+    maxHeight: '85%',
     overflow: 'hidden',
   },
-  modalScrollContent: {
-    padding: 20,
+
+  // Modal Banner Header
+  modalBanner: {
+    paddingTop: 28,
+    paddingBottom: 22,
+    paddingHorizontal: 22,
+    overflow: 'hidden',
   },
-  modalHeader: {
-    fontSize: 20,
+  modalBannerContent: {
+    zIndex: 1,
+  },
+  modalBannerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.white,
+    marginBottom: 6,
+    letterSpacing: 0.3,
+  },
+  modalBannerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  modalStatusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+    marginBottom: 10,
+  },
+  modalStatusChipEntered: {
+    backgroundColor: 'rgba(76,175,80,0.2)',
+  },
+  modalStatusChipNotEntered: {
+    backgroundColor: 'rgba(255,152,0,0.25)',
+  },
+  modalStatusChipText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: COLORS.textPrimary,
-    marginBottom: 16,
+  },
+  modalStatusChipTextEntered: {
+    color: '#81C784',
+  },
+  modalStatusChipTextNotEntered: {
+    color: '#FFB74D',
+  },
+
+  modalScrollContent: {
+    padding: 18,
   },
   modalSection: {
-    marginBottom: 16,
+    marginBottom: 22,
+  },
+  modalSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 8,
   },
   modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: COLORS.textPrimary,
-    marginBottom: 8,
+    flex: 1,
   },
   modalText: {
     fontSize: 14,
@@ -1136,19 +1310,91 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 4,
   },
-  modalPrizeItem: {
+
+  // Date Cards
+  modalDatesRow: {
     flexDirection: 'row',
+    gap: 8,
+    marginBottom: 24,
+  },
+  modalDateCard: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modalDateCardHighlight: {
+    borderColor: COLORS.navyDark,
+    borderWidth: 1.5,
+    backgroundColor: '#F0F5FA',
+  },
+  modalDateIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
-  modalPrizeText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginLeft: 10,
+  modalDrawingDateBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: COLORS.navyDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  modalPrizeCard: {
-    backgroundColor: COLORS.bgCard,
+  modalDrawingMonth: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.8)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  modalDrawingDay: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.white,
+    marginTop: -2,
+  },
+  modalDateLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  modalDateValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+
+  // Prize Count Badge
+  modalPrizeCountBadge: {
+    backgroundColor: COLORS.navyDark,
+    width: 24,
+    height: 24,
     borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalPrizeCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+
+  // Prize Cards (with image)
+  modalPrizeCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
     overflow: 'hidden',
     marginBottom: 12,
     borderWidth: 1,
@@ -1156,22 +1402,30 @@ const styles = StyleSheet.create({
   },
   modalPrizeImage: {
     width: '100%',
-    height: 160,
+    height: 150,
+    backgroundColor: COLORS.bgCard,
   },
   modalPrizeCardBody: {
-    padding: 12,
+    padding: 14,
   },
   modalPrizeCardName: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: COLORS.textPrimary,
-    marginBottom: 2,
-  },
-  modalPrizeCardValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.navyDark,
     marginBottom: 6,
+  },
+  modalPrizeValueBadge: {
+    backgroundColor: '#FFF3E0',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  modalPrizeValueBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.orange,
   },
   modalPrizeCardDescription: {
     fontSize: 13,
@@ -1179,20 +1433,98 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginBottom: 6,
   },
+  modalPrizeSponsorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 4,
+  },
   modalPrizeCardSponsor: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+
+  // Prize Item Rows (no image)
+  modalPrizeItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modalPrizeItemIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#E3EBF6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  modalPrizeItemContent: {
+    flex: 1,
+  },
+  modalPrizeItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  modalPrizeItemDesc: {
     fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
+  modalPrizeValueBadgeSmall: {
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  modalPrizeValueBadgeSmallText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.orange,
+  },
+
+  // Eligibility
+  modalEligibilityList: {
+    gap: 6,
+  },
+  modalEligibilityItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  modalEligibilityBullet: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#E3EBF6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  modalEligibilityText: {
+    flex: 1,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+
   modalButton: {
-    backgroundColor: COLORS.navyDark,
     padding: 16,
     alignItems: 'center',
+    overflow: 'hidden',
   },
   modalButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.white,
+    letterSpacing: 0.3,
   },
 
   // New Quarter Banner
