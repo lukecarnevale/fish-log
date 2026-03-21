@@ -1,10 +1,10 @@
 // screens/BulletinsScreen.tsx
 //
-// Dedicated Bulletins page — shows all active bulletins in a full-page
-// FlatList. Uses the warm parchment aesthetic for the list body while
-// keeping the existing teal header unchanged.
+// Dedicated Bulletins page — shows all active bulletins grouped by type
+// in collapsible sections. Uses the warm parchment aesthetic for the list
+// body while keeping the existing teal header unchanged.
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import {
   Animated,
   Platform,
   StatusBar,
+  ScrollView,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -27,6 +30,15 @@ import { formatBulletinDate } from '../utils/dateUtils';
 import { colors, spacing } from '../styles/common';
 import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import type { Bulletin } from '../types/bulletin';
+import type { BulletinType } from '../types/bulletin';
+
+// Enable LayoutAnimation on Android
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // =============================================================================
 // Navigation Types
@@ -40,6 +52,12 @@ type BulletinsScreenNavigationProp = StackNavigationProp<
 interface BulletinsScreenProps {
   navigation: BulletinsScreenNavigationProp;
 }
+
+// =============================================================================
+// Section ordering — most critical first
+// =============================================================================
+
+const SECTION_ORDER: BulletinType[] = ['closure', 'advisory', 'educational', 'info'];
 
 // =============================================================================
 // Empty State Illustration
@@ -125,6 +143,54 @@ const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress }) => {
 };
 
 // =============================================================================
+// Section Header Component
+// =============================================================================
+
+interface SectionHeaderProps {
+  type: BulletinType;
+  count: number;
+  expanded: boolean;
+  onToggle: () => void;
+}
+
+const SectionHeader: React.FC<SectionHeaderProps> = ({ type, count, expanded, onToggle }) => {
+  const cfg = BULLETIN_TYPE_CONFIG[type];
+  const chevronRotation = useRef(new Animated.Value(expanded ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(chevronRotation, {
+      toValue: expanded ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [expanded, chevronRotation]);
+
+  const rotate = chevronRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
+  return (
+    <TouchableOpacity
+      style={styles.sectionHeader}
+      onPress={onToggle}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.sectionIconCircle, { backgroundColor: cfg.badgeBg }]}>
+        <Feather name={cfg.icon} size={16} color={cfg.color} />
+      </View>
+      <Text style={styles.sectionTitle}>{cfg.label}</Text>
+      <View style={[styles.sectionCountBadge, { backgroundColor: cfg.badgeBg }]}>
+        <Text style={[styles.sectionCountText, { color: cfg.color }]}>{count}</Text>
+      </View>
+      <Animated.View style={{ transform: [{ rotate }] }}>
+        <Feather name="chevron-down" size={20} color="#A3865A" />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+// =============================================================================
 // Main Component
 // =============================================================================
 
@@ -139,6 +205,41 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
 
   const floatingBackOpacity = floatingOpacity;
 
+  // Group bulletins by type
+  const groupedBulletins = useMemo(() => {
+    const groups: Partial<Record<BulletinType, Bulletin[]>> = {};
+    for (const bulletin of fetchedBulletins) {
+      const type = bulletin.bulletinType;
+      if (!groups[type]) {
+        groups[type] = [];
+      }
+      groups[type]!.push(bulletin);
+    }
+    return groups;
+  }, [fetchedBulletins]);
+
+  // Only show sections that have bulletins, in the defined order
+  const activeSections = useMemo(
+    () => SECTION_ORDER.filter((type) => (groupedBulletins[type]?.length ?? 0) > 0),
+    [groupedBulletins]
+  );
+
+  // All sections expanded by default
+  const [collapsedSections, setCollapsedSections] = useState<Set<BulletinType>>(new Set());
+
+  const toggleSection = useCallback((type: BulletinType) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  }, []);
+
   const handleGoBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
@@ -150,27 +251,13 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
     [showBulletinDetail]
   );
 
-  const renderItem = useCallback(
-    ({ item }: { item: Bulletin }) => (
-      <BulletinCard bulletin={item} onPress={handleBulletinPress} />
-    ),
-    [handleBulletinPress]
-  );
-
-  const keyExtractor = useCallback((item: Bulletin) => item.id, []);
-
-  const renderEmptyState = useCallback(
-    () => (
-      <View style={styles.emptyContainer}>
-        <EmptyBulletinIllustration />
-        <Text style={styles.emptyTitle}>No Bulletins</Text>
-        <Text style={styles.emptySubtext}>
-          There are no active bulletins right now.{'\n'}Check back later for
-          fishing advisories and updates.
-        </Text>
-      </View>
-    ),
-    []
+  const onScroll = useMemo(
+    () =>
+      Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+        { useNativeDriver: true }
+      ),
+    [scrollY]
   );
 
   return (
@@ -201,69 +288,97 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Main FlatList */}
-        <Animated.FlatList
-          data={fetchedBulletins}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
+        {/* Main ScrollView */}
+        <Animated.ScrollView
           style={styles.flatList}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.flatListContent,
             fetchedBulletins.length === 0 && styles.emptyListContent,
           ]}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
+          onScroll={onScroll}
           scrollEventThrottle={16}
-          ListHeaderComponent={
-            <View style={{ backgroundColor: colors.primary }}>
-              {/* Teal header — unchanged */}
-              <LinearGradient
-                colors={[colors.primary, colors.primary]}
-                style={styles.scrollingHeader}
-              >
-                <View style={styles.headerContent}>
-                  <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={handleGoBack}
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Feather name="arrow-left" size={24} color={colors.white} />
-                  </TouchableOpacity>
+        >
+          {/* Teal header */}
+          <View style={{ backgroundColor: colors.primary }}>
+            <LinearGradient
+              colors={[colors.primary, colors.primary]}
+              style={styles.scrollingHeader}
+            >
+              <View style={styles.headerContent}>
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={handleGoBack}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Feather name="arrow-left" size={24} color={colors.white} />
+                </TouchableOpacity>
 
-                  <View style={styles.headerTextContainer}>
-                    <Text style={styles.headerTitle}>
-                      {SCREEN_LABELS.bulletins.title}
-                    </Text>
-                    <Text style={styles.headerSubtitle}>
-                      {SCREEN_LABELS.bulletins.subtitle} & updates
+                <View style={styles.headerTextContainer}>
+                  <Text style={styles.headerTitle}>
+                    {SCREEN_LABELS.bulletins.title}
+                  </Text>
+                  <Text style={styles.headerSubtitle}>
+                    {SCREEN_LABELS.bulletins.subtitle} & updates
+                  </Text>
+                </View>
+
+                {fetchedBulletins.length > 0 && (
+                  <View style={styles.countBadge}>
+                    <Feather name="bell" size={14} color={colors.white} />
+                    <Text style={styles.countBadgeText}>
+                      {fetchedBulletins.length}
                     </Text>
                   </View>
+                )}
+              </View>
+            </LinearGradient>
 
-                  {fetchedBulletins.length > 0 && (
-                    <View style={styles.countBadge}>
-                      <Feather name="bell" size={14} color={colors.white} />
-                      <Text style={styles.countBadgeText}>
-                        {fetchedBulletins.length}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </LinearGradient>
+            {/* Parchment area — rounded corners sliding over header */}
+            <View style={styles.contentContainer} />
+          </View>
 
-              {/* Parchment area — rounded corners sliding over header */}
-              <View style={styles.contentContainer} />
+          {/* Grouped sections */}
+          {fetchedBulletins.length > 0 ? (
+            <View style={styles.sectionsContainer}>
+              {activeSections.map((type) => {
+                const items = groupedBulletins[type]!;
+                const isExpanded = !collapsedSections.has(type);
+                return (
+                  <View key={type} style={styles.sectionContainer}>
+                    <SectionHeader
+                      type={type}
+                      count={items.length}
+                      expanded={isExpanded}
+                      onToggle={() => toggleSection(type)}
+                    />
+                    {isExpanded && (
+                      <View style={styles.sectionContent}>
+                        {items.map((bulletin) => (
+                          <BulletinCard
+                            key={bulletin.id}
+                            bulletin={bulletin}
+                            onPress={handleBulletinPress}
+                          />
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
-          }
-          ListEmptyComponent={renderEmptyState}
-          removeClippedSubviews={Platform.OS === 'android'}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          initialNumToRender={10}
-        />
+          ) : (
+            <View style={styles.emptyContainer}>
+              <EmptyBulletinIllustration />
+              <Text style={styles.emptyTitle}>No Bulletins</Text>
+              <Text style={styles.emptySubtext}>
+                There are no active bulletins right now.{'\n'}Check back later for
+                fishing advisories and updates.
+              </Text>
+            </View>
+          )}
+        </Animated.ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -351,7 +466,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // ── FlatList ───────────────────────────────────────────────────────────────
+  // ── ScrollView ───────────────────────────────────────────────────────────
   flatList: {
     flex: 1,
     backgroundColor: colors.primary,
@@ -377,15 +492,67 @@ const styles = StyleSheet.create({
     marginTop: -12,
   },
 
+  // ── Sections ─────────────────────────────────────────────────────────────
+  sectionsContainer: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  sectionContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#EDE3D0',
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  sectionIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#44300A',
+    letterSpacing: 0.5,
+  },
+  sectionCountBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  sectionCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sectionContent: {
+    borderTopWidth: 1,
+    borderTopColor: '#EDE3D0',
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+
   // ── Bulletin card ──────────────────────────────────────────────────────────
   bulletinCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FEF9F0',
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#EDE3D0',
     padding: 14,
     marginBottom: 8,
-    marginHorizontal: 16,
+    marginHorizontal: 10,
   },
   cardTopRow: {
     flexDirection: 'row',
