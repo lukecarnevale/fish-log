@@ -993,7 +993,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
 
       {/* Overlay the form when editing */}
       {isEditing && (
-        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background, transform: [{ translateY: slideAnim }], zIndex: 10 }]}>
           {renderLicenseForm()}
         </Animated.View>
       )}
