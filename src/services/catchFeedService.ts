@@ -390,7 +390,10 @@ async function getCachedFeed(): Promise<CatchFeedEntry[] | null> {
     }
 
     const cached = await AsyncStorage.getItem(STORAGE_KEYS.feedCache);
-    return cached ? JSON.parse(cached) : null;
+    if (!cached) return null;
+    const parsed: CatchFeedEntry[] = JSON.parse(cached);
+    // Treat an empty cached array as a cache miss so we fetch fresh data
+    return parsed.length > 0 ? parsed : null;
   } catch {
     return null;
   }

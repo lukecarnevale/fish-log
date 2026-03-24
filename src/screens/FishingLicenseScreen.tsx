@@ -17,7 +17,9 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  StatusBar,
 } from "react-native";
+
 import { StackNavigationProp } from "@react-navigation/stack";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -27,10 +29,11 @@ import { RootStackParamList, FishingLicense } from "../types";
 import { colors, spacing, borderRadius } from "../styles/common";
 import styles from "../styles/fishingLicenseScreenStyles";
 import LicenseTypePicker from "../components/LicenseTypePicker";
-import ScreenLayout from "../components/ScreenLayout";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import ExpandableSection from "../components/ExpandableSection";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
+import FloatingBackButton from "../components/FloatingBackButton";
+import { useFloatingHeaderAnimation } from "../hooks/useFloatingHeaderAnimation";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 import { getCurrentUser, updateCurrentUser } from "../services/userProfileService";
 import { onAuthStateChange } from "../services/authService";
@@ -78,6 +81,9 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const pendingNavigationAction = useRef<(() => void) | null>(null);
   const hasConfirmedDiscard = useRef(false);
+
+  // Floating header animation
+  const { scrollY, floatingOpacity, floatingTranslateXLeft } = useFloatingHeaderAnimation();
 
   // Animation for transitioning between view/edit modes
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -902,31 +908,92 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   
   if (loading) {
     return (
-      <ScreenLayout
-        navigation={navigation}
-        title={SCREEN_LABELS.fishingLicense.title}
-        noScroll
-        loading={loading}
-        loadingComponent={<ActivityIndicator size="large" color={colors.primary} />}
-      />
+      <View style={flStyles.screenContainer}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+        <View style={flStyles.fixedHeader}>
+          <View style={flStyles.headerRow}>
+            <TouchableOpacity
+              style={flStyles.backButton}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Feather name="arrow-left" size={24} color={colors.white} />
+            </TouchableOpacity>
+            <View style={flStyles.headerTextContainer}>
+              <Text style={flStyles.headerTitle}>{SCREEN_LABELS.fishingLicense.title}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </View>
     );
   }
 
   return (
-    <View style={styles.safeArea}>
-      {/* Always render the license view underneath */}
-      <ScreenLayout
-        navigation={navigation}
-        title={SCREEN_LABELS.fishingLicense.title}
-        subtitle="Manage your fishing license"
-        noScroll
+    <View style={flStyles.screenContainer}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+
+      {/* Fixed Header — sits behind scrolling content */}
+      <View style={flStyles.fixedHeader}>
+        <View style={flStyles.headerRow}>
+          <TouchableOpacity
+            testID="back-button"
+            style={flStyles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Feather name="arrow-left" size={24} color={colors.white} />
+          </TouchableOpacity>
+          <View style={flStyles.headerTextContainer}>
+            <Text style={flStyles.headerTitle}>{SCREEN_LABELS.fishingLicense.title}</Text>
+            <Text style={flStyles.headerSubtitle}>Manage your fishing license</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Floating back button — slides in from left on scroll */}
+      <FloatingBackButton
+        opacity={floatingOpacity}
+        translateX={floatingTranslateXLeft}
+        onPress={() => navigation.goBack()}
+      />
+
+      {/* Scrollable content — slides over the header */}
+      <Animated.ScrollView
+        style={flStyles.scrollView}
+        contentContainerStyle={flStyles.scrollViewContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
       >
-        {license ? renderLicenseCard() : renderEmptyState()}
-      </ScreenLayout>
+        {/* Transparent spacer — lets fixed header show through */}
+        <View style={flStyles.headerSpacer}>
+          <View style={flStyles.spacerButtonsRow}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={{ width: 40, height: 40 }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={{ width: 40, height: 40 }} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Content card — the light card that slides over */}
+        <View style={flStyles.contentCard}>
+          {license ? renderLicenseCard() : renderEmptyState()}
+        </View>
+      </Animated.ScrollView>
 
       {/* Overlay the form when editing */}
       {isEditing && (
-        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background, transform: [{ translateY: slideAnim }], zIndex: 10 }]}>
           {renderLicenseForm()}
         </Animated.View>
       )}
@@ -967,6 +1034,87 @@ const profileStyles = StyleSheet.create({
     color: colors.white,
     fontWeight: "600" as const,
     marginLeft: spacing.xs,
+  },
+});
+
+// Styles for the floating header / scroll-over pattern
+const windowHeight = Dimensions.get('window').height;
+
+const flStyles = StyleSheet.create({
+  screenContainer: {
+    flex: 1,
+    backgroundColor: colors.primary,
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 56,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    zIndex: 1,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: colors.white,
+    opacity: 0.85,
+    marginTop: 2,
+  },
+  scrollView: {
+    flex: 1,
+    zIndex: 2,
+  },
+  scrollViewContent: {
+    paddingBottom: 40,
+  },
+  headerSpacer: {
+    height: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130,
+    backgroundColor: 'transparent',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 56,
+    paddingHorizontal: 20,
+  },
+  spacerButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  contentCard: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    paddingTop: 8,
+    paddingBottom: 24,
+    marginBottom: spacing.lg,
+    minHeight: windowHeight - 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 8,
   },
 });
 

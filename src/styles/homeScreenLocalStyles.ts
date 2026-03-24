@@ -6,6 +6,7 @@ import { colors, spacing, borderRadius } from './common';
 interface HomeScreenLocalStyles {
   fixedHeader: ViewStyle;
   refreshSpinner: ViewStyle;
+  scrollWrapper: ViewStyle;
   scrollView: ViewStyle;
   scrollViewContent: ViewStyle;
   headerSpacer: ViewStyle;
@@ -67,9 +68,13 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     alignSelf: 'center',
     zIndex: 1, // Behind the scrollable content (z-index 2)
   },
-  scrollView: {
+  scrollWrapper: {
     flex: 1,
     zIndex: 2, // Higher z-index so content scrolls over header
+    elevation: 3, // Android: elevation on a regular View controls z-ordering
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollViewContent: {
     paddingBottom: 0,

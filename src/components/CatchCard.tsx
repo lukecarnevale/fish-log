@@ -206,7 +206,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
             ) : (
               <View style={[styles.topAvatarPlaceholder, { backgroundColor: speciesTheme.primary }]}>
                 <Text style={styles.topAvatarInitial}>
-                  {entry.anglerName.charAt(0).toUpperCase()}
+                  {entry.anglerName.split(' ').filter(Boolean).map(n => n.charAt(0).toUpperCase()).slice(0, 2).join('')}
                 </Text>
               </View>
             )}
@@ -360,16 +360,16 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   topAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.8)',
   },
   topAvatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -377,14 +377,14 @@ const styles = StyleSheet.create({
   },
   topAvatarInitial: {
     color: colors.white,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   topAnglerInfo: {
     flex: 1,
   },
   topAnglerName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.white,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   topTimestamp: {
-    fontSize: 12,
+    fontSize: 13,
     color: 'rgba(255, 255, 255, 0.85)',
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },

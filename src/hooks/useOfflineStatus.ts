@@ -100,6 +100,12 @@ export function useOfflineStatus(options: UseOfflineStatusOptions = {}): Offline
   // Track pending timeout for cleanup
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Debounce timer for online→offline transitions. On iOS, NetInfo briefly
+  // reports isInternetReachable:false when the app returns from background
+  // before the reachability check completes. This delay prevents the offline
+  // banner from flashing during that transient period.
+  const offlineDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Track if component is mounted
   const isMountedRef = useRef<boolean>(true);
 
@@ -178,11 +184,41 @@ export function useOfflineStatus(options: UseOfflineStatusOptions = {}): Offline
     const connected = state.isConnected ?? false;
     const reachable = state.isInternetReachable;
 
-    setIsConnected(connected);
-    setIsInternetReachable(reachable);
-
     const nowOnline = connected && reachable !== false;
     const wasOnline = wasOnlineRef.current;
+
+    // Debounce online→offline transitions ONLY when the device is connected
+    // but reachability is uncertain (false/null). On iOS, NetInfo briefly
+    // reports isInternetReachable:false when the app resumes from background.
+    // When isConnected is false, the device is genuinely offline — skip debounce.
+    if (wasOnline === true && !nowOnline && connected) {
+      if (!offlineDebounceRef.current) {
+        offlineDebounceRef.current = setTimeout(() => {
+          offlineDebounceRef.current = null;
+          if (!isMountedRef.current) return;
+          // Re-check current NetInfo state before committing offline
+          NetInfo.fetch().then((latest) => {
+            if (!isMountedRef.current) return;
+            const latestOnline = (latest.isConnected ?? false) && latest.isInternetReachable !== false;
+            if (!latestOnline) {
+              setIsConnected(latest.isConnected ?? false);
+              setIsInternetReachable(latest.isInternetReachable);
+              wasOnlineRef.current = false;
+            }
+          });
+        }, 4000);
+      }
+      return;
+    }
+
+    // If we're transitioning back to online, cancel any pending offline debounce
+    if (nowOnline && offlineDebounceRef.current) {
+      clearTimeout(offlineDebounceRef.current);
+      offlineDebounceRef.current = null;
+    }
+
+    setIsConnected(connected);
+    setIsInternetReachable(reachable);
 
     // Notify callback of connectivity change
     if (onConnectivityChange && wasOnline !== null && wasOnline !== nowOnline) {
@@ -265,6 +301,10 @@ export function useOfflineStatus(options: UseOfflineStatusOptions = {}): Offline
       if (pendingTimeoutRef.current) {
         clearTimeout(pendingTimeoutRef.current);
         pendingTimeoutRef.current = null;
+      }
+      if (offlineDebounceRef.current) {
+        clearTimeout(offlineDebounceRef.current);
+        offlineDebounceRef.current = null;
       }
       unsubscribe();
     };
