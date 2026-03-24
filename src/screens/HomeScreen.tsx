@@ -532,7 +532,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         />
       )}
 
-      {/* Scrollable content card that slides over the header */}
+      {/* Wrapper View ensures proper z-ordering on Android (Animated.ScrollView
+           does not reliably support elevation for z-ordering on Android) */}
+      <View style={localStyles.scrollWrapper}>
       <Animated.ScrollView
         style={[localStyles.scrollView, { backgroundColor: 'transparent' }]}
         showsVerticalScrollIndicator={false}
@@ -649,6 +651,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         </View>
         </View>
       </Animated.ScrollView>
+      </View>
 
       {/* Feedback Modal */}
       <FeedbackModal
