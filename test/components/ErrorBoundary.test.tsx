@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text } from 'react-native';
 import { render, fireEvent } from '@testing-library/react-native';
+import * as Sentry from '@sentry/react-native';
 import ErrorBoundary from '../../src/components/ErrorBoundary';
 
 // Component that throws on demand
@@ -11,7 +12,7 @@ function ThrowingChild({ shouldThrow }: { shouldThrow: boolean }) {
   return <Text>Hello</Text>;
 }
 
-// Suppress console.error from ErrorBoundary.componentDidCatch
+// Suppress React's own console.error from error boundaries
 const originalConsoleError = console.error;
 beforeAll(() => {
   console.error = jest.fn();
@@ -76,17 +77,20 @@ describe('ErrorBoundary', () => {
     expect(getByText('Recovered')).toBeTruthy();
   });
 
-  it('logs error to console.error', () => {
+  it('reports error to Sentry', () => {
     render(
       <ErrorBoundary>
         <ThrowingChild shouldThrow={true} />
       </ErrorBoundary>
     );
 
-    expect(console.error).toHaveBeenCalledWith(
-      'ErrorBoundary caught an error:',
+    expect(Sentry.captureException).toHaveBeenCalledWith(
       expect.any(Error),
-      expect.anything()
+      expect.objectContaining({
+        contexts: expect.objectContaining({
+          react: expect.anything(),
+        }),
+      })
     );
   });
 });

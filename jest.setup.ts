@@ -107,6 +107,40 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+// @sentry/react-native
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  wrap: jest.fn((component: any) => component),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  setUser: jest.fn(),
+  withScope: jest.fn((callback: (scope: any) => void) => {
+    callback({
+      setTag: jest.fn(),
+      setExtra: jest.fn(),
+      setContext: jest.fn(),
+    });
+  }),
+  addBreadcrumb: jest.fn(),
+  reactNavigationIntegration: jest.fn(() => ({
+    registerNavigationContainer: jest.fn(),
+  })),
+}));
+
+// Sentry config
+jest.mock('./src/config/sentry', () => ({
+  initSentry: jest.fn(),
+  Sentry: require('@sentry/react-native'),
+  sentryNavigationIntegration: { registerNavigationContainer: jest.fn() },
+}));
+
+// Sentry utils
+jest.mock('./src/utils/sentryUtils', () => ({
+  captureError: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  setSentryUser: jest.fn(),
+}));
+
 // Global Supabase mock (prevents real HTTP connections on module import)
 jest.mock('./src/config/supabase', () => ({
   supabase: require('./test/mocks/supabase').mockSupabase,
@@ -163,6 +197,7 @@ jest.mock('./src/config/env', () => ({
     SHOW_TEST_MODE_BADGE: false,
     SUPABASE_URL: 'https://mock.supabase.co',
     SUPABASE_ANON_KEY: 'mock-anon-key',
+    SENTRY_DSN: '',
   },
   isDevelopment: jest.fn(() => true),
   isProduction: jest.fn(() => false),

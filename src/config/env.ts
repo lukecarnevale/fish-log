@@ -21,6 +21,8 @@ export const env = {
   // Provided by EAS Secrets at build time — no hardcoded fallbacks
   SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
   SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
+  // Sentry crash reporting DSN — set per build profile in eas.json
+  SENTRY_DSN: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
 } as const;
 
 // Environment checks

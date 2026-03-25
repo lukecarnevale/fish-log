@@ -12,7 +12,8 @@
         "EXPO_PUBLIC_DMF_MODE": "mock",
         "EXPO_PUBLIC_SHOW_DEVELOPER_TOOLS": "true",
         "EXPO_PUBLIC_SHOW_SAMPLE_REPORTS": "true",
-        "EXPO_PUBLIC_SHOW_TEST_MODE_BADGE": "true"
+        "EXPO_PUBLIC_SHOW_TEST_MODE_BADGE": "true",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://a6e3e2a6fd14ba95076e311f30efa4a4@o4511103423414272.ingest.us.sentry.io/4511103425773568"
       }
     },
     "preview": {
@@ -22,7 +23,8 @@
         "EXPO_PUBLIC_DMF_MODE": "mock",
         "EXPO_PUBLIC_SHOW_DEVELOPER_TOOLS": "true",
         "EXPO_PUBLIC_SHOW_SAMPLE_REPORTS": "true",
-        "EXPO_PUBLIC_SHOW_TEST_MODE_BADGE": "true"
+        "EXPO_PUBLIC_SHOW_TEST_MODE_BADGE": "true",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://a6e3e2a6fd14ba95076e311f30efa4a4@o4511103423414272.ingest.us.sentry.io/4511103425773568"
       }
     },
     "production": {
@@ -33,7 +35,8 @@
         "EXPO_PUBLIC_DMF_MODE": "production",
         "EXPO_PUBLIC_SHOW_DEVELOPER_TOOLS": "false",
         "EXPO_PUBLIC_SHOW_SAMPLE_REPORTS": "false",
-        "EXPO_PUBLIC_SHOW_TEST_MODE_BADGE": "false"
+        "EXPO_PUBLIC_SHOW_TEST_MODE_BADGE": "false",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://a6e3e2a6fd14ba95076e311f30efa4a4@o4511103423414272.ingest.us.sentry.io/4511103425773568"
       }
     }
   },

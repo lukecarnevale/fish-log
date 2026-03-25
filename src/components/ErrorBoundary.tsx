@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
 
@@ -33,7 +34,13 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    Sentry.captureException(error, {
+      contexts: {
+        react: {
+          componentStack: errorInfo.componentStack ?? undefined,
+        },
+      },
+    });
   }
 
   handleRestart = () => {
