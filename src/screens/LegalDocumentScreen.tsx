@@ -46,12 +46,12 @@ const DOCUMENTS: Record<LegalDocumentType, {
 }> = {
   privacy: {
     title: 'Privacy Policy',
-    lastUpdated: 'February 2026',
+    lastUpdated: 'March 2026',
     fullDocumentUrl: `${WEBSITE_BASE_URL}/privacy.html`,
     sections: [
       {
         title: 'Information We Collect',
-        content: 'We collect information you provide directly, including your name, email, phone number, date of birth, zip code, profile photo, fishing license information, and catch data (species, quantities, lengths, photos, harvest area, and fishing method).\n\nWe also collect certain information automatically: a unique device identifier generated on first launch, your device platform and OS version, and aggregated advertisement impression and click counts. We do not automatically collect your GPS location.',
+        content: 'We collect information you provide directly, including your name, email, phone number, date of birth, zip code, profile photo, fishing license information, and catch data (species, quantities, lengths, photos, harvest area, and fishing method).\n\nWe also collect certain information automatically: a unique device identifier generated on first launch, your device platform and OS version, aggregated advertisement impression and click counts, and crash reports and diagnostic data (error messages, stack traces, and app performance metrics). We do not automatically collect your GPS location or IP address.',
       },
       {
         title: 'How We Use Your Information',
@@ -59,7 +59,7 @@ const DOCUMENTS: Record<LegalDocumentType, {
       },
       {
         title: 'Information Sharing',
-        content: 'We do not sell your personal information. We share data with: NC Division of Marine Fisheries (harvest report data submitted to their official reporting system), Supabase (our database, authentication, and storage provider), Zippopotam.us (your zip code is sent to this service for validation when you update your profile), and other Rewards Members (your catches may appear in the community feed with your first name and last initial).',
+        content: 'We do not sell your personal information. We share data with: NC Division of Marine Fisheries (harvest report data submitted to their official reporting system), Supabase (our database, authentication, and storage provider), Sentry (crash reports and diagnostic data are sent to this error monitoring service to help us identify and fix bugs; your user ID and email may be associated with error reports for debugging purposes), Zippopotam.us (your zip code is sent to this service for validation when you update your profile), and other Rewards Members (your catches may appear in the community feed with your first name and last initial).',
       },
       {
         title: 'Data Retention & Deletion',
@@ -138,6 +138,10 @@ const DOCUMENTS: Record<LegalDocumentType, {
       {
         title: 'UI Components',
         content: 'Expo Vector Icons (MIT License)\nReact Native SVG (MIT License)\nExpo Image (MIT License)\nExpo Linear Gradient (MIT License)',
+      },
+      {
+        title: 'Error Monitoring',
+        content: 'Sentry React Native (MIT License) - Sentry',
       },
       {
         title: 'Utilities',
