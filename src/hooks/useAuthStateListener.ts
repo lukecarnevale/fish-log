@@ -13,6 +13,7 @@ import {
 import {
   createRewardsMemberFromAuthUser,
 } from '../services/rewardsConversionService';
+import { setSentryUser } from '../utils/sentryUtils';
 
 /**
  * Hook for listening to auth state changes and syncing user data.
@@ -30,6 +31,7 @@ export function useAuthStateListener() {
     const unsubscribeAuth = onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
         console.log('🔐 Auth state: SIGNED_IN');
+        setSentryUser({ id: session.user.id, email: session.user.email });
         // User signed in - sync user data from Supabase and refresh
         try {
           const memberResult = await createRewardsMemberFromAuthUser();
@@ -42,6 +44,7 @@ export function useAuthStateListener() {
         store.dispatch(fetchUserProfile());
       } else if (event === 'SIGNED_OUT') {
         console.log('🔐 Auth state: SIGNED_OUT');
+        setSentryUser(null);
         // User signed out - could clear user data here if needed
       }
     });

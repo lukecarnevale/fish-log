@@ -430,6 +430,7 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
     bottom: 0,
     backgroundColor: colors.overlay,
     zIndex: 50,
+    elevation: 5, // Android: must sit above scrollWrapper (3) but below DrawerMenu (10)
   },
 });
 

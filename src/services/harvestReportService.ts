@@ -6,6 +6,7 @@
 
 import NetInfo from '@react-native-community/netinfo';
 import { isTestMode, getDMFEndpoint } from '../config/appConfig';
+import { captureError } from '../utils/sentryUtils';
 import {
   HarvestReportInput,
   DMFSubmissionResult,
@@ -312,6 +313,7 @@ export async function submitToDMF(input: HarvestReportInput): Promise<DMFSubmiss
       return { success: false, error };
     }
   } catch (error) {
+    captureError(error, 'harvestReport:submitToDMF');
     // Network error or other failure - queue for later
     return {
       success: false,

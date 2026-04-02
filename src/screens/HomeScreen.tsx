@@ -538,6 +538,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       <Animated.ScrollView
         style={[localStyles.scrollView, { backgroundColor: 'transparent' }]}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={!menuOpen}
         contentContainerStyle={localStyles.scrollViewContent}
         refreshControl={
           <RefreshControl

@@ -4,6 +4,7 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import userReducer from './slices/userSlice';
 import fishReportsReducer from './slices/fishReportsSlice';
 import licenseReducer from './slices/licenseSlice';
+import { sentryBreadcrumbMiddleware } from './middleware/sentryMiddleware';
 
 export const store = configureStore({
   reducer: {
@@ -14,7 +15,7 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }),
+    }).concat(sentryBreadcrumbMiddleware),
 });
 
 // Configure listeners for RTK Query (will use later)

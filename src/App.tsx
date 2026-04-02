@@ -4,8 +4,12 @@
 // before any React component mounts (e.g. during the splash screen animation).
 import './services/deepLinkBuffer';
 
+// Initialize Sentry as early as possible — after the deep link buffer
+import { initSentry, Sentry, sentryNavigationIntegration } from './config/sentry';
+initSentry();
+
 import React, { useState, useEffect } from "react";
-import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from "@react-navigation/native";
 import {
   createStackNavigator,
   TransitionPresets,
@@ -176,8 +180,16 @@ const AppInitializer: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
+  const navigation = useNavigationContainerRef();
+
   return (
-    <NavigationContainer theme={AppTheme} linking={{
+    <NavigationContainer
+      ref={navigation}
+      onReady={() => {
+        sentryNavigationIntegration.registerNavigationContainer(navigation);
+      }}
+      theme={AppTheme}
+      linking={{
       // Define app linking configuration for React Navigation v7
       prefixes: ['fishlog://'],
       config: {
@@ -423,4 +435,4 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+export default Sentry.wrap(App);
