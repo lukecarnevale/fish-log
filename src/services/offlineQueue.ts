@@ -19,6 +19,7 @@ import {
 import { createReportFromHarvestInput, getReports } from './reportsService';
 import type { AwardedAchievement } from './reportsService';
 import { getRewardsMemberForAnonymousUser } from './rewardsConversionService';
+import { captureError } from '../utils/sentryUtils';
 
 // ============================================
 // STORAGE KEYS
@@ -74,7 +75,7 @@ export async function getQueue(): Promise<QueuedReport[]> {
     const data = await AsyncStorage.getItem(QUEUE_KEY);
     return data ? JSON.parse(data) : [];
   } catch (error) {
-    console.error('Failed to get queue:', error);
+    captureError(error, 'offlineQueue:getQueue');
     return [];
   }
 }
@@ -499,7 +500,7 @@ export async function getHistory(): Promise<SubmittedReport[]> {
 
     return localHistory;
   } catch (error) {
-    console.error('Failed to get history:', error);
+    captureError(error, 'offlineQueue:getHistory');
     return [];
   }
 }

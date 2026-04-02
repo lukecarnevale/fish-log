@@ -54,7 +54,7 @@ describe('LegalDocumentScreen', () => {
         <LegalDocumentScreen navigation={mockNavigation} route={createRoute('privacy')} />
       );
 
-      expect(getByText('Last Updated: February 2026')).toBeTruthy();
+      expect(getByText('Last Updated: March 2026')).toBeTruthy();
     });
 
     it('renders View Full Privacy Policy link', () => {

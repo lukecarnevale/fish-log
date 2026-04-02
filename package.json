@@ -1,6 +1,6 @@
 {
   "name": "fish-log",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
@@ -30,6 +30,8 @@
     "@react-navigation/native": "^7.0.14",
     "@react-navigation/stack": "^7.1.1",
     "@reduxjs/toolkit": "^2.6.0",
+    "@sentry/react-native": "~7.2.0",
+    "@supabase/sentry-js-integration": "^0.3.0",
     "@supabase/supabase-js": "^2.91.0",
     "@tanstack/react-query": "^5.66.11",
     "@types/uuid": "^10.0.0",

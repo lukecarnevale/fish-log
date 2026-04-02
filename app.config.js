@@ -50,6 +50,13 @@ module.exports = {
       ],
       "expo-secure-store",
       "expo-splash-screen",
+      [
+        "@sentry/react-native/expo",
+        {
+          organization: "fish-log-co",
+          project: "fish-log-mobile",
+        },
+      ],
     ],
     extra: {
       eas: {
