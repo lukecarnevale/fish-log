@@ -33,6 +33,7 @@ import { SCREEN_LABELS } from "../constants/screenLabels";
 import { SpeciesListBulletinIndicator } from "../components/SpeciesListBulletinIndicator";
 import { SpeciesDetailBulletinBanner } from "../components/SpeciesDetailBulletinBanner";
 import { useSpeciesAlerts } from "../contexts/SpeciesAlertsContext";
+import { useBulletins } from "../contexts/BulletinContext";
 import { useBulletinsForSpecies } from "../api/speciesBulletinApi";
 import SpeciesFilterChips from "../components/SpeciesFilterChips";
 import FloatingBackButton from "../components/FloatingBackButton";
@@ -185,6 +186,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
 
   // Species alert seen-tracking (stops badge pulsing after user taps)
   const { markSpeciesAlertSeen } = useSpeciesAlerts();
+  const { showBulletinDetail } = useBulletins();
 
   // Fetch bulletins for the selected species (only when it has an active status change)
   const { data: speciesBulletins = [] } = useBulletinsForSpecies(
@@ -645,22 +647,29 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
     return "No size limit";
   };
   
-  // Format open seasons for display
+  // Format open seasons for display.
+  // Handles both numeric ("01-01") and named ("Jan 1") date formats.
   const formatOpenSeasons = (seasons: { from: string, to: string }[] | null): string => {
     if (!seasons || seasons.length === 0) return "Open year-round";
-    
-    return seasons.map(season => {
-      const fromDate = new Date(`2000-${season.from}`);
-      const toDate = new Date(`2000-${season.to}`);
-      
-      const fromMonth = fromDate.toLocaleString('default', { month: 'short' });
-      const toMonth = toDate.toLocaleString('default', { month: 'short' });
-      
-      const fromDay = fromDate.getDate();
-      const toDay = toDate.getDate();
-      
-      return `${fromMonth} ${fromDay} - ${toMonth} ${toDay}`;
-    }).join(", ");
+
+    const formatSeasonDate = (value: string): string => {
+      // Numeric format: "MM-DD" → parse manually to avoid timezone shifts
+      const numericMatch = value.match(/^(\d{1,2})-(\d{1,2})$/);
+      if (numericMatch) {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIdx = parseInt(numericMatch[1], 10) - 1;
+        const day = parseInt(numericMatch[2], 10);
+        if (monthIdx >= 0 && monthIdx < 12) {
+          return `${monthNames[monthIdx]} ${day}`;
+        }
+      }
+      // Already a readable string like "Jan 1" or "Mar 31" — return as-is
+      return value;
+    };
+
+    return seasons.map(season =>
+      `${formatSeasonDate(season.from)} - ${formatSeasonDate(season.to)}`
+    ).join(", ");
   };
   
   // Format harvest status date for display
@@ -693,7 +702,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
             <View style={closureStyles.closureContent}>
               <Text style={closureStyles.closureTitle}>HARVEST CLOSED</Text>
               {selectedSpecies.harvestStatusNote && (
-                <Text style={closureStyles.closureNote}>
+                <Text style={closureStyles.closureNote} numberOfLines={3}>
                   {selectedSpecies.harvestStatusNote}
                 </Text>
               )}
@@ -701,6 +710,16 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                 <Text style={closureStyles.closureDate}>
                   Until {formatStatusDate(selectedSpecies.harvestStatusExpirationDate)}
                 </Text>
+              )}
+              {speciesBulletins.length > 0 && (
+                <TouchableOpacity
+                  style={closureStyles.viewAdvisoryLink}
+                  onPress={() => showBulletinDetail(speciesBulletins[0])}
+                  activeOpacity={0.7}
+                >
+                  <Text style={closureStyles.viewAdvisoryText}>View Advisory</Text>
+                  <Feather name="chevron-right" size={14} color={colors.white} />
+                </TouchableOpacity>
               )}
             </View>
           </View>
@@ -717,7 +736,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                   : 'HARVEST RESTRICTED'}
               </Text>
               {selectedSpecies.harvestStatusNote && (
-                <Text style={closureStyles.closureNote}>
+                <Text style={closureStyles.closureNote} numberOfLines={3}>
                   {selectedSpecies.harvestStatusNote}
                 </Text>
               )}
@@ -725,6 +744,16 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                 <Text style={closureStyles.closureDate}>
                   Until {formatStatusDate(selectedSpecies.harvestStatusExpirationDate)}
                 </Text>
+              )}
+              {speciesBulletins.length > 0 && (
+                <TouchableOpacity
+                  style={closureStyles.viewAdvisoryLink}
+                  onPress={() => showBulletinDetail(speciesBulletins[0])}
+                  activeOpacity={0.7}
+                >
+                  <Text style={closureStyles.viewAdvisoryText}>View Advisory</Text>
+                  <Feather name="chevron-right" size={14} color={colors.white} />
+                </TouchableOpacity>
               )}
             </View>
           </View>
@@ -1361,6 +1390,18 @@ const closureStyles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     marginTop: 4,
     fontStyle: 'italic',
+  },
+  viewAdvisoryLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 2,
+  },
+  viewAdvisoryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.white,
+    textDecorationLine: 'underline',
   },
 });
 

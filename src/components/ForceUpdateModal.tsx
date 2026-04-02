@@ -9,13 +9,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Linking,
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
 import type { AppVersionConfig } from '../services/forceUpdateService';
+import { safeOpenURL } from '../utils/openURL';
 
 // =============================================================================
 // Props
@@ -41,7 +41,7 @@ const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({
 
   const handleUpdatePress = () => {
     if (storeUrl) {
-      Linking.openURL(storeUrl);
+      safeOpenURL(storeUrl);
     }
   };
 

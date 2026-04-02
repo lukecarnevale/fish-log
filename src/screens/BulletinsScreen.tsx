@@ -172,19 +172,19 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ type, count, expanded, on
 
   return (
     <TouchableOpacity
-      style={styles.sectionHeader}
+      style={[styles.sectionHeader, { backgroundColor: cfg.color }]}
       onPress={onToggle}
       activeOpacity={0.7}
     >
-      <View style={[styles.sectionIconCircle, { backgroundColor: cfg.badgeBg }]}>
-        <Feather name={cfg.icon} size={16} color={cfg.color} />
+      <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+        <Feather name={cfg.icon} size={16} color={colors.white} />
       </View>
       <Text style={styles.sectionTitle}>{cfg.label}</Text>
-      <View style={[styles.sectionCountBadge, { backgroundColor: cfg.badgeBg }]}>
-        <Text style={[styles.sectionCountText, { color: cfg.color }]}>{count}</Text>
+      <View style={[styles.sectionCountBadge, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+        <Text style={[styles.sectionCountText, { color: colors.white }]}>{count}</Text>
       </View>
       <Animated.View style={{ transform: [{ rotate }] }}>
-        <Feather name="chevron-down" size={20} color="#A3865A" />
+        <Feather name="chevron-down" size={20} color={colors.white} />
       </Animated.View>
     </TouchableOpacity>
   );
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
-    color: '#44300A',
+    color: colors.white,
     letterSpacing: 0.5,
   },
   sectionCountBadge: {

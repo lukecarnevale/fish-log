@@ -7,11 +7,11 @@ import {
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Linking,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../../styles/common';
 import { localStyles } from '../../styles/reportFormScreenLocalStyles';
+import { safeOpenURL } from '../../utils/openURL';
 
 interface AreaInfoModalProps {
   visible: boolean;
@@ -50,7 +50,7 @@ const AreaInfoModal: React.FC<AreaInfoModalProps> = ({ visible, onClose }) => {
                 style={localStyles.areaInfoModalButton}
                 onPress={() => {
                   onClose();
-                  Linking.openURL("https://experience.arcgis.com/experience/dc745a4de8344e40b5855b9e9130d0c1");
+                  safeOpenURL("https://experience.arcgis.com/experience/dc745a4de8344e40b5855b9e9130d0c1");
                 }}
                 activeOpacity={0.7}
               >

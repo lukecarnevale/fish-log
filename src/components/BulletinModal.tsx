@@ -10,7 +10,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Linking,
   Dimensions,
   Modal,
   Pressable,
@@ -19,6 +18,7 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { safeOpenURL } from '../utils/openURL';
 import type { Bulletin } from '../types/bulletin';
 import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { formatBulletinDateLong } from '../utils/dateUtils';
@@ -57,7 +57,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
             <Text
               key={i}
               style={{ color: colors.primary, textDecorationLine: 'underline' }}
-              onPress={() => Linking.openURL(`mailto:${part}`)}
+              onPress={() => safeOpenURL(`mailto:${part}`)}
             >
               {part}
             </Text>
@@ -69,7 +69,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
             <Text
               key={i}
               style={{ color: colors.primary, textDecorationLine: 'underline' }}
-              onPress={() => Linking.openURL(`tel:${digits}`)}
+              onPress={() => safeOpenURL(`tel:${digits}`)}
             >
               {part}
             </Text>
@@ -98,7 +98,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
 
   const handleSourcePress = () => {
     if (bulletin.sourceUrl) {
-      Linking.openURL(bulletin.sourceUrl);
+      safeOpenURL(bulletin.sourceUrl);
     }
   };
 

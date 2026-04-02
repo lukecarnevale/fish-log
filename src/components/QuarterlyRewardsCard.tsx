@@ -13,7 +13,6 @@ import {
   ScrollView,
   StyleSheet,
   Animated,
-  Linking,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -22,6 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 
 import { colors } from '../styles/common';
+import { safeOpenURL } from '../utils/openURL';
 import { RootStackParamList } from '../types';
 import { Prize, PrizeCategory } from '../types/rewards';
 import { useRewards } from '../contexts/RewardsContext';
@@ -67,7 +67,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
             <Text
               key={i}
               style={{ color: COLORS.primary, textDecorationLine: 'underline' }}
-              onPress={() => Linking.openURL(`mailto:${part}`)}
+              onPress={() => safeOpenURL(`mailto:${part}`)}
             >
               {part}
             </Text>
@@ -79,7 +79,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
             <Text
               key={i}
               style={{ color: COLORS.primary, textDecorationLine: 'underline' }}
-              onPress={() => Linking.openURL(`tel:${digits}`)}
+              onPress={() => safeOpenURL(`tel:${digits}`)}
             >
               {part}
             </Text>

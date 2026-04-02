@@ -317,13 +317,9 @@ async function fetchUserEntryFromSupabase(
     .eq('user_id', userId)
     .eq('drawing_id', drawingId)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    // PGRST116 means no rows found
-    if (error.code === 'PGRST116') {
-      return null;
-    }
     throw new Error(`Failed to fetch user entry: ${error.message}`);
   }
 

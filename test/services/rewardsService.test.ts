@@ -130,12 +130,12 @@ describe('rewardsService', () => {
     });
 
     it('checks Supabase for entry when connected', async () => {
-      // Chain: .from().select().eq().eq().limit().single()
+      // Chain: .from().select().eq().eq().limit().maybeSingle()
       (mockSupabase.from as jest.Mock).mockImplementation(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
+        maybeSingle: jest.fn().mockResolvedValue({
           data: { id: 'entry-1', is_entered: true, user_id: 'user-1', drawing_id: 'draw-1' },
           error: null,
         }),
