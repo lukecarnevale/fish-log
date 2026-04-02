@@ -46,14 +46,14 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
             {profileImage ? (
               <Image
                 source={{ uri: profileImage }}
-                style={{ width: 44, height: 44, borderRadius: 22 }}
+                style={{ width: 60, height: 60, borderRadius: 30 }}
                 contentFit="cover"
                 cachePolicy="disk"
                 recyclingKey={`home-avatar-${profileImage}`}
                 transition={200}
               />
             ) : (
-              <Feather name="anchor" size={22} color={colors.white} />
+              <Feather name="anchor" size={30} color={colors.white} />
             )}
           </View>
           <View style={[styles.greetingText, { zIndex: 1 }]}>
@@ -155,9 +155,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   greetingIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
