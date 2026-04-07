@@ -7,11 +7,11 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Linking,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../../styles/common';
 import { localStyles } from '../../styles/reportFormScreenLocalStyles';
+import { safeOpenURL } from '../../utils/openURL';
 
 interface FaqModalProps {
   visible: boolean;
@@ -122,7 +122,7 @@ const FaqModal: React.FC<FaqModalProps> = ({ visible, onClose }) => {
               style={localStyles.faqLinkButton}
               onPress={() => {
                 onClose();
-                Linking.openURL("https://www.deq.nc.gov/about/divisions/marine-fisheries/science-and-statistics/mandatory-harvest-reporting/mandatory-harvest-reporting-faqs");
+                safeOpenURL("https://www.deq.nc.gov/about/divisions/marine-fisheries/science-and-statistics/mandatory-harvest-reporting/mandatory-harvest-reporting-faqs");
               }}
               activeOpacity={0.7}
             >

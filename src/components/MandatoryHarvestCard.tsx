@@ -10,7 +10,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Linking,
   Modal,
   ScrollView,
 } from 'react-native';
@@ -18,6 +17,7 @@ import { Feather } from '@expo/vector-icons';
 import { colors } from '../styles/common';
 import { MANDATORY_HARVEST_FAQS, FULL_FAQ_URL } from '../constants/faqData';
 import { FishIcon } from './icons/MandatoryHarvestIcons';
+import { safeOpenURL } from '../utils/openURL';
 
 const HEADER_BG = '#0B548B';
 
@@ -47,9 +47,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
     if (onLearnMore) {
       onLearnMore();
     } else {
-      Linking.openURL('https://www.deq.nc.gov/about/divisions/marine-fisheries/science-and-statistics/mandatory-harvest-reporting/mandatory-harvest-reporting-recreational').catch((err) =>
-        console.error('Could not open link', err)
-      );
+      safeOpenURL('https://www.deq.nc.gov/about/divisions/marine-fisheries/science-and-statistics/mandatory-harvest-reporting/mandatory-harvest-reporting-recreational');
     }
   };
 
@@ -175,7 +173,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
                 style={styles.faqLinkButton}
                 onPress={() => {
                   setShowFaqModal(false);
-                  Linking.openURL(FULL_FAQ_URL);
+                  safeOpenURL(FULL_FAQ_URL);
                 }}
                 activeOpacity={0.7}
               >

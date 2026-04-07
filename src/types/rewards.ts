@@ -72,6 +72,8 @@ export interface RewardsDrawing {
   rulesUrl?: string;
   /** Contact email for the rewards program */
   contactEmail?: string;
+  /** Number of winners selected per drawing */
+  numberOfWinners?: number;
 }
 
 /**

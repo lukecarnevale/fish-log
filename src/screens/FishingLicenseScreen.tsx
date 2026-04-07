@@ -13,7 +13,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  Linking,
   StyleSheet,
   Animated,
   Dimensions,
@@ -38,6 +37,7 @@ import { SCREEN_LABELS } from "../constants/screenLabels";
 import { getCurrentUser, updateCurrentUser } from "../services/userProfileService";
 import { onAuthStateChange } from "../services/authService";
 import UnsavedChangesModal from "../components/UnsavedChangesModal";
+import { safeOpenURL } from "../utils/openURL";
 
 type FishingLicenseScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -676,7 +676,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               {'Online at '}
               <Text
                 style={styles.expandableLinkText}
-                onPress={() => Linking.openURL('https://www.ncwildlife.gov/fishing')}
+                onPress={() => safeOpenURL('https://www.ncwildlife.gov/fishing')}
               >
                 ncwildlife.gov
               </Text>
@@ -688,7 +688,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               {'By phone at '}
               <Text
                 style={styles.expandableLinkText}
-                onPress={() => Linking.openURL('tel:8882486834')}
+                onPress={() => safeOpenURL('tel:8882486834')}
               >
                 888-248-6834
               </Text>
@@ -712,7 +712,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           </Text>
           <TouchableOpacity
             style={styles.lookupButton}
-            onPress={() => Linking.openURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
+            onPress={() => safeOpenURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
             activeOpacity={0.8}
           >
             <Feather name="external-link" size={16} color={colors.white} />
@@ -723,7 +723,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
 
       <TouchableOpacity
         style={styles.externalLinkRow}
-        onPress={() => Linking.openURL('https://www.ncwildlife.gov/fishing')}
+        onPress={() => safeOpenURL('https://www.ncwildlife.gov/fishing')}
         activeOpacity={0.7}
       >
         <Text style={styles.externalLinkText}>NC Wildlife License Information</Text>
@@ -846,7 +846,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               {'Online at '}
               <Text
                 style={styles.expandableLinkText}
-                onPress={() => Linking.openURL('https://www.ncwildlife.gov/fishing')}
+                onPress={() => safeOpenURL('https://www.ncwildlife.gov/fishing')}
               >
                 ncwildlife.gov
               </Text>
@@ -858,7 +858,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               {'By phone at '}
               <Text
                 style={styles.expandableLinkText}
-                onPress={() => Linking.openURL('tel:8882486834')}
+                onPress={() => safeOpenURL('tel:8882486834')}
               >
                 888-248-6834
               </Text>
@@ -883,7 +883,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           </Text>
           <TouchableOpacity
             style={styles.lookupButton}
-            onPress={() => Linking.openURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
+            onPress={() => safeOpenURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
             activeOpacity={0.8}
           >
             <Feather name="external-link" size={16} color={colors.white} />
@@ -895,7 +895,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       {/* External link — NC Wildlife */}
       <TouchableOpacity
         style={styles.externalLinkRow}
-        onPress={() => Linking.openURL('https://www.ncwildlife.gov/fishing')}
+        onPress={() => safeOpenURL('https://www.ncwildlife.gov/fishing')}
         activeOpacity={0.7}
       >
         <Text style={styles.externalLinkText}>NC Wildlife License Information</Text>

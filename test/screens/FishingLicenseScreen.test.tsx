@@ -1,8 +1,13 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert, Linking } from 'react-native';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FishingLicenseScreen from '../../src/screens/FishingLicenseScreen';
+import { safeOpenURL } from '../../src/utils/openURL';
+
+jest.mock('../../src/utils/openURL', () => ({
+  safeOpenURL: jest.fn(),
+}));
 
 // Mock DateTimePicker
 jest.mock('@react-native-community/datetimepicker', () => {
@@ -159,15 +164,13 @@ describe('FishingLicenseScreen', () => {
     });
 
     it('opens NC Wildlife Licensing page when external link is pressed', async () => {
-      const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as any);
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
       fireEvent.press(await findByText('NC Wildlife License Information'));
 
-      expect(openURL).toHaveBeenCalledWith('https://www.ncwildlife.gov/fishing');
-      openURL.mockRestore();
+      expect(safeOpenURL).toHaveBeenCalledWith('https://www.ncwildlife.gov/fishing');
     });
   });
 
@@ -258,14 +261,12 @@ describe('FishingLicenseScreen', () => {
     });
 
     it('opens NC Wildlife when external link is pressed', async () => {
-      const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as any);
       const { findByText } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
       fireEvent.press(await findByText('NC Wildlife License Information'));
-      expect(openURL).toHaveBeenCalledWith('https://www.ncwildlife.gov/fishing');
-      openURL.mockRestore();
+      expect(safeOpenURL).toHaveBeenCalledWith('https://www.ncwildlife.gov/fishing');
     });
 
     it('renders disclaimer text about official license', async () => {

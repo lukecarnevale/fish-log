@@ -8,7 +8,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Linking,
   StyleSheet,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -18,6 +17,7 @@ import type { Advertisement } from '../../services/transformers/advertisementTra
 import { getCategoryIcon, getCategoryLabel } from '../../services/promotionsService';
 import { getRegionLabel } from '../../constants/regionOptions';
 import { isValidUrl } from '../../utils/urlValidation';
+import { safeOpenURL } from '../../utils/openURL';
 
 interface PromotionCardProps {
   promotion: Advertisement;
@@ -56,7 +56,7 @@ const PromotionCard: React.FC<PromotionCardProps> = ({
     if (onPress) {
       onPress(promotion);
     } else if (promotion.linkUrl && isValidUrl(promotion.linkUrl)) {
-      Linking.openURL(promotion.linkUrl);
+      safeOpenURL(promotion.linkUrl);
     } else if (promotion.linkUrl) {
       console.warn('Blocked unsafe promotion URL:', promotion.linkUrl);
     }

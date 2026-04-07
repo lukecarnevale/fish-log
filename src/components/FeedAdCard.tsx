@@ -10,7 +10,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +19,7 @@ import { colors, spacing } from '../styles/common';
 import { Advertisement } from '../services/transformers/advertisementTransformer';
 import { trackAdClick, trackAdImpression } from '../services/advertisementsService';
 import CatchInfoBadge from './CatchInfoBadge';
+import { safeOpenURL } from '../utils/openURL';
 
 // IAB/MRC viewability: ad must be on-screen 1 second before counting
 const VIEWABILITY_THRESHOLD_MS = 1_000;
@@ -62,16 +62,9 @@ const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
     };
   }, [ad.id, trackedImpressions, isFocused]);
 
-  const handlePress = useCallback(async () => {
+  const handlePress = useCallback(() => {
     trackAdClick(ad.id);
-    try {
-      const canOpen = await Linking.canOpenURL(ad.linkUrl);
-      if (canOpen) {
-        await Linking.openURL(ad.linkUrl);
-      }
-    } catch {
-      // Silently ignore
-    }
+    safeOpenURL(ad.linkUrl);
   }, [ad.id, ad.linkUrl]);
 
   return (

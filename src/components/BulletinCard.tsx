@@ -17,9 +17,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
-import { spacing } from '../styles/common';
+import { colors, spacing } from '../styles/common';
 import { formatBulletinDate } from '../utils/dateUtils';
 import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { useBulletins } from '../contexts/BulletinContext';
 import type { Bulletin } from '../types/bulletin';
 
 // Enable LayoutAnimation on Android
@@ -40,6 +41,8 @@ interface BulletinCardProps {
   onDismissAll: () => void;
   /** Navigate to the full Bulletins page. */
   onViewAll?: () => void;
+  /** Total number of active bulletins (including ones not shown in this card). */
+  totalCount?: number;
 }
 
 const BulletinCard: React.FC<BulletinCardProps> = ({
@@ -47,7 +50,9 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
   onBulletinPress,
   onDismissAll,
   onViewAll,
+  totalCount,
 }) => {
+  const { isBulletinRead } = useBulletins();
   const [expanded, setExpanded] = useState(true);
 
   const toggleExpanded = useCallback(() => {
@@ -57,7 +62,8 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
 
   if (bulletins.length === 0) return null;
 
-  const subtitle = `${bulletins.length} active update${bulletins.length === 1 ? '' : 's'}`;
+  const displayCount = totalCount ?? bulletins.length;
+  const subtitle = `${displayCount} active update${displayCount === 1 ? '' : 's'}`;
 
   return (
     <View style={styles.container}>
@@ -138,6 +144,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                   onPress={() => onBulletinPress(bulletin)}
                   activeOpacity={0.7}
                 >
+                  {!isBulletinRead(bulletin.id) && <View style={styles.unreadDot} />}
                   <View style={styles.bulletinCardBody}>
                     {/* Category badge */}
                     <View style={[styles.badge, { backgroundColor: cfg.badgeBg }]}>
@@ -271,6 +278,14 @@ const styles = StyleSheet.create({
     borderColor: '#EDE3D0',
     padding: 14,
     marginBottom: 8,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginRight: 8,
+    alignSelf: 'center',
   },
   bulletinCardBody: {
     flex: 1,

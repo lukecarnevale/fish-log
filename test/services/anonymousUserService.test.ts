@@ -189,12 +189,12 @@ describe('anonymousUserService', () => {
         data: mockAnonymousUser,
         error: null,
       });
-      // findRewardsMemberByAnonymousId returns no match (PGRST116)
+      // findRewardsMemberByAnonymousId returns no match
       (mockSupabase.from as jest.Mock).mockImplementation(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       }));
 
       const result = await shouldShowRewardsPrompt();
@@ -211,7 +211,7 @@ describe('anonymousUserService', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       }));
 
       const result = await shouldShowRewardsPrompt();
@@ -230,7 +230,7 @@ describe('anonymousUserService', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       }));
 
       // Should not throw, falls back to checking anonymous user state
@@ -293,7 +293,7 @@ describe('anonymousUserService', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       }));
 
       const state = await getCurrentUserState();
@@ -348,7 +348,7 @@ describe('anonymousUserService', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: memberRow, error: null }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: memberRow, error: null }),
       }));
 
       const state = await getCurrentUserState();
@@ -367,7 +367,7 @@ describe('anonymousUserService', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockRejectedValue(new Error('DB error')),
+        maybeSingle: jest.fn().mockRejectedValue(new Error('DB error')),
       }));
 
       const state = await getCurrentUserState();
@@ -398,7 +398,7 @@ describe('anonymousUserService', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       }));
 
       const result = await isCurrentUserRewardsMember();

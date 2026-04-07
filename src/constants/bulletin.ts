@@ -40,8 +40,8 @@ export const BULLETIN_TYPE_CONFIG: Record<BulletinType, BulletinTypeConfig> = {
   educational: {
     icon: 'book-open',
     label: 'EDUCATIONAL',
-    color: '#0D5C63',
-    badgeBg: 'rgba(13,92,99,0.10)',
+    color: '#1565C0',
+    badgeBg: 'rgba(21,101,192,0.10)',
   },
   info: {
     icon: 'info',
