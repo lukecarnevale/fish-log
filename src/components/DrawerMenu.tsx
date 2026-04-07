@@ -35,6 +35,7 @@ import { AppLogoIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, Multip
 import DefaultAnglerAvatarIcon from './icons/DefaultAnglerAvatarIcon';
 import type { Bulletin } from '../types/bulletin';
 import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { useBulletins } from '../contexts/BulletinContext';
 
 // ============================================
 // TYPES
@@ -166,6 +167,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   onDismissBulletin,
 }) => {
   const menuScrollRef = useRef<ScrollView>(null);
+  const { isBulletinRead } = useBulletins();
   const { enabled: promotionsEnabled } = useFeatureFlag('promotions_hub');
 
   // Reset scroll position when menu opens
@@ -360,7 +362,9 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                         }}
                         activeOpacity={0.7}
                       >
-                        <View style={[styles.bulletinDot, { backgroundColor: cfg.color }]} />
+                        {!isBulletinRead(bulletin.id) && (
+                          <View style={[styles.bulletinDot, { backgroundColor: colors.primary }]} />
+                        )}
                         <View style={styles.bulletinItemContent}>
                           <View style={[styles.bulletinTypeBadge, { backgroundColor: cfg.badgeBg }]}>
                             <Feather name={cfg.icon} size={8} color={cfg.color} style={styles.bulletinBadgeIcon} />

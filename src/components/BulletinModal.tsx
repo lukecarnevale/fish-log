@@ -128,6 +128,16 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
       closeOnOverlayPress={false}
       containerStyle={styles.modalContainer}
     >
+      {/* Close button */}
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={onClose}
+        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        activeOpacity={0.7}
+      >
+        <Feather name="x" size={20} color={colors.darkGray} />
+      </TouchableOpacity>
+
       {/* Type Badge */}
       <View style={[styles.typeBadge, { backgroundColor: config.badgeBg }]}>
         <Feather name={config.icon} size={14} color={config.color} />
@@ -427,6 +437,18 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: '#FFFDF8',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fullscreenOverlay: {
     flex: 1,

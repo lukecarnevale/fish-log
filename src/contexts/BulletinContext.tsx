@@ -25,6 +25,7 @@ import type { Bulletin } from '../types/bulletin';
 // =============================================================================
 
 const DISMISSED_BULLETINS_KEY = 'dismissed_bulletin_ids';
+const READ_BULLETINS_KEY = 'read_bulletin_ids';
 
 /**
  * Determines whether a bulletin is "critical" and should auto-show as a modal.
@@ -71,6 +72,12 @@ interface BulletinContextValue {
 
   /** Manually refresh bulletins from the server. */
   refreshBulletins: () => void;
+
+  /** Check if a bulletin has been read/opened by the user. */
+  isBulletinRead: (id: string) => boolean;
+
+  /** Number of unread bulletins (across allBulletins). */
+  unreadCount: number;
 }
 
 const defaultContextValue: BulletinContextValue = {
@@ -84,6 +91,8 @@ const defaultContextValue: BulletinContextValue = {
   dismissAllCardBulletins: () => {},
   permanentlyDismissBulletin: () => {},
   refreshBulletins: () => {},
+  isBulletinRead: () => false,
+  unreadCount: 0,
 };
 
 // =============================================================================
@@ -119,6 +128,10 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   const hasFetched = useRef(false);
   // In-memory source of truth for dismissed IDs — eliminates read-modify-write races
   const dismissedIdsRef = useRef<Set<string>>(new Set());
+  // In-memory source of truth for read/seen bulletin IDs
+  const readIdsRef = useRef<Set<string>>(new Set());
+  // Trigger re-renders when read set changes (ref mutations don't cause re-renders)
+  const [readIdsVersion, setReadIdsVersion] = useState(0);
 
   const currentCritical = criticalQueue.length > 0 ? criticalQueue[0] : null;
 
@@ -161,6 +174,47 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   }, []);
 
   // =========================================================================
+  // Read/seen bulletin management
+  // =========================================================================
+
+  /** Load read IDs from AsyncStorage into the in-memory ref. */
+  const loadReadIds = useCallback(async (): Promise<void> => {
+    try {
+      const raw = await AsyncStorage.getItem(READ_BULLETINS_KEY);
+      if (raw) {
+        readIdsRef.current = new Set(JSON.parse(raw) as string[]);
+        setReadIdsVersion((v) => v + 1);
+      }
+    } catch (error) {
+      console.warn('Failed to load read bulletins:', error);
+    }
+  }, []);
+
+  /** Mark a bulletin as read. Race-safe via synchronous ref mutation. */
+  const markBulletinRead = useCallback((bulletinId: string) => {
+    if (readIdsRef.current.has(bulletinId)) return;
+    readIdsRef.current.add(bulletinId);
+    setReadIdsVersion((v) => v + 1);
+    AsyncStorage.setItem(
+      READ_BULLETINS_KEY,
+      JSON.stringify([...readIdsRef.current])
+    ).catch((error) => {
+      console.warn('Failed to save read bulletin:', error);
+    });
+  }, []);
+
+  /** Check if a bulletin has been read. */
+  const isBulletinRead = useCallback((id: string): boolean => {
+    return readIdsRef.current.has(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readIdsVersion]);
+
+  // Mark critical bulletins as read when they auto-show
+  useEffect(() => {
+    if (currentCritical) markBulletinRead(currentCritical.id);
+  }, [currentCritical, markBulletinRead]);
+
+  // =========================================================================
   // Fetch and split bulletins into critical vs. card
   // =========================================================================
 
@@ -169,6 +223,7 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
       const [bulletins, dismissedIds] = await Promise.all([
         fetchActiveBulletins(),
         loadDismissedIds(),
+        loadReadIds(),
       ]);
 
       // Store the full server list (never filtered — for the Bulletins page)
@@ -207,7 +262,7 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
     } catch (error) {
       console.warn('Failed to load bulletins:', error);
     }
-  }, [loadDismissedIds]);
+  }, [loadDismissedIds, loadReadIds]);
 
   // Fetch bulletins once on mount
   useEffect(() => {
@@ -260,7 +315,8 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   const showBulletinDetail = useCallback((bulletin: Bulletin, allowDismiss = true) => {
     setDetailAllowDismiss(allowDismiss);
     setSelectedBulletin(bulletin);
-  }, []);
+    markBulletinRead(bulletin.id);
+  }, [markBulletinRead]);
 
   const dismissAllCardBulletins = useCallback(() => {
     setCardBulletins([]);
@@ -284,6 +340,12 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
   // Context value
   // =========================================================================
 
+  const unreadCount = useMemo(
+    () => allBulletins.filter((b) => !readIdsRef.current.has(b.id)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allBulletins, readIdsVersion]
+  );
+
   const contextValue: BulletinContextValue = useMemo(() => ({
     isShowingBulletin,
     criticalBulletinCount: criticalQueue.length,
@@ -295,6 +357,8 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
     dismissAllCardBulletins,
     permanentlyDismissBulletin,
     refreshBulletins,
+    isBulletinRead,
+    unreadCount,
   }), [
     isShowingBulletin,
     criticalQueue.length,
@@ -306,6 +370,8 @@ export function BulletinProvider({ children }: BulletinProviderProps): React.Rea
     dismissAllCardBulletins,
     permanentlyDismissBulletin,
     refreshBulletins,
+    isBulletinRead,
+    unreadCount,
   ]);
 
   return (

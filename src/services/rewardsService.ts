@@ -201,6 +201,7 @@ function transformDrawing(
     alternativeEntryUrl: row.alternative_entry_url as string | undefined,
     rulesUrl: row.rules_url as string | undefined,
     contactEmail: row.contact_email as string | undefined,
+    numberOfWinners: row.number_of_winners as number | undefined,
   };
 }
 
