@@ -96,9 +96,10 @@ const EmptyBulletinIllustration: React.FC = () => (
 interface BulletinCardProps {
   bulletin: Bulletin;
   onPress: (bulletin: Bulletin) => void;
+  isUnread?: boolean;
 }
 
-const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress }) => {
+const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress, isUnread }) => {
   const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
 
   const dateText =
@@ -118,11 +119,14 @@ const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress }) => {
     >
       {/* Top row — status badge (left) + date (right) */}
       <View style={styles.cardTopRow}>
-        <View style={[styles.cardBadge, { backgroundColor: cfg.badgeBg }]}>
-          <Feather name={cfg.icon} size={10} color={cfg.color} style={styles.cardBadgeIcon} />
-          <Text style={[styles.cardBadgeText, { color: cfg.color }]}>
-            {cfg.label}
-          </Text>
+        <View style={styles.cardBadgeRow}>
+          {isUnread && <View style={styles.unreadDot} />}
+          <View style={[styles.cardBadge, { backgroundColor: cfg.badgeBg }]}>
+            <Feather name={cfg.icon} size={10} color={cfg.color} style={styles.cardBadgeIcon} />
+            <Text style={[styles.cardBadgeText, { color: cfg.color }]}>
+              {cfg.label}
+            </Text>
+          </View>
         </View>
         {dateText && <Text style={styles.cardDate}>{dateText}</Text>}
       </View>
@@ -172,19 +176,19 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ type, count, expanded, on
 
   return (
     <TouchableOpacity
-      style={styles.sectionHeader}
+      style={[styles.sectionHeader, { backgroundColor: cfg.color + 'CC' }]}
       onPress={onToggle}
       activeOpacity={0.7}
     >
-      <View style={[styles.sectionIconCircle, { backgroundColor: cfg.badgeBg }]}>
-        <Feather name={cfg.icon} size={16} color={cfg.color} />
+      <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+        <Feather name={cfg.icon} size={16} color={colors.white} />
       </View>
       <Text style={styles.sectionTitle}>{cfg.label}</Text>
-      <View style={[styles.sectionCountBadge, { backgroundColor: cfg.badgeBg }]}>
-        <Text style={[styles.sectionCountText, { color: cfg.color }]}>{count}</Text>
+      <View style={[styles.sectionCountBadge, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+        <Text style={[styles.sectionCountText, { color: colors.white }]}>{count}</Text>
       </View>
       <Animated.View style={{ transform: [{ rotate }] }}>
-        <Feather name="chevron-down" size={20} color="#A3865A" />
+        <Feather name="chevron-down" size={20} color={colors.white} />
       </Animated.View>
     </TouchableOpacity>
   );
@@ -196,7 +200,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ type, count, expanded, on
 
 const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { fetchedBulletins, showBulletinDetail } = useBulletins();
+  const { fetchedBulletins, showBulletinDetail, isBulletinRead } = useBulletins();
   const {
     scrollY,
     floatingOpacity,
@@ -360,6 +364,7 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
                             key={bulletin.id}
                             bulletin={bulletin}
                             onPress={handleBulletinPress}
+                            isUnread={!isBulletinRead(bulletin.id)}
                           />
                         ))}
                       </View>
@@ -522,7 +527,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
-    color: '#44300A',
+    color: colors.white,
     letterSpacing: 0.5,
   },
   sectionCountBadge: {
@@ -559,6 +564,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  cardBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginRight: 6,
   },
   cardBadge: {
     flexDirection: 'row',

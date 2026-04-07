@@ -1,8 +1,12 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { Linking } from 'react-native';
 import PromotionCard from '../../../src/components/promotions/PromotionCard';
 import { makeAdvertisement } from '../../factories';
+import { safeOpenURL } from '../../../src/utils/openURL';
+
+jest.mock('../../../src/utils/openURL', () => ({
+  safeOpenURL: jest.fn(),
+}));
 
 const defaultPromo = makeAdvertisement({
   id: 'promo-1',
@@ -17,7 +21,7 @@ const defaultPromo = makeAdvertisement({
 
 describe('PromotionCard', () => {
   beforeEach(() => {
-    jest.spyOn(Linking, 'openURL').mockImplementation(() => Promise.resolve());
+    jest.clearAllMocks();
   });
 
   it('renders company name and promo text', () => {
@@ -39,7 +43,7 @@ describe('PromotionCard', () => {
   it('opens valid URL on press', () => {
     const { getByLabelText } = render(<PromotionCard promotion={defaultPromo} />);
     fireEvent.press(getByLabelText(/Captain Bob Charters/));
-    expect(Linking.openURL).toHaveBeenCalledWith('https://captainbob.com');
+    expect(safeOpenURL).toHaveBeenCalledWith('https://captainbob.com');
   });
 
   it('blocks javascript: URL', () => {
@@ -47,7 +51,7 @@ describe('PromotionCard', () => {
     const dangerousPromo = makeAdvertisement({ linkUrl: 'javascript:alert(1)' });
     const { getByRole } = render(<PromotionCard promotion={dangerousPromo} />);
     fireEvent.press(getByRole('button'));
-    expect(Linking.openURL).not.toHaveBeenCalled();
+    expect(safeOpenURL).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
 
@@ -56,7 +60,7 @@ describe('PromotionCard', () => {
     const { getByRole } = render(<PromotionCard promotion={defaultPromo} onPress={onPress} />);
     fireEvent.press(getByRole('button'));
     expect(onPress).toHaveBeenCalledWith(defaultPromo);
-    expect(Linking.openURL).not.toHaveBeenCalled();
+    expect(safeOpenURL).not.toHaveBeenCalled();
   });
 
   it('has accessibility role button', () => {

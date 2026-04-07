@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Linking,
   ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -15,6 +14,7 @@ import { APP_VERSION } from '../config/appConfig';
 import { usePartners } from '../hooks/usePartners';
 import { trackPartnerClick } from '../services/partnersService';
 import { GhostFish, WaveTransition, FOOTER_BG } from './icons/FooterIcons';
+import { safeOpenURL } from '../utils/openURL';
 
 interface FooterProps {
   onPrivacyPress?: () => void;
@@ -35,9 +35,7 @@ const Footer: React.FC<FooterProps> = ({
 
   const handlePartnerPress = (partnerId: string, url: string) => {
     trackPartnerClick(partnerId);
-    Linking.openURL(url).catch((err) =>
-      console.error('An error occurred', err)
-    );
+    safeOpenURL(url);
   };
 
   return (

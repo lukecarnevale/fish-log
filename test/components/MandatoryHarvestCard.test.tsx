@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { Linking } from 'react-native';
 import MandatoryHarvestCard from '../../src/components/MandatoryHarvestCard';
+import { safeOpenURL } from '../../src/utils/openURL';
 
 jest.mock('../../src/constants/faqData', () => ({
   MANDATORY_HARVEST_FAQS: [
@@ -9,6 +9,10 @@ jest.mock('../../src/constants/faqData', () => ({
     { question: 'Which species?', answer: 'Five species.' },
   ],
   FULL_FAQ_URL: 'https://example.com/faqs',
+}));
+
+jest.mock('../../src/utils/openURL', () => ({
+  safeOpenURL: jest.fn(),
 }));
 
 jest.mock('../../src/components/icons/MandatoryHarvestIcons', () => {
@@ -59,12 +63,10 @@ describe('MandatoryHarvestCard', () => {
   });
 
   it('opens external link when onLearnMore is not provided', () => {
-    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as any);
     const { getByText } = render(<MandatoryHarvestCard />);
 
     fireEvent.press(getByText('Learn More'));
-    expect(openURL).toHaveBeenCalledWith(expect.stringContaining('deq.nc.gov'));
-    openURL.mockRestore();
+    expect(safeOpenURL).toHaveBeenCalledWith(expect.stringContaining('deq.nc.gov'));
   });
 
   it('calls onDismiss when Got It is pressed', () => {

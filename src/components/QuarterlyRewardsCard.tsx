@@ -13,7 +13,6 @@ import {
   ScrollView,
   StyleSheet,
   Animated,
-  Linking,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -22,6 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 
 import { colors } from '../styles/common';
+import { safeOpenURL } from '../utils/openURL';
 import { RootStackParamList } from '../types';
 import { Prize, PrizeCategory } from '../types/rewards';
 import { useRewards } from '../contexts/RewardsContext';
@@ -67,7 +67,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
             <Text
               key={i}
               style={{ color: COLORS.primary, textDecorationLine: 'underline' }}
-              onPress={() => Linking.openURL(`mailto:${part}`)}
+              onPress={() => safeOpenURL(`mailto:${part}`)}
             >
               {part}
             </Text>
@@ -79,7 +79,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
             <Text
               key={i}
               style={{ color: COLORS.primary, textDecorationLine: 'underline' }}
-              onPress={() => Linking.openURL(`tel:${digits}`)}
+              onPress={() => safeOpenURL(`tel:${digits}`)}
             >
               {part}
             </Text>
@@ -272,6 +272,7 @@ const QuarterlyRewardsCardSkeleton: React.FC = () => {
 const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false, hasProfileEmail = false }) => {
   const navigation = useNavigation<NavigationProp>();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showRulesModal, setShowRulesModal] = useState(false);
   const [scrollToPrizes, setScrollToPrizes] = useState(false);
   const modalScrollViewRef = useRef<ScrollView>(null);
   const prizeSectionY = useRef<number>(0);
@@ -417,22 +418,33 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             >
               <WaveBackground />
               <View style={styles.modalBannerContent}>
-                {/* Entry Status Chip — top right */}
-                <View style={[
-                  styles.modalStatusChip,
-                  hasEnteredCurrentRaffle ? styles.modalStatusChipEntered : styles.modalStatusChipNotEntered,
-                ]}>
-                  <Feather
-                    name={hasEnteredCurrentRaffle ? 'check-circle' : 'alert-circle'}
-                    size={14}
-                    color={hasEnteredCurrentRaffle ? '#4CAF50' : '#FF9800'}
-                  />
-                  <Text style={[
-                    styles.modalStatusChipText,
-                    hasEnteredCurrentRaffle ? styles.modalStatusChipTextEntered : styles.modalStatusChipTextNotEntered,
+                {/* Top Row: Entry Status Chip (left) + Close X (right) */}
+                <View style={styles.modalBannerTopRow}>
+                  <View style={[
+                    styles.modalStatusChip,
+                    hasEnteredCurrentRaffle ? styles.modalStatusChipEntered : styles.modalStatusChipNotEntered,
                   ]}>
-                    {hasEnteredCurrentRaffle ? "You're Entered" : 'Not Yet Entered'}
-                  </Text>
+                    <Feather
+                      name={hasEnteredCurrentRaffle ? 'check-circle' : 'alert-circle'}
+                      size={14}
+                      color={hasEnteredCurrentRaffle ? '#4CAF50' : '#FF9800'}
+                    />
+                    <Text style={[
+                      styles.modalStatusChipText,
+                      hasEnteredCurrentRaffle ? styles.modalStatusChipTextEntered : styles.modalStatusChipTextNotEntered,
+                    ]}>
+                      {hasEnteredCurrentRaffle ? "You're Entered" : 'Not Yet Entered'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setShowDetailsModal(false)}
+                    style={styles.modalCloseX}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Feather name="x" size={22} color="#FFFFFF" />
+                  </TouchableOpacity>
                 </View>
                 <Text style={styles.modalBannerTitle}>{currentDrawing.name}</Text>
                 <Text style={styles.modalBannerSubtitle}>
@@ -569,6 +581,24 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                   ))}
                 </View>
               </View>
+
+              {/* Official Rules link */}
+              <View style={styles.modalSection}>
+                <TouchableOpacity
+                  style={styles.officialRulesLink}
+                  onPress={() => {
+                    setShowDetailsModal(false);
+                    setTimeout(() => setShowRulesModal(true), 250);
+                  }}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="View official sweepstakes rules"
+                >
+                  <Feather name="file-text" size={16} color={COLORS.navyDark} />
+                  <Text style={styles.officialRulesLinkText}>View Official Rules</Text>
+                  <Feather name="chevron-right" size={16} color={COLORS.navyDark} />
+                </TouchableOpacity>
+              </View>
             </ScrollView>
 
             <TouchableOpacity
@@ -586,9 +616,70 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             </TouchableOpacity>
           </View>
         </View>
+
       </Modal>
     );
   };
+
+  // Official Rules Modal (rendered as a top-level sibling so it doesn't conflict with the details modal)
+  const renderRulesModal = () => (
+    <Modal
+      visible={showRulesModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowRulesModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <LinearGradient
+            colors={[COLORS.navyDark, COLORS.navyLight]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.modalBanner}
+          >
+            <WaveBackground />
+            <View style={styles.modalBannerContent}>
+              <View style={styles.modalBannerTopRow}>
+                <View style={{ flex: 1 }} />
+                <TouchableOpacity
+                  onPress={() => setShowRulesModal(false)}
+                  style={styles.modalCloseX}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Feather name="x" size={22} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalBannerTitle}>Official Rules</Text>
+              <Text style={styles.modalBannerSubtitle}>
+                Fish Log Quarterly Rewards Sweepstakes
+              </Text>
+            </View>
+          </LinearGradient>
+          <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator>
+            <Text style={styles.officialRulesBody}>
+              {config?.legalDisclaimer ||
+                'Official rules are temporarily unavailable. Please contact fishlogco@gmail.com for a copy of the official rules.'}
+            </Text>
+          </ScrollView>
+          <TouchableOpacity
+            style={styles.modalButton}
+            onPress={() => setShowRulesModal(false)}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={[COLORS.navyDark, COLORS.navyLight]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Text style={styles.modalButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <View style={styles.container}>
@@ -845,6 +936,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
       </View>
 
       {renderDetailsModal()}
+      {renderRulesModal()}
     </View>
   );
 };
@@ -1259,15 +1351,28 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 14,
   },
+  modalBannerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modalCloseX: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
   modalStatusChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-end',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     gap: 6,
-    marginBottom: 10,
   },
   modalStatusChipEntered: {
     backgroundColor: 'rgba(76,175,80,0.2)',
@@ -1515,6 +1620,28 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
+  officialRulesLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#F0F4FA',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D8E2EF',
+  },
+  officialRulesLinkText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.navyDark,
+  },
+  officialRulesBody: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: COLORS.textSecondary,
+  },
   modalButton: {
     padding: 16,
     alignItems: 'center',

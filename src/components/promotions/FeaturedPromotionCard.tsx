@@ -8,7 +8,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Linking,
   StyleSheet,
   Dimensions,
 } from 'react-native';
@@ -20,6 +19,7 @@ import type { Advertisement } from '../../services/transformers/advertisementTra
 import { getCategoryLabel } from '../../services/promotionsService';
 import { getRegionLabel } from '../../constants/regionOptions';
 import { isValidUrl } from '../../utils/urlValidation';
+import { safeOpenURL } from '../../utils/openURL';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -38,7 +38,7 @@ const FeaturedPromotionCard: React.FC<FeaturedPromotionCardProps> = ({
     if (onPress) {
       onPress(promotion);
     } else if (promotion.linkUrl && isValidUrl(promotion.linkUrl)) {
-      Linking.openURL(promotion.linkUrl);
+      safeOpenURL(promotion.linkUrl);
     } else if (promotion.linkUrl) {
       console.warn('Blocked unsafe featured promotion URL:', promotion.linkUrl);
     }

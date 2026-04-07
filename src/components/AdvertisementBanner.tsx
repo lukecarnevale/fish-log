@@ -4,7 +4,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Linking,
   StyleSheet,
   ScrollView,
   Dimensions,
@@ -15,6 +14,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { safeOpenURL } from '../utils/openURL';
 import {
   Advertisement as RemoteAdvertisement,
   fetchAdvertisements,
@@ -246,14 +246,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
     if (onPress) {
       onPress(ad);
     } else {
-      try {
-        const canOpen = await Linking.canOpenURL(ad.linkUrl);
-        if (canOpen) {
-          await Linking.openURL(ad.linkUrl);
-        }
-      } catch {
-        // Silently ignore - URL was likely opened successfully
-      }
+      safeOpenURL(ad.linkUrl);
     }
   };
 

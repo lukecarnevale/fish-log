@@ -9,11 +9,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Linking,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "../styles/common";
 import AnimatedModal from "./AnimatedModal";
+import { safeOpenURL } from "../utils/openURL";
 
 interface WrcIdInfoModalProps {
   visible: boolean;
@@ -23,7 +23,7 @@ interface WrcIdInfoModalProps {
 const WrcIdInfoModal: React.FC<WrcIdInfoModalProps> = ({ visible, onClose }) => {
   const handleLookup = () => {
     onClose();
-    Linking.openURL("https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx");
+    safeOpenURL("https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx");
   };
 
   return (

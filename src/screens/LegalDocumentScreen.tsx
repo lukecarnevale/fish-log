@@ -10,7 +10,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -18,6 +17,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { RootStackParamList, LegalDocumentType } from '../types';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { safeOpenURL } from '../utils/openURL';
 
 type LegalDocumentScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -164,16 +164,12 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
 
   const handleOpenFullDocument = () => {
     if (document.fullDocumentUrl) {
-      Linking.openURL(document.fullDocumentUrl).catch((err) =>
-        console.error('Failed to open URL:', err)
-      );
+      safeOpenURL(document.fullDocumentUrl);
     }
   };
 
   const handleContact = () => {
-    Linking.openURL('mailto:fishlogco@gmail.com').catch((err) =>
-      console.error('Failed to open email:', err)
-    );
+    safeOpenURL('mailto:fishlogco@gmail.com');
   };
 
   return (

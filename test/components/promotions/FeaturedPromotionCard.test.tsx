@@ -1,8 +1,12 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { Linking } from 'react-native';
 import FeaturedPromotionCard from '../../../src/components/promotions/FeaturedPromotionCard';
 import { makeAdvertisement } from '../../factories';
+import { safeOpenURL } from '../../../src/utils/openURL';
+
+jest.mock('../../../src/utils/openURL', () => ({
+  safeOpenURL: jest.fn(),
+}));
 
 const featured = makeAdvertisement({
   companyName: 'Premium Charters',
@@ -17,7 +21,7 @@ const featured = makeAdvertisement({
 
 describe('FeaturedPromotionCard', () => {
   beforeEach(() => {
-    jest.spyOn(Linking, 'openURL').mockImplementation(() => Promise.resolve());
+    jest.clearAllMocks();
   });
 
   it('renders company name', () => {
@@ -43,7 +47,7 @@ describe('FeaturedPromotionCard', () => {
   it('opens valid URL on press', () => {
     const { getByRole } = render(<FeaturedPromotionCard promotion={featured} />);
     fireEvent.press(getByRole('button'));
-    expect(Linking.openURL).toHaveBeenCalledWith('https://premiumcharters.com');
+    expect(safeOpenURL).toHaveBeenCalledWith('https://premiumcharters.com');
   });
 
   it('has accessibility label with featured prefix', () => {

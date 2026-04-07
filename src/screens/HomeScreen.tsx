@@ -67,6 +67,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Bulletin card — non-critical bulletins shown inline on HomeScreen
   const {
     allBulletins,
+    fetchedBulletins,
     cardBulletins,
     showBulletinDetail,
     dismissAllCardBulletins,
@@ -629,6 +630,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             onBulletinPress={showBulletinDetail}
             onDismissAll={dismissAllCardBulletins}
             onViewAll={() => navigation.navigate('Bulletins')}
+            totalCount={fetchedBulletins.length}
           />
         )}
 

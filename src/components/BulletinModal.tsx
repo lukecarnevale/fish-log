@@ -10,7 +10,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Linking,
   Dimensions,
   Modal,
   Pressable,
@@ -19,6 +18,7 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
 import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { safeOpenURL } from '../utils/openURL';
 import type { Bulletin } from '../types/bulletin';
 import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { formatBulletinDateLong } from '../utils/dateUtils';
@@ -57,7 +57,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
             <Text
               key={i}
               style={{ color: colors.primary, textDecorationLine: 'underline' }}
-              onPress={() => Linking.openURL(`mailto:${part}`)}
+              onPress={() => safeOpenURL(`mailto:${part}`)}
             >
               {part}
             </Text>
@@ -69,7 +69,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
             <Text
               key={i}
               style={{ color: colors.primary, textDecorationLine: 'underline' }}
-              onPress={() => Linking.openURL(`tel:${digits}`)}
+              onPress={() => safeOpenURL(`tel:${digits}`)}
             >
               {part}
             </Text>
@@ -98,7 +98,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
 
   const handleSourcePress = () => {
     if (bulletin.sourceUrl) {
-      Linking.openURL(bulletin.sourceUrl);
+      safeOpenURL(bulletin.sourceUrl);
     }
   };
 
@@ -128,6 +128,16 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
       closeOnOverlayPress={false}
       containerStyle={styles.modalContainer}
     >
+      {/* Close button */}
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={onClose}
+        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        activeOpacity={0.7}
+      >
+        <Feather name="x" size={20} color={colors.darkGray} />
+      </TouchableOpacity>
+
       {/* Type Badge */}
       <View style={[styles.typeBadge, { backgroundColor: config.badgeBg }]}>
         <Feather name={config.icon} size={14} color={config.color} />
@@ -427,6 +437,18 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: '#FFFDF8',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fullscreenOverlay: {
     flex: 1,

@@ -1,7 +1,11 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { Linking } from 'react-native';
 import LegalDocumentScreen from '../../src/screens/LegalDocumentScreen';
+import { safeOpenURL } from '../../src/utils/openURL';
+
+jest.mock('../../src/utils/openURL', () => ({
+  safeOpenURL: jest.fn(),
+}));
 
 // Create mock navigation and route
 const mockNavigation = {
@@ -66,14 +70,12 @@ describe('LegalDocumentScreen', () => {
     });
 
     it('opens full document URL when View Full link is pressed', () => {
-      const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as any);
       const { getByText } = render(
         <LegalDocumentScreen navigation={mockNavigation} route={createRoute('privacy')} />
       );
 
       fireEvent.press(getByText('View Full Privacy Policy'));
-      expect(openURL).toHaveBeenCalledWith('https://fishlogco.github.io/privacy.html');
-      openURL.mockRestore();
+      expect(safeOpenURL).toHaveBeenCalledWith('https://fishlogco.github.io/privacy.html');
     });
   });
 
@@ -111,14 +113,12 @@ describe('LegalDocumentScreen', () => {
     });
 
     it('opens terms URL when View Full link is pressed', () => {
-      const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as any);
       const { getByText } = render(
         <LegalDocumentScreen navigation={mockNavigation} route={createRoute('terms')} />
       );
 
       fireEvent.press(getByText('View Full Terms of Use'));
-      expect(openURL).toHaveBeenCalledWith('https://fishlogco.github.io/terms.html');
-      openURL.mockRestore();
+      expect(safeOpenURL).toHaveBeenCalledWith('https://fishlogco.github.io/terms.html');
     });
   });
 
@@ -183,14 +183,12 @@ describe('LegalDocumentScreen', () => {
     });
 
     it('opens email client when Contact Us is pressed', () => {
-      const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as any);
       const { getByText } = render(
         <LegalDocumentScreen navigation={mockNavigation} route={createRoute('privacy')} />
       );
 
       fireEvent.press(getByText('Contact Us'));
-      expect(openURL).toHaveBeenCalledWith('mailto:fishlogco@gmail.com');
-      openURL.mockRestore();
+      expect(safeOpenURL).toHaveBeenCalledWith('mailto:fishlogco@gmail.com');
     });
 
     it('renders contextual contact text for each document type', () => {

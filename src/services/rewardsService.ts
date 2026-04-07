@@ -201,6 +201,7 @@ function transformDrawing(
     alternativeEntryUrl: row.alternative_entry_url as string | undefined,
     rulesUrl: row.rules_url as string | undefined,
     contactEmail: row.contact_email as string | undefined,
+    numberOfWinners: row.number_of_winners as number | undefined,
   };
 }
 
@@ -317,13 +318,9 @@ async function fetchUserEntryFromSupabase(
     .eq('user_id', userId)
     .eq('drawing_id', drawingId)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    // PGRST116 means no rows found
-    if (error.code === 'PGRST116') {
-      return null;
-    }
     throw new Error(`Failed to fetch user entry: ${error.message}`);
   }
 

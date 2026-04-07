@@ -143,12 +143,9 @@ async function findRewardsMemberByAnonymousId(anonymousUserId: string): Promise<
     .select('*')
     .eq('anonymous_user_id', anonymousUserId)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // No user found
-    }
     throw new Error(`Failed to find rewards member: ${error.message}`);
   }
 
