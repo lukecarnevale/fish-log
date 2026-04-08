@@ -98,7 +98,7 @@ const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
           </View>
           <View style={styles.topTextContainer}>
             <Text style={styles.companyName}>{ad.companyName}</Text>
-            <Text style={styles.sponsoredLabel}>Sponsored</Text>
+            <Text style={styles.sponsoredLabel} maxFontSizeMultiplier={1.15}>Sponsored</Text>
           </View>
         </View>
 

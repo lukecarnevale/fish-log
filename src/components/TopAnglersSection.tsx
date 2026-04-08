@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
 
   // Category title
   categoryTitle: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     color: COLORS.textMuted,
     textTransform: 'uppercase',

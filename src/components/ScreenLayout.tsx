@@ -128,13 +128,27 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
           <View style={styles.headerSpacer} />
         )}
 
-        <Text style={styles.headerTitle}>{title}</Text>
+        <Text
+          style={styles.headerTitle}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+          maxFontSizeMultiplier={1.3}
+        >
+          {title}
+        </Text>
 
         {headerRight || <View style={styles.headerSpacer} />}
       </View>
 
       {subtitle && (
-        <Text style={styles.headerSubtitle}>{subtitle}</Text>
+        <Text
+          style={styles.headerSubtitle}
+          numberOfLines={2}
+          maxFontSizeMultiplier={1.3}
+        >
+          {subtitle}
+        </Text>
       )}
     </View>
   );

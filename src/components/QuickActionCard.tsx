@@ -62,13 +62,25 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
         activeOpacity={disabled ? 0.7 : 0.7}
       >
       <View style={styles.textContainer}>
-        <Text style={[styles.title, disabled && styles.titleDisabled]}>{title}</Text>
+        <Text
+          style={[styles.title, disabled && styles.titleDisabled]}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+          maxFontSizeMultiplier={1.25}
+        >
+          {title}
+        </Text>
         {subtitle && (
-          <Text style={[
-            styles.subtitle,
-            subtitleColor && !disabled && { color: subtitleColor },
-            disabled && styles.subtitleDisabled,
-          ]}>
+          <Text
+            style={[
+              styles.subtitle,
+              subtitleColor && !disabled && { color: subtitleColor },
+              disabled && styles.subtitleDisabled,
+            ]}
+            numberOfLines={2}
+            maxFontSizeMultiplier={1.15}
+          >
             {subtitle}
           </Text>
         )}
@@ -106,7 +118,13 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
         <View style={styles.disabledOverlay}>
           <View style={styles.lockBadge}>
             <Feather name="lock" size={14} color="#666" />
-            <Text style={styles.lockText}>{disabledMessage}</Text>
+            <Text
+              style={styles.lockText}
+              numberOfLines={2}
+              maxFontSizeMultiplier={1.2}
+            >
+              {disabledMessage}
+            </Text>
           </View>
         </View>
       )}
@@ -130,7 +148,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 16,
-    height: 170,
+    minHeight: 170,
     flex: 1,
     position: 'relative',
     overflow: 'hidden',

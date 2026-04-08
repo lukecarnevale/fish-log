@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyCardTitleLabel: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
     color: '#90A4AE',
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   emptyCardFieldLabel: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
     color: '#90A4AE',

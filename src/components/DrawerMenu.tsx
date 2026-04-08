@@ -124,7 +124,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
       )}
       {typeof badgeCount === 'number' && badgeCount > 0 && (
         <View style={styles.menuCountBadge}>
-          <Text style={styles.menuCountBadgeText}>{badgeCount}</Text>
+          <Text style={styles.menuCountBadgeText} maxFontSizeMultiplier={1.1}>{badgeCount}</Text>
         </View>
       )}
     </View>
@@ -741,10 +741,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#D32F2F',
     borderRadius: 9,
     minWidth: 18,
-    height: 18,
+    minHeight: 18,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
+    paddingVertical: 1,
     borderWidth: 2,
     borderColor: '#E8F5F4',
   },

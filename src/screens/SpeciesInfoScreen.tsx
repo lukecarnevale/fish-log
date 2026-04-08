@@ -1166,6 +1166,10 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                         style={localStyles.alphabetLetterContainer}
                       >
                         <Text
+                          // Alphabet scrubber is a fixed-column gesture UI
+                          // (like iOS contacts). Scaling would break the
+                          // layout, so pin to designed size.
+                          allowFontScaling={false}
                           style={[
                             localStyles.alphabetLetter,
                             !isAvailable && localStyles.alphabetLetterDisabled,

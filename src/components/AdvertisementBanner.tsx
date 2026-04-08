@@ -347,7 +347,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
 
       {/* Sponsored label */}
       <View style={styles.sponsoredBadge}>
-        <Text style={styles.sponsoredText}>Sponsored</Text>
+        <Text style={styles.sponsoredText} maxFontSizeMultiplier={1.15}>Sponsored</Text>
       </View>
     </TouchableOpacity>
   );

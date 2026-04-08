@@ -211,11 +211,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   partnerName: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: 14,
   },
 
   // Branding
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   appOrg: {
-    fontSize: 10,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.7)',
   },
 
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   copyright: {
-    fontSize: 9,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
     marginBottom: 6,
@@ -273,16 +273,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   legalLink: {
-    fontSize: 10,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.65)',
   },
   legalDot: {
-    fontSize: 10,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.4)',
     marginHorizontal: 8,
   },
   version: {
-    fontSize: 9,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.4)',
     marginTop: 6,
   },

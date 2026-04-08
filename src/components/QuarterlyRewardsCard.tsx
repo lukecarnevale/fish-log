@@ -26,6 +26,7 @@ import { RootStackParamList } from '../types';
 import { Prize, PrizeCategory } from '../types/rewards';
 import { useRewards } from '../contexts/RewardsContext';
 import { WaveBackground, HeroFishIllustration, FishingRodIllustration, LicenseCardIllustration, GenericPrizeIllustration, SwimmingFishButton } from './icons/RewardsIllustrations';
+import { useFontScale } from '../hooks/useFontScale';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -276,6 +277,18 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
   const [scrollToPrizes, setScrollToPrizes] = useState(false);
   const modalScrollViewRef = useRef<ScrollView>(null);
   const prizeSectionY = useRef<number>(0);
+
+  // Dynamic Type: the entry status tab is a file-folder style tab positioned
+  // above the card with a negative top offset. At larger text sizes the tab
+  // content grows, so we scale the offset and padding to keep it visible.
+  // See Phase 2 of the accessibility audit.
+  const { fontScale } = useFontScale();
+  const tabScale = Math.min(Math.max(fontScale, 1), 1.3);
+  const entryStatusDynamic = {
+    top: -18 * tabScale,
+    paddingTop: 5 * tabScale,
+    paddingBottom: 18 + (8 * (tabScale - 1)),
+  };
 
   const {
     currentDrawing,
@@ -684,9 +697,13 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
   return (
     <View style={styles.container}>
       {/* Entry Status Tab - File folder style tab sticking up from behind */}
-      <View style={styles.entryStatusTab}>
+      <View style={[styles.entryStatusTab, { top: entryStatusDynamic.top }]}>
         <View style={[
           styles.entryStatusContent,
+          {
+            paddingTop: entryStatusDynamic.paddingTop,
+            paddingBottom: entryStatusDynamic.paddingBottom,
+          },
           hasEnteredCurrentRaffle ? styles.entryStatusEntered : styles.entryStatusNotEntered
         ]}>
           <Feather
@@ -694,7 +711,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             size={13}
             color="#FFFFFF"
           />
-          <Text style={styles.entryStatusText}>
+          <Text style={styles.entryStatusText} maxFontSizeMultiplier={1.2}>
             {hasEnteredCurrentRaffle ? "Entered" : "Not Entered"}
           </Text>
         </View>
@@ -981,8 +998,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingTop: 5,
-    paddingBottom: 18, // Extra padding at bottom to tuck under card
+    // paddingTop/paddingBottom are applied dynamically based on font scale
+    // (see QuarterlyRewardsCard component body).
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     gap: 6,

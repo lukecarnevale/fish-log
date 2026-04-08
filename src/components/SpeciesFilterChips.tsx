@@ -92,7 +92,7 @@ const SpeciesFilterChips: React.FC<SpeciesFilterChipsProps> = ({ filters, isExpa
 
             {filter.count != null && filter.count > 0 && (
               <View style={chipStyles.badge}>
-                <Text style={chipStyles.badgeText}>{filter.count}</Text>
+                <Text style={chipStyles.badgeText} maxFontSizeMultiplier={1.1}>{filter.count}</Text>
               </View>
             )}
           </View>
@@ -129,12 +129,13 @@ const chipStyles = StyleSheet.create({
     top: -6,
     right: -6,
     minWidth: 18,
-    height: 18,
+    minHeight: 18,
     borderRadius: 9,
     backgroundColor: colors.error,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
+    paddingVertical: 1,
   },
   badgeText: {
     fontSize: 10,

@@ -23,7 +23,21 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { AppState, AppStateStatus, Platform, View, Text, StyleSheet } from 'react-native';
+import { AppState, AppStateStatus, Platform, View, Text, StyleSheet, TextInput } from 'react-native';
+
+// Global accessibility default: cap Dynamic Type scaling so layouts don't
+// break at the largest iOS/Android text sizes. Individual components can
+// override via `maxFontSizeMultiplier` prop, or use AppText/CaptionText/
+// BadgeText wrappers from ./components/AppText for tighter caps.
+// See src/components/AppText.tsx for details.
+// @ts-expect-error defaultProps exists at runtime on Text/TextInput
+Text.defaultProps = Text.defaultProps || {};
+// @ts-expect-error same
+Text.defaultProps.maxFontSizeMultiplier = 1.3;
+// @ts-expect-error defaultProps exists at runtime on TextInput
+TextInput.defaultProps = TextInput.defaultProps || {};
+// @ts-expect-error same
+TextInput.defaultProps.maxFontSizeMultiplier = 1.3;
 import { Image as ExpoImage } from 'expo-image';
 
 // Import Redux store

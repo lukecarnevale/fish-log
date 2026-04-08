@@ -321,7 +321,7 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     backgroundColor: colors.primary,
   },
   achievementCountText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.white,
   },
