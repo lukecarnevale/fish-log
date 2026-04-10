@@ -65,9 +65,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
         <Text
           style={[styles.title, disabled && styles.titleDisabled]}
           numberOfLines={2}
-          adjustsFontSizeToFit
-          minimumFontScale={0.85}
-          maxFontSizeMultiplier={1.25}
+          maxFontSizeMultiplier={1.3}
         >
           {title}
         </Text>
@@ -79,7 +77,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
               disabled && styles.subtitleDisabled,
             ]}
             numberOfLines={2}
-            maxFontSizeMultiplier={1.15}
+            maxFontSizeMultiplier={1.3}
           >
             {subtitle}
           </Text>

@@ -283,7 +283,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
     minHeight: 120,
-    maxHeight: 180,
+    maxHeight: 220,
+    textAlignVertical: 'top',
   },
   charCount: {
     fontSize: 12,
@@ -300,7 +301,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     fontSize: 16,
     color: colors.textPrimary,
-    height: 48,
+    minHeight: 48,
+    textAlignVertical: 'center',
   },
   privacyNote: {
     flexDirection: 'row',

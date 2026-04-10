@@ -116,8 +116,8 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
 
             {/* Title + subtitle */}
             <View style={styles.headerTextGroup}>
-              <Text style={styles.headerTitle}>Bulletin Board</Text>
-              <Text style={styles.headerSubtitle}>{subtitle}</Text>
+              <Text style={styles.headerTitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>Bulletin Board</Text>
+              <Text style={styles.headerSubtitle} maxFontSizeMultiplier={1.2}>{subtitle}</Text>
             </View>
 
             {/* Collapse chevron */}
@@ -149,19 +149,19 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                     {/* Category badge */}
                     <View style={[styles.badge, { backgroundColor: cfg.badgeBg }]}>
                       <Feather name={cfg.icon} size={10} color={cfg.color} style={styles.badgeIcon} />
-                      <Text style={[styles.badgeText, { color: cfg.color }]}>
+                      <Text style={[styles.badgeText, { color: cfg.color }]} maxFontSizeMultiplier={1.15}>
                         {cfg.label}
                       </Text>
                     </View>
 
                     {/* Title */}
-                    <Text style={styles.bulletinTitle} numberOfLines={2}>
+                    <Text style={styles.bulletinTitle} numberOfLines={2} maxFontSizeMultiplier={1.2}>
                       {bulletin.title}
                     </Text>
 
                     {/* Date range */}
                     {(bulletin.effectiveDate || bulletin.expirationDate) && (
-                      <Text style={styles.bulletinDate}>
+                      <Text style={styles.bulletinDate} maxFontSizeMultiplier={1.2}>
                         {bulletin.effectiveDate && bulletin.expirationDate
                           ? `${formatBulletinDate(bulletin.effectiveDate)} – ${formatBulletinDate(bulletin.expirationDate)}`
                           : bulletin.effectiveDate
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#44300A',
     fontFamily: 'Georgia',
-    lineHeight: 21,
+    lineHeight: 22,
     marginBottom: 4,
   },
   bulletinDate: {

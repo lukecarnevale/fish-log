@@ -112,7 +112,9 @@ const reportFormScreenStyles = StyleSheet.create<ReportFormScreenStyles>({
     marginTop: spacing.sm,
   },
   input: {
-    height: 52,
+    minHeight: 52,
+    paddingVertical: 10,
+    textAlignVertical: 'center',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: borderRadius.lg,

@@ -123,12 +123,12 @@ const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress, isUnread
           {isUnread && <View style={styles.unreadDot} />}
           <View style={[styles.cardBadge, { backgroundColor: cfg.badgeBg }]}>
             <Feather name={cfg.icon} size={10} color={cfg.color} style={styles.cardBadgeIcon} />
-            <Text style={[styles.cardBadgeText, { color: cfg.color }]}>
+            <Text style={[styles.cardBadgeText, { color: cfg.color }]} maxFontSizeMultiplier={1.15}>
               {cfg.label}
             </Text>
           </View>
         </View>
-        {dateText && <Text style={styles.cardDate}>{dateText}</Text>}
+        {dateText && <Text style={styles.cardDate} maxFontSizeMultiplier={1.2}>{dateText}</Text>}
       </View>
 
       {/* Title */}
@@ -185,7 +185,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ type, count, expanded, on
       </View>
       <Text style={styles.sectionTitle}>{cfg.label}</Text>
       <View style={[styles.sectionCountBadge, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-        <Text style={[styles.sectionCountText, { color: colors.white }]}>{count}</Text>
+        <Text style={[styles.sectionCountText, { color: colors.white }]} maxFontSizeMultiplier={1.1}>{count}</Text>
       </View>
       <Animated.View style={{ transform: [{ rotate }] }}>
         <Feather name="chevron-down" size={20} color={colors.white} />

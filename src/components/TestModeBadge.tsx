@@ -67,7 +67,7 @@ const TestModeBadge: React.FC<TestModeBadgeProps> = ({
   const content = (
     <View style={badgeStyle}>
       <Feather name="alert-triangle" size={10} color={colors.white} />
-      <Text style={styles.badgeText}>TEST MODE</Text>
+      <Text style={styles.badgeText} maxFontSizeMultiplier={1.1}>TEST MODE</Text>
       {showInfo && (
         <Feather name="info" size={10} color={colors.white} style={styles.infoIcon} />
       )}

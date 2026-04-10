@@ -10,6 +10,33 @@
 import { useEffect, useState } from 'react';
 import { AppState, PixelRatio } from 'react-native';
 
+// ── Centralised scaling constants ────────────────────────────────────────────
+// Used by components that adapt layout based on text scale. Keep all magic
+// numbers here so they're easy to tune in one place.
+
+/** Threshold above which `isLargeText` is true (user bumped text above default). */
+export const LARGE_TEXT_THRESHOLD = 1.2;
+
+/** Threshold at which `isExtraLargeText` fires (accessibility-level sizes). */
+export const EXTRA_LARGE_TEXT_THRESHOLD = 1.5;
+
+/** Maximum multiplier applied by the `scaled()` helper. */
+export const SCALED_CAP = 1.5;
+
+/** Default cap for general body text (used in Text.defaultProps and AppText). */
+export const FONT_SCALE_CAP_BODY = 1.3;
+
+/** Cap for headings / titles that have less room to grow. */
+export const FONT_SCALE_CAP_TITLE = 1.2;
+
+/** Cap for small captions / supporting text. */
+export const FONT_SCALE_CAP_CAPTION = 1.15;
+
+/** Cap for badges and very compact UI chrome. */
+export const FONT_SCALE_CAP_BADGE = 1.1;
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
+
 export interface FontScaleInfo {
   /** Raw font scale from the OS. 1.0 = default. */
   fontScale: number;
@@ -21,13 +48,19 @@ export interface FontScaleInfo {
   scaled: (value: number) => number;
 }
 
-const compute = (): FontScaleInfo => {
-  const fontScale = PixelRatio.getFontScale();
+export const compute = (): FontScaleInfo => {
+  let fontScale = PixelRatio.getFontScale();
+
+  // Defensive: ensure fontScale is a valid positive number
+  if (!Number.isFinite(fontScale) || fontScale < 0.5) {
+    fontScale = 1.0;
+  }
+
   return {
     fontScale,
-    isLargeText: fontScale > 1.2,
-    isExtraLargeText: fontScale >= 1.5,
-    scaled: (value: number) => value * Math.min(fontScale, 1.5),
+    isLargeText: fontScale > LARGE_TEXT_THRESHOLD,
+    isExtraLargeText: fontScale >= EXTRA_LARGE_TEXT_THRESHOLD,
+    scaled: (value: number) => value * Math.min(fontScale, SCALED_CAP),
   };
 };
 
@@ -43,7 +76,7 @@ export const useFontScale = (): FontScaleInfo => {
         setInfo((prev) => (prev.fontScale === next.fontScale ? prev : next));
       }
     });
-    return () => sub.remove();
+    return () => sub?.remove?.();
   }, []);
 
   return info;

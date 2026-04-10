@@ -117,13 +117,13 @@ const CatchCard: React.FC<CatchCardProps> = ({
             {entry.location && (
               <View style={styles.compactLocation}>
                 <Feather name="map-pin" size={10} color={colors.textTertiary} />
-                <Text style={styles.compactLocationText} numberOfLines={1}>
+                <Text style={styles.compactLocationText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
                   {entry.location}
                 </Text>
               </View>
             )}
           </View>
-          <Text style={styles.compactTimestamp}>{relativeTime}</Text>
+          <Text style={styles.compactTimestamp} maxFontSizeMultiplier={1.2}>{relativeTime}</Text>
         </View>
       </View>
     );

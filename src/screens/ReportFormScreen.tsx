@@ -32,6 +32,7 @@ import { useToast } from '../hooks/useToast';
 import { RootStackParamList, FishReportData, UserProfile, FishingLicense } from "../types";
 import styles from "../styles/reportFormScreenStyles";
 import { colors } from "../styles/common";
+import { useFontScale } from "../hooks/useFontScale";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
 import BottomDrawer from "../components/BottomDrawer";
 import FloatingBackButton from "../components/FloatingBackButton";
@@ -76,6 +77,8 @@ const REPORT_SPECIES = ['Red Drum', 'Flounder', 'Spotted Seatrout', 'Striped Bas
 const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // Safe area insets for bottom sheet padding on Android
   const insets = useSafeAreaInsets();
+  // Font scale for dynamic header spacer
+  const { fontScale } = useFontScale();
 
   // State for multiple fish entries
   const [fishEntries, setFishEntries] = useState<FishEntry[]>([]);
@@ -1433,8 +1436,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
 
           <View style={localStyles.headerTextContainer}>
-            <Text style={localStyles.headerTitle}>Report Catch</Text>
-            <Text style={localStyles.headerSubtitle}>NC Mandatory Harvest Report</Text>
+            <Text style={localStyles.headerTitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>Report Catch</Text>
+            <Text style={localStyles.headerSubtitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>NC Mandatory Harvest Report</Text>
           </View>
 
           {/* TEST MODE badge - shows when not submitting to real DMF */}
@@ -1478,7 +1481,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
               // Calculate threshold where light content covers the status bar area
               const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 50;
-              const headerSpacerHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130;
+              const headerSpacerHeight = (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130) * Math.min(Math.max(fontScale, 1), 1.25);
               const threshold = headerSpacerHeight - statusBarHeight - 24; // 24px buffer for rounded corners
 
               const scrollPosition = e.nativeEvent.contentOffset.y;
@@ -1492,7 +1495,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         scrollEventThrottle={16}
       >
         {/* Header spacer - transparent area that lets header show through */}
-        <View style={localStyles.headerSpacerArea}>
+        <View style={[localStyles.headerSpacerArea, {
+          height: (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130) * Math.min(Math.max(fontScale, 1), 1.25),
+        }]}>
           <View style={localStyles.spacerButtonsRow}>
             <TouchableOpacity
               onPress={handleBackPress}
@@ -1535,6 +1540,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       <FaqModal visible={showFaqModal} onClose={() => setShowFaqModal(false)} />
 
       <AreaInfoModal visible={showAreaInfoModal} onClose={() => setShowAreaInfoModal(false)} />
+
+      <View style={localStyles.dmfDisclaimerContainer}>
+        <Feather name="info" size={14} color={colors.primary} style={localStyles.dmfDisclaimerIcon} />
+        <Text style={localStyles.dmfDisclaimerText}>
+          This is a valid form of submission to the NC Division of Marine Fisheries (DMF) database.
+        </Text>
+      </View>
 
       {/* Reporting Type Section */}
       <View style={styles.section}>

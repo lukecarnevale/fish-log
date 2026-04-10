@@ -79,7 +79,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
           </View>
           <View style={styles.rewardsContent}>
             <Text style={styles.rewardsTitle}>Rewards Member</Text>
-            <Text style={styles.rewardsEmail}>{rewardsMemberEmail}</Text>
+            <Text style={styles.rewardsEmail} numberOfLines={1} maxFontSizeMultiplier={1.2}>{rewardsMemberEmail}</Text>
           </View>
           {userAchievements.length > 0 ? (
             <View style={styles.achievementIconsRow}>
@@ -109,7 +109,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
                   key="achievement-overflow"
                   style={[styles.achievementIconBadge, styles.achievementCountBadge, { marginLeft: -8 }]}
                 >
-                  <Text style={styles.achievementCountText}>+{userAchievements.length - 3}</Text>
+                  <Text style={styles.achievementCountText} maxFontSizeMultiplier={1.1}>+{userAchievements.length - 3}</Text>
                 </View>
               )}
             </View>
@@ -126,7 +126,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
           <View style={styles.joinIcon}>
             <Feather name="gift" size={16} color={colors.secondary} />
           </View>
-          <Text style={styles.joinText}>
+          <Text style={styles.joinText} numberOfLines={2} maxFontSizeMultiplier={1.2}>
             {hasProfileEmail ? 'Sign In to Rewards Program' : 'Join Rewards Program'}
           </Text>
           <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.7)" />

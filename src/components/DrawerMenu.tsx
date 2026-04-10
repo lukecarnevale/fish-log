@@ -130,8 +130,8 @@ const MenuItem: React.FC<MenuItemProps> = ({
     </View>
     <View style={styles.menuItemContent}>
       <Text style={[styles.menuItemLabel, disabled && styles.menuItemLabelDisabled]}>{label}</Text>
-      {subtitle && !disabled && <Text style={styles.menuItemSubtitle}>{subtitle}</Text>}
-      {disabled && <Text style={styles.menuItemSubtitleDisabled}>Sign in to view</Text>}
+      {subtitle && !disabled && <Text style={styles.menuItemSubtitle} numberOfLines={2} maxFontSizeMultiplier={1.2}>{subtitle}</Text>}
+      {disabled && <Text style={styles.menuItemSubtitleDisabled} numberOfLines={1} maxFontSizeMultiplier={1.2}>Sign in to view</Text>}
     </View>
     {disabled ? (
       <Feather name="lock" size={14} color="#999" />
@@ -398,7 +398,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             </>
           )}
 
-          <Text style={styles.sectionHeader}>Quick Actions</Text>
+          <Text style={styles.sectionHeader} maxFontSizeMultiplier={1.2}>Quick Actions</Text>
 
           {/* Bulletins menu item — shown only when no inline previews above */}
           {bulletins.length === 0 && (
@@ -478,7 +478,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             </>
           )}
 
-          <Text style={styles.sectionHeader}>External Links</Text>
+          <Text style={styles.sectionHeader} maxFontSizeMultiplier={1.2}>External Links</Text>
 
           <MenuItem
             icon="anchor"
@@ -515,7 +515,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
           {devConfig.SHOW_DEVELOPER_OPTIONS && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.sectionHeader}>Developer Tools</Text>
+              <Text style={styles.sectionHeader} maxFontSizeMultiplier={1.2}>Developer Tools</Text>
 
               <MenuItem
                 icon="trash-2"

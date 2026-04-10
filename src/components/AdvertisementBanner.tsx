@@ -331,10 +331,10 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
       <View style={styles.overlay}>
         <View style={styles.contentContainer}>
           <View style={styles.textContainer}>
-            <Text style={styles.companyName}>{ad.companyName}</Text>
-            <Text style={styles.promoText}>{ad.promoText}</Text>
+            <Text style={styles.companyName} numberOfLines={1} maxFontSizeMultiplier={1.2}>{ad.companyName}</Text>
+            <Text style={styles.promoText} numberOfLines={2} maxFontSizeMultiplier={1.2}>{ad.promoText}</Text>
             {ad.promoCode && (
-              <Text style={styles.promoCodeText}>
+              <Text style={styles.promoCodeText} numberOfLines={1} maxFontSizeMultiplier={1.15}>
                 Use code: <Text style={styles.promoCode}>{ad.promoCode}</Text>
               </Text>
             )}
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 160,
+    minHeight: 180,
   },
   overlay: {
     position: 'absolute',

@@ -110,11 +110,11 @@ export const SpeciesDetailBulletinBanner: React.FC<
         <Feather name={typeConfig.icon} size={20} color={iconColor} />
         <View style={styles.textContent}>
           <View style={styles.labelRow}>
-            <Text style={[styles.label, { color: iconColor }]}>
+            <Text style={[styles.label, { color: iconColor }]} maxFontSizeMultiplier={1.15}>
               {typeConfig.label}
             </Text>
             {bulletins.length > 1 && (
-              <Text style={styles.moreCount}>
+              <Text style={styles.moreCount} maxFontSizeMultiplier={1.15}>
                 +{bulletins.length - 1} more
               </Text>
             )}
@@ -123,7 +123,7 @@ export const SpeciesDetailBulletinBanner: React.FC<
             {primaryBulletin.title}
           </Text>
           {primaryBulletin.description && (
-            <Text style={styles.description} numberOfLines={1}>
+            <Text style={styles.description} numberOfLines={1} maxFontSizeMultiplier={1.2}>
               {primaryBulletin.description}
             </Text>
           )}
@@ -137,7 +137,7 @@ export const SpeciesDetailBulletinBanner: React.FC<
           onPress={handleViewDetails}
           activeOpacity={0.7}
         >
-          <Text style={[styles.viewButtonText, { color: iconColor }]}>
+          <Text style={[styles.viewButtonText, { color: iconColor }]} maxFontSizeMultiplier={1.2}>
             View Details
           </Text>
           <Feather name="chevron-right" size={14} color={iconColor} />

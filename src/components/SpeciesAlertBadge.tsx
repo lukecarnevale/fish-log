@@ -69,7 +69,7 @@ export const SpeciesAlertBadge: React.FC<SpeciesAlertBadgeProps> = ({
       accessibilityLabel={`Species alert: ${label} affecting ${totalSpeciesCount} species`}
     >
       <Feather name={iconName} size={11} color={colors.white} />
-      <Text style={styles.countText}>{totalSpeciesCount}</Text>
+      <Text style={styles.countText} maxFontSizeMultiplier={1.1}>{totalSpeciesCount}</Text>
     </Animated.View>
   );
 };

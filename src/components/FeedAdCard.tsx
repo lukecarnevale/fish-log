@@ -97,7 +97,7 @@ const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
             <Feather name="shopping-bag" size={16} color={colors.white} />
           </View>
           <View style={styles.topTextContainer}>
-            <Text style={styles.companyName}>{ad.companyName}</Text>
+            <Text style={styles.companyName} numberOfLines={1} maxFontSizeMultiplier={1.2}>{ad.companyName}</Text>
             <Text style={styles.sponsoredLabel} maxFontSizeMultiplier={1.15}>Sponsored</Text>
           </View>
         </View>
@@ -123,13 +123,13 @@ const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
       {/* Bottom section - promo text + CTA */}
       <View style={styles.bottomSection}>
         <View style={styles.promoRow}>
-          <Text style={styles.promoText} numberOfLines={2}>
+          <Text style={styles.promoText} numberOfLines={2} maxFontSizeMultiplier={1.2}>
             {ad.promoText}
           </Text>
           {ad.promoCode && (
             <View style={styles.promoCodeBadge}>
               <Feather name="tag" size={11} color={colors.primary} />
-              <Text style={styles.promoCodeText}>{ad.promoCode}</Text>
+              <Text style={styles.promoCodeText} maxFontSizeMultiplier={1.15}>{ad.promoCode}</Text>
             </View>
           )}
         </View>

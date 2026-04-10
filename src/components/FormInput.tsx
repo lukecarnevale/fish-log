@@ -70,7 +70,14 @@ export const FormInput = React.forwardRef<TextInput, FormInputProps>(
 
     return (
       <View style={[styles.container, containerStyle]}>
-        {label && <Text style={[styles.label, labelStyle]}>{label}</Text>}
+        {label && (
+          <Text
+            style={[styles.label, labelStyle]}
+            maxFontSizeMultiplier={1.3}
+          >
+            {label}
+          </Text>
+        )}
         <TextInput
           ref={ref}
           style={[
@@ -79,9 +86,18 @@ export const FormInput = React.forwardRef<TextInput, FormInputProps>(
             inputStyle,
           ]}
           placeholderTextColor={colors.textSecondary}
+          maxFontSizeMultiplier={1.3}
           {...rest}
         />
-        {error && <Text style={styles.errorText}>{error}</Text>}
+        {error && (
+          <Text
+            style={styles.errorText}
+            maxFontSizeMultiplier={1.3}
+            numberOfLines={3}
+          >
+            {error}
+          </Text>
+        )}
       </View>
     );
   }
@@ -105,9 +121,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    minHeight: 48,
     fontSize: 16,
     color: colors.textPrimary,
+    textAlignVertical: 'center',
   },
   errorText: {
     fontSize: 13,

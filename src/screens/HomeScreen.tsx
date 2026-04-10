@@ -21,6 +21,7 @@ import styles, { menuWidth } from "../styles/homeScreenStyles";
 import { localStyles } from "../styles/homeScreenLocalStyles";
 import { RootStackParamList } from "../types";
 import { colors } from "../styles/common";
+import { useFontScale } from "../hooks/useFontScale";
 import QuarterlyRewardsCard from "../components/QuarterlyRewardsCard";
 import Footer from "../components/Footer";
 import AdvertisementBanner from "../components/AdvertisementBanner";
@@ -62,6 +63,8 @@ interface HomeScreenProps {
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
+  // Font scale for dynamic header spacer
+  const { fontScale } = useFontScale();
   // Achievement notifications - flush any pending achievements when this screen gains focus
   const { flushPendingAchievements } = useAchievements();
   // Bulletin card — non-critical bulletins shown inline on HomeScreen
@@ -467,8 +470,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               />
             </View>
             <View style={styles.headerTextSection}>
-              <Text style={styles.title}>Fish Log Co.</Text>
-              <Text style={styles.subtitle}>
+              <Text style={styles.title} maxFontSizeMultiplier={1.2} numberOfLines={1}>Fish Log Co.</Text>
+              <Text style={styles.subtitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>
                 Catch. Report. Win.
               </Text>
             </View>
@@ -557,7 +560,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               // Calculate threshold where light content covers the status bar area
               // headerSpacer height minus status bar height (with buffer for rounded corners)
               const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 50;
-              const headerSpacerHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130;
+              const headerSpacerHeight = (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130) * Math.min(Math.max(fontScale, 1), 1.25);
               const threshold = headerSpacerHeight - statusBarHeight - 24; // 24px buffer for rounded corners
 
               const scrollPosition = event.nativeEvent.contentOffset.y;
@@ -571,7 +574,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         scrollEventThrottle={16}
       >
         {/* Touchable spacer area that allows interaction with the header behind it */}
-        <View style={localStyles.headerSpacer}>
+        <View style={[localStyles.headerSpacer, {
+          height: (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130) * Math.min(Math.max(fontScale, 1), 1.25),
+        }]}>
           {/* Invisible touchable area positioned over the header's menu button */}
           <View style={localStyles.spacerMenuArea}>
             <TouchableOpacity

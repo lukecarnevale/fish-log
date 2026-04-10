@@ -26,7 +26,7 @@ import { RootStackParamList } from '../types';
 import { Prize, PrizeCategory } from '../types/rewards';
 import { useRewards } from '../contexts/RewardsContext';
 import { WaveBackground, HeroFishIllustration, FishingRodIllustration, LicenseCardIllustration, GenericPrizeIllustration, SwimmingFishButton } from './icons/RewardsIllustrations';
-import { useFontScale } from '../hooks/useFontScale';
+import { useFontScale, FONT_SCALE_CAP_BODY } from '../hooks/useFontScale';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -283,7 +283,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
   // content grows, so we scale the offset and padding to keep it visible.
   // See Phase 2 of the accessibility audit.
   const { fontScale } = useFontScale();
-  const tabScale = Math.min(Math.max(fontScale, 1), 1.3);
+  const tabScale = Math.min(Math.max(fontScale, 1), FONT_SCALE_CAP_BODY);
   const entryStatusDynamic = {
     top: -18 * tabScale,
     paddingTop: 5 * tabScale,

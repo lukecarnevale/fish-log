@@ -288,7 +288,8 @@ export const localStyles = StyleSheet.create({
   },
   countInput: {
     flex: 1,
-    height: 44,
+    minHeight: 44,
+    paddingVertical: 6,
     marginHorizontal: 12,
     textAlign: "center",
     fontSize: 18,
@@ -336,7 +337,8 @@ export const localStyles = StyleSheet.create({
   },
   lengthInput: {
     flex: 1,
-    height: 40,
+    minHeight: 40,
+    paddingVertical: 6,
     backgroundColor: colors.white,
     borderRadius: borderRadius.sm,
     borderWidth: 1,
@@ -344,6 +346,27 @@ export const localStyles = StyleSheet.create({
     paddingHorizontal: 12,
     fontSize: 14,
     color: colors.textPrimary,
+  },
+  // DMF disclaimer above first card
+  dmfDisclaimerContainer: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: `${colors.primary}0D`,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  dmfDisclaimerIcon: {
+    marginRight: spacing.xs,
+  },
+  dmfDisclaimerText: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.darkGray,
+    lineHeight: 16,
   },
   // Helper text style
   helperText: {

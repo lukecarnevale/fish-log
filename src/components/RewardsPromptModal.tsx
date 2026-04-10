@@ -874,12 +874,14 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: colors.lightGray,
     borderRadius: borderRadius.md,
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 14,
+    minHeight: 48,
     fontSize: 16,
     color: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
+    textAlignVertical: 'center',
   },
   nameRow: {
     flexDirection: 'row',

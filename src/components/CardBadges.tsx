@@ -73,7 +73,7 @@ export const CounterBubble: React.FC<CounterBubbleProps> = ({
         end={{ x: 1, y: 1 }}
         style={[styles.counterGradient, { borderRadius: size / 2 }]}
       >
-        <Text style={[styles.counterText, { fontSize }]}>
+        <Text style={[styles.counterText, { fontSize }]} maxFontSizeMultiplier={1.1}>
           {count > 99 ? '99+' : count}
         </Text>
         {/* Shine effect */}

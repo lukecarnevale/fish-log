@@ -8,6 +8,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing } from '../styles/common';
 import { SpeciesTheme } from '../constants/speciesColors';
+import { useFontScale, FONT_SCALE_CAP_BODY } from '../hooks/useFontScale';
 
 type BadgeVariant = 'species' | 'size' | 'location';
 
@@ -34,6 +35,11 @@ const CatchInfoBadge: React.FC<CatchInfoBadgeProps> = ({
   speciesTheme,
   maxWidth,
 }) => {
+  // Scale the location badge's maxWidth with the OS font scale so longer
+  // truncated text still has room to breathe at large accessibility sizes.
+  const { fontScale } = useFontScale();
+  const scaledLocationMaxWidth = (maxWidth ?? 150) * Math.min(Math.max(fontScale, 1), FONT_SCALE_CAP_BODY);
+
   const getContainerStyle = () => {
     switch (variant) {
       case 'species':
@@ -41,7 +47,7 @@ const CatchInfoBadge: React.FC<CatchInfoBadgeProps> = ({
       case 'size':
         return styles.sizeContainer;
       case 'location':
-        return [styles.locationContainer, maxWidth ? { maxWidth } : null];
+        return [styles.locationContainer, { maxWidth: scaledLocationMaxWidth }];
       default:
         return styles.speciesContainer;
     }

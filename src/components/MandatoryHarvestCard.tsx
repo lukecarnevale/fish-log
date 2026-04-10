@@ -92,7 +92,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
               >
                 <FishIcon bodyColor={fish.bodyColor} tailColor={fish.tailColor} />
               </View>
-              <Text style={styles.fishName}>{fish.name}</Text>
+              <Text style={styles.fishName} maxFontSizeMultiplier={1.3} numberOfLines={2}>{fish.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -100,14 +100,14 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
         {/* Info Cards */}
         <View style={styles.infoBox}>
           <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>When</Text>
-            <Text style={styles.infoText}>
+            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>When</Text>
+            <Text style={styles.infoText} maxFontSizeMultiplier={1.3}>
               At end of trip (boat reaches shore or you stop fishing).
             </Text>
           </View>
           <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>What</Text>
-            <Text style={styles.infoText}>
+            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>What</Text>
+            <Text style={styles.infoText} maxFontSizeMultiplier={1.3}>
               Only fish you keep — not released fish.
             </Text>
           </View>
