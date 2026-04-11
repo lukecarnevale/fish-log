@@ -89,6 +89,7 @@ export type RootStackParamList = {
 // Fish Report Types
 export interface FishReportData {
   id?: string;
+  reportType?: 'dmf_harvest' | 'catch_log';
   species?: string;
   length?: string;
   weight?: string;

@@ -224,11 +224,11 @@ export const localStyles = StyleSheet.create({
     paddingBottom: 24, // Extra padding for bottom rounded corners
     marginBottom: spacing.lg, // Space below the card to show the rounded corners
     minHeight: Dimensions.get('window').height - 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 
   // Reporting type styles
@@ -1306,5 +1306,56 @@ export const localStyles = StyleSheet.create({
     color: colors.primary,
     fontSize: 17,
     fontWeight: "600",
+  },
+
+  // =============================================================================
+  // Report Mode Tabs — file-folder tabs behind content card
+  // Mirrors the entry status tab from QuarterlyRewardsCard:
+  // tabs render ABOVE the content container in DOM order; the content
+  // container then overlaps their bottom portion with negative top margin
+  // so the tabs appear to peek out from behind the card.
+  // =============================================================================
+  modeTabRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 6,
+    marginLeft: 28,
+    // Extra bottom padding that will be hidden behind the card overlap
+    marginBottom: 0,
+  },
+  modeTab: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 18, // Extra bottom so there's material behind the card
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    gap: 6,
+    minWidth: 120,
+  },
+  modeTabActive: {
+    backgroundColor: colors.background, // Same as content card — tab blends into the card
+  },
+  modeTabInactive: {
+    backgroundColor: "rgba(255, 255, 255, 0.25)", // Frosted white against dark header
+  },
+  modeTabText: {
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  modeTabTextActive: {
+    color: colors.primary,
+  },
+  modeTabTextInactive: {
+    color: "rgba(255, 255, 255, 0.85)",
+  },
+  // When tabs are visible, the content card overlaps the bottom of the tabs
+  contentContainerWithTabs: {
+    marginTop: -10,
   },
 });

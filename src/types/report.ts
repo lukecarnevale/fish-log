@@ -12,6 +12,9 @@ export interface StoredReport {
   userId: string | null; // Nullable - set for rewards members
   anonymousUserId: string | null; // Nullable - set for anonymous users
 
+  // Report type
+  reportType: 'dmf_harvest' | 'catch_log';
+
   // DMF sync status
   dmfStatus: 'pending' | 'submitted' | 'confirmed' | 'failed';
   dmfConfirmationNumber: string | null;
@@ -100,6 +103,9 @@ export interface ReportInput {
   userId?: string; // Set for rewards members
   anonymousUserId?: string; // Set for anonymous users
 
+  // Report type
+  reportType?: 'dmf_harvest' | 'catch_log';
+
   // Identity
   hasLicense: boolean;
   wrcId?: string;
@@ -176,6 +182,7 @@ export function transformReport(row: Record<string, unknown>): StoredReport {
     id: row.id as string,
     userId: row.user_id as string | null,
     anonymousUserId: row.anonymous_user_id as string | null,
+    reportType: (row.report_type as string as StoredReport['reportType']) ?? 'dmf_harvest',
     dmfStatus: row.dmf_status as StoredReport['dmfStatus'],
     dmfConfirmationNumber: row.dmf_confirmation_number as string | null,
     dmfObjectId: row.dmf_object_id as number | null,
@@ -236,6 +243,9 @@ export function transformFishEntry(row: Record<string, unknown>): StoredFishEntr
  * Get total fish count from a stored report.
  */
 export function getTotalFishCount(report: StoredReport): number {
+  if (report.reportType === 'catch_log') {
+    return report.fishEntries?.reduce((sum, fe) => sum + fe.count, 0) ?? 0;
+  }
   return (
     report.redDrumCount +
     report.flounderCount +
@@ -249,6 +259,10 @@ export function getTotalFishCount(report: StoredReport): number {
  * Get species breakdown from a stored report.
  */
 export function getSpeciesBreakdown(report: StoredReport): Array<{ species: string; count: number }> {
+  if (report.reportType === 'catch_log' && report.fishEntries?.length) {
+    return report.fishEntries.map(fe => ({ species: fe.species, count: fe.count }));
+  }
+
   const breakdown: Array<{ species: string; count: number }> = [];
 
   if (report.redDrumCount > 0) breakdown.push({ species: 'Red Drum', count: report.redDrumCount });

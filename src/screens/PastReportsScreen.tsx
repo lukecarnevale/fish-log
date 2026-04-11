@@ -60,6 +60,7 @@ interface FishEntryDisplay {
 // Combined report type for display (either submitted or queued)
 interface DisplayReport {
   type: "submitted" | "queued";
+  reportType?: "dmf_harvest" | "catch_log";
   confirmationNumber: string;
   harvestDate: string;
   areaLabel?: string;
@@ -227,6 +228,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       const submitted = report as SubmittedReport;
       return {
         type: "submitted",
+        reportType: (submitted as any).reportType || "dmf_harvest",
         confirmationNumber: submitted.confirmationNumber,
         harvestDate: submitted.harvestDate,
         areaLabel: submitted.areaLabel,
@@ -252,6 +254,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       const queued = report as QueuedReport;
       return {
         type: "queued",
+        reportType: (queued as any).reportType || "dmf_harvest",
         confirmationNumber: queued.localConfirmationNumber,
         harvestDate: queued.harvestDate,
         areaLabel: queued.areaLabel,
@@ -392,6 +395,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
   // Get total fish count
   const getTotalFish = (report: DisplayReport): number => {
+    if (report.reportType === 'catch_log' && report.fishEntries?.length) {
+      return report.fishEntries.reduce((sum, fe) => sum + fe.count, 0);
+    }
     return (
       report.redDrumCount +
       report.flounderCount +
@@ -421,6 +427,11 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
   // Get species chips for display
   const getSpeciesChips = (report: DisplayReport): Array<{ name: string; count: number }> => {
+    // Catch logs: use fishEntries directly (species can be anything)
+    if (report.reportType === 'catch_log' && report.fishEntries?.length) {
+      return report.fishEntries.map(fe => ({ name: fe.species, count: fe.count }));
+    }
+    // DMF harvest: use the 5 species count fields
     const chips: Array<{ name: string; count: number }> = [];
     if (report.redDrumCount > 0) chips.push({ name: "Red Drum", count: report.redDrumCount });
     if (report.flounderCount > 0) chips.push({ name: "Flounder", count: report.flounderCount });
@@ -461,6 +472,10 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           {isPending ? (
             <View style={styles.pendingStatusBadge}>
               <Feather name="clock" size={24} color={colors.warning} />
+            </View>
+          ) : item.reportType === 'catch_log' ? (
+            <View style={styles.syncedStatusBadge}>
+              <Feather name="camera" size={24} color={colors.secondary} />
             </View>
           ) : (
             <View style={styles.syncedStatusBadge}>
@@ -551,7 +566,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           <View style={styles.perforationNotchRight} />
         </View>
 
-        {/* Footer - Confirmation Number (only for submitted reports) */}
+        {/* Footer - Confirmation Number or Catch Log label */}
         <View style={[
           styles.confirmationRow,
           !isPending && styles.confirmationRowBottom
@@ -560,6 +575,11 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             <>
               <Text style={styles.confirmationLabel}>Status</Text>
               <Text style={[styles.confirmationNumber, { color: colors.warning }]}>Pending</Text>
+            </>
+          ) : item.reportType === 'catch_log' ? (
+            <>
+              <Text style={styles.confirmationLabel}>Type</Text>
+              <Text style={[styles.confirmationNumber, { color: colors.secondary }]}>Catch Log</Text>
             </>
           ) : (
             <>
@@ -617,16 +637,16 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 : styles.modalStatusHeaderSynced
             ]}>
               <Feather
-                name={selectedReport?.type === "queued" ? "clock" : "check-circle"}
+                name={selectedReport?.type === "queued" ? "clock" : selectedReport?.reportType === "catch_log" ? "camera" : "check-circle"}
                 size={24}
                 color={colors.white}
               />
               <Text style={styles.modalStatusText}>
-                {selectedReport?.type === "queued" ? "Pending Sync" : "Submitted to DMF"}
+                {selectedReport?.type === "queued" ? "Pending Sync" : selectedReport?.reportType === "catch_log" ? "Catch Log" : "Submitted to DMF"}
               </Text>
             </View>
 
-            {/* Confirmation Number — only show for submitted reports */}
+            {/* Confirmation Number / Status / Catch Log label */}
             {selectedReport?.type === "queued" ? (
               <View
                 style={[
@@ -642,6 +662,15 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 </Text>
                 <Text style={styles.modalConfirmationHint}>
                   Will sync automatically when online
+                </Text>
+              </View>
+            ) : selectedReport?.reportType === "catch_log" ? (
+              <View style={[styles.modalConfirmationBox, { backgroundColor: `${colors.secondary}15`, borderColor: colors.secondary }]}>
+                <Text style={[styles.modalConfirmationLabel, { color: colors.secondary }]}>
+                  CATCH LOG
+                </Text>
+                <Text style={[styles.modalConfirmationNumber, { color: colors.secondary, fontSize: 18 }]}>
+                  Personal Catch Record
                 </Text>
               </View>
             ) : (

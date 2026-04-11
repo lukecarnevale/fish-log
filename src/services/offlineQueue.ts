@@ -461,7 +461,9 @@ export async function getHistory(): Promise<SubmittedReport[]> {
             submittedAt: r.dmfSubmittedAt || r.createdAt,
             raffleEntered: r.enteredRewards,
             raffleId: r.rewardsDrawingId || undefined,
-          }));
+            fishEntries: r.fishEntries,
+            reportType: r.reportType,
+          } as SubmittedReport));
 
         // Merge Supabase + local history so recently synced reports aren't lost.
         // Supabase may not have the report yet if it was just synced (race condition),

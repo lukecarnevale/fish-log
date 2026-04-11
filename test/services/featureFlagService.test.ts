@@ -27,7 +27,7 @@ describe('featureFlagService', () => {
 
       const flags = await fetchFeatureFlags();
 
-      expect(flags).toEqual({ promotions_hub: false });
+      expect(flags).toEqual({ promotions_hub: false, catch_logging: false });
       expect(mockFrom).not.toHaveBeenCalled();
     });
 
@@ -57,7 +57,7 @@ describe('featureFlagService', () => {
 
       const flags = await fetchFeatureFlags();
 
-      expect(flags).toEqual({ promotions_hub: false });
+      expect(flags).toEqual({ promotions_hub: false, catch_logging: false });
     });
 
     it('uses cached values on subsequent calls', async () => {
@@ -100,7 +100,7 @@ describe('featureFlagService', () => {
 
       const flags = await fetchFeatureFlags();
 
-      expect(flags).toEqual({ promotions_hub: false });
+      expect(flags).toEqual({ promotions_hub: false, catch_logging: false });
     });
   });
 

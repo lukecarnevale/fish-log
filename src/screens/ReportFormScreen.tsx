@@ -45,6 +45,15 @@ import { isTestMode } from "../config/appConfig";
 // Rewards context
 import { useRewards } from "../contexts/RewardsContext";
 
+// Feature flags
+import { useFeatureFlag } from "../api/featureFlagsApi";
+
+// Catch log service
+import { submitCatchLog, type CatchLogInput } from "../services/catchLogService";
+
+// Species search picker for catch_log mode
+import SpeciesSearchPicker, { type SpeciesSelection } from "../components/SpeciesSearchPicker";
+
 // Species data for harvest status
 import { useAllFishSpecies } from '../api/speciesApi';
 import { SpeciesListBulletinIndicator } from '../components/SpeciesListBulletinIndicator';
@@ -79,6 +88,18 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   // Font scale for dynamic header spacer
   const { fontScale } = useFontScale();
+
+  // =============================================================================
+  // Report mode: 'harvest_report' (DMF) vs 'catch_log' (casual, feed-only)
+  // =============================================================================
+  type ReportMode = 'harvest_report' | 'catch_log';
+  const { enabled: catchLoggingEnabled } = useFeatureFlag('catch_logging');
+  const [reportMode, setReportMode] = useState<ReportMode>('harvest_report');
+  const isCatchLog = reportMode === 'catch_log';
+
+  // Species search picker state (for catch_log mode)
+  const [showSpeciesSearch, setShowSpeciesSearch] = useState(false);
+  const [catchLogSubmitting, setCatchLogSubmitting] = useState(false);
 
   // State for multiple fish entries
   const [fishEntries, setFishEntries] = useState<FishEntry[]>([]);
@@ -949,8 +970,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   // Check if user has entered any data in the form (beyond pre-loaded profile data)
   const hasFormData = (): boolean => {
-    // Check reporting type - this is always user input
-    if (formData.reportingType) return true;
+    // Never show abandon modal during mode switch
+    if (isSwitchingMode.current) return false;
+
+    // Check reporting type - this is user input in harvest mode,
+    // but auto-set to 'myself' in catch_log mode so don't count it
+    if (!isCatchLog && formData.reportingType) return true;
 
     // Check fish entries - always user input
     if (fishEntries.length > 0) return true;
@@ -1105,9 +1130,135 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     }
   };
 
+  // Add photo with choice of camera or library (catch log mode)
+  const handleAddPhoto = (): void => {
+    Alert.alert("Add Photo", "How would you like to add a photo?", [
+      { text: "Take Photo", onPress: handleTakePhoto },
+      {
+        text: "Choose from Library",
+        onPress: async () => {
+          try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+              allowsEditing: true,
+              aspect: [4, 5],
+              quality: 0.8,
+            });
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              setCatchPhoto(result.assets[0].uri);
+              clearValidationError("photo");
+              toast.show("Photo Selected", "Your catch photo has been saved");
+            }
+          } catch (error) {
+            console.error("Error selecting photo:", error);
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
   // Remove captured photo
   const handleRemovePhoto = (): void => {
     setCatchPhoto(null);
+  };
+
+  // =============================================================================
+  // Report mode switching
+  // =============================================================================
+  const handleSpeciesSearchSelect = useCallback((selection: SpeciesSelection) => {
+    setFormData(prev => ({ ...prev, species: selection.name }));
+  }, []);
+
+  // Ref to suppress the abandon modal during mode switches
+  const isSwitchingMode = useRef(false);
+
+  const handleModeSwitch = useCallback((mode: ReportMode) => {
+    if (mode === reportMode) return;
+    // Suppress abandon modal during reset
+    isSwitchingMode.current = true;
+    // Reset form state to avoid carrying incompatible data
+    setReportMode(mode);
+    setFishEntries([]);
+    setCurrentFishIndex(null);
+    setShowOptionalDetails(false);
+    setCatchPhoto(null);
+    setFormData(prev => ({
+      ...prev,
+      reportingType: mode === 'catch_log' ? 'myself' : null,
+      species: '',
+      count: 1,
+      lengths: [''],
+      tagNumber: '',
+    }));
+    // Clear the flag after state updates flush
+    setTimeout(() => { isSwitchingMode.current = false; }, 0);
+  }, [reportMode]);
+
+  // =============================================================================
+  // Catch log submission (bypasses DMF, saves directly to Supabase)
+  // =============================================================================
+  const handleCatchLogSubmit = async (): Promise<void> => {
+    // Build final fish list
+    let allFish = [...fishEntries];
+    const hasCurrentFish = formData.species && formData.count >= 1;
+    if (hasCurrentFish) {
+      if (currentFishIndex !== null) {
+        allFish[currentFishIndex] = getCurrentFishData();
+      } else {
+        allFish.push(getCurrentFishData());
+      }
+    }
+
+    if (allFish.length === 0) {
+      Alert.alert("Missing Information", "Please add at least one fish to your catch log.");
+      return;
+    }
+
+    setCatchLogSubmitting(true);
+    try {
+      const catchLogInput: CatchLogInput = {
+        fishEntries: allFish.map(f => ({
+          species: f.species,
+          count: f.count,
+          lengths: f.lengths.filter(l => l.trim() !== ''),
+          tagNumber: f.tagNumber || undefined,
+        })),
+        catchDate: formData.date.toISOString().split('T')[0],
+        areaLabel: formData.waterbody || undefined,
+        areaCode: formData.waterbody ? getAreaCodeFromLabel(formData.waterbody) : undefined,
+        usedHookAndLine: formData.usedHookAndLine,
+        gearCode: formData.usedHookAndLine ? undefined : getGearCodeFromLabel(formData.gearType),
+        gearLabel: formData.usedHookAndLine ? undefined : formData.gearType || undefined,
+        photoUri: catchPhoto || undefined,
+      };
+
+      const result = await submitCatchLog(catchLogInput);
+
+      if (result.success) {
+        // Bypass abandon modal on navigation
+        hasNavigatedToConfirmation.current = true;
+
+        const isLoggedIn = !!result.report?.userId;
+        if (isLoggedIn) {
+          toast.show("Catch Logged!", "Your catch is now on the feed.");
+          setTimeout(() => {
+            navigation.navigate("CatchFeed");
+          }, 1200);
+        } else {
+          toast.show("Catch Logged!", "Sign in to see your catch on the feed.");
+          setTimeout(() => {
+            navigation.navigate("Home");
+          }, 1200);
+        }
+      } else {
+        Alert.alert("Error", "Failed to save your catch log. Please try again.");
+      }
+    } catch (error) {
+      console.error("Catch log submission error:", error);
+      Alert.alert("Error", "Something went wrong. Please try again.");
+    } finally {
+      setCatchLogSubmitting(false);
+    }
   };
 
   // Format phone number as user types
@@ -1335,6 +1486,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             : null;
           const isSelected = formData[currentPicker as keyof FormState] === item;
 
+          // Look up species image from allSpecies data
+          const speciesImageUrl = isSpeciesPicker
+            ? allSpecies.find(s => s.name === item || s.name.includes(item) || item.includes(s.name))?.images?.primary
+            : null;
+
           return (
             <Pressable
               style={({ pressed }) => [
@@ -1345,7 +1501,14 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               onPress={() => handleSelection(item)}
               android_ripple={{ color: 'rgba(0,0,0,0.1)' }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 }}>
+                {speciesImageUrl ? (
+                  <Image
+                    source={{ uri: speciesImageUrl }}
+                    style={{ width: 52, height: 32, borderRadius: 6 }}
+                    resizeMode="contain"
+                  />
+                ) : null}
                 <View style={{ flex: 1 }}>
                   <Text style={[
                     styles.optionText,
@@ -1436,8 +1599,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
 
           <View style={localStyles.headerTextContainer}>
-            <Text style={localStyles.headerTitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>Report Catch</Text>
-            <Text style={localStyles.headerSubtitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>NC Mandatory Harvest Report</Text>
+            <Text style={localStyles.headerTitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>{isCatchLog ? 'Log a Catch' : 'Report Catch'}</Text>
+            <Text style={localStyles.headerSubtitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>{isCatchLog ? 'Personal Catch Log' : 'NC Mandatory Harvest Report'}</Text>
           </View>
 
           {/* TEST MODE badge - shows when not submitting to real DMF */}
@@ -1523,8 +1686,59 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Content container - the light blue card that slides over */}
-        <View style={localStyles.contentContainer}>
+        {/* Report Mode Tabs — file-folder tabs peeking out behind content card */}
+        {catchLoggingEnabled && (
+          <View style={localStyles.modeTabRow}>
+            <TouchableOpacity
+              style={[
+                localStyles.modeTab,
+                reportMode === 'harvest_report'
+                  ? localStyles.modeTabActive
+                  : localStyles.modeTabInactive,
+              ]}
+              onPress={() => handleModeSwitch('harvest_report')}
+              activeOpacity={0.7}
+            >
+              <Feather
+                name="file-text"
+                size={14}
+                color={reportMode === 'harvest_report' ? colors.primary : 'rgba(255,255,255,0.85)'}
+              />
+              <Text style={[
+                localStyles.modeTabText,
+                reportMode === 'harvest_report'
+                  ? localStyles.modeTabTextActive
+                  : localStyles.modeTabTextInactive,
+              ]}>Harvest Report</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                localStyles.modeTab,
+                reportMode === 'catch_log'
+                  ? localStyles.modeTabActive
+                  : localStyles.modeTabInactive,
+              ]}
+              onPress={() => handleModeSwitch('catch_log')}
+              activeOpacity={0.7}
+            >
+              <Feather
+                name="camera"
+                size={14}
+                color={reportMode === 'catch_log' ? colors.primary : 'rgba(255,255,255,0.85)'}
+              />
+              <Text style={[
+                localStyles.modeTabText,
+                reportMode === 'catch_log'
+                  ? localStyles.modeTabTextActive
+                  : localStyles.modeTabTextInactive,
+              ]}>Log a Catch</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Content container - the light blue card that slides over (on top of tabs) */}
+        <View style={[localStyles.contentContainer, catchLoggingEnabled && localStyles.contentContainerWithTabs]}>
       {renderSelectionModal()}
       <AbandonConfirmModal
         visible={showAbandonModal}
@@ -1541,14 +1755,26 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
       <AreaInfoModal visible={showAreaInfoModal} onClose={() => setShowAreaInfoModal(false)} />
 
+      {/* Species search picker for catch_log mode */}
+      <SpeciesSearchPicker
+        visible={showSpeciesSearch}
+        onClose={() => setShowSpeciesSearch(false)}
+        onSelect={handleSpeciesSearchSelect}
+        selectedSpecies={formData.species}
+      />
+
+      {/* DMF disclaimer — only for harvest reports */}
+      {!isCatchLog && (
       <View style={localStyles.dmfDisclaimerContainer}>
         <Feather name="info" size={14} color={colors.primary} style={localStyles.dmfDisclaimerIcon} />
         <Text style={localStyles.dmfDisclaimerText}>
           This is a valid form of submission to the NC Division of Marine Fisheries (DMF) database.
         </Text>
       </View>
+      )}
 
-      {/* Reporting Type Section */}
+      {/* Reporting Type Section — DMF only */}
+      {!isCatchLog && (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Who Are You Reporting For?</Text>
 
@@ -1624,13 +1850,30 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </View>
         )}
       </View>
+      )}
 
-      {/* Only show Fish Information after reporting type is selected */}
-      {formData.reportingType && (
+      {/* Only show Fish Information after reporting type is selected (or always in catch_log mode) */}
+      {(isCatchLog || formData.reportingType) && (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Fish Information</Text>
 
-        {renderPickerField("Species", "species", true)}
+        {/* Species picker: DMF 5-species picker vs full search picker */}
+        {isCatchLog ? (
+          <>
+            <Text style={styles.label}>Species <Text style={localStyles.requiredAsterisk}>*</Text></Text>
+            <TouchableOpacity
+              style={styles.selectorButton}
+              onPress={() => setShowSpeciesSearch(true)}
+            >
+              <Text style={formData.species ? styles.selectorText : styles.selectorPlaceholder}>
+                {formData.species || "Search for a species"}
+              </Text>
+              <Feather name="search" size={16} color={colors.mediumGray} />
+            </TouchableOpacity>
+          </>
+        ) : (
+          renderPickerField("Species", "species", true)
+        )}
 
         {/* Show count field only after species is selected */}
         {formData.species && (
@@ -1800,11 +2043,11 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         )}
 
-        {/* CatchFeed photo option - only show for signed-in rewards members */}
-        {hasEnteredCurrentRaffle && (formData.species || fishEntries.length > 0) && (
+        {/* CatchFeed photo option - show for catch_log mode OR signed-in rewards members */}
+        {(isCatchLog || hasEnteredCurrentRaffle) && (formData.species || fishEntries.length > 0) && (
           <View style={localStyles.catchFeedPhotoSection}>
             <Text style={localStyles.catchFeedPhotoLabel}>
-              <Feather name="camera" size={14} color={colors.primary} /> Add Photo for Catch Feed
+              <Feather name="camera" size={14} color={colors.primary} /> {isCatchLog ? 'Add a Photo' : 'Add Photo for Catch Feed'}
             </Text>
             <Text style={localStyles.catchFeedPhotoDesc}>
               Share your catch with the community (optional)
@@ -1837,10 +2080,10 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             ) : (
               <TouchableOpacity
                 style={localStyles.catchFeedAddPhotoButton}
-                onPress={handleTakePhoto}
+                onPress={isCatchLog ? handleAddPhoto : handleTakePhoto}
               >
                 <Feather name="camera" size={20} color={colors.primary} />
-                <Text style={localStyles.catchFeedAddPhotoText}>Take Photo</Text>
+                <Text style={localStyles.catchFeedAddPhotoText}>{isCatchLog ? 'Add Photo' : 'Take Photo'}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1850,12 +2093,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
 
       {/* Only show Harvest Details after fish info is complete (species selected or fish entries exist) */}
-      {formData.reportingType && (formData.species || fishEntries.length > 0) && (
+      {(isCatchLog || formData.reportingType) && (formData.species || fishEntries.length > 0) && (
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Harvest Details</Text>
+        <Text style={styles.sectionTitle}>{isCatchLog ? 'Catch Details' : 'Harvest Details'}</Text>
 
         <View style={localStyles.labelRow}>
-          <Text style={styles.label}>Area of Harvest <Text style={localStyles.requiredAsterisk}>*</Text></Text>
+          <Text style={styles.label}>Area of Harvest {!isCatchLog && <Text style={localStyles.requiredAsterisk}>*</Text>}</Text>
           <TouchableOpacity
             onPress={() => setShowAreaInfoModal(true)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1968,7 +2211,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         </Modal>
 
         {/* Hook & Line Selection */}
-        <Text style={styles.label}>Did you use Hook & Line? <Text style={localStyles.requiredAsterisk}>*</Text></Text>
+        <Text style={styles.label}>Did you use Hook & Line? {!isCatchLog && <Text style={localStyles.requiredAsterisk}>*</Text>}</Text>
         <View style={localStyles.licenseToggleContainer}>
           <TouchableOpacity
             style={[
@@ -2014,8 +2257,8 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       </View>
       )}
 
-      {/* Only show Angler Information after harvest details are complete */}
-      {formData.reportingType && (formData.species || fishEntries.length > 0) && formData.waterbody && (formData.usedHookAndLine || formData.gearType) && (
+      {/* Only show Angler Information after harvest details are complete — DMF only */}
+      {!isCatchLog && formData.reportingType && (formData.species || fishEntries.length > 0) && formData.waterbody && (formData.usedHookAndLine || formData.gearType) && (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Angler Information</Text>
 
@@ -2622,8 +2865,23 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       </View>
       )}
 
-      {/* Only show Raffle and Submit after all required sections are visible */}
-      {formData.reportingType && (formData.species || fishEntries.length > 0) && formData.waterbody && (formData.usedHookAndLine || formData.gearType) && (
+      {/* Catch Log Submit Button — shown in catch_log mode when fish info is complete */}
+      {isCatchLog && (formData.species || fishEntries.length > 0) && (
+      <>
+      <TouchableOpacity
+        style={[styles.submitButton, catchLogSubmitting && { opacity: 0.6 }]}
+        onPress={handleCatchLogSubmit}
+        activeOpacity={0.8}
+        disabled={catchLogSubmitting}
+      >
+        <Feather name={catchLogSubmitting ? "loader" : "check-circle"} size={20} color={colors.white} />
+        <Text style={styles.submitButtonText}>{catchLogSubmitting ? 'Saving...' : 'Log Catch'}</Text>
+      </TouchableOpacity>
+      </>
+      )}
+
+      {/* Only show Raffle and Submit after all required sections are visible — DMF only */}
+      {!isCatchLog && formData.reportingType && (formData.species || fishEntries.length > 0) && formData.waterbody && (formData.usedHookAndLine || formData.gearType) && (
       <>
       {/* Raffle Entry Section — hidden when no active drawing */}
       {currentDrawing && (

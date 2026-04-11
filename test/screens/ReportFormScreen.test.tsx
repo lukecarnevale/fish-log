@@ -25,6 +25,14 @@ jest.mock('../../src/contexts/RewardsContext', () => ({
   })),
 }));
 
+jest.mock('../../src/api/featureFlagsApi', () => ({
+  useFeatureFlag: jest.fn(() => ({ enabled: false, isLoading: false })),
+}));
+
+jest.mock('../../src/services/catchLogService', () => ({
+  submitCatchLog: jest.fn(() => Promise.resolve({ success: true })),
+}));
+
 jest.mock('../../src/api/speciesApi', () => ({
   useAllFishSpecies: jest.fn(() => ({
     data: [
@@ -34,6 +42,10 @@ jest.mock('../../src/api/speciesApi', () => ({
       { id: '4', name: 'Striped Bass', images: { primary: '' } },
       { id: '5', name: 'Weakfish', images: { primary: '' } },
     ],
+    isLoading: false,
+  })),
+  useSearchFishSpecies: jest.fn(() => ({
+    data: [],
     isLoading: false,
   })),
 }));
