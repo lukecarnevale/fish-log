@@ -88,6 +88,68 @@ interface DisplayReport {
   fishEntries?: FishEntryDisplay[];
 }
 
+// Pure conversion function — lives outside the component so it's not
+// recreated on every render and can be called inside useMemo without
+// defeating memoization.
+const convertToDisplayReport = (
+  report: SubmittedReport | QueuedReport,
+  type: "submitted" | "queued"
+): DisplayReport => {
+  if (type === "submitted") {
+    const submitted = report as SubmittedReport;
+    return {
+      type: "submitted",
+      reportType: submitted.reportType ?? "dmf_harvest",
+      confirmationNumber: submitted.confirmationNumber,
+      harvestDate: submitted.harvestDate,
+      areaLabel: submitted.areaLabel,
+      areaCode: submitted.areaCode,
+      usedHookAndLine: submitted.usedHookAndLine,
+      gearLabel: submitted.gearLabel,
+      redDrumCount: submitted.redDrumCount,
+      flounderCount: submitted.flounderCount,
+      spottedSeatroutCount: submitted.spottedSeatroutCount,
+      weakfishCount: submitted.weakfishCount,
+      stripedBassCount: submitted.stripedBassCount,
+      catchPhoto: submitted.catchPhoto,
+      submittedAt: submitted.submittedAt,
+      firstName: submitted.firstName,
+      lastName: submitted.lastName,
+      wrcId: submitted.wrcId,
+      objectId: submitted.objectId,
+      enteredRaffle: submitted.raffleEntered,
+      raffleId: submitted.raffleId,
+      fishEntries: submitted.fishEntries,
+    };
+  } else {
+    const queued = report as QueuedReport;
+    return {
+      type: "queued",
+      reportType: queued.reportType ?? "dmf_harvest",
+      confirmationNumber: queued.localConfirmationNumber,
+      harvestDate: queued.harvestDate,
+      areaLabel: queued.areaLabel,
+      areaCode: queued.areaCode,
+      usedHookAndLine: queued.usedHookAndLine,
+      gearLabel: queued.gearLabel,
+      redDrumCount: queued.redDrumCount,
+      flounderCount: queued.flounderCount,
+      spottedSeatroutCount: queued.spottedSeatroutCount,
+      weakfishCount: queued.weakfishCount,
+      stripedBassCount: queued.stripedBassCount,
+      catchPhoto: queued.catchPhoto,
+      queuedAt: queued.queuedAt,
+      firstName: queued.firstName,
+      lastName: queued.lastName,
+      wrcId: queued.wrcId,
+      retryCount: queued.retryCount,
+      lastError: queued.lastError,
+      enteredRaffle: queued.enterRaffle,
+      fishEntries: queued.fishEntries,
+    };
+  }
+};
+
 const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => {
   const [submittedReports, setSubmittedReports] = useState<SubmittedReport[]>([]);
   const [queuedReports, setQueuedReports] = useState<QueuedReport[]>([]);
@@ -95,35 +157,39 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [selectedReport, setSelectedReport] = useState<DisplayReport | null>(null);
   const [filterType, setFilterType] = useState<"all" | "synced" | "pending">("all");
+  const loadingRef = useRef(false);
 
-  // Date filter state
+  // Date filter state — panel visibility + selected range
   const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
-  const [fromDate, setFromDate] = useState<Date | null>(null);
-  const [toDate, setToDate] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
-  const [datePickerMode, setDatePickerMode] = useState<"from" | "to">("from");
-  const [tempDate, setTempDate] = useState<Date>(new Date());
+  const [dateRange, setDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
   const dateFilterHeight = useRef(new Animated.Value(0)).current;
+
+  // Date picker modal state — all picker UI in one object
+  const [picker, setPicker] = useState<{
+    open: boolean;
+    visible: boolean;
+    mode: "from" | "to";
+    tempDate: Date;
+  }>({ open: false, visible: false, mode: "from", tempDate: new Date() });
 
   // Date picker modal animation values
   const datePickerOverlayOpacity = useRef(new Animated.Value(0)).current;
   const datePickerSlide = useRef(new Animated.Value(300)).current;
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   // Fetch species data for stock images
   const { data: fishSpeciesData = [] } = useAllFishSpecies();
 
   // Map species names to their stock images
-  const getSpeciesImage = (speciesName: string): string | null => {
+  const getSpeciesImage = useCallback((speciesName: string): string | null => {
     const species = fishSpeciesData.find(
       (s) => s.name.toLowerCase().includes(speciesName.toLowerCase()) ||
              speciesName.toLowerCase().includes(s.name.toLowerCase())
     );
     return species?.images?.primary || null;
-  };
+  }, [fishSpeciesData]);
 
   // Get the best image for a report (user photo or primary species stock image)
-  const getReportImage = (report: DisplayReport): string | null => {
+  const getReportImage = useCallback((report: DisplayReport): string | null => {
     // User's catch photo takes priority
     if (report.catchPhoto) return report.catchPhoto;
 
@@ -135,10 +201,12 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     if (report.weakfishCount > 0) return getSpeciesImage("Weakfish");
 
     return null;
-  };
+  }, [getSpeciesImage]);
 
   // Load reports from storage
   const loadReports = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     try {
       const [history, queue] = await Promise.all([
         getHistory(),
@@ -148,7 +216,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       setQueuedReports(queue);
     } catch (error) {
       console.error("Failed to load reports:", error);
-      Alert.alert("Error", "Failed to load your past reports");
+      Alert.alert("Error", "Failed to load your past reports. Pull down to try again.");
+    } finally {
+      loadingRef.current = false;
     }
   }, []);
 
@@ -174,9 +244,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
   // Animate date picker modal (overlay fades, content slides)
   useEffect(() => {
-    if (showDatePicker) {
+    if (picker.open) {
       // Show modal immediately, then animate in
-      setDatePickerVisible(true);
+      setPicker(prev => ({ ...prev, visible: true }));
       // Reset values before animating open
       datePickerOverlayOpacity.setValue(0);
       datePickerSlide.setValue(300);
@@ -208,74 +278,18 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           useNativeDriver: true,
         }),
       ]).start(() => {
-        setDatePickerVisible(false);
+        setPicker(prev => ({ ...prev, visible: false }));
       });
     }
-  }, [showDatePicker, datePickerOverlayOpacity, datePickerSlide]);
+  }, [picker.open, datePickerOverlayOpacity, datePickerSlide]);
 
   // Copy confirmation number
   const handleCopyConfirmation = async (confirmationNumber: string) => {
-    await Clipboard.setStringAsync(confirmationNumber);
-    Alert.alert("Copied!", "Confirmation number copied to clipboard");
-  };
-
-  // Convert reports to display format
-  const convertToDisplayReport = (
-    report: SubmittedReport | QueuedReport,
-    type: "submitted" | "queued"
-  ): DisplayReport => {
-    if (type === "submitted") {
-      const submitted = report as SubmittedReport;
-      return {
-        type: "submitted",
-        reportType: (submitted as any).reportType || "dmf_harvest",
-        confirmationNumber: submitted.confirmationNumber,
-        harvestDate: submitted.harvestDate,
-        areaLabel: submitted.areaLabel,
-        areaCode: submitted.areaCode,
-        usedHookAndLine: submitted.usedHookAndLine,
-        gearLabel: submitted.gearLabel,
-        redDrumCount: submitted.redDrumCount,
-        flounderCount: submitted.flounderCount,
-        spottedSeatroutCount: submitted.spottedSeatroutCount,
-        weakfishCount: submitted.weakfishCount,
-        stripedBassCount: submitted.stripedBassCount,
-        catchPhoto: submitted.catchPhoto,
-        submittedAt: submitted.submittedAt,
-        firstName: submitted.firstName,
-        lastName: submitted.lastName,
-        wrcId: submitted.wrcId,
-        objectId: submitted.objectId,
-        enteredRaffle: submitted.raffleEntered,
-        raffleId: submitted.raffleId,
-        fishEntries: submitted.fishEntries,
-      };
-    } else {
-      const queued = report as QueuedReport;
-      return {
-        type: "queued",
-        reportType: (queued as any).reportType || "dmf_harvest",
-        confirmationNumber: queued.localConfirmationNumber,
-        harvestDate: queued.harvestDate,
-        areaLabel: queued.areaLabel,
-        areaCode: queued.areaCode,
-        usedHookAndLine: queued.usedHookAndLine,
-        gearLabel: queued.gearLabel,
-        redDrumCount: queued.redDrumCount,
-        flounderCount: queued.flounderCount,
-        spottedSeatroutCount: queued.spottedSeatroutCount,
-        weakfishCount: queued.weakfishCount,
-        stripedBassCount: queued.stripedBassCount,
-        catchPhoto: queued.catchPhoto,
-        queuedAt: queued.queuedAt,
-        firstName: queued.firstName,
-        lastName: queued.lastName,
-        wrcId: queued.wrcId,
-        retryCount: queued.retryCount,
-        lastError: queued.lastError,
-        enteredRaffle: queued.enterRaffle,
-        fishEntries: queued.fishEntries,
-      };
+    try {
+      await Clipboard.setStringAsync(confirmationNumber);
+      Alert.alert("Copied!", "Confirmation number copied to clipboard");
+    } catch {
+      Alert.alert("Error", "Could not copy to clipboard");
     }
   };
 
@@ -297,20 +311,22 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     }
 
     // Apply date range filter
-    if (fromDate || toDate) {
+    if (dateRange.from || dateRange.to) {
       combined = combined.filter(report => {
         const reportDate = new Date(report.harvestDate);
+        // Skip filtering for unparseable dates rather than silently dropping them
+        if (isNaN(reportDate.getTime())) return true;
         // Reset time components for date-only comparison
         reportDate.setHours(0, 0, 0, 0);
 
-        if (fromDate) {
-          const fromDateStart = new Date(fromDate);
+        if (dateRange.from) {
+          const fromDateStart = new Date(dateRange.from);
           fromDateStart.setHours(0, 0, 0, 0);
           if (reportDate < fromDateStart) return false;
         }
 
-        if (toDate) {
-          const toDateEnd = new Date(toDate);
+        if (dateRange.to) {
+          const toDateEnd = new Date(dateRange.to);
           toDateEnd.setHours(23, 59, 59, 999);
           if (reportDate > toDateEnd) return false;
         }
@@ -325,7 +341,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       const dateB = new Date(b.submittedAt || b.queuedAt || b.harvestDate).getTime();
       return dateB - dateA;
     });
-  }, [submittedReports, queuedReports, filterType, fromDate, toDate]);
+  }, [submittedReports, queuedReports, filterType, dateRange]);
 
   // Toggle date filter visibility with animation
   const toggleDateFilter = useCallback(() => {
@@ -340,44 +356,42 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
   // Open date picker for from/to
   const openDatePicker = useCallback((mode: "from" | "to") => {
-    setDatePickerMode(mode);
-    setTempDate(mode === "from" ? (fromDate || new Date()) : (toDate || new Date()));
-    setShowDatePicker(true);
-  }, [fromDate, toDate]);
+    setPicker(prev => ({
+      ...prev,
+      mode,
+      tempDate: mode === "from" ? (dateRange.from || new Date()) : (dateRange.to || new Date()),
+      open: true,
+    }));
+  }, [dateRange.from, dateRange.to]);
 
   // Handle date selection
   const handleDateChange = useCallback((event: any, selectedDate?: Date) => {
     if (Platform.OS === "android") {
-      setShowDatePicker(false);
+      setPicker(prev => ({ ...prev, open: false }));
       if (event.type === "set" && selectedDate) {
-        if (datePickerMode === "from") {
-          setFromDate(selectedDate);
-        } else {
-          setToDate(selectedDate);
-        }
+        setDateRange(prev =>
+          picker.mode === "from" ? { ...prev, from: selectedDate } : { ...prev, to: selectedDate }
+        );
       }
     } else {
       // iOS - update temp date, confirm with Done button
       if (selectedDate) {
-        setTempDate(selectedDate);
+        setPicker(prev => ({ ...prev, tempDate: selectedDate }));
       }
     }
-  }, [datePickerMode]);
+  }, [picker.mode]);
 
   // Confirm date selection (iOS)
   const confirmDateSelection = useCallback(() => {
-    if (datePickerMode === "from") {
-      setFromDate(tempDate);
-    } else {
-      setToDate(tempDate);
-    }
-    setShowDatePicker(false);
-  }, [datePickerMode, tempDate]);
+    setDateRange(prev =>
+      picker.mode === "from" ? { ...prev, from: picker.tempDate } : { ...prev, to: picker.tempDate }
+    );
+    setPicker(prev => ({ ...prev, open: false }));
+  }, [picker.mode, picker.tempDate]);
 
   // Clear date filters
   const clearDateFilters = useCallback(() => {
-    setFromDate(null);
-    setToDate(null);
+    setDateRange({ from: null, to: null });
   }, []);
 
   // Format date for display in filter
@@ -391,10 +405,10 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   };
 
   // Check if date filter is active
-  const hasDateFilter = fromDate !== null || toDate !== null;
+  const hasDateFilter = dateRange.from !== null || dateRange.to !== null;
 
   // Get total fish count
-  const getTotalFish = (report: DisplayReport): number => {
+  const getTotalFish = useCallback((report: DisplayReport): number => {
     if (report.reportType === 'catch_log' && report.fishEntries?.length) {
       return report.fishEntries.reduce((sum, fe) => sum + fe.count, 0);
     }
@@ -405,7 +419,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       report.weakfishCount +
       report.stripedBassCount
     );
-  };
+  }, []);
 
   // Format date — handles both ISO timestamps and date-only strings.
   // Appends T12:00:00 to date-only strings to prevent timezone-shift issues
@@ -426,7 +440,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   };
 
   // Get species chips for display
-  const getSpeciesChips = (report: DisplayReport): Array<{ name: string; count: number }> => {
+  const getSpeciesChips = useCallback((report: DisplayReport): Array<{ name: string; count: number }> => {
     // Catch logs: use fishEntries directly (species can be anything)
     if (report.reportType === 'catch_log' && report.fishEntries?.length) {
       return report.fishEntries.map(fe => ({ name: fe.species, count: fe.count }));
@@ -439,7 +453,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     if (report.weakfishCount > 0) chips.push({ name: "Weakfish", count: report.weakfishCount });
     if (report.stripedBassCount > 0) chips.push({ name: "Striped Bass", count: report.stripedBassCount });
     return chips;
-  };
+  }, []);
 
   // Memoized keyExtractor for FlatList performance
   const keyExtractor = useCallback((item: DisplayReport) => item.confirmationNumber, []);
@@ -605,7 +619,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         )}
       </TouchableOpacity>
     );
-  }, [fishSpeciesData]);
+  }, [getReportImage, getSpeciesChips, getTotalFish]);
 
   // Render detail modal
   const renderDetailModal = () => (
@@ -698,7 +712,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                   style={styles.modalPhoto}
                   contentFit="cover"
                   cachePolicy="disk"
-                  recyclingKey={`report-modal-${selectedReport.confirmationNumber}`}
+                  recyclingKey={`report-modal-${selectedReport?.confirmationNumber}`}
                   transition={200}
                 />
               </View>
@@ -1008,8 +1022,8 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               <Text style={styles.datePickerLabel}>From</Text>
               <View style={styles.datePickerValueContainer}>
                 <Feather name="calendar" size={14} color={colors.primary} />
-                <Text style={[styles.datePickerValue, !fromDate && styles.datePickerValuePlaceholder]}>
-                  {formatFilterDate(fromDate)}
+                <Text style={[styles.datePickerValue, !dateRange.from && styles.datePickerValuePlaceholder]}>
+                  {formatFilterDate(dateRange.from)}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -1022,8 +1036,8 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               <Text style={styles.datePickerLabel}>To</Text>
               <View style={styles.datePickerValueContainer}>
                 <Feather name="calendar" size={14} color={colors.primary} />
-                <Text style={[styles.datePickerValue, !toDate && styles.datePickerValuePlaceholder]}>
-                  {formatFilterDate(toDate)}
+                <Text style={[styles.datePickerValue, !dateRange.to && styles.datePickerValuePlaceholder]}>
+                  {formatFilterDate(dateRange.to)}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -1074,10 +1088,10 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
       {/* Date Picker Modal */}
       <Modal
-        visible={datePickerVisible}
+        visible={picker.visible}
         transparent
         animationType="none"
-        onRequestClose={() => setShowDatePicker(false)}
+        onRequestClose={() => setPicker(prev => ({ ...prev, open: false }))}
       >
         <View style={styles.dateModalContainer}>
           {/* Animated overlay - fades in/out */}
@@ -1090,7 +1104,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             <TouchableOpacity
               style={StyleSheet.absoluteFill}
               activeOpacity={1}
-              onPress={() => setShowDatePicker(false)}
+              onPress={() => setPicker(prev => ({ ...prev, open: false }))}
             />
           </Animated.View>
           {/* Animated content - slides up/down */}
@@ -1102,14 +1116,14 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           >
             <View style={styles.dateModalHeader}>
               <Text style={styles.dateModalTitle}>
-                {datePickerMode === "from" ? "From Date" : "To Date"}
+                {picker.mode === "from" ? "From Date" : "To Date"}
               </Text>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+              <TouchableOpacity onPress={() => setPicker(prev => ({ ...prev, open: false }))}>
                 <Feather name="x" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <DateTimePicker
-              value={tempDate}
+              value={picker.tempDate}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDateChange}
@@ -1165,7 +1179,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff8e1",
+    backgroundColor: colors.warningLight,
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
     padding: spacing.md,
@@ -1250,7 +1264,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#fff8e1",
+    backgroundColor: colors.warningLight,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -1455,7 +1469,7 @@ const styles = StyleSheet.create({
   pendingBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff8e1",
+    backgroundColor: colors.warningLight,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1477,7 +1491,7 @@ const styles = StyleSheet.create({
   retryBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ffebee",
+    backgroundColor: colors.dangerLight,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -1580,7 +1594,7 @@ const styles = StyleSheet.create({
     borderColor: colors.success,
   },
   modalConfirmationBoxPending: {
-    backgroundColor: "#fff8e1",
+    backgroundColor: colors.warningLight,
     borderColor: colors.warning,
   },
   modalConfirmationLabel: {
@@ -1783,7 +1797,7 @@ const styles = StyleSheet.create({
   cardPendingBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff8e1",
+    backgroundColor: colors.warningLight,
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
     marginTop: spacing.sm,
