@@ -2097,53 +2097,59 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{isCatchLog ? 'Catch Details' : 'Harvest Details'}</Text>
 
-        <View style={localStyles.labelRow}>
-          <Text style={styles.label}>Area of Harvest {!isCatchLog && <Text style={localStyles.requiredAsterisk}>*</Text>}</Text>
-          <TouchableOpacity
-            onPress={() => setShowAreaInfoModal(true)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Feather name="info" size={18} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity
-          style={styles.selectorButton}
-          onPress={() => openPicker("waterbody", "Area of Harvest")}
-        >
-          <Text
-            style={
-              formData.waterbody
-                ? styles.selectorText
-                : styles.selectorPlaceholder
-            }
-          >
-            {String(formData.waterbody || "Select area of harvest")}
-          </Text>
-          <Text style={styles.selectorArrow}>▼</Text>
-        </TouchableOpacity>
+        {/* Area of Harvest — only relevant for the mandatory harvest report.
+            Hidden on the Log a Catch tab per product decision. */}
+        {!isCatchLog && (
+          <>
+            <View style={localStyles.labelRow}>
+              <Text style={styles.label}>Area of Harvest <Text style={localStyles.requiredAsterisk}>*</Text></Text>
+              <TouchableOpacity
+                onPress={() => setShowAreaInfoModal(true)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Feather name="info" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.selectorButton}
+              onPress={() => openPicker("waterbody", "Area of Harvest")}
+            >
+              <Text
+                style={
+                  formData.waterbody
+                    ? styles.selectorText
+                    : styles.selectorPlaceholder
+                }
+              >
+                {String(formData.waterbody || "Select area of harvest")}
+              </Text>
+              <Text style={styles.selectorArrow}>▼</Text>
+            </TouchableOpacity>
 
-        {/* Save as primary area checkbox - only show after area is selected */}
-        {formData.waterbody && (
-          <TouchableOpacity
-            style={localStyles.checkboxRow}
-            onPress={() => handlePrimaryAreaToggle(!saveAsPrimaryArea)}
-            activeOpacity={0.7}
-          >
-            <Animated.View style={[
-              localStyles.checkbox,
-              saveAsPrimaryArea && localStyles.checkboxChecked,
-              { transform: [{ scale: primaryAreaCheckboxAnim }] }
-            ]}>
-              {saveAsPrimaryArea && (
-                <Feather name="check" size={14} color={colors.white} />
-              )}
-            </Animated.View>
-            <Text style={localStyles.checkboxLabel}>
-              {hasSavedPrimaryArea && saveAsPrimaryArea
-                ? "Saved as my primary area"
-                : "Save as my primary area for next time"}
-            </Text>
-          </TouchableOpacity>
+            {/* Save as primary area checkbox - only show after area is selected */}
+            {formData.waterbody && (
+              <TouchableOpacity
+                style={localStyles.checkboxRow}
+                onPress={() => handlePrimaryAreaToggle(!saveAsPrimaryArea)}
+                activeOpacity={0.7}
+              >
+                <Animated.View style={[
+                  localStyles.checkbox,
+                  saveAsPrimaryArea && localStyles.checkboxChecked,
+                  { transform: [{ scale: primaryAreaCheckboxAnim }] }
+                ]}>
+                  {saveAsPrimaryArea && (
+                    <Feather name="check" size={14} color={colors.white} />
+                  )}
+                </Animated.View>
+                <Text style={localStyles.checkboxLabel}>
+                  {hasSavedPrimaryArea && saveAsPrimaryArea
+                    ? "Saved as my primary area"
+                    : "Save as my primary area for next time"}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
 
         <Text style={styles.label}>Date of Harvest <Text style={localStyles.requiredAsterisk}>*</Text></Text>

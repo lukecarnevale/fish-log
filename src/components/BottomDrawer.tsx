@@ -18,10 +18,18 @@ import {
   Platform,
   StatusBar,
   ViewStyle,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../styles/common';
+
+// Default slide distance for open/close animations. Using the screen height
+// guarantees the drawer fully leaves the viewport on close — even on tall
+// phones where the drawer itself can exceed 700pt. A smaller default caused
+// the close animation to finish with the top of the drawer still visible,
+// producing a "stutter" as the modal then snapped shut.
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 interface BottomDrawerProps {
   visible: boolean;
@@ -48,7 +56,7 @@ const BottomDrawer: React.FC<BottomDrawerProps> = ({
   maxHeight = '90%',
   minHeight,
   containerStyle,
-  slideDistance = 400,
+  slideDistance = SCREEN_HEIGHT,
   springTension = 65,
   springFriction = 11,
 }) => {

@@ -59,6 +59,8 @@ interface AdvertisementBannerProps {
   onPress?: (ad: DisplayAd) => void;
   // Optional: disable auto-rotation
   autoRotate?: boolean;
+  // Optional: bump this value to force a re-fetch of ads (used by pull-to-refresh)
+  refreshKey?: number;
 }
 
 /**
@@ -79,6 +81,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   placement,
   onPress,
   autoRotate = true,
+  refreshKey,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -118,7 +121,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
     };
 
     loadAds();
-  }, [placement]);
+  }, [placement, refreshKey]);
 
   // Get ads to display
   const originalAds: DisplayAd[] = fetchedAds;

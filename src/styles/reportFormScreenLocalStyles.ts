@@ -1341,7 +1341,11 @@ export const localStyles = StyleSheet.create({
     backgroundColor: colors.background, // Same as content card — tab blends into the card
   },
   modeTabInactive: {
-    backgroundColor: "rgba(255, 255, 255, 0.25)", // Frosted white against dark header
+    // Opaque equivalent of the original rgba(255, 255, 255, 0.25) composited
+    // onto the dark header — same visual appearance in the static state, but
+    // doesn't let the header title/subtitle bleed through when the tabs
+    // scroll up into the fixed header region.
+    backgroundColor: "#487FA8",
   },
   modeTabText: {
     fontSize: 14,

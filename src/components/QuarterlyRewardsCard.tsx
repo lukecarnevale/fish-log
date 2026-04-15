@@ -36,6 +36,8 @@ interface QuarterlyRewardsCardProps {
   isSignedIn?: boolean;
   /** Whether the user has an email in their profile */
   hasProfileEmail?: boolean;
+  /** Bump this value to force a re-fetch of rewards data (used by pull-to-refresh) */
+  refreshKey?: number;
 }
 
 // ============================================
@@ -270,7 +272,7 @@ const QuarterlyRewardsCardSkeleton: React.FC = () => {
 // MAIN COMPONENT
 // ============================================
 
-const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false, hasProfileEmail = false }) => {
+const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false, hasProfileEmail = false, refreshKey }) => {
   const navigation = useNavigation<NavigationProp>();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -298,7 +300,21 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     calculated,
     hasEnteredCurrentRaffle,
     isNewQuarter,
+    refresh: refreshRewards,
   } = useRewards();
+
+  // Re-fetch rewards data whenever the caller bumps refreshKey
+  // (pull-to-refresh on HomeScreen). Skip the first render — the context
+  // already fetches on mount, so we only need to react to changes.
+  const isFirstRefreshKey = useRef(true);
+  useEffect(() => {
+    if (refreshKey === undefined) return;
+    if (isFirstRefreshKey.current) {
+      isFirstRefreshKey.current = false;
+      return;
+    }
+    refreshRewards();
+  }, [refreshKey, refreshRewards]);
 
   // Slow pulsing animation for progress indicator — native driver for smooth 60fps
   const progressPulse = useRef(new Animated.Value(0)).current;

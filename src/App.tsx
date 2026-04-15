@@ -20,6 +20,7 @@ import type { StackCardStyleInterpolator } from "@react-navigation/stack";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "./styles/common";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -425,27 +426,33 @@ const App: React.FC = () => {
   }
 
   return (
-    <ErrorBoundary>
-      <AnimatedSplashScreen ready={appReady}>
-        <Provider store={store}>
-          <QueryClientProvider client={queryClient}>
-            <ForceUpdateProvider>
-              <RewardsProvider>
-                <AchievementProvider>
-                  <BulletinProvider>
-                    <SpeciesAlertsProvider>
-                      <SafeAreaProvider>
-                        <AppContent />
-                      </SafeAreaProvider>
-                    </SpeciesAlertsProvider>
-                  </BulletinProvider>
-                </AchievementProvider>
-              </RewardsProvider>
-            </ForceUpdateProvider>
-          </QueryClientProvider>
-        </Provider>
-      </AnimatedSplashScreen>
-    </ErrorBoundary>
+    // GestureHandlerRootView must wrap the entire app for react-native-
+    // gesture-handler to work on Android (required) and to behave
+    // consistently on iOS. Used for the right-edge drawer swipe and any
+    // other gesture handlers (e.g. Swipeable in DrawerMenu).
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <AnimatedSplashScreen ready={appReady}>
+          <Provider store={store}>
+            <QueryClientProvider client={queryClient}>
+              <ForceUpdateProvider>
+                <RewardsProvider>
+                  <AchievementProvider>
+                    <BulletinProvider>
+                      <SpeciesAlertsProvider>
+                        <SafeAreaProvider>
+                          <AppContent />
+                        </SafeAreaProvider>
+                      </SpeciesAlertsProvider>
+                    </BulletinProvider>
+                  </AchievementProvider>
+                </RewardsProvider>
+              </ForceUpdateProvider>
+            </QueryClientProvider>
+          </Provider>
+        </AnimatedSplashScreen>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 };
 
