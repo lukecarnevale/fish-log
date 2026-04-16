@@ -34,6 +34,7 @@ import { UserProfile } from "../types";
 import { colors, spacing, borderRadius, shadows, typography } from "../styles/common";
 import { clearCatchFeedCache } from "../services/catchFeedService";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
+import StatusBarScrollBlur from "../components/StatusBarScrollBlur";
 import { WaveBackground } from "../components/WaveBackground";
 import { StoredReport } from "../types/report";
 import {
@@ -1801,6 +1802,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         translucent
         animated
       />
+      {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+      <StatusBarScrollBlur scrollY={scrollY} />
       {/* Always render profile underneath */}
       {renderProfile()}
 

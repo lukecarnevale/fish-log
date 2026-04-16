@@ -32,6 +32,7 @@ import { NCFlagIcon } from "../components/NCFlagIcon";
 import ExpandableSection from "../components/ExpandableSection";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
 import FloatingBackButton from "../components/FloatingBackButton";
+import StatusBarScrollBlur from "../components/StatusBarScrollBlur";
 import { useFloatingHeaderAnimation } from "../hooks/useFloatingHeaderAnimation";
 import { SCREEN_LABELS } from "../constants/screenLabels";
 import { getCurrentUser, updateCurrentUser } from "../services/userProfileService";
@@ -934,6 +935,9 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   return (
     <View style={flStyles.screenContainer}>
       <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+
+      {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+      <StatusBarScrollBlur scrollY={scrollY} />
 
       {/* Fixed Header — sits behind scrolling content */}
       <View style={flStyles.fixedHeader}>

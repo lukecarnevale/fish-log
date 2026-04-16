@@ -37,6 +37,7 @@ import { useBulletins } from "../contexts/BulletinContext";
 import { useBulletinsForSpecies } from "../api/speciesBulletinApi";
 import SpeciesFilterChips from "../components/SpeciesFilterChips";
 import FloatingBackButton from "../components/FloatingBackButton";
+import StatusBarScrollBlur from "../components/StatusBarScrollBlur";
 import { useFloatingHeaderAnimation } from "../hooks/useFloatingHeaderAnimation";
 
 type SpeciesInfoScreenNavigationProp = StackNavigationProp<
@@ -929,6 +930,8 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
             translateX={detailFloatingTranslateX}
             onPress={handleCloseDetail}
           />
+          {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+          <StatusBarScrollBlur scrollY={detailScrollY} />
           <ScreenLayout
             navigation={{ goBack: handleCloseDetail }}
             title={selectedSpecies.name}

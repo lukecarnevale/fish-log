@@ -54,13 +54,17 @@ jest.mock('../../src/hooks/useZipCodeLookup', () => ({
   useZipCodeLookup: jest.fn(() => ({ result: null, isLoading: false, error: null })),
 }));
 
-jest.mock('../../src/hooks/useFloatingHeaderAnimation', () => ({
-  useFloatingHeaderAnimation: jest.fn(() => ({
-    scrollY: { current: 0 },
-    floatingOpacity: { current: 0 },
-    floatingTranslateXLeft: { current: 0 },
-  })),
-}));
+jest.mock('../../src/hooks/useFloatingHeaderAnimation', () => {
+  const { Animated } = require('react-native');
+  return {
+    useFloatingHeaderAnimation: jest.fn(() => ({
+      scrollY: new Animated.Value(0),
+      floatingOpacity: new Animated.Value(0),
+      floatingTranslateXLeft: new Animated.Value(-60),
+      floatingTranslateXRight: new Animated.Value(60),
+    })),
+  };
+});
 
 jest.mock('../../src/hooks/useToast', () => ({
   useToast: jest.fn(() => ({

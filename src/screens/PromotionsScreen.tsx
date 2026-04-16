@@ -33,6 +33,7 @@ import {
   PartnerCTACard,
 } from '../components/promotions';
 import { PromotionsSkeletonLoader } from '../components/SkeletonLoader';
+import StatusBarScrollBlur from '../components/StatusBarScrollBlur';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { REGION_OPTIONS } from '../constants/regionOptions';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
@@ -257,6 +258,9 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
     <View style={styles.screenContainer}>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+
+        {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+        <StatusBarScrollBlur scrollY={scrollY} />
 
         {/* Floating back button — appears when header scrolls away */}
         <Animated.View

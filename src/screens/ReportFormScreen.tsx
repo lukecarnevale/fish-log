@@ -36,6 +36,7 @@ import { useFontScale } from "../hooks/useFontScale";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
 import BottomDrawer from "../components/BottomDrawer";
 import FloatingBackButton from "../components/FloatingBackButton";
+import StatusBarScrollBlur from "../components/StatusBarScrollBlur";
 
 // DMF constants
 import { AREA_LABELS, getAreaCodeFromLabel } from "../constants/areaOptions";
@@ -1585,6 +1586,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   return (
     <View style={localStyles.screenContainer}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
+
+      {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+      <StatusBarScrollBlur scrollY={scrollY} />
 
       {/* Fixed Header - sits behind the scrolling content */}
       <View style={localStyles.fixedHeader}>

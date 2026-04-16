@@ -24,6 +24,7 @@ import { Feather } from '@expo/vector-icons';
 import Svg, { Path, Circle, Ellipse, G } from 'react-native-svg';
 import { RootStackParamList } from '../types';
 import { useBulletins } from '../contexts/BulletinContext';
+import StatusBarScrollBlur from '../components/StatusBarScrollBlur';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { formatBulletinDate } from '../utils/dateUtils';
@@ -268,6 +269,9 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
     <View style={styles.screenContainer}>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+
+        {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+        <StatusBarScrollBlur scrollY={scrollY} />
 
         {/* Floating back button */}
         <Animated.View

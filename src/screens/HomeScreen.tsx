@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Image } from "expo-image";
+import StatusBarScrollBlur from "../components/StatusBarScrollBlur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import type { StackNavigationProp } from "@react-navigation/stack";
@@ -586,6 +587,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           ]}
         />
       </TouchableWithoutFeedback>
+
+      {/* Status bar frosted-blur that fades in as the user scrolls. */}
+      <StatusBarScrollBlur scrollY={scrollY} />
 
       {/* Fixed Header - stays in place while content scrolls over it */}
       <View style={localStyles.fixedHeader}>

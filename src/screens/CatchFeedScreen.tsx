@@ -35,6 +35,7 @@ import CatchCard from '../components/CatchCard';
 import FeedAdCard from '../components/FeedAdCard';
 import AnglerProfileModal from '../components/AnglerProfileModal';
 import BottomDrawer from '../components/BottomDrawer';
+import StatusBarScrollBlur from '../components/StatusBarScrollBlur';
 import WaveBackground from '../components/WaveBackground';
 import TopAnglersSection from '../components/TopAnglersSection';
 import { SCREEN_LABELS } from '../constants/screenLabels';
@@ -793,6 +794,9 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     <View style={styles.screenContainer}>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+
+        {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+        <StatusBarScrollBlur scrollY={scrollY} />
 
         {/* Floating back button - appears when header scrolls away */}
         <Animated.View
