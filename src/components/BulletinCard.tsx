@@ -69,7 +69,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
     <View style={styles.container}>
       {/* Parchment gradient background for the whole card */}
       <LinearGradient
-        colors={['#FEF9F0', '#FDF6E9']}
+        colors={[colors.parchment, '#FDF6E9']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -101,7 +101,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                 height="12"
                 patternUnits="userSpaceOnUse"
               >
-                <Circle cx="6" cy="6" r="1" fill="#78350F" />
+                <Circle cx="6" cy="6" r="1" fill={colors.parchmentText} />
               </Pattern>
             </Defs>
             <Rect width="100%" height="100%" fill="url(#bulletinDots)" />
@@ -111,7 +111,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
           <View style={styles.headerContent}>
             {/* Boxed bell icon */}
             <View style={styles.iconBox}>
-              <Feather name="bell" size={22} color="#F5E6C8" />
+              <Feather name="bell" size={22} color={colors.parchmentBorder} />
             </View>
 
             {/* Title + subtitle */}
@@ -124,7 +124,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
             <Feather
               name={expanded ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color="#E8C98A"
+              color={colors.parchmentTextSecondary}
             />
           </View>
         </View>
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#E8DCC8',
+    borderColor: colors.parchmentBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -252,14 +252,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FBF5EA',
+    color: colors.parchment,
     lineHeight: 24,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#E8C98A',
+    color: colors.parchmentTextSecondary,
     marginTop: 2,
     textAlign: 'center',
   },
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF8',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#EDE3D0',
+    borderColor: colors.parchmentBorder,
     padding: 14,
     marginBottom: 8,
   },
@@ -311,14 +311,14 @@ const styles = StyleSheet.create({
   bulletinTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#44300A',
+    color: colors.parchmentText,
     fontFamily: 'Georgia',
     lineHeight: 22,
     marginBottom: 4,
   },
   bulletinDate: {
     fontSize: 13,
-    color: '#A3865A',
+    color: colors.parchmentTextSecondary,
   },
 
   // --- Footer ---
@@ -334,14 +334,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#EA580C',
+    borderColor: colors.advisory,
     alignItems: 'center',
     justifyContent: 'center',
   },
   viewAllText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#EA580C',
+    color: colors.advisory,
   },
   dismissButton: {
     flex: 1,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   dismissText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8B7355',
+    color: colors.parchmentTextSecondary,
   },
 });
 

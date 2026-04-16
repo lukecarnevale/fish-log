@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   flatListContent: {
-    backgroundColor: '#FEF9F0',
+    backgroundColor: colors.parchment,
     flexGrow: 1,
     paddingBottom: 32,
     borderBottomLeftRadius: 24,
@@ -489,12 +489,12 @@ const styles = StyleSheet.create({
   },
   emptyListContent: {
     flexGrow: 1,
-    backgroundColor: '#FEF9F0',
+    backgroundColor: colors.parchment,
   },
 
   // Parchment area — rounded corners sliding over teal header
   contentContainer: {
-    backgroundColor: '#FEF9F0',
+    backgroundColor: colors.parchment,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: spacing.md,
@@ -507,10 +507,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#EDE3D0',
+    borderColor: colors.parchmentBorder,
     overflow: 'hidden',
   },
   sectionHeader: {
@@ -548,17 +548,17 @@ const styles = StyleSheet.create({
   },
   sectionContent: {
     borderTopWidth: 1,
-    borderTopColor: '#EDE3D0',
+    borderTopColor: colors.parchmentBorder,
     paddingTop: 8,
     paddingBottom: 6,
   },
 
   // ── Bulletin card ──────────────────────────────────────────────────────────
   bulletinCard: {
-    backgroundColor: '#FEF9F0',
+    backgroundColor: colors.parchment,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#EDE3D0',
+    borderColor: colors.parchmentBorder,
     padding: 14,
     marginBottom: 8,
     marginHorizontal: 10,
@@ -597,19 +597,19 @@ const styles = StyleSheet.create({
   },
   cardDate: {
     fontSize: 12,
-    color: '#A3865A',
+    color: colors.parchmentTextSecondary,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#44300A',
+    color: colors.parchmentText,
     fontFamily: 'Georgia',
     lineHeight: 22,
     marginBottom: 4,
   },
   cardDescription: {
     fontSize: 14,
-    color: '#8B7355',
+    color: colors.parchmentTextSecondary,
     lineHeight: 20,
   },
 
@@ -624,12 +624,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#44300A',
+    color: colors.parchmentText,
     marginTop: spacing.md,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#8B7355',
+    color: colors.parchmentTextSecondary,
     textAlign: 'center',
     marginTop: spacing.sm,
     lineHeight: 20,

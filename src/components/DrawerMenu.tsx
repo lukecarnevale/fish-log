@@ -372,7 +372,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                           </View>
                           <Text style={styles.bulletinItemTitle} numberOfLines={2}>{bulletin.title}</Text>
                         </View>
-                        <Feather name="chevron-right" size={14} color="#C9B68E" />
+                        <Feather name="chevron-right" size={14} color={colors.parchmentTextSecondary} />
                       </TouchableOpacity>
                     </Swipeable>
                   );
@@ -390,7 +390,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                     <Text style={styles.bulletinViewAllText}>
                       View All Bulletins ({bulletins.length})
                     </Text>
-                    <Feather name="chevron-right" size={14} color="#EA580C" />
+                    <Feather name="chevron-right" size={14} color={colors.advisory} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -471,7 +471,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                 subtitle={SCREEN_LABELS.promotions.subtitle}
                 onPress={() => handleNavigate("Promotions")}
                 iconBgColor="#FFF3E0"
-                iconColor="#FF7F25"
+                iconColor={colors.accent}
                 disabled={!isSignedIn}
                 onDisabledPress={() => handleNavigate("Profile")}
               />
@@ -493,7 +493,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             icon="compass"
             label="Fishing Resources"
             onPress={() => handleExternalLink("https://www.ncwildlife.org/fishing")}
-            iconBgColor="#E8F5E9"
+            iconBgColor={colors.successLight}
             iconColor="#4CAF50"
             isExternal
           />
@@ -521,16 +521,16 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                 icon="trash-2"
                 label="Clear All Data"
                 onPress={handleClearData}
-                iconBgColor="#FFEBEE"
-                iconColor="#D32F2F"
+                iconBgColor={colors.dangerLight}
+                iconColor={colors.error}
               />
 
               <MenuItem
                 icon={currentMode === "mock" ? "toggle-left" : "toggle-right"}
                 label={`DMF Mode: ${currentMode === "mock" ? "TEST" : "PRODUCTION"}`}
                 onPress={handleToggleDMFMode}
-                iconBgColor={currentMode === "mock" ? "#E8F5E9" : "#FFEBEE"}
-                iconColor={currentMode === "mock" ? "#4CAF50" : "#D32F2F"}
+                iconBgColor={currentMode === "mock" ? colors.successLight : colors.dangerLight}
+                iconColor={currentMode === "mock" ? "#4CAF50" : colors.error}
               />
             </>
           )}
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
   appTitleText: {
     fontSize: 20, // Match HomeScreen title
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   closeButton: {
     padding: 8,
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   profileSubtitle: {
     fontSize: 11,
@@ -652,15 +652,15 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: colors.badgeRed,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: colors.badgeRed,
   },
 
   // Menu Content
   menuContent: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderTopLeftRadius: 24,
     marginTop: -12, // Overlap header slightly for card effect
   },
@@ -730,15 +730,15 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: colors.badgeRed,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: colors.badgeRed,
   },
   menuCountBadge: {
     position: 'absolute',
     top: -5,
     right: -7,
-    backgroundColor: '#D32F2F',
+    backgroundColor: colors.error,
     borderRadius: 9,
     minWidth: 18,
     minHeight: 18,
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     borderColor: '#E8F5F4',
   },
   menuCountBadgeText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
 
   // Footer
   menuFooter: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     paddingVertical: 12,
     paddingLeft: 14,
     paddingRight: 14 + BOUNCE_BUFFER, // Extra padding for bounce buffer
@@ -784,10 +784,10 @@ const styles = StyleSheet.create({
   bulletinParchmentSection: {
     marginHorizontal: 14,
     marginTop: 4,
-    backgroundColor: '#FEF9F0',
+    backgroundColor: colors.parchment,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E8DCC8',
+    borderColor: colors.parchmentBorder,
     overflow: 'hidden',
   },
   bulletinItem: {
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 9,
     paddingHorizontal: 12,
-    backgroundColor: '#FEF9F0',
+    backgroundColor: colors.parchment,
   },
   bulletinDot: {
     width: 6,
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
   bulletinItemTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#44300A',
+    color: colors.parchmentText,
     lineHeight: 18,
   },
   // Swipe-to-dismiss action button
@@ -857,12 +857,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     gap: 4,
     borderTopWidth: 1,
-    borderTopColor: '#E8DCC8',
+    borderTopColor: colors.parchmentBorder,
   },
   bulletinViewAllText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#EA580C',
+    color: colors.advisory,
   },
 });
 

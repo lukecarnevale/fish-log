@@ -156,7 +156,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
       <View style={[
         styles.photoContainer,
         // White background for stock photos so letterbox areas match the photo's white background
-        !entry.photoUrl && speciesImageUrl && { backgroundColor: '#FFFFFF' },
+        !entry.photoUrl && speciesImageUrl && { backgroundColor: colors.white },
       ]}>
         {entry.photoUrl ? (
           <Image

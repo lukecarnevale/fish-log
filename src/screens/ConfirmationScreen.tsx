@@ -857,7 +857,7 @@ const localStyles = StyleSheet.create({
     zIndex: 10,
   },
   testModeBadge: {
-    backgroundColor: "#ff9800",
+    backgroundColor: colors.warning,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -896,7 +896,7 @@ const localStyles = StyleSheet.create({
 
   // Confirmation box
   confirmationBox: {
-    backgroundColor: "#f0f7f0",
+    backgroundColor: colors.successLight,
     padding: 24,
     borderRadius: borderRadius.lg,
     alignItems: "center",
@@ -906,7 +906,7 @@ const localStyles = StyleSheet.create({
     borderColor: colors.success,
   },
   confirmationBoxQueued: {
-    backgroundColor: "#fff8e1",
+    backgroundColor: colors.warningLight,
     borderColor: colors.warning,
   },
   confirmationLabel: {
@@ -939,7 +939,7 @@ const localStyles = StyleSheet.create({
   queuedWarning: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff3cd",
+    backgroundColor: colors.warningLight,
     padding: spacing.md,
     paddingBottom: spacing.md + 28,
     borderRadius: borderRadius.md,
@@ -956,7 +956,7 @@ const localStyles = StyleSheet.create({
   syncBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f4f8",
+    backgroundColor: colors.infoLight,
     padding: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
@@ -1001,7 +1001,7 @@ const localStyles = StyleSheet.create({
 
   // Raffle box
   raffleBox: {
-    backgroundColor: "#f0f7ff",
+    backgroundColor: colors.infoLight,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     paddingBottom: spacing.lg + 28,
@@ -1107,16 +1107,16 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     marginHorizontal: 6,
-    backgroundColor: "#f5f9fc",
+    backgroundColor: colors.infoLight,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: "#e0e8f0",
+    borderColor: colors.border,
   },
   quickActionIcon: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#e8f4fc",
+    backgroundColor: colors.infoLight,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,

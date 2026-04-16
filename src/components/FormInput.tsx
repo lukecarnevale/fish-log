@@ -66,7 +66,7 @@ export const FormInput = React.forwardRef<TextInput, FormInputProps>(
     },
     ref
   ) => {
-    const borderColor = error ? '#FF5252' : colors.oceanSurface;
+    const borderColor = error ? colors.error : colors.oceanSurface;
 
     return (
       <View style={[styles.container, containerStyle]}>
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    color: '#FF5252',
+    color: colors.error,
     marginTop: 4,
   },
 });

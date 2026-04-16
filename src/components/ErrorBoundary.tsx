@@ -57,7 +57,7 @@ class ErrorBoundary extends Component<Props, State> {
             The app ran into an unexpected error. Please try again.
           </Text>
           <TouchableOpacity style={styles.button} onPress={this.handleRestart}>
-            <Feather name="refresh-cw" size={20} color="#FFFFFF" />
+            <Feather name="refresh-cw" size={20} color={colors.white} />
             <Text style={styles.buttonText}>Restart App</Text>
           </TouchableOpacity>
         </View>
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   buttonText: {
     ...typography.subtitle,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.white,
   },
 });
 

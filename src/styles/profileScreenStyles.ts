@@ -379,11 +379,11 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inputError: {
-    borderColor: colors.error || '#FF3B30',
+    borderColor: colors.error,
     borderWidth: 1,
   },
   errorText: {
-    color: colors.error || '#FF3B30',
+    color: colors.error,
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
@@ -416,7 +416,7 @@ export const styles = StyleSheet.create({
   },
   zipFeedbackSuccessText: {
     fontSize: 13,
-    color: '#28a745',
+    color: colors.success,
     fontWeight: '500',
   },
   zipFeedbackWarning: {
@@ -426,7 +426,7 @@ export const styles = StyleSheet.create({
   },
   zipFeedbackWarningText: {
     fontSize: 13,
-    color: '#ff9800',
+    color: colors.warning,
     fontWeight: '500',
   },
   textArea: {
@@ -554,7 +554,7 @@ export const styles = StyleSheet.create({
 export const localStyles = StyleSheet.create({
   pendingAuthSection: {
     backgroundColor: '#FFF9E6',
-    borderColor: '#FFD700',
+    borderColor: colors.gold,
     borderWidth: 1,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
@@ -657,8 +657,8 @@ export const localStyles = StyleSheet.create({
   },
   // Rewards member section styles
   rewardsMemberSection: {
-    backgroundColor: '#E8F5E9',
-    borderColor: '#4CAF50',
+    backgroundColor: colors.successLight,
+    borderColor: colors.success,
     borderWidth: 1,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
@@ -770,11 +770,11 @@ export const localStyles = StyleSheet.create({
     color: colors.textPrimary,
   },
   signInInputError: {
-    borderColor: colors.error || '#FF3B30',
+    borderColor: colors.error,
     borderWidth: 1,
   },
   signInInputErrorText: {
-    color: colors.error || '#FF3B30',
+    color: colors.error,
     fontSize: 12,
     marginTop: 4,
   },
@@ -828,7 +828,7 @@ export const localStyles = StyleSheet.create({
   // Delete account section styles
   deleteAccountSection: {
     backgroundColor: '#FFF5F5',
-    borderColor: '#FF3B30',
+    borderColor: colors.error,
     borderWidth: 1,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
@@ -844,7 +844,7 @@ export const localStyles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FF3B30',
+    backgroundColor: colors.error,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.sm,
@@ -852,7 +852,7 @@ export const localStyles = StyleSheet.create({
   deleteAccountTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FF3B30',
+    color: colors.error,
   },
   deleteAccountDesc: {
     fontSize: 14,
@@ -869,11 +869,11 @@ export const localStyles = StyleSheet.create({
     borderRadius: borderRadius.md,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#FF3B30',
+    borderColor: colors.error,
     gap: 6,
   },
   deleteAccountButtonText: {
-    color: '#FF3B30',
+    color: colors.error,
     fontSize: 14,
     fontWeight: '600',
   },

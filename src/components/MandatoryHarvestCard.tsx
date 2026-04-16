@@ -198,7 +198,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'white',
+    backgroundColor: colors.white,
     borderRadius: 16,
     overflow: 'hidden',
     marginHorizontal: 16,
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: 'white',
+    color: colors.white,
   },
   subtitle: {
     fontSize: 13,
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 1.5,
     borderColor: '#ccc',
-    backgroundColor: 'white',
+    backgroundColor: colors.white,
   },
   btnOutlineText: {
     fontSize: 14,
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   btnSolidText: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'white',
+    color: colors.white,
   },
 
   // FAQ Modal styles
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   faqModalContent: {
-    backgroundColor: 'white',
+    backgroundColor: colors.white,
     borderRadius: 20,
     width: '100%',
     maxHeight: '85%',
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   faqCloseButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: colors.white,
   },
 });
 

@@ -583,13 +583,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
-    color: '#90A4AE',
+    color: colors.mediumGray,
   },
   emptyCardTitleMain: {
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.4,
-    color: '#90A4AE',
+    color: colors.mediumGray,
     marginTop: 1,
   },
   emptyPlaceholders: {
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
   placeholderLine: {
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#78909C',
+    backgroundColor: colors.textTertiary,
   },
   emptyCardFooter: {
     flexDirection: 'row',
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
-    color: '#90A4AE',
+    color: colors.mediumGray,
     marginBottom: 4,
   },
   addLicensePill: {
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
-    color: '#90A4AE',
+    color: colors.mediumGray,
     textTransform: 'uppercase',
     marginHorizontal: spacing.lg,
     marginTop: spacing.lg,

@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h2,
     fontFamily: 'Georgia',
-    color: '#44300A',
+    color: colors.parchmentText,
     marginBottom: spacing.sm,
   },
   dateContainer: {
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   dateText: {
     ...typography.bodySmall,
     fontWeight: '600',
-    color: '#A3865A',
+    color: colors.parchmentTextSecondary,
     marginLeft: spacing.xs,
   },
   imageSection: {
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   },
   description: {
     ...typography.body,
-    color: '#44300A',
+    color: colors.parchmentText,
     lineHeight: 22,
     marginBottom: spacing.md,
   },
@@ -433,10 +433,10 @@ const styles = StyleSheet.create({
   },
   dismissButtonText: {
     ...typography.bodySmall,
-    color: '#8B7355',
+    color: colors.parchmentTextSecondary,
   },
   modalContainer: {
-    backgroundColor: '#FFFDF8',
+    backgroundColor: colors.parchment,
   },
   closeButton: {
     position: 'absolute',

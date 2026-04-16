@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   },
   promoCode: {
     fontWeight: '700',
-    color: '#FFD700',
+    color: colors.gold,
   },
   ctaContainer: {
     width: 36,

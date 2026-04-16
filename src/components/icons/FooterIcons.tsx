@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Dimensions } from 'react-native';
 import Svg, { Ellipse, Path } from 'react-native-svg';
+import { colors } from '../../styles/common';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Navy blue for footer background (matches app's base)
-export const FOOTER_BG = '#0B548B';
+export const FOOTER_BG = colors.primary;
 
 // Ghost fish decoration component
 export const GhostFish: React.FC<{
@@ -24,7 +25,7 @@ export const GhostFish: React.FC<{
 
 // Wave SVG component
 export const WaveTransition: React.FC = () => (
-  <View style={{ backgroundColor: '#E5F4FF', height: 35 }}>
+  <View style={{ backgroundColor: colors.background, height: 35 }}>
     <Svg
       width={SCREEN_WIDTH}
       height={35}

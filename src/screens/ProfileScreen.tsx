@@ -1186,7 +1186,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   )}
                   {zipLookup.result && !zipLookup.isLoading && (
                     <View style={styles.zipFeedbackSuccess}>
-                      <Feather name="check-circle" size={14} color="#28a745" />
+                      <Feather name="check-circle" size={14} color={colors.success} />
                       <Text style={styles.zipFeedbackSuccessText}>
                         {zipLookup.result.city}, {zipLookup.result.stateAbbr}
                       </Text>
@@ -1194,7 +1194,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   )}
                   {zipLookup.error && !zipLookup.isLoading && (
                     <View style={styles.zipFeedbackWarning}>
-                      <Feather name="alert-circle" size={14} color="#ff9800" />
+                      <Feather name="alert-circle" size={14} color={colors.warning} />
                       <Text style={styles.zipFeedbackWarningText}>{zipLookup.error}</Text>
                     </View>
                   )}
@@ -1242,10 +1242,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               activeOpacity={0.7}
             >
               {isDeletingAccount ? (
-                <ActivityIndicator size="small" color="#FF3B30" />
+                <ActivityIndicator size="small" color={colors.error} />
               ) : (
                 <>
-                  <Feather name="trash-2" size={16} color="#FF3B30" />
+                  <Feather name="trash-2" size={16} color={colors.error} />
                   <Text style={localStyles.deleteAccountButtonText}>Delete Account</Text>
                 </>
               )}
@@ -1430,7 +1430,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 <Text style={localStyles.rewardsMemberTitle}>Rewards Member</Text>
                 <Text style={localStyles.rewardsMemberEmail}>{rewardsMemberUser.email}</Text>
               </View>
-              <Feather name="check-circle" size={20} color="#4CAF50" />
+              <Feather name="check-circle" size={20} color={colors.success} />
             </View>
 
             <Text style={localStyles.rewardsMemberDesc}>

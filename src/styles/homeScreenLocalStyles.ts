@@ -171,7 +171,7 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#0B548B', // Match footer navy background
+    backgroundColor: colors.primary, // Match footer navy background
   },
   hamburgerBadge: {
     position: 'absolute',
@@ -182,9 +182,9 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: colors.badgeRed,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: colors.badgeRed,
   },
   floatingBadge: {
     position: 'absolute',
@@ -195,9 +195,9 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: colors.badgeRed,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: colors.badgeRed,
   },
   // Unified Welcome Card styles
   welcomeCard: {

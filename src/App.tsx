@@ -9,7 +9,7 @@ import { initSentry, Sentry, sentryNavigationIntegration } from './config/sentry
 initSentry();
 
 import React, { useState, useEffect } from "react";
-import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, DarkTheme, useNavigationContainerRef } from "@react-navigation/native";
 import {
   createStackNavigator,
   TransitionPresets,
@@ -68,6 +68,9 @@ import { SpeciesAlertsProvider } from './contexts/SpeciesAlertsContext';
 // Import Force Update context for blocking outdated app versions
 import { ForceUpdateProvider } from './contexts/ForceUpdateContext';
 
+// Import Theme context for light/dark mode support
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+
 // Import Supabase config check
 import { isSupabaseConfigured } from './config/supabase';
 import { env } from './config/env';
@@ -102,18 +105,22 @@ import PartnerInquiryScreen from "./screens/PartnerInquiryScreen";
 // Import styles
 import { navigationStyles } from "./styles/navigationStyles";
 
-// Create a custom navigation theme
-const AppTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: (navigationStyles.screenOptions.headerStyle as { backgroundColor: string })?.backgroundColor ?? '#0B548B',
-    background: (navigationStyles.screenOptions.cardStyle as { backgroundColor: string })?.backgroundColor ?? '#E5F4FF',
-    card: '#FFFFFF',
-    text: '#263238',
-    border: '#BBDEFB',
-  },
-};
+// Create theme-aware navigation themes
+function useNavigationTheme() {
+  const { theme } = useTheme();
+  const baseTheme = theme.isDark ? DarkTheme : DefaultTheme;
+  return {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.surfaceElevated,
+      text: theme.colors.textPrimary,
+      border: theme.colors.border,
+    },
+  };
+}
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -196,6 +203,8 @@ const AppInitializer: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const navigation = useNavigationContainerRef();
+  const { theme } = useTheme();
+  const navTheme = useNavigationTheme();
 
   return (
     <NavigationContainer
@@ -203,7 +212,7 @@ const AppContent: React.FC = () => {
       onReady={() => {
         sentryNavigationIntegration.registerNavigationContainer(navigation);
       }}
-      theme={AppTheme}
+      theme={navTheme}
       linking={{
       // Define app linking configuration for React Navigation v7
       prefixes: ['fishlog://'],
@@ -224,7 +233,7 @@ const AppContent: React.FC = () => {
         },
       },
     }}>
-      <StatusBar style="light" />
+      <StatusBar style={theme.statusBarStyle} />
       <AppInitializer />
       <Stack.Navigator
         initialRouteName="Home"
@@ -263,7 +272,7 @@ const AppContent: React.FC = () => {
           ),
           gestureEnabled: true,
           // Ensure card background matches app theme to prevent white flash
-          cardStyle: { backgroundColor: colors.primary },
+          cardStyle: { backgroundColor: theme.colors.primary },
         }}
       >
           <Stack.Screen
@@ -435,19 +444,21 @@ const App: React.FC = () => {
         <AnimatedSplashScreen ready={appReady}>
           <Provider store={store}>
             <QueryClientProvider client={queryClient}>
-              <ForceUpdateProvider>
-                <RewardsProvider>
-                  <AchievementProvider>
-                    <BulletinProvider>
-                      <SpeciesAlertsProvider>
-                        <SafeAreaProvider>
-                          <AppContent />
-                        </SafeAreaProvider>
-                      </SpeciesAlertsProvider>
-                    </BulletinProvider>
-                  </AchievementProvider>
-                </RewardsProvider>
-              </ForceUpdateProvider>
+              <ThemeProvider>
+                <ForceUpdateProvider>
+                  <RewardsProvider>
+                    <AchievementProvider>
+                      <BulletinProvider>
+                        <SpeciesAlertsProvider>
+                          <SafeAreaProvider>
+                            <AppContent />
+                          </SafeAreaProvider>
+                        </SpeciesAlertsProvider>
+                      </BulletinProvider>
+                    </AchievementProvider>
+                  </RewardsProvider>
+                </ForceUpdateProvider>
+              </ThemeProvider>
             </QueryClientProvider>
           </Provider>
         </AnimatedSplashScreen>

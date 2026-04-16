@@ -62,3 +62,7 @@ export {
   useFontScale,
   type FontScaleInfo,
 } from './useFontScale';
+
+export {
+  useThemedStyles,
+} from './useThemedStyles';

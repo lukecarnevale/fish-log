@@ -15,7 +15,7 @@ export const localStyles = StyleSheet.create({
     bottom: 40,
     left: 20,
     right: 20,
-    backgroundColor: "#28a745",
+    backgroundColor: colors.success,
     borderRadius: borderRadius.md,
     paddingVertical: 14,
     paddingHorizontal: spacing.md,
@@ -89,7 +89,7 @@ export const localStyles = StyleSheet.create({
     marginTop: 2,
   },
   testModeBadge: {
-    backgroundColor: '#ff9800',
+    backgroundColor: colors.warning,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: borderRadius.md,
@@ -490,7 +490,7 @@ export const localStyles = StyleSheet.create({
   },
   // Raffle section styles
   raffleSection: {
-    backgroundColor: "#fff9e6",
+    backgroundColor: colors.warningLight,
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: spacing.md,
@@ -501,7 +501,7 @@ export const localStyles = StyleSheet.create({
   },
   raffleSectionEntered: {
     borderColor: colors.success,
-    backgroundColor: "#e8f5e9",
+    backgroundColor: colors.successLight,
   },
   raffleSectionHeader: {
     flexDirection: "row",
@@ -523,7 +523,7 @@ export const localStyles = StyleSheet.create({
   raffleEnteredMessage: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#e8f5e9",
+    backgroundColor: colors.successLight,
     padding: spacing.sm,
     borderRadius: borderRadius.sm,
   },
@@ -590,7 +590,7 @@ export const localStyles = StyleSheet.create({
   privacyAssurance: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0fdf4",
+    backgroundColor: colors.successLight,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: borderRadius.sm,
@@ -879,7 +879,7 @@ export const localStyles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
   },
   photoRemoveButton: {
-    backgroundColor: "#ffebee",
+    backgroundColor: colors.dangerLight,
   },
   photoActionText: {
     fontSize: 14,
@@ -890,7 +890,7 @@ export const localStyles = StyleSheet.create({
   photoSuccessMessage: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e8f5e9",
+    backgroundColor: colors.successLight,
     padding: spacing.sm,
     borderRadius: borderRadius.sm,
     marginTop: 12,
@@ -940,17 +940,17 @@ export const localStyles = StyleSheet.create({
     marginBottom: 12,
   },
   requiredAsterisk: {
-    color: "#e53935",
+    color: colors.error,
     fontWeight: "600",
   },
   // Inline validation error styles
   inputError: {
-    borderColor: "#e53935",
+    borderColor: colors.error,
     borderWidth: 1.5,
   },
   errorText: {
     fontSize: 12,
-    color: "#e53935",
+    color: colors.error,
     marginTop: -8,
     marginBottom: 12,
   },
@@ -982,7 +982,7 @@ export const localStyles = StyleSheet.create({
   },
   zipFeedbackSuccessText: {
     fontSize: 13,
-    color: "#28a745",
+    color: colors.success,
     fontWeight: "500",
   },
   zipFeedbackWarning: {
@@ -992,7 +992,7 @@ export const localStyles = StyleSheet.create({
   },
   zipFeedbackWarningText: {
     fontSize: 13,
-    color: "#ff9800",
+    color: colors.warning,
     fontWeight: "500",
   },
   // Abandonment modal styles - uses common modal styles
@@ -1009,7 +1009,7 @@ export const localStyles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#fff3e0",
+    backgroundColor: colors.warningLight,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,
@@ -1049,7 +1049,7 @@ export const localStyles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
-    backgroundColor: "#e53935",
+    backgroundColor: colors.error,
     alignItems: "center",
   },
   abandonModalDiscardText: {
@@ -1100,7 +1100,7 @@ export const localStyles = StyleSheet.create({
   },
   saveButtonSaved: {
     borderColor: colors.success,
-    backgroundColor: "#e8f5e9",
+    backgroundColor: colors.successLight,
   },
   saveButtonText: {
     fontSize: 13,
@@ -1154,7 +1154,7 @@ export const localStyles = StyleSheet.create({
   },
   // Selected option styles for dropdowns
   optionItemSelected: {
-    backgroundColor: "#e8f4fc",
+    backgroundColor: colors.infoLight,
   },
   optionTextSelected: {
     color: colors.primary,
@@ -1170,7 +1170,7 @@ export const localStyles = StyleSheet.create({
   mapIconButton: {
     padding: 10,
     borderRadius: 22,
-    backgroundColor: "#e8f4fc",
+    backgroundColor: colors.infoLight,
   },
   // Collapsible contact section styles
   contactSectionToggle: {

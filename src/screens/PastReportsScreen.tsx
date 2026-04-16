@@ -1164,7 +1164,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   testModeBadge: {
-    backgroundColor: "#ff9800",
+    backgroundColor: colors.warning,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1279,7 +1279,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#e8f5e9",
+    backgroundColor: colors.successLight,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -1484,7 +1484,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#e8f5e9",
+    backgroundColor: colors.successLight,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1500,7 +1500,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontSize: 12,
-    color: "#c0392b",
+    color: colors.error,
     fontWeight: "500",
     flex: 1,
   },
@@ -1584,7 +1584,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   modalConfirmationBox: {
-    backgroundColor: "#f0f7f0",
+    backgroundColor: colors.successLight,
     padding: spacing.lg,
     borderRadius: borderRadius.md,
     alignItems: "center",
@@ -1698,7 +1698,7 @@ const styles = StyleSheet.create({
   },
   // Modal raffle section
   modalRaffleSection: {
-    backgroundColor: "#e3f2fd",
+    backgroundColor: colors.infoLight,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     paddingBottom: spacing.md + 28,

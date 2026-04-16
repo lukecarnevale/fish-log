@@ -7,6 +7,7 @@ import {
   Dimensions,
 } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
+import { colors } from "../styles/common";
 
 // Prevent the native splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     fontSize: 32,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: colors.white,
     letterSpacing: 1,
   },
 });

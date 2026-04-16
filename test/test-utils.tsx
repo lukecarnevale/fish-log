@@ -10,6 +10,7 @@ import { RewardsProvider } from '../src/contexts/RewardsContext';
 import { AchievementProvider } from '../src/contexts/AchievementContext';
 import { BulletinProvider } from '../src/contexts/BulletinContext';
 import { SpeciesAlertsProvider } from '../src/contexts/SpeciesAlertsContext';
+import { ThemeProvider } from '../src/contexts/ThemeContext';
 import userReducer from '../src/store/slices/userSlice';
 import fishReportsReducer from '../src/store/slices/fishReportsSlice';
 import licenseReducer from '../src/store/slices/licenseSlice';
@@ -59,23 +60,25 @@ export function renderWithProviders(
     return (
       <Provider store={testStore}>
         <QueryClientProvider client={queryClient}>
-          <RewardsProvider>
-            <AchievementProvider>
-              <BulletinProvider>
-                <SpeciesAlertsProvider>
-                  <SafeAreaProvider>
-                    <NavigationContainer>
-                      <Stack.Navigator initialRouteName={initialRouteName}>
-                        <Stack.Screen name={initialRouteName} initialParams={routeParams}>
-                          {() => children}
-                        </Stack.Screen>
-                      </Stack.Navigator>
-                    </NavigationContainer>
-                  </SafeAreaProvider>
-                </SpeciesAlertsProvider>
-              </BulletinProvider>
-            </AchievementProvider>
-          </RewardsProvider>
+          <ThemeProvider>
+            <RewardsProvider>
+              <AchievementProvider>
+                <BulletinProvider>
+                  <SpeciesAlertsProvider>
+                    <SafeAreaProvider>
+                      <NavigationContainer>
+                        <Stack.Navigator initialRouteName={initialRouteName}>
+                          <Stack.Screen name={initialRouteName} initialParams={routeParams}>
+                            {() => children}
+                          </Stack.Screen>
+                        </Stack.Navigator>
+                      </NavigationContainer>
+                    </SafeAreaProvider>
+                  </SpeciesAlertsProvider>
+                </BulletinProvider>
+              </AchievementProvider>
+            </RewardsProvider>
+          </ThemeProvider>
         </QueryClientProvider>
       </Provider>
     );

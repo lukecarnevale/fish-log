@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   partnerName: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
     textAlign: 'center',
     lineHeight: 14,
   },
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.white,
     marginBottom: 2,
   },
   appOrg: {

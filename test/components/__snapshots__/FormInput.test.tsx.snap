@@ -46,7 +46,7 @@ exports[`FormInput matches snapshot 1`] = `
           "textAlignVertical": "center",
         },
         {
-          "borderColor": "#FF5252",
+          "borderColor": "#D32F2F",
         },
         undefined,
       ]
@@ -57,7 +57,7 @@ exports[`FormInput matches snapshot 1`] = `
     numberOfLines={3}
     style={
       {
-        "color": "#FF5252",
+        "color": "#D32F2F",
         "fontSize": 13,
         "marginTop": 4,
       }

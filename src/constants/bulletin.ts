@@ -6,6 +6,7 @@
 
 import type { Feather } from '@expo/vector-icons';
 import type { BulletinType } from '../types/bulletin';
+import { colors } from '../styles/common';
 
 export interface BulletinTypeConfig {
   /** Feather icon name for this bulletin type. */
@@ -28,13 +29,13 @@ export const BULLETIN_TYPE_CONFIG: Record<BulletinType, BulletinTypeConfig> = {
   closure: {
     icon: 'alert-octagon',
     label: 'CLOSURE',
-    color: '#D32F2F',
+    color: colors.error,
     badgeBg: 'rgba(211,47,47,0.10)',
   },
   advisory: {
     icon: 'alert-triangle',
     label: 'ADVISORY',
-    color: '#EA580C',
+    color: colors.advisory,
     badgeBg: 'rgba(234,88,12,0.10)',
   },
   educational: {
@@ -46,7 +47,7 @@ export const BULLETIN_TYPE_CONFIG: Record<BulletinType, BulletinTypeConfig> = {
   info: {
     icon: 'info',
     label: 'INFO',
-    color: '#06747F',
+    color: colors.secondary,
     badgeBg: 'rgba(6,116,127,0.08)',
   },
 };
