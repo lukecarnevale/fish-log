@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { Image, ImageStyle } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 interface QuickActionCardProps {
   title: string;
@@ -48,6 +51,8 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
   renderCornerBadge,
   renderTextBadge,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.cardWrapper}>
       {/* Corner badge - positioned at top-right edge of card */}
@@ -131,7 +136,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   cardWrapper: {
     flex: 1,
     position: 'relative',

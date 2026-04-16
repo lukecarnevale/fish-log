@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../styles/common';
+import { useTheme } from '../../contexts/ThemeContext';
 import { localStyles } from '../../styles/reportFormScreenLocalStyles';
 
 interface AbandonConfirmModalProps {
@@ -22,6 +22,8 @@ const AbandonConfirmModal: React.FC<AbandonConfirmModalProps> = ({
   onKeepEditing,
   onDiscard,
 }) => {
+  const { theme } = useTheme();
+
   return (
     <Modal
       animationType="fade"
@@ -32,7 +34,7 @@ const AbandonConfirmModal: React.FC<AbandonConfirmModalProps> = ({
       <View style={localStyles.abandonModalOverlay}>
         <View style={localStyles.abandonModalContent}>
           <View style={localStyles.abandonModalIconContainer}>
-            <Feather name="alert-circle" size={32} color={colors.warning} />
+            <Feather name="alert-circle" size={32} color={theme.colors.warning} />
           </View>
           <Text style={localStyles.abandonModalTitle}>Discard Report?</Text>
           <Text style={localStyles.abandonModalText}>

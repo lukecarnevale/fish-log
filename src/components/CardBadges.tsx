@@ -6,6 +6,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 // ============================================
 // COUNTER BUBBLE
@@ -31,6 +33,7 @@ export const CounterBubble: React.FC<CounterBubbleProps> = ({
   size = 32,
   delay = 0,
 }) => {
+  const styles = useThemedStyles(createStyles);
   const fontSize = size < 30 ? 11 : 13;
   const shineSize = Math.round(size * 0.25);
 
@@ -112,6 +115,7 @@ export const NewDotNotification: React.FC<NewDotNotificationProps> = ({
   size = 12,
   delay = 0,
 }) => {
+  const styles = useThemedStyles(createStyles);
   const entranceAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -192,6 +196,7 @@ export const ActivityBadge: React.FC<ActivityBadgeProps> = ({
   shadowColor,
   delay = 0,
 }) => {
+  const styles = useThemedStyles(createStyles);
   // Entrance animation
   const entranceAnim = useRef(new Animated.Value(0)).current;
 
@@ -263,6 +268,7 @@ export const ActivityDots: React.FC<ActivityDotsProps> = ({
   dotSize = 6,
   delay = 0,
 }) => {
+  const styles = useThemedStyles(createStyles);
   // Entrance animation
   const entranceAnim = useRef(new Animated.Value(0)).current;
   // Single master animation value that coordinates all dots
@@ -345,7 +351,7 @@ export const ActivityDots: React.FC<ActivityDotsProps> = ({
 // STYLES
 // ============================================
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   // Counter Bubble
   counterBubble: {
     shadowOffset: { width: 0, height: 2 },

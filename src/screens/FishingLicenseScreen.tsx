@@ -25,7 +25,10 @@ import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { RootStackParamList, FishingLicense } from "../types";
-import { colors, spacing, borderRadius } from "../styles/common";
+import { spacing, borderRadius } from "../styles/common";
+import { useTheme } from "../contexts/ThemeContext";
+import { useThemedStyles } from "../hooks/useThemedStyles";
+import { Theme } from "../styles/theme";
 import styles from "../styles/fishingLicenseScreenStyles";
 import LicenseTypePicker from "../components/LicenseTypePicker";
 import { NCFlagIcon } from "../components/NCFlagIcon";
@@ -50,6 +53,10 @@ interface FishingLicenseScreenProps {
 }
 
 const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const profileStyles = useThemedStyles(createProfileStyles);
+  const flStyles = useThemedStyles(createFlStyles);
+
   const [license, setLicense] = useState<FishingLicense | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -364,7 +371,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   const renderLicenseForm = () => (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
     >
       {/* Close button header - matching ProfileScreen pattern */}
       <View style={styles.formHeader}>
@@ -373,7 +380,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           onPress={handleCloseEditForm}
           activeOpacity={0.7}
         >
-          <Feather name="x" size={24} color={colors.white} />
+          <Feather name="x" size={24} color={theme.colors.white} />
         </TouchableOpacity>
         <Text style={styles.formHeaderTitle}>Edit License</Text>
         <View style={{ width: 40 }} />
@@ -396,7 +403,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                   value={formData.firstName}
                   onChangeText={(text) => setFormData({ ...formData, firstName: text })}
                   placeholder="First"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={theme.colors.textTertiary}
                   textContentType="givenName"
                   autoComplete="given-name"
                   returnKeyType="done"
@@ -410,7 +417,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                   value={formData.lastName}
                   onChangeText={(text) => setFormData({ ...formData, lastName: text })}
                   placeholder="Last"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={theme.colors.textTertiary}
                   textContentType="familyName"
                   autoComplete="family-name"
                   returnKeyType="done"
@@ -432,7 +439,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                 onPress={() => setShowLicenseNumberInfoModal(true)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name="info" size={18} color={colors.primary} />
+                <Feather name="info" size={18} color={theme.colors.primary} />
               </TouchableOpacity>
             </View>
             <TextInput
@@ -440,7 +447,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               value={formData.licenseNumber}
               onChangeText={(text) => setFormData({ ...formData, licenseNumber: text })}
               placeholder="Enter license number"
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={theme.colors.textTertiary}
               autoCapitalize="characters"
               returnKeyType="done"
               blurOnSubmit={false}
@@ -457,7 +464,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               <Text style={formData.licenseType ? styles.inputText : styles.inputPlaceholder}>
                 {formData.licenseType || "Select license type"}
               </Text>
-              <Feather name="chevron-down" size={16} color={colors.textSecondary} />
+              <Feather name="chevron-down" size={16} color={theme.colors.textSecondary} />
             </TouchableOpacity>
             
             <LicenseTypePicker
@@ -479,7 +486,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                 <Text style={formData.issueDate ? styles.inputText : styles.inputPlaceholder}>
                   {formData.issueDate ? formatDate(formData.issueDate) : "Select date"}
                 </Text>
-                <Feather name="calendar" size={16} color={colors.textSecondary} />
+                <Feather name="calendar" size={16} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
             
@@ -492,7 +499,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                 <Text style={formData.expiryDate ? styles.inputText : styles.inputPlaceholder}>
                   {formData.expiryDate ? formatDate(formData.expiryDate) : "Select date"}
                 </Text>
-                <Feather name="calendar" size={16} color={colors.textSecondary} />
+                <Feather name="calendar" size={16} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -539,7 +546,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                   Select {currentDateField === 'issueDate' ? 'Issue Date' : 'Expiry Date'}
                 </Text>
                 <TouchableOpacity onPress={closeDatePicker}>
-                  <Feather name="x" size={24} color={colors.darkGray} />
+                  <Feather name="x" size={24} color={theme.colors.darkGray} />
                 </TouchableOpacity>
               </View>
               {isPickerMounted && (
@@ -579,7 +586,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
       
       <View style={styles.cardContainer}>
         <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
+          colors={[theme.colors.primary, theme.colors.primaryDark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.licenseCard}
@@ -595,7 +602,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               onPress={() => setInfoModalVisible(true)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Feather name="info" size={20} color={colors.white} />
+              <Feather name="info" size={20} color={theme.colors.white} />
             </TouchableOpacity>
           </View>
           
@@ -642,7 +649,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                 accessibilityLabel="Edit license"
                 testID="license-edit-button"
               >
-                <Feather name="edit-2" size={20} color={colors.white} />
+                <Feather name="edit-2" size={20} color={theme.colors.white} />
               </TouchableOpacity>
             </View>
           </View>
@@ -716,7 +723,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             onPress={() => safeOpenURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
             activeOpacity={0.8}
           >
-            <Feather name="external-link" size={16} color={colors.white} />
+            <Feather name="external-link" size={16} color={theme.colors.white} />
             <Text style={styles.lookupButtonText}>Look Up My License</Text>
           </TouchableOpacity>
         </View>
@@ -728,7 +735,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
         activeOpacity={0.7}
       >
         <Text style={styles.externalLinkText}>NC Wildlife License Information</Text>
-        <Feather name="external-link" size={16} color={colors.primary} />
+        <Feather name="external-link" size={16} color={theme.colors.primary} />
       </TouchableOpacity>
 
       <View style={{ height: spacing.xxl }} />
@@ -811,7 +818,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             onPress={() => toggleEditMode(true)}
             activeOpacity={0.8}
           >
-            <Feather name="plus" size={16} color={colors.white} />
+            <Feather name="plus" size={16} color={theme.colors.white} />
             <Text style={styles.addLicensePillText}>Add License</Text>
           </TouchableOpacity>
         </View>
@@ -887,7 +894,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             onPress={() => safeOpenURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
             activeOpacity={0.8}
           >
-            <Feather name="external-link" size={16} color={colors.white} />
+            <Feather name="external-link" size={16} color={theme.colors.white} />
             <Text style={styles.lookupButtonText}>Look Up My License</Text>
           </TouchableOpacity>
         </View>
@@ -900,7 +907,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
         activeOpacity={0.7}
       >
         <Text style={styles.externalLinkText}>NC Wildlife License Information</Text>
-        <Feather name="external-link" size={16} color={colors.primary} />
+        <Feather name="external-link" size={16} color={theme.colors.primary} />
       </TouchableOpacity>
 
       <View style={{ height: spacing.xxl }} />
@@ -910,7 +917,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   if (loading) {
     return (
       <View style={flStyles.screenContainer}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} translucent />
         <View style={flStyles.fixedHeader}>
           <View style={flStyles.headerRow}>
             <TouchableOpacity
@@ -918,7 +925,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               onPress={() => navigation.goBack()}
               activeOpacity={0.7}
             >
-              <Feather name="arrow-left" size={24} color={colors.white} />
+              <Feather name="arrow-left" size={24} color={theme.colors.white} />
             </TouchableOpacity>
             <View style={flStyles.headerTextContainer}>
               <Text style={flStyles.headerTitle}>{SCREEN_LABELS.fishingLicense.title}</Text>
@@ -926,7 +933,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           </View>
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
       </View>
     );
@@ -934,7 +941,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
 
   return (
     <View style={flStyles.screenContainer}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} translucent />
 
       {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
       <StatusBarScrollBlur scrollY={scrollY} />
@@ -949,7 +956,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Feather name="arrow-left" size={24} color={colors.white} />
+            <Feather name="arrow-left" size={24} color={theme.colors.white} />
           </TouchableOpacity>
           <View style={flStyles.headerTextContainer}>
             <Text style={flStyles.headerTitle}>{SCREEN_LABELS.fishingLicense.title}</Text>
@@ -997,7 +1004,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
 
       {/* Overlay the form when editing */}
       {isEditing && (
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background, transform: [{ translateY: slideAnim }], zIndex: 10 }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.background, transform: [{ translateY: slideAnim }], zIndex: 10 }]}>
           {renderLicenseForm()}
         </Animated.View>
       )}
@@ -1021,12 +1028,12 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
 };
 
 // Additional styles for profile link
-const profileStyles = StyleSheet.create({
+const createProfileStyles = (theme: Theme) => StyleSheet.create({
   profileLinkContainer: {
     marginTop: spacing.md,
   },
   profileLinkButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     justifyContent: "center" as const,
@@ -1035,7 +1042,7 @@ const profileStyles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   profileLinkText: {
-    color: colors.white,
+    color: theme.colors.white,
     fontWeight: "600" as const,
     marginLeft: spacing.xs,
   },
@@ -1044,17 +1051,17 @@ const profileStyles = StyleSheet.create({
 // Styles for the floating header / scroll-over pattern
 const windowHeight = Dimensions.get('window').height;
 
-const flStyles = StyleSheet.create({
+const createFlStyles = (theme: Theme) => StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   fixedHeader: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 56,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -1079,11 +1086,11 @@ const flStyles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: colors.white,
+    color: theme.colors.white,
     opacity: 0.85,
     marginTop: 2,
   },
@@ -1105,7 +1112,7 @@ const flStyles = StyleSheet.create({
     alignItems: 'center',
   },
   contentCard: {
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderBottomLeftRadius: 24,

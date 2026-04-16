@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { APP_VERSION } from '../config/appConfig';
 import { usePartners } from '../hooks/usePartners';
 import { trackPartnerClick } from '../services/partnersService';
@@ -31,6 +33,8 @@ const Footer: React.FC<FooterProps> = ({
   onContactPress,
   onInfoPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { partners } = usePartners();
 
   const handlePartnerPress = (partnerId: string, url: string) => {
@@ -134,14 +138,14 @@ const Footer: React.FC<FooterProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     // No background - wave handles the transition
   },
 
   // Wave
   waveContainer: {
-    backgroundColor: colors.background, // Light background above wave
+    backgroundColor: theme.colors.background, // Light background above wave
     height: 35,
   },
 
@@ -213,7 +217,7 @@ const styles = StyleSheet.create({
   partnerName: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     textAlign: 'center',
     lineHeight: 14,
   },
@@ -227,7 +231,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
     marginBottom: 2,
   },
   appOrg: {

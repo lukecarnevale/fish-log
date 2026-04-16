@@ -11,7 +11,9 @@ import {
   StyleSheet,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { colors } from "../styles/common";
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import AnimatedModal from "./AnimatedModal";
 import { safeOpenURL } from "../utils/openURL";
 
@@ -21,6 +23,9 @@ interface WrcIdInfoModalProps {
 }
 
 const WrcIdInfoModal: React.FC<WrcIdInfoModalProps> = ({ visible, onClose }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   const handleLookup = () => {
     onClose();
     safeOpenURL("https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx");
@@ -34,7 +39,7 @@ const WrcIdInfoModal: React.FC<WrcIdInfoModalProps> = ({ visible, onClose }) => 
       containerStyle={styles.container}
     >
       <View style={styles.header}>
-        <Feather name="info" size={24} color={colors.primary} />
+        <Feather name="info" size={24} color={theme.colors.primary} />
         <Text style={styles.title}>WRC ID Lookup</Text>
       </View>
       <Text style={styles.text}>
@@ -45,7 +50,7 @@ const WrcIdInfoModal: React.FC<WrcIdInfoModalProps> = ({ visible, onClose }) => 
         onPress={handleLookup}
         activeOpacity={0.7}
       >
-        <Feather name="external-link" size={18} color={colors.white} style={{ marginRight: 8 }} />
+        <Feather name="external-link" size={18} color={theme.colors.white} style={{ marginRight: 8 }} />
         <Text style={styles.buttonText}>Look Up My ID</Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -59,7 +64,7 @@ const WrcIdInfoModal: React.FC<WrcIdInfoModalProps> = ({ visible, onClose }) => 
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     maxWidth: 340,
     borderRadius: 16,
@@ -72,17 +77,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginLeft: 12,
   },
   text: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     lineHeight: 22,
     marginBottom: 20,
   },
   button: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 20,
@@ -92,7 +97,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   buttonText: {
-    color: colors.white,
+    color: theme.colors.white,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -101,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   closeText: {
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontSize: 15,
     fontWeight: "500",
   },

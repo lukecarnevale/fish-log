@@ -8,7 +8,9 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { isTestMode, isProductionMode } from "../config/appConfig";
-import { colors } from "../styles/common";
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 interface TestModeBadgeProps {
   /** Style variant for different placements */
@@ -40,6 +42,9 @@ const TestModeBadge: React.FC<TestModeBadgeProps> = ({
   showInfo = false,
   style,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   // Don't render in production mode
   if (isProductionMode()) {
     return null;
@@ -66,10 +71,10 @@ const TestModeBadge: React.FC<TestModeBadgeProps> = ({
 
   const content = (
     <View style={badgeStyle}>
-      <Feather name="alert-triangle" size={10} color={colors.white} />
+      <Feather name="alert-triangle" size={10} color={theme.colors.white} />
       <Text style={styles.badgeText} maxFontSizeMultiplier={1.1}>TEST MODE</Text>
       {showInfo && (
-        <Feather name="info" size={10} color={colors.white} style={styles.infoIcon} />
+        <Feather name="info" size={10} color={theme.colors.white} style={styles.infoIcon} />
       )}
     </View>
   );
@@ -85,7 +90,7 @@ const TestModeBadge: React.FC<TestModeBadgeProps> = ({
   return content;
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   badge: {
     flexDirection: "row",
     alignItems: "center",
@@ -113,7 +118,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   badgeText: {
-    color: colors.white,
+    color: theme.colors.white,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,

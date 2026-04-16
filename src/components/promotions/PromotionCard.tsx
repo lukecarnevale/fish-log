@@ -12,7 +12,10 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, shadows } from '../../styles/common';
+import { spacing, borderRadius, shadows } from '../../styles/common';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { Theme } from '../../styles/theme';
 import type { Advertisement } from '../../services/transformers/advertisementTransformer';
 import { getCategoryIcon, getCategoryLabel } from '../../services/promotionsService';
 import { getRegionLabel } from '../../constants/regionOptions';
@@ -49,6 +52,8 @@ const PromotionCard: React.FC<PromotionCardProps> = ({
   localImage,
   onPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [imageError, setImageError] = useState(false);
   const handleImageError = useCallback(() => setImageError(true), []);
 
@@ -118,7 +123,7 @@ const PromotionCard: React.FC<PromotionCardProps> = ({
             <Feather
               name={getCategoryIcon(promotion.category) as any}
               size={10}
-              color={colors.secondary}
+              color={theme.colors.secondary}
             />
             <Text style={styles.categoryText}>
               {getCategoryLabel(promotion.category)}
@@ -140,7 +145,7 @@ const PromotionCard: React.FC<PromotionCardProps> = ({
         <View style={styles.bottomRow}>
           {promotion.areaCodes.length > 0 && (
             <View style={styles.areaBadge}>
-              <Feather name="map-pin" size={9} color={colors.darkGray} />
+              <Feather name="map-pin" size={9} color={theme.colors.darkGray} />
               <Text style={styles.areaText} numberOfLines={1}>
                 {getRegionLabel(promotion.areaCodes[0])}
               </Text>
@@ -157,15 +162,15 @@ const PromotionCard: React.FC<PromotionCardProps> = ({
 
       {/* External link indicator */}
       <View style={styles.linkIndicator}>
-        <Feather name="external-link" size={12} color={colors.mediumGray} />
+        <Feather name="external-link" size={12} color={theme.colors.mediumGray} />
       </View>
     </TouchableOpacity>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
-    backgroundColor: colors.pearlWhite,
+    backgroundColor: theme.colors.pearlWhite,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.85)',
@@ -178,7 +183,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: '100%',
     height: 100,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
   },
   image: {
     width: '100%',
@@ -200,7 +205,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: colors.accent,
+    backgroundColor: theme.colors.accent,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: borderRadius.sm,
@@ -208,7 +213,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -231,19 +236,19 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 9,
     fontWeight: '600',
-    color: colors.secondary,
+    color: theme.colors.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
   companyName: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.black,
+    color: theme.colors.black,
     marginBottom: 3,
   },
   promoText: {
     fontSize: 12,
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
     lineHeight: 16,
     marginBottom: 8,
   },
@@ -260,10 +265,10 @@ const styles = StyleSheet.create({
   },
   areaText: {
     fontSize: 10,
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
   },
   promoCodeBadge: {
-    backgroundColor: colors.accent,
+    backgroundColor: theme.colors.accent,
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: borderRadius.xs,
@@ -271,7 +276,7 @@ const styles = StyleSheet.create({
   promoCodeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
     letterSpacing: 0.5,
   },
   linkIndicator: {

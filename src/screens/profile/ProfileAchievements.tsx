@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { UserAchievement } from '../../types/user';
 import { getAchievementColor, getAchievementIcon } from '../../constants/achievementMappings';
-import { colors } from '../../styles/common';
+import { useTheme } from '../../contexts/ThemeContext';
 import { styles, localStyles } from '../../styles/profileScreenStyles';
 
 interface ProfileAchievementsProps {
@@ -11,6 +11,8 @@ interface ProfileAchievementsProps {
 }
 
 const ProfileAchievements: React.FC<ProfileAchievementsProps> = ({ achievements }) => {
+  const { theme } = useTheme();
+
   return (
     <View style={styles.statsSection}>
       <Text style={styles.sectionTitle}>Achievements</Text>
@@ -28,7 +30,7 @@ const ProfileAchievements: React.FC<ProfileAchievementsProps> = ({ achievements 
                   <Feather
                     name={iconName}
                     size={20}
-                    color={colors.white}
+                    color={theme.colors.white}
                   />
                 </View>
                 <View style={localStyles.achievementTextContainer}>

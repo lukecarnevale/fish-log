@@ -13,7 +13,10 @@ import {
 import { Image as ExpoImage } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { spacing, borderRadius, typography } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { safeOpenURL } from '../utils/openURL';
 import {
   Advertisement as RemoteAdvertisement,
@@ -83,6 +86,8 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   autoRotate = true,
   refreshKey,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -343,7 +348,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
             )}
           </View>
           <View style={styles.ctaContainer}>
-            <Feather name="external-link" size={16} color={colors.white} />
+            <Feather name="external-link" size={16} color={theme.colors.white} />
           </View>
         </View>
       </View>
@@ -395,7 +400,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginVertical: spacing.sm,
   },
@@ -406,8 +411,8 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.white,
-    shadowColor: colors.shadow,
+    backgroundColor: theme.colors.white,
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -436,24 +441,24 @@ const styles = StyleSheet.create({
   },
   companyName: {
     ...typography.subtitle,
-    color: colors.white,
+    color: theme.colors.white,
     fontWeight: '700',
     marginBottom: 2,
   },
   promoText: {
     ...typography.bodySmall,
-    color: colors.white,
+    color: theme.colors.white,
     opacity: 0.9,
   },
   promoCodeText: {
     ...typography.caption,
-    color: colors.white,
+    color: theme.colors.white,
     opacity: 0.85,
     marginTop: 4,
   },
   promoCode: {
     fontWeight: '700',
-    color: colors.gold,
+    color: theme.colors.gold,
   },
   ctaContainer: {
     width: 36,
@@ -475,7 +480,7 @@ const styles = StyleSheet.create({
   },
   sponsoredText: {
     ...typography.caption,
-    color: colors.white,
+    color: theme.colors.white,
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -495,7 +500,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   paginationDotActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     width: 20,
   },
 });

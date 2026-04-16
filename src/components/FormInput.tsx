@@ -8,7 +8,9 @@ import {
   View,
   Text,
 } from 'react-native';
-import { colors } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 /**
  * FormInput Component
@@ -66,7 +68,9 @@ export const FormInput = React.forwardRef<TextInput, FormInputProps>(
     },
     ref
   ) => {
-    const borderColor = error ? colors.error : colors.oceanSurface;
+    const { theme } = useTheme();
+    const styles = useThemedStyles(createStyles);
+    const borderColor = error ? theme.colors.error : theme.colors.oceanSurface;
 
     return (
       <View style={[styles.container, containerStyle]}>
@@ -85,7 +89,7 @@ export const FormInput = React.forwardRef<TextInput, FormInputProps>(
             { borderColor },
             inputStyle,
           ]}
-          placeholderTextColor={colors.textSecondary}
+          placeholderTextColor={theme.colors.textSecondary}
           maxFontSizeMultiplier={1.3}
           {...rest}
         />
@@ -105,31 +109,31 @@ export const FormInput = React.forwardRef<TextInput, FormInputProps>(
 
 FormInput.displayName = 'FormInput';
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginBottom: 0,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1.5,
-    borderColor: colors.oceanSurface,
+    borderColor: theme.colors.oceanSurface,
     backgroundColor: '#F8F9FA',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 48,
     fontSize: 16,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     textAlignVertical: 'center',
   },
   errorText: {
     fontSize: 13,
-    color: colors.error,
+    color: theme.colors.error,
     marginTop: 4,
   },
 });

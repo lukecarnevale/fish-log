@@ -14,7 +14,10 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { spacing, borderRadius, typography } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 // Achievement color mapping - specific colors for each achievement code
 const ACHIEVEMENT_COLORS: Record<string, string> = {
@@ -122,6 +125,9 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
   achievement,
   onClose,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   // Animation values
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -226,7 +232,7 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
             },
           ]}
         >
-          <Feather name={iconName as keyof typeof Feather.glyphMap} size={48} color={colors.white} />
+          <Feather name={iconName as keyof typeof Feather.glyphMap} size={48} color={theme.colors.white} />
         </Animated.View>
 
         {/* Achievement Name */}
@@ -257,14 +263,14 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   content: {
     alignItems: 'center',
     paddingVertical: spacing.md,
   },
   headerText: {
     ...typography.h3,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: spacing.lg,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -284,13 +290,13 @@ const styles = StyleSheet.create({
   },
   achievementName: {
     ...typography.h2,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
   achievementDescription: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
     paddingHorizontal: spacing.md,
@@ -314,7 +320,7 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     ...typography.button,
-    color: colors.white,
+    color: theme.colors.white,
   },
 });
 

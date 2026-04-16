@@ -103,7 +103,7 @@ import PromotionsScreen from "./screens/PromotionsScreen";
 import PartnerInquiryScreen from "./screens/PartnerInquiryScreen";
 
 // Import styles
-import { navigationStyles } from "./styles/navigationStyles";
+import { navigationStyles, buildNavigationStyles } from "./styles/navigationStyles";
 
 // Create theme-aware navigation themes
 function useNavigationTheme() {
@@ -205,6 +205,7 @@ const AppContent: React.FC = () => {
   const navigation = useNavigationContainerRef();
   const { theme } = useTheme();
   const navTheme = useNavigationTheme();
+  const themedNavStyles = buildNavigationStyles(theme);
 
   return (
     <NavigationContainer
@@ -239,14 +240,14 @@ const AppContent: React.FC = () => {
         initialRouteName="Home"
         detachInactiveScreens={true}
         screenOptions={{
-          ...navigationStyles.screenOptions,
+          ...themedNavStyles.screenOptions,
           headerBackButtonDisplayMode: 'minimal', // Hide back button title in v7
           headerLeftContainerStyle: { paddingLeft: 16 }, // Give the back button more padding
           headerBackImage: ({ tintColor }) => (
             <Feather
               name="chevron-left"
               size={30}
-              color={tintColor || colors.white}
+              color={tintColor || theme.colors.textOnPrimary}
               style={{ marginLeft: 4 }}
             />
           ),

@@ -13,7 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../styles/common';
+import { useTheme } from '../../contexts/ThemeContext';
 import { localStyles } from '../../styles/reportFormScreenLocalStyles';
 import { validateEmail, validatePhone, formatPhoneNumber } from '../../utils/formValidation';
 import { FormState } from './reportForm.types';
@@ -56,6 +56,8 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
   onRemovePhoto,
   onSubmitRaffle,
 }) => {
+  const { theme } = useTheme();
+
   return (
     <Modal
       visible={visible}
@@ -89,10 +91,10 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                 style={localStyles.raffleModalCloseButton}
                 onPress={onClose}
               >
-                <Feather name="x" size={24} color={colors.textSecondary} />
+                <Feather name="x" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
               <View style={localStyles.raffleModalIconContainer}>
-                <Feather name="gift" size={32} color={colors.primary} />
+                <Feather name="gift" size={32} color={theme.colors.primary} />
               </View>
               <Text style={localStyles.raffleModalTitle}>{currentRewards.name} Program</Text>
               <Text style={localStyles.raffleModalSubtitle}>
@@ -103,7 +105,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
             {/* Photo Section */}
             <View style={localStyles.raffleModalSection}>
               <Text style={localStyles.raffleModalSectionTitle}>
-                <Feather name="camera" size={16} color={colors.primary} /> Photo Required
+                <Feather name="camera" size={16} color={theme.colors.primary} /> Photo Required
               </Text>
               <Text style={localStyles.raffleModalSectionDesc}>
                 A photo of your catch required to submit a valid harvest report.
@@ -121,15 +123,15 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                       style={localStyles.rafflePhotoActionButton}
                       onPress={onTakePhoto}
                     >
-                      <Feather name="camera" size={16} color={colors.primary} />
+                      <Feather name="camera" size={16} color={theme.colors.primary} />
                       <Text style={localStyles.rafflePhotoActionText}>Retake</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={localStyles.rafflePhotoActionButton}
                       onPress={onRemovePhoto}
                     >
-                      <Feather name="trash-2" size={16} color={colors.error} />
-                      <Text style={[localStyles.rafflePhotoActionText, { color: colors.error }]}>Remove</Text>
+                      <Feather name="trash-2" size={16} color={theme.colors.error} />
+                      <Text style={[localStyles.rafflePhotoActionText, { color: theme.colors.error }]}>Remove</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -138,7 +140,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                   style={localStyles.raffleTakePhotoButton}
                   onPress={onTakePhoto}
                 >
-                  <Feather name="camera" size={24} color={colors.primary} />
+                  <Feather name="camera" size={24} color={theme.colors.primary} />
                   <Text style={localStyles.raffleTakePhotoText}>Take Photo</Text>
                 </TouchableOpacity>
               )}
@@ -147,7 +149,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
             {/* Contact Info Section */}
             <View style={localStyles.raffleModalSection}>
               <Text style={localStyles.raffleModalSectionTitle}>
-                <Feather name="user" size={16} color={colors.primary} /> Your Information
+                <Feather name="user" size={16} color={theme.colors.primary} /> Your Information
               </Text>
               <Text style={localStyles.raffleModalSectionDesc}>
                 We'll contact you if you're selected for a reward.
@@ -163,7 +165,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                     angler: { ...formData.angler, firstName: text },
                   })}
                   placeholder="First"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={theme.colors.textTertiary}
                 />
                 <TextInput
                   style={[localStyles.raffleInput, localStyles.nameInput]}
@@ -173,7 +175,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                     angler: { ...formData.angler, lastName: text },
                   })}
                   placeholder="Last"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={theme.colors.textTertiary}
                 />
               </View>
 
@@ -199,7 +201,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                   onSetRaffleValidationErrors({ ...raffleValidationErrors, email: error });
                 }}
                 placeholder="Email address"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.colors.textTertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -229,7 +231,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                   onSetRaffleValidationErrors({ ...raffleValidationErrors, phone: error });
                 }}
                 placeholder="555-555-5555"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.colors.textTertiary}
                 keyboardType="phone-pad"
                 maxLength={12}
               />
@@ -241,23 +243,23 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
             {/* Terms */}
             <View style={localStyles.raffleModalSection}>
               <Text style={localStyles.raffleModalSectionTitle}>
-                <Feather name="info" size={16} color={colors.primary} /> By Participating
+                <Feather name="info" size={16} color={theme.colors.primary} /> By Participating
               </Text>
               <View style={localStyles.raffleModalList}>
                 <View style={localStyles.raffleModalListItem}>
-                  <Feather name="check" size={14} color={colors.success} />
+                  <Feather name="check" size={14} color={theme.colors.success} />
                   <Text style={localStyles.raffleModalListText}>
                     Your catch may appear on the public leaderboard
                   </Text>
                 </View>
                 <View style={localStyles.raffleModalListItem}>
-                  <Feather name="check" size={14} color={colors.success} />
+                  <Feather name="check" size={14} color={theme.colors.success} />
                   <Text style={localStyles.raffleModalListText}>
                     You're automatically entered in quarterly drawings
                   </Text>
                 </View>
                 <View style={localStyles.raffleModalListItem}>
-                  <Feather name="check" size={14} color={colors.success} />
+                  <Feather name="check" size={14} color={theme.colors.success} />
                   <Text style={localStyles.raffleModalListText}>
                     No purchase or report necessary to enter—see official rules
                   </Text>
@@ -316,7 +318,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                          !formData.angler.email?.trim() || !!validateEmail(formData.angler.email || "") ||
                          !!validatePhone(formData.angler.phone || "")}
               >
-                <Feather name="check" size={18} color={colors.white} />
+                <Feather name="check" size={18} color={theme.colors.white} />
                 <Text style={localStyles.raffleModalPrimaryButtonText}> Enter</Text>
               </TouchableOpacity>
             </View>

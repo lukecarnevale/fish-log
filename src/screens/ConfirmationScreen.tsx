@@ -26,7 +26,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles from "../styles/confirmationScreenStyles";
 import { WaveAccent, WAVE_PRESETS } from "../components/WaveAccent";
 import { RootStackParamList, FishReportData, HarvestReportInput } from "../types";
-import { colors, spacing, borderRadius, typography } from "../styles/common";
+import { spacing, borderRadius, typography } from "../styles/common";
+import { useTheme } from "../contexts/ThemeContext";
+import { useThemedStyles } from "../hooks/useThemedStyles";
+import { Theme } from "../styles/theme";
 
 // DMF services
 import { submitWithQueueFallback, SubmitWithQueueResult } from "../services/offlineQueue";
@@ -66,6 +69,9 @@ interface ConfirmationScreenProps {
 }
 
 const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigation }) => {
+  const { theme } = useTheme();
+  const localStyles = useThemedStyles(createLocalStyles);
+
   const { reportData } = route.params || { reportData: {} as FishReportData };
 
   // Achievement notifications
@@ -375,7 +381,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
   if (isSubmitting) {
     return (
       <View style={localStyles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={localStyles.loadingText}>Submitting to NC DMF...</Text>
         {isTestMode() && (
           <Text style={localStyles.testModeNote}>TEST MODE - Not sending to real DMF</Text>
@@ -389,7 +395,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
     return (
       <View style={localStyles.errorContainer}>
         <View style={localStyles.errorIconCircle}>
-          <Feather name="alert-circle" size={50} color={colors.white} />
+          <Feather name="alert-circle" size={50} color={theme.colors.white} />
         </View>
         <Text style={localStyles.errorTitle}>Submission Failed</Text>
         <Text style={localStyles.errorText}>{submitError}</Text>
@@ -398,7 +404,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           onPress={submitToDMF}
           activeOpacity={0.8}
         >
-          <Feather name="refresh-cw" size={18} color={colors.white} style={{ marginRight: 8 }} />
+          <Feather name="refresh-cw" size={18} color={theme.colors.white} style={{ marginRight: 8 }} />
           <Text style={localStyles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -413,7 +419,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
   }
 
   // Determine header color based on status
-  const headerColor = submitResult?.queued ? colors.warning : colors.success;
+  const headerColor = submitResult?.queued ? theme.colors.warning : theme.colors.success;
   const statusIcon = submitResult?.queued ? "clock" : "check";
   const statusTitle = submitResult?.queued ? "Report Queued" : "Report Submitted";
 
@@ -455,7 +461,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           <View style={styles.header}>
             {/* Status icon */}
             <View style={[localStyles.iconCircle, { backgroundColor: headerColor }]}>
-              <Feather name={statusIcon} size={50} color={colors.white} />
+              <Feather name={statusIcon} size={50} color={theme.colors.white} />
             </View>
             <Text style={styles.title}>
               {submitResult?.queued ? "Saved for Later" : "Thank You!"}
@@ -498,7 +504,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           {/* Queued Warning */}
           {submitResult?.queued && (
             <View style={localStyles.queuedWarning}>
-              <Feather name="wifi-off" size={20} color={colors.warning} />
+              <Feather name="wifi-off" size={20} color={theme.colors.warning} />
               <Text style={localStyles.queuedWarningText}>
                 Report saved offline. It will automatically submit when you have internet connection.
               </Text>
@@ -509,7 +515,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           {/* Supabase sync banner — shown when DMF succeeded but Supabase save didn't */}
           {submitResult?.success && submitResult?.savedToSupabase === false && !submitResult?.queued && (
             <View style={localStyles.syncBanner}>
-              <Feather name="cloud-off" size={18} color={colors.textSecondary} />
+              <Feather name="cloud-off" size={18} color={theme.colors.textSecondary} />
               <Text style={localStyles.syncBannerText}>
                 Report saved locally. It will sync to your account automatically.
               </Text>
@@ -568,7 +574,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
 
             {reportData.wantTextConfirmation && reportData.angler?.phone && (
               <View style={localStyles.notificationRow}>
-                <Feather name="smartphone" size={18} color={submitResult?.queued ? colors.warning : colors.success} />
+                <Feather name="smartphone" size={18} color={submitResult?.queued ? theme.colors.warning : theme.colors.success} />
                 <Text style={localStyles.notificationText}>
                   {submitResult?.queued
                     ? `Text will be sent to ${reportData.angler.phone} when synced`
@@ -579,7 +585,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
 
             {reportData.wantEmailConfirmation && reportData.angler?.email && (
               <View style={localStyles.notificationRow}>
-                <Feather name="mail" size={18} color={submitResult?.queued ? colors.warning : colors.success} />
+                <Feather name="mail" size={18} color={submitResult?.queued ? theme.colors.warning : theme.colors.success} />
                 <Text style={localStyles.notificationText}>
                   {submitResult?.queued
                     ? `Email will be sent to ${reportData.angler.email} when synced`
@@ -590,7 +596,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
 
             {!reportData.wantTextConfirmation && !reportData.wantEmailConfirmation && (
               <View style={localStyles.notificationRow}>
-                <Feather name="camera" size={18} color={colors.darkGray} />
+                <Feather name="camera" size={18} color={theme.colors.darkGray} />
                 <Text style={localStyles.notificationText}>
                   No confirmation requested. Take a screenshot!
                 </Text>
@@ -602,7 +608,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           {reportData.enteredRaffle && (
             <View style={localStyles.raffleBox}>
               <View style={localStyles.raffleHeader}>
-                <Feather name="gift" size={20} color={colors.primary} />
+                <Feather name="gift" size={20} color={theme.colors.primary} />
                 <Text style={localStyles.raffleTitle}>Rewards Entry</Text>
               </View>
               <Text style={localStyles.raffleText}>
@@ -615,7 +621,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           {/* Info Box */}
           <View style={localStyles.infoContainer}>
             <View style={localStyles.infoHeader}>
-              <Feather name="info" size={20} color={colors.primary} />
+              <Feather name="info" size={20} color={theme.colors.primary} />
               <Text style={localStyles.infoTitle}>What happens next?</Text>
             </View>
             <Text style={localStyles.infoText}>
@@ -638,7 +644,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
               onPress={() => navigation.reset({ index: 0, routes: [{ name: "Home" }] })}
               activeOpacity={0.8}
             >
-              <Feather name="home" size={20} color={colors.white} style={{ marginRight: 10 }} />
+              <Feather name="home" size={20} color={theme.colors.white} style={{ marginRight: 10 }} />
               <Text style={localStyles.primaryButtonText}>Return to Home</Text>
             </TouchableOpacity>
 
@@ -648,7 +654,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
               onPress={() => navigation.reset({ index: 1, routes: [{ name: "Home" }, { name: "ReportForm" }] })}
               activeOpacity={0.8}
             >
-              <Feather name="plus-circle" size={20} color={colors.primary} style={{ marginRight: 10 }} />
+              <Feather name="plus-circle" size={20} color={theme.colors.primary} style={{ marginRight: 10 }} />
               <Text style={localStyles.secondaryActionButtonText}>Submit Another Report</Text>
             </TouchableOpacity>
 
@@ -660,7 +666,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
                 activeOpacity={0.7}
               >
                 <View style={localStyles.quickActionIcon}>
-                  <Feather name="share-2" size={22} color={colors.primary} />
+                  <Feather name="share-2" size={22} color={theme.colors.primary} />
                 </View>
                 <Text style={localStyles.quickActionText}>Share</Text>
               </TouchableOpacity>
@@ -671,7 +677,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
                 activeOpacity={0.7}
               >
                 <View style={localStyles.quickActionIcon}>
-                  <Feather name="copy" size={22} color={colors.primary} />
+                  <Feather name="copy" size={22} color={theme.colors.primary} />
                 </View>
                 <Text style={localStyles.quickActionText}>Copy #</Text>
               </TouchableOpacity>
@@ -703,7 +709,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
                 activeOpacity={0.7}
               >
                 <View style={localStyles.quickActionIcon}>
-                  <Feather name="clock" size={22} color={colors.primary} />
+                  <Feather name="clock" size={22} color={theme.colors.primary} />
                 </View>
                 <Text style={localStyles.quickActionText}>Past Reports</Text>
               </TouchableOpacity>
@@ -747,30 +753,30 @@ const SummaryRow: React.FC<{ label: string; value: string }> = ({ label, value }
 );
 
 // Local styles
-const localStyles = StyleSheet.create({
+const createLocalStyles = (theme: Theme) => StyleSheet.create({
   // Loading state
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xl,
   },
   loadingText: {
     ...typography.heading,
-    color: colors.primary,
+    color: theme.colors.primary,
     marginTop: spacing.lg,
   },
   testModeNote: {
     ...typography.bodySmall,
-    color: colors.warning,
+    color: theme.colors.warning,
     marginTop: spacing.sm,
   },
 
   // Error state
   errorContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xl,
@@ -779,33 +785,33 @@ const localStyles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: colors.error,
+    backgroundColor: theme.colors.error,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.lg,
   },
   errorTitle: {
     ...typography.heading,
-    color: colors.error,
+    color: theme.colors.error,
     marginBottom: spacing.sm,
   },
   errorText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: "center",
     marginBottom: spacing.xl,
   },
   retryButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.lg,
     marginBottom: spacing.md,
   },
   retryButtonText: {
-    color: colors.white,
+    color: theme.colors.white,
     fontWeight: "600",
     fontSize: 16,
   },
@@ -814,7 +820,7 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   homeButtonText: {
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: "600",
     fontSize: 16,
   },
@@ -822,10 +828,10 @@ const localStyles = StyleSheet.create({
   // Screen layout
   screenContainer: {
     flex: 1,
-    backgroundColor: colors.success,
+    backgroundColor: theme.colors.success,
   },
   header: {
-    backgroundColor: colors.success,
+    backgroundColor: theme.colors.success,
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -841,7 +847,7 @@ const localStyles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: colors.white,
+    color: theme.colors.white,
     letterSpacing: 0.3,
   },
   closeButton: {
@@ -857,21 +863,21 @@ const localStyles = StyleSheet.create({
     zIndex: 10,
   },
   testModeBadge: {
-    backgroundColor: colors.warning,
+    backgroundColor: theme.colors.warning,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
     marginTop: 8,
   },
   testModeBadgeText: {
-    color: colors.white,
+    color: theme.colors.white,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
@@ -883,11 +889,11 @@ const localStyles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: colors.success,
+    backgroundColor: theme.colors.success,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,
-    shadowColor: colors.success,
+    shadowColor: theme.colors.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -896,41 +902,41 @@ const localStyles = StyleSheet.create({
 
   // Confirmation box
   confirmationBox: {
-    backgroundColor: colors.successLight,
+    backgroundColor: theme.colors.successLight,
     padding: 24,
     borderRadius: borderRadius.lg,
     alignItems: "center",
     marginBottom: spacing.lg,
     borderWidth: 2,
     borderStyle: "dashed",
-    borderColor: colors.success,
+    borderColor: theme.colors.success,
   },
   confirmationBoxQueued: {
-    backgroundColor: colors.warningLight,
-    borderColor: colors.warning,
+    backgroundColor: theme.colors.warningLight,
+    borderColor: theme.colors.warning,
   },
   confirmationLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: colors.success,
+    color: theme.colors.success,
     letterSpacing: 1,
     marginBottom: 8,
   },
   confirmationLabelQueued: {
-    color: colors.warning,
+    color: theme.colors.warning,
   },
   confirmationNumber: {
     fontSize: 42,
     fontWeight: "bold",
-    color: colors.success,
+    color: theme.colors.success,
     letterSpacing: 3,
   },
   confirmationNumberQueued: {
-    color: colors.warning,
+    color: theme.colors.warning,
   },
   confirmationHint: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: 8,
     textAlign: "center",
   },
@@ -939,7 +945,7 @@ const localStyles = StyleSheet.create({
   queuedWarning: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.warningLight,
+    backgroundColor: theme.colors.warningLight,
     padding: spacing.md,
     paddingBottom: spacing.md + 28,
     borderRadius: borderRadius.md,
@@ -956,7 +962,7 @@ const localStyles = StyleSheet.create({
   syncBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.infoLight,
+    backgroundColor: theme.colors.infoLight,
     padding: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
@@ -964,14 +970,14 @@ const localStyles = StyleSheet.create({
   } as const,
   syncBannerText: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginLeft: spacing.sm,
     flex: 1,
   },
 
   // Notification box
   notificationBox: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     marginBottom: spacing.lg,
@@ -984,7 +990,7 @@ const localStyles = StyleSheet.create({
   notificationTitle: {
     ...typography.heading,
     fontSize: 16,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.md,
   },
   notificationRow: {
@@ -994,14 +1000,14 @@ const localStyles = StyleSheet.create({
   },
   notificationText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginLeft: spacing.sm,
     flex: 1,
   },
 
   // Raffle box
   raffleBox: {
-    backgroundColor: colors.infoLight,
+    backgroundColor: theme.colors.infoLight,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     paddingBottom: spacing.lg + 28,
@@ -1015,17 +1021,17 @@ const localStyles = StyleSheet.create({
   raffleTitle: {
     ...typography.heading,
     fontSize: 16,
-    color: colors.primary,
+    color: theme.colors.primary,
     marginLeft: spacing.sm,
   },
   raffleText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
 
   // Info container
   infoContainer: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     paddingBottom: spacing.lg + 28,
@@ -1043,19 +1049,19 @@ const localStyles = StyleSheet.create({
   },
   infoTitle: {
     ...typography.heading,
-    color: colors.primary,
+    color: theme.colors.primary,
     marginLeft: spacing.sm,
     fontSize: 18,
   },
   infoText: {
     ...typography.body,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     lineHeight: 22,
     marginBottom: spacing.md,
   },
   legalNote: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontStyle: "italic",
   },
 
@@ -1064,19 +1070,19 @@ const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: 16,
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.lg,
     marginBottom: spacing.md,
-    shadowColor: colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   primaryButtonText: {
-    color: colors.white,
+    color: theme.colors.white,
     fontWeight: "700",
     fontSize: 17,
   },
@@ -1084,16 +1090,16 @@ const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     paddingVertical: 14,
     paddingHorizontal: spacing.xl,
     borderRadius: borderRadius.lg,
     marginBottom: spacing.lg,
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: theme.colors.primary,
   },
   secondaryActionButtonText: {
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: "600",
     fontSize: 16,
   },
@@ -1107,23 +1113,23 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     marginHorizontal: 6,
-    backgroundColor: colors.infoLight,
+    backgroundColor: theme.colors.infoLight,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
   },
   quickActionIcon: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.infoLight,
+    backgroundColor: theme.colors.infoLight,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
   quickActionText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontWeight: "600",
   },
 });

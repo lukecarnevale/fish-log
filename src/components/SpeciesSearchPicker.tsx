@@ -17,7 +17,10 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius } from '../styles/common';
+import { spacing, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { useAllFishSpecies, useSearchFishSpecies } from '../api/speciesApi';
 import { EnhancedFishSpecies } from '../types/fishSpecies';
 import BottomDrawer from './BottomDrawer';
@@ -41,6 +44,8 @@ const SpeciesSearchPicker: React.FC<SpeciesSearchPickerProps> = ({
   onSelect,
   selectedSpecies,
 }) => {
+  const { theme } = useTheme();
+  const pickerStyles = useThemedStyles(createPickerStyles);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: allSpecies, isLoading: allLoading } = useAllFishSpecies();
@@ -80,7 +85,7 @@ const SpeciesSearchPicker: React.FC<SpeciesSearchPickerProps> = ({
           />
         ) : (
           <View style={[pickerStyles.speciesImage, pickerStyles.speciesImagePlaceholder]}>
-            <Feather name="help-circle" size={20} color={colors.mediumGray} />
+            <Feather name="help-circle" size={20} color={theme.colors.mediumGray} />
           </View>
         )}
         <View style={pickerStyles.speciesInfo}>
@@ -90,7 +95,7 @@ const SpeciesSearchPicker: React.FC<SpeciesSearchPickerProps> = ({
           ) : null}
         </View>
         {isSelected && (
-          <Feather name="check-circle" size={20} color={colors.primary} />
+          <Feather name="check-circle" size={20} color={theme.colors.primary} />
         )}
       </TouchableOpacity>
     );
@@ -111,11 +116,11 @@ const SpeciesSearchPicker: React.FC<SpeciesSearchPickerProps> = ({
 
         {/* Search input */}
         <View style={pickerStyles.searchContainer}>
-          <Feather name="search" size={18} color={colors.mediumGray} style={pickerStyles.searchIcon} />
+          <Feather name="search" size={18} color={theme.colors.mediumGray} style={pickerStyles.searchIcon} />
           <TextInput
             style={pickerStyles.searchInput}
             placeholder="Search species..."
-            placeholderTextColor={colors.textTertiary}
+            placeholderTextColor={theme.colors.textTertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="words"
@@ -124,7 +129,7 @@ const SpeciesSearchPicker: React.FC<SpeciesSearchPickerProps> = ({
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x-circle" size={18} color={colors.mediumGray} />
+              <Feather name="x-circle" size={18} color={theme.colors.mediumGray} />
             </TouchableOpacity>
           )}
         </View>
@@ -132,7 +137,7 @@ const SpeciesSearchPicker: React.FC<SpeciesSearchPickerProps> = ({
         {/* Results */}
         {isLoading ? (
           <View style={pickerStyles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size="small" color={theme.colors.primary} />
             <Text style={pickerStyles.loadingText}>Searching...</Text>
           </View>
         ) : (
@@ -160,13 +165,13 @@ const SpeciesSearchPicker: React.FC<SpeciesSearchPickerProps> = ({
                   activeOpacity={0.7}
                 >
                   <View style={[pickerStyles.speciesImage, pickerStyles.customSpeciesIcon]}>
-                    <Feather name="edit-3" size={20} color={colors.secondary} />
+                    <Feather name="edit-3" size={20} color={theme.colors.secondary} />
                   </View>
                   <View style={pickerStyles.speciesInfo}>
                     <Text style={pickerStyles.customSpeciesLabel}>Log as custom species</Text>
                     <Text style={pickerStyles.customSpeciesName}>"{searchQuery.trim()}"</Text>
                   </View>
-                  <Feather name="chevron-right" size={18} color={colors.mediumGray} />
+                  <Feather name="chevron-right" size={18} color={theme.colors.mediumGray} />
                 </TouchableOpacity>
               ) : null
             }
@@ -177,7 +182,7 @@ const SpeciesSearchPicker: React.FC<SpeciesSearchPickerProps> = ({
   );
 };
 
-const pickerStyles = StyleSheet.create({
+const createPickerStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: spacing.md,
@@ -186,14 +191,14 @@ const pickerStyles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600' as TextStyle['fontWeight'],
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.md,
     textAlign: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.sm,
     marginBottom: spacing.sm,
@@ -205,7 +210,7 @@ const pickerStyles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     height: 44,
   },
   loadingContainer: {
@@ -217,7 +222,7 @@ const pickerStyles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   list: {
     flex: 1,
@@ -231,10 +236,10 @@ const pickerStyles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
+    borderBottomColor: theme.colors.divider,
   },
   speciesRowSelected: {
-    backgroundColor: colors.primaryLight + '15',
+    backgroundColor: theme.colors.primaryLight + '15',
   },
   speciesImage: {
     width: 64,
@@ -243,7 +248,7 @@ const pickerStyles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   speciesImagePlaceholder: {
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -254,11 +259,11 @@ const pickerStyles = StyleSheet.create({
   speciesName: {
     fontSize: 16,
     fontWeight: '500' as TextStyle['fontWeight'],
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   speciesScientific: {
     fontSize: 12,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     fontStyle: 'italic',
     marginTop: 2,
   },
@@ -268,7 +273,7 @@ const pickerStyles = StyleSheet.create({
   },
   noResultsText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   customSpeciesRow: {
     flexDirection: 'row',
@@ -276,22 +281,22 @@ const pickerStyles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xs,
     marginTop: spacing.xs,
-    backgroundColor: colors.secondaryLight + '10',
+    backgroundColor: theme.colors.secondaryLight + '10',
     borderRadius: borderRadius.md,
   },
   customSpeciesIcon: {
-    backgroundColor: colors.secondaryLight + '25',
+    backgroundColor: theme.colors.secondaryLight + '25',
     justifyContent: 'center',
     alignItems: 'center',
   },
   customSpeciesLabel: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   customSpeciesName: {
     fontSize: 16,
     fontWeight: '500' as TextStyle['fontWeight'],
-    color: colors.secondary,
+    color: theme.colors.secondary,
     marginTop: 2,
   },
 });

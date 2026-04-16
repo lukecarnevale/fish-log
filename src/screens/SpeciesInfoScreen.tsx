@@ -26,7 +26,9 @@ import { EnhancedFishSpecies } from "../types/fishSpecies";
 import { useAllFishSpecies } from "../api/speciesApi";
 import styles from "../styles/enhancedSpeciesStyles";
 import { Feather } from "@expo/vector-icons";
-import { colors } from "../styles/common";
+import { useTheme } from "../contexts/ThemeContext";
+import { useThemedStyles } from "../hooks/useThemedStyles";
+import { Theme } from "../styles/theme";
 import { WaveAccent, WAVE_PRESETS } from "../components/WaveAccent";
 import ScreenLayout from "../components/ScreenLayout";
 import { SCREEN_LABELS } from "../constants/screenLabels";
@@ -175,6 +177,10 @@ const HARVEST_TRACKED_SPECIES = [
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route }) => {
+  const { theme } = useTheme();
+  const localStyles = useThemedStyles(createLocalStyles);
+  const closureStyles = useThemedStyles(createClosureStyles);
+
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedSpecies, setSelectedSpecies] = useState<EnhancedFishSpecies | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
@@ -484,7 +490,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         {item.conservationStatus !== "Least Concern" && (
           <View style={[
             styles.statusBadge,
-            {backgroundColor: item.conservationStatus === "Near Threatened" ? colors.warning : colors.danger}
+            {backgroundColor: item.conservationStatus === "Near Threatened" ? theme.colors.warning : theme.colors.danger}
           ]}>
             <Text style={styles.statusText}>{item.conservationStatus}</Text>
           </View>
@@ -559,7 +565,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         {/* Bag limit */}
         {regulations.bagLimit !== null && (
           <View style={styles.cardRegulationItem}>
-            <Feather name="package" size={12} color={colors.primary} style={styles.cardRegulationIcon} />
+            <Feather name="package" size={12} color={theme.colors.primary} style={styles.cardRegulationIcon} />
             <Text style={styles.cardRegulationText}>
               {regulations.bagLimit === 0 ? "Catch & release only" : `${regulations.bagLimit}/day`}
             </Text>
@@ -569,7 +575,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         {/* Size limit */}
         {(regulations.sizeLimit.min !== null || regulations.sizeLimit.max !== null) && (
           <View style={styles.cardRegulationItem}>
-            <Feather name="maximize-2" size={12} color={colors.primary} style={styles.cardRegulationIcon} />
+            <Feather name="maximize-2" size={12} color={theme.colors.primary} style={styles.cardRegulationIcon} />
             <Text style={styles.cardRegulationText}>
               {formatCompactSizeLimit(regulations.sizeLimit)}
             </Text>
@@ -579,7 +585,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         {/* Season indicator */}
         {regulations.openSeasons && regulations.openSeasons.length > 0 && (
           <View style={styles.cardRegulationItem}>
-            <Feather name="calendar" size={12} color={colors.primary} style={styles.cardRegulationIcon} />
+            <Feather name="calendar" size={12} color={theme.colors.primary} style={styles.cardRegulationIcon} />
             <Text style={styles.cardRegulationText}>Seasonal</Text>
           </View>
         )}
@@ -699,7 +705,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         {/* Harvest closure card — prominent, inside the regulations section */}
         {isClosed && (
           <View style={closureStyles.closureCard}>
-            <Feather name="alert-octagon" size={24} color={colors.white} />
+            <Feather name="alert-octagon" size={24} color={theme.colors.white} />
             <View style={closureStyles.closureContent}>
               <Text style={closureStyles.closureTitle}>HARVEST CLOSED</Text>
               {selectedSpecies.harvestStatusNote && (
@@ -719,7 +725,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                   activeOpacity={0.7}
                 >
                   <Text style={closureStyles.viewAdvisoryText}>View Advisory</Text>
-                  <Feather name="chevron-right" size={14} color={colors.white} />
+                  <Feather name="chevron-right" size={14} color={theme.colors.white} />
                 </TouchableOpacity>
               )}
             </View>
@@ -729,7 +735,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         {/* Harvest restriction card */}
         {isRestricted && (
           <View style={closureStyles.restrictionCard}>
-            <Feather name="alert-triangle" size={24} color={colors.white} />
+            <Feather name="alert-triangle" size={24} color={theme.colors.white} />
             <View style={closureStyles.closureContent}>
               <Text style={closureStyles.closureTitle}>
                 {selectedSpecies.harvestStatus === 'catch_and_release'
@@ -753,7 +759,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                   activeOpacity={0.7}
                 >
                   <Text style={closureStyles.viewAdvisoryText}>View Advisory</Text>
-                  <Feather name="chevron-right" size={14} color={colors.white} />
+                  <Feather name="chevron-right" size={14} color={theme.colors.white} />
                 </TouchableOpacity>
               )}
             </View>
@@ -763,7 +769,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         {/* Standard regulation rows (dimmed if closed to signal they're superseded) */}
         <View style={isClosed ? { opacity: 0.5 } : undefined}>
           <View style={styles.regulationRow}>
-            <Feather name="maximize-2" size={24} color={colors.primary} style={styles.regulationIcon} />
+            <Feather name="maximize-2" size={24} color={theme.colors.primary} style={styles.regulationIcon} />
             <Text style={styles.regulationLabel}>Size Limit:</Text>
             <Text style={styles.regulationValue}>
               {formatSizeLimit(
@@ -775,7 +781,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
           </View>
 
           <View style={styles.regulationRow}>
-            <Feather name="package" size={24} color={colors.primary} style={styles.regulationIcon} />
+            <Feather name="package" size={24} color={theme.colors.primary} style={styles.regulationIcon} />
             <Text style={styles.regulationLabel}>Bag Limit:</Text>
             <Text style={styles.regulationValue}>
               {regulations.bagLimit
@@ -785,7 +791,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
           </View>
 
           <View style={styles.regulationRow}>
-            <Feather name="calendar" size={24} color={colors.primary} style={styles.regulationIcon} />
+            <Feather name="calendar" size={24} color={theme.colors.primary} style={styles.regulationIcon} />
             <Text style={styles.regulationLabel}>Season:</Text>
             <Text style={styles.regulationValue}>
               {formatOpenSeasons(regulations.openSeasons)}
@@ -1006,18 +1012,18 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                   styles.conservationStatus,
                   {
                     backgroundColor:
-                      selectedSpecies.conservationStatus === "Least Concern" ? colors.lightestGray :
-                      selectedSpecies.conservationStatus === "Near Threatened" ? colors.warningLight :
-                      colors.dangerLight
+                      selectedSpecies.conservationStatus === "Least Concern" ? theme.colors.lightestGray :
+                      selectedSpecies.conservationStatus === "Near Threatened" ? theme.colors.warningLight :
+                      theme.colors.dangerLight
                   }
                 ]}>
                   <Feather
                     name={selectedSpecies.conservationStatus === "Least Concern" ? "check-circle" : "alert-circle"}
                     size={24}
                     color={
-                      selectedSpecies.conservationStatus === "Least Concern" ? colors.success :
-                      selectedSpecies.conservationStatus === "Near Threatened" ? colors.warning :
-                      colors.danger
+                      selectedSpecies.conservationStatus === "Least Concern" ? theme.colors.success :
+                      selectedSpecies.conservationStatus === "Near Threatened" ? theme.colors.warning :
+                      theme.colors.danger
                     }
                   />
                   <Text style={styles.statusDescription}>
@@ -1078,12 +1084,12 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
               onPress={() => setFiltersExpanded(!filtersExpanded)}
               activeOpacity={0.7}
             >
-              <Feather name="filter" size={16} color={colors.primary} />
+              <Feather name="filter" size={16} color={theme.colors.primary} />
               <Text style={localStyles.filtersToggleText}>Filters</Text>
               <Feather
                 name={filtersExpanded ? 'chevron-up' : 'chevron-down'}
                 size={14}
-                color={colors.primary}
+                color={theme.colors.primary}
               />
             </TouchableOpacity>
           </View>
@@ -1104,7 +1110,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                 isActive: showUpdatesOnly,
                 onToggle: () => setShowUpdatesOnly(!showUpdatesOnly),
                 count: speciesWithUpdatesCount,
-                color: colors.accent,
+                color: theme.colors.accent,
               },
             ]}
             isExpanded={filtersExpanded}
@@ -1203,7 +1209,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
 };
 
 // Local styles for floating search bar
-const localStyles = StyleSheet.create({
+const createLocalStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -1233,13 +1239,13 @@ const localStyles = StyleSheet.create({
   filtersToggleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 12,
     gap: 4,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -1247,13 +1253,13 @@ const localStyles = StyleSheet.create({
     elevation: 8,
   },
   filtersToggleActive: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary,
   },
   filtersToggleText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   requiredSpeciesCard: {
     borderWidth: 2,
@@ -1261,14 +1267,14 @@ const localStyles = StyleSheet.create({
   },
   updatedSpeciesCard: {
     borderWidth: 2,
-    borderColor: colors.accent,
+    borderColor: theme.colors.accent,
   },
   requiredAndUpdatedCard: {
     borderWidth: 2,
     borderTopColor: '#00897B',
     borderLeftColor: '#00897B',
-    borderBottomColor: colors.accent,
-    borderRightColor: colors.accent,
+    borderBottomColor: theme.colors.accent,
+    borderRightColor: theme.colors.accent,
   },
   listContent: {
     paddingTop: 64, // Space for floating search bar + filter dropdown
@@ -1305,17 +1311,17 @@ const localStyles = StyleSheet.create({
   alphabetLetter: {
     fontSize: 9,
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   alphabetLetterDisabled: {
-    color: colors.lightGray,
+    color: theme.colors.lightGray,
     opacity: 0.5,
   },
   alphabetLetterActive: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.white,
-    backgroundColor: colors.primary,
+    color: theme.colors.white,
+    backgroundColor: theme.colors.primary,
     borderRadius: 8,
     width: 16,
     height: 16,
@@ -1330,7 +1336,7 @@ const localStyles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 100,
@@ -1343,21 +1349,21 @@ const localStyles = StyleSheet.create({
   letterBubbleText: {
     fontSize: 28,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
   },
 });
 
 // Styles for harvest closure / restriction cards within regulations section
-const closureStyles = StyleSheet.create({
+const createClosureStyles = (theme: Theme) => StyleSheet.create({
   closureCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.error,
+    backgroundColor: theme.colors.error,
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
     gap: 12,
-    shadowColor: colors.error,
+    shadowColor: theme.colors.error,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -1366,12 +1372,12 @@ const closureStyles = StyleSheet.create({
   restrictionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.warning,
+    backgroundColor: theme.colors.warning,
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
     gap: 12,
-    shadowColor: colors.warning,
+    shadowColor: theme.colors.warning,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -1383,7 +1389,7 @@ const closureStyles = StyleSheet.create({
   closureTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: colors.white,
+    color: theme.colors.white,
     letterSpacing: 0.5,
   },
   closureNote: {
@@ -1407,7 +1413,7 @@ const closureStyles = StyleSheet.create({
   viewAdvisoryText: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
     textDecorationLine: 'underline',
   },
 });

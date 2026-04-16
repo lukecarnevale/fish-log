@@ -7,7 +7,9 @@ import {
   Dimensions,
 } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
-import { colors } from "../styles/common";
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 // Prevent the native splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -23,6 +25,7 @@ interface Props {
 }
 
 export default function AnimatedSplashScreen({ children, ready }: Props) {
+  const styles = useThemedStyles(createStyles);
   const [animationDone, setAnimationDone] = useState(false);
 
   // Icon starts fully visible and at full scale so there is no blank frame
@@ -118,7 +121,7 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: TEAL,
@@ -148,7 +151,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     fontSize: 32,
     fontWeight: "700",
-    color: colors.white,
+    color: theme.colors.white,
     letterSpacing: 1,
   },
 });

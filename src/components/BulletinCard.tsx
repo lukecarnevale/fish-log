@@ -17,7 +17,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
-import { colors, spacing } from '../styles/common';
+import { spacing } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { formatBulletinDate } from '../utils/dateUtils';
 import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
 import { useBulletins } from '../contexts/BulletinContext';
@@ -52,6 +55,8 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
   onViewAll,
   totalCount,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { isBulletinRead } = useBulletins();
   const [expanded, setExpanded] = useState(true);
 
@@ -69,7 +74,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
     <View style={styles.container}>
       {/* Parchment gradient background for the whole card */}
       <LinearGradient
-        colors={[colors.parchment, '#FDF6E9']}
+        colors={[theme.colors.parchment, '#FDF6E9']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -101,7 +106,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                 height="12"
                 patternUnits="userSpaceOnUse"
               >
-                <Circle cx="6" cy="6" r="1" fill={colors.parchmentText} />
+                <Circle cx="6" cy="6" r="1" fill={theme.colors.parchmentText} />
               </Pattern>
             </Defs>
             <Rect width="100%" height="100%" fill="url(#bulletinDots)" />
@@ -111,7 +116,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
           <View style={styles.headerContent}>
             {/* Boxed bell icon */}
             <View style={styles.iconBox}>
-              <Feather name="bell" size={22} color={colors.parchmentBorder} />
+              <Feather name="bell" size={22} color={theme.colors.parchmentBorder} />
             </View>
 
             {/* Title + subtitle */}
@@ -124,7 +129,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
             <Feather
               name={expanded ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color={colors.parchmentTextSecondary}
+              color={theme.colors.parchmentTextSecondary}
             />
           </View>
         </View>
@@ -206,7 +211,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
 // Styles
 // =============================================================================
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   // --- Card shell ---
   container: {
     borderRadius: 16,
@@ -214,7 +219,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.parchmentBorder,
+    borderColor: theme.colors.parchmentBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -252,14 +257,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.parchment,
+    color: theme.colors.parchment,
     lineHeight: 24,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 11,
     fontWeight: '500',
-    color: colors.parchmentTextSecondary,
+    color: theme.colors.parchmentTextSecondary,
     marginTop: 2,
     textAlign: 'center',
   },
@@ -275,7 +280,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF8',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.parchmentBorder,
+    borderColor: theme.colors.parchmentBorder,
     padding: 14,
     marginBottom: 8,
   },
@@ -283,7 +288,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     marginRight: 8,
     alignSelf: 'center',
   },
@@ -311,14 +316,14 @@ const styles = StyleSheet.create({
   bulletinTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.parchmentText,
+    color: theme.colors.parchmentText,
     fontFamily: 'Georgia',
     lineHeight: 22,
     marginBottom: 4,
   },
   bulletinDate: {
     fontSize: 13,
-    color: colors.parchmentTextSecondary,
+    color: theme.colors.parchmentTextSecondary,
   },
 
   // --- Footer ---
@@ -334,14 +339,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: colors.advisory,
+    borderColor: theme.colors.advisory,
     alignItems: 'center',
     justifyContent: 'center',
   },
   viewAllText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.advisory,
+    color: theme.colors.advisory,
   },
   dismissButton: {
     flex: 1,
@@ -355,7 +360,7 @@ const styles = StyleSheet.create({
   dismissText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.parchmentTextSecondary,
+    color: theme.colors.parchmentTextSecondary,
   },
 });
 

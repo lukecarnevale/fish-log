@@ -2,7 +2,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Modal, StyleSheet, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '../styles/common';
+import { spacing, typography, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 interface LicenseTypePickerProps {
   visible: boolean;
@@ -19,6 +22,8 @@ const LicenseTypePicker: React.FC<LicenseTypePickerProps> = ({
   selectedValue,
   options
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const [modalVisible, setModalVisible] = useState(false);
@@ -106,7 +111,7 @@ const LicenseTypePicker: React.FC<LicenseTypePickerProps> = ({
           <View style={styles.header}>
             <Text style={styles.headerText}>Select License Type</Text>
             <TouchableOpacity onPress={handleClose}>
-              <Feather name="x" size={24} color={colors.textSecondary} />
+              <Feather name="x" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -127,7 +132,7 @@ const LicenseTypePicker: React.FC<LicenseTypePickerProps> = ({
               >
                 <Text style={styles.optionText}>{item}</Text>
                 {selectedValue === item && (
-                  <Feather name="check" size={18} color={colors.primary} />
+                  <Feather name="check" size={18} color={theme.colors.primary} />
                 )}
               </TouchableOpacity>
             )}
@@ -145,7 +150,7 @@ const LicenseTypePicker: React.FC<LicenseTypePickerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'center',
@@ -158,10 +163,10 @@ const styles = StyleSheet.create({
   container: {
     width: '90%',
     maxHeight: '80%',
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    shadowColor: colors.shadow,
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
@@ -173,12 +178,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightestGray,
+    borderBottomColor: theme.colors.lightestGray,
     marginBottom: spacing.sm,
   },
   headerText: {
     ...typography.h3,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   list: {
     maxHeight: 300,
@@ -190,17 +195,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightestGray,
+    borderBottomColor: theme.colors.lightestGray,
   },
   selectedOption: {
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
   },
   optionText: {
     ...typography.body,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   cancelButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     alignItems: 'center',
@@ -208,7 +213,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     ...typography.button,
-    color: colors.white,
+    color: theme.colors.white,
   },
 });
 

@@ -13,7 +13,10 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius } from '../../styles/common';
+import { spacing, borderRadius } from '../../styles/common';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { Theme } from '../../styles/theme';
 
 interface AreaSelectorProps {
   /** Currently selected region code, or null for "All Areas" */
@@ -29,6 +32,9 @@ const AreaSelector: React.FC<AreaSelectorProps> = ({
   onSelectArea,
   regions,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -53,7 +59,7 @@ const AreaSelector: React.FC<AreaSelectorProps> = ({
           <Feather
             name="map-pin"
             size={13}
-            color={selectedArea === null ? colors.white : colors.primary}
+            color={selectedArea === null ? theme.colors.white : theme.colors.primary}
             style={styles.pillIcon}
           />
           <Text
@@ -95,7 +101,7 @@ const AreaSelector: React.FC<AreaSelectorProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginBottom: spacing.sm,
   },
@@ -115,8 +121,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(11, 84, 139, 0.15)',
   },
   pillSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   pillIcon: {
     marginRight: 4,
@@ -124,10 +130,10 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   pillTextSelected: {
-    color: colors.white,
+    color: theme.colors.white,
   },
 });
 

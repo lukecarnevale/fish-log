@@ -22,7 +22,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '../styles/common';
+import { spacing, typography, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 interface ScreenLayoutProps {
   // Navigation (required for back button)
@@ -64,6 +67,93 @@ interface ScreenLayoutProps {
   statusBarStyle?: 'light-content' | 'dark-content';
 }
 
+// Style factory — defined outside component for stable reference
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.primary, // Dark background for status bar visibility
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    scrollView: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    contentContainer: {
+      flexGrow: 1,
+    },
+    topBounceArea: {
+      position: 'absolute',
+      top: -500,
+      left: 0,
+      right: 0,
+      height: 500,
+      backgroundColor: theme.colors.primary,
+    },
+    header: {
+      backgroundColor: theme.colors.primary,
+      paddingTop: 60,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.xl,
+      borderBottomLeftRadius: borderRadius.md,
+      borderBottomRightRadius: borderRadius.md,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xs,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitle: {
+      ...typography.h1,
+      color: theme.colors.textOnPrimary,
+      fontSize: 20,
+      textAlign: 'center',
+      flex: 1,
+    },
+    headerSubtitle: {
+      ...typography.body,
+      color: theme.colors.textOnPrimary,
+      opacity: 0.9,
+      textAlign: 'center',
+    },
+    headerSpacer: {
+      width: 40,
+      height: 40,
+    },
+    contentArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    noScrollContainer: {
+      flex: 1,
+      backgroundColor: theme.colors.primary,
+    },
+    noScrollContentWrapper: {
+      flex: 1,
+      zIndex: 20,
+      elevation: 20,
+    },
+    noScrollContent: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: borderRadius.md,
+      borderTopRightRadius: borderRadius.md,
+    },
+  });
+
 const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   navigation,
   title,
@@ -82,6 +172,8 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   scrollViewProps,
   statusBarStyle = 'light-content',
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const internalScrollRef = useRef<ScrollView>(null);
   const activeScrollRef = scrollViewRef || internalScrollRef;
 
@@ -104,7 +196,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   if (loading && loadingComponent) {
     return (
       <SafeAreaView style={styles.container} edges={["left", "right"]}>
-        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
         <View style={styles.loadingContainer}>
           {loadingComponent}
         </View>
@@ -122,7 +214,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
             onPress={() => navigation.goBack()}
             activeOpacity={0.7}
           >
-            <Feather name="arrow-left" size={24} color={colors.white} />
+            <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
         ) : (
           <View style={styles.headerSpacer} />
@@ -157,7 +249,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   if (noScroll) {
     return (
       <SafeAreaView style={styles.noScrollContainer} edges={["left", "right"]}>
-        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
         {renderHeader()}
         <View style={styles.noScrollContentWrapper}>
           <View style={[styles.noScrollContent, contentContainerStyle]}>
@@ -171,7 +263,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   // Scrollable layout with bounce areas
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      <StatusBar barStyle={activeBarStyle} backgroundColor={activeBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
+      <StatusBar barStyle={activeBarStyle} backgroundColor={activeBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
       <ScrollView
         ref={activeScrollRef}
         style={styles.scrollView}
@@ -183,8 +275,8 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
             <RefreshControl
               refreshing={refreshing || false}
               onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
             />
           ) : undefined
         }
@@ -205,90 +297,5 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.primary, // Dark background for status bar visibility
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  contentContainer: {
-    flexGrow: 1,
-  },
-  topBounceArea: {
-    position: 'absolute',
-    top: -500,
-    left: 0,
-    right: 0,
-    height: 500,
-    backgroundColor: colors.primary,
-  },
-  header: {
-    backgroundColor: colors.primary,
-    paddingTop: 60,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-    borderBottomLeftRadius: borderRadius.md,
-    borderBottomRightRadius: borderRadius.md,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    ...typography.h1,
-    color: colors.white,
-    fontSize: 20,
-    textAlign: 'center',
-    flex: 1,
-  },
-  headerSubtitle: {
-    ...typography.body,
-    color: colors.white,
-    opacity: 0.9,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 40,
-    height: 40,
-  },
-  contentArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  noScrollContainer: {
-    flex: 1,
-    backgroundColor: colors.primary,
-  },
-  noScrollContentWrapper: {
-    flex: 1,
-    zIndex: 20,
-    elevation: 20,
-  },
-  noScrollContent: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderTopLeftRadius: borderRadius.md,
-    borderTopRightRadius: borderRadius.md,
-  },
-});
 
 export default ScreenLayout;

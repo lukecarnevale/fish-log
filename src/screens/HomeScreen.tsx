@@ -23,7 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles, { menuWidth } from "../styles/homeScreenStyles";
 import { localStyles } from "../styles/homeScreenLocalStyles";
 import { RootStackParamList } from "../types";
-import { colors } from "../styles/common";
+import { useTheme } from "../contexts/ThemeContext";
 import { useFontScale } from "../hooks/useFontScale";
 import QuarterlyRewardsCard from "../components/QuarterlyRewardsCard";
 import Footer from "../components/Footer";
@@ -66,6 +66,8 @@ interface HomeScreenProps {
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
+  // Theme
+  const { theme } = useTheme();
   // Font scale for dynamic header spacer
   const { fontScale } = useFontScale();
   // Achievement notifications - flush any pending achievements when this screen gains focus
@@ -550,9 +552,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
   return (
     <GestureDetector gesture={edgeSwipeGesture}>
-      <View style={{ flex: 1, backgroundColor: colors.primary }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.primary }}>
         <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
       
       {/* Drawer Menu */}
       <DrawerMenu
@@ -648,7 +650,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             style={localStyles.floatingMenuTouchable}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
-            <WavyMenuIcon size={24} color={colors.white} />
+            <WavyMenuIcon size={24} color={theme.colors.white} />
             {pendingAuth && (
               <Animated.View style={[
                 localStyles.floatingBadge,
@@ -665,7 +667,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       {refreshing && (
         <ActivityIndicator
           size="large"
-          color={colors.white}
+          color={theme.colors.white}
           style={localStyles.refreshSpinner}
         />
       )}

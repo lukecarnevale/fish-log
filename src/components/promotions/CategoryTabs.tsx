@@ -12,7 +12,10 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius } from '../../styles/common';
+import { spacing, borderRadius } from '../../styles/common';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { Theme } from '../../styles/theme';
 import type { AdCategory } from '../../services/transformers/advertisementTransformer';
 import { getCategoryLabel, getCategoryIcon } from '../../services/promotionsService';
 
@@ -30,6 +33,9 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
   onSelectCategory,
   categoryCounts,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -54,7 +60,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
           <Feather
             name="grid"
             size={14}
-            color={selectedCategory === null ? colors.white : colors.secondary}
+            color={selectedCategory === null ? theme.colors.white : theme.colors.secondary}
           />
           <Text
             style={[
@@ -82,7 +88,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
               <Feather
                 name={getCategoryIcon(cat) as any}
                 size={14}
-                color={isActive ? colors.white : colors.secondary}
+                color={isActive ? theme.colors.white : theme.colors.secondary}
               />
               <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
                 {getCategoryLabel(cat)}
@@ -100,7 +106,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginBottom: spacing.md,
   },
@@ -119,15 +125,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tabActive: {
-    backgroundColor: colors.secondary,
+    backgroundColor: theme.colors.secondary,
   },
   tabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.secondary,
+    color: theme.colors.secondary,
   },
   tabTextActive: {
-    color: colors.white,
+    color: theme.colors.white,
   },
   countBadge: {
     backgroundColor: 'rgba(6, 116, 127, 0.15)',
@@ -139,7 +145,7 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.secondary,
+    color: theme.colors.secondary,
   },
 });
 

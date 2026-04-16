@@ -37,7 +37,10 @@ import StatusBarScrollBlur from '../components/StatusBarScrollBlur';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { REGION_OPTIONS } from '../constants/regionOptions';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
-import { colors, spacing, borderRadius } from '../styles/common';
+import { spacing, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { type Advertisement, type AdCategory } from '../services/promotionsService';
 import { usePromotions } from '../api/promotionsApi';
 import type { RootStackParamList, UserProfile } from '../types';
@@ -52,6 +55,8 @@ const CARD_WIDTH = (SCREEN_WIDTH - spacing.md * 2 - CARD_GAP) / 2;
 const ESTIMATED_ROW_HEIGHT = 198 + spacing.sm;
 
 const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
 
   // Floating header animation
@@ -157,7 +162,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
     () => (
       <View style={styles.emptyState}>
         <View style={styles.emptyIconContainer}>
-          <Feather name="tag" size={40} color={colors.mediumGray} />
+          <Feather name="tag" size={40} color={theme.colors.mediumGray} />
         </View>
         <Text style={styles.emptyTitle}>Nothing in the locker yet</Text>
         <Text style={styles.emptySubtitle}>
@@ -180,10 +185,10 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
   // so FlatList doesn't unmount/remount it on every re-render.
   const listHeader = useMemo(
     () => (
-      <View style={{ backgroundColor: colors.primary }}>
+      <View style={{ backgroundColor: theme.colors.primary }}>
         {/* Scrolling header — scrolls away with content */}
         <LinearGradient
-          colors={[colors.primary, colors.primary]}
+          colors={[theme.colors.primary, theme.colors.primary]}
           style={styles.scrollingHeader}
         >
           <View style={styles.headerContent}>
@@ -193,7 +198,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Feather name="arrow-left" size={24} color={colors.white} />
+              <Feather name="arrow-left" size={24} color={theme.colors.white} />
             </TouchableOpacity>
 
             <View style={styles.headerTextContainer}>
@@ -257,7 +262,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={styles.screenContainer}>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} translucent />
 
         {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
         <StatusBarScrollBlur scrollY={scrollY} />
@@ -280,7 +285,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.floatingBackTouchable}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
-            <Feather name="arrow-left" size={22} color={colors.white} />
+            <Feather name="arrow-left" size={22} color={theme.colors.white} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -288,7 +293,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.skeletonWrapper}>
             {/* Scrolling header — same as real content */}
             <LinearGradient
-              colors={[colors.primary, colors.primary]}
+              colors={[theme.colors.primary, theme.colors.primary]}
               style={styles.scrollingHeader}
             >
               <View style={styles.headerContent}>
@@ -298,7 +303,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
                   activeOpacity={0.7}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Feather name="arrow-left" size={24} color={colors.white} />
+                  <Feather name="arrow-left" size={24} color={theme.colors.white} />
                 </TouchableOpacity>
 
                 <View style={styles.headerTextContainer}>
@@ -343,9 +348,9 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={colors.white}
-                colors={[colors.primary]}
-                progressBackgroundColor={colors.white}
+                tintColor={theme.colors.white}
+                colors={[theme.colors.primary]}
+                progressBackgroundColor={theme.colors.white}
               />
             }
           />
@@ -355,14 +360,14 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
 
   // Scrolling header — scrolls with content, compact
@@ -390,18 +395,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: colors.white,
+    color: theme.colors.white,
     opacity: 0.85,
     marginTop: 2,
   },
 
   // Content container — rounded corners that slide over header
   contentContainer: {
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: spacing.md,
@@ -417,7 +422,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     zIndex: 100,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -435,10 +440,10 @@ const styles = StyleSheet.create({
   // FlatList
   flatList: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   flatListContent: {
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     flexGrow: 1,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
@@ -458,7 +463,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -466,7 +471,7 @@ const styles = StyleSheet.create({
   // Skeleton loading state
   skeletonWrapper: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
 
   // Empty state
@@ -479,7 +484,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.md,
@@ -487,12 +492,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: colors.black,
+    color: theme.colors.black,
     marginBottom: spacing.xs,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
     textAlign: 'center',
     lineHeight: 20,
   },

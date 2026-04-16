@@ -18,7 +18,10 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, shadows } from '../styles/common';
+import { spacing, borderRadius, shadows } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { FeedbackType } from '../types/feedback';
 import { submitFeedback } from '../services/feedbackService';
 import LazyModal from './LazyModal';
@@ -59,6 +62,9 @@ export function FeedbackModal({
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   const config = TYPE_CONFIG[type];
   const displayTitle = title || config.title;
@@ -111,13 +117,13 @@ export function FeedbackModal({
         <View style={styles.modalContent}>
           {/* Close button */}
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Feather name="x" size={24} color={colors.textSecondary} />
+            <Feather name="x" size={24} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <Feather name={config.icon} size={28} color={colors.primary} />
+              <Feather name={config.icon} size={28} color={theme.colors.primary} />
             </View>
             <Text style={styles.title}>{displayTitle}</Text>
             <Text style={styles.subtitle}>
@@ -136,7 +142,7 @@ export function FeedbackModal({
               <TextInput
                 style={styles.messageInput}
                 placeholder={displayPlaceholder}
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.colors.textTertiary}
                 value={message}
                 onChangeText={setMessage}
                 multiline
@@ -156,7 +162,7 @@ export function FeedbackModal({
               <TextInput
                 style={styles.emailInput}
                 placeholder="your@email.com"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.colors.textTertiary}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -170,7 +176,7 @@ export function FeedbackModal({
 
             {/* Privacy Note */}
             <View style={styles.privacyNote}>
-              <Feather name="lock" size={14} color={colors.seaweedGreen} style={styles.privacyIcon} />
+              <Feather name="lock" size={14} color={theme.colors.seaweedGreen} style={styles.privacyIcon} />
               <Text style={styles.privacyText}>
                 Your feedback is private and only used to improve the app.
               </Text>
@@ -194,10 +200,10 @@ export function FeedbackModal({
               activeOpacity={0.7}
             >
               {isSubmitting ? (
-                <ActivityIndicator color={colors.white} size="small" />
+                <ActivityIndicator color={theme.colors.white} size="small" />
               ) : (
                 <>
-                  <Feather name="send" size={18} color={colors.white} style={styles.submitIcon} />
+                  <Feather name="send" size={18} color={theme.colors.white} style={styles.submitIcon} />
                   <Text style={styles.submitButtonText}>Submit</Text>
                 </>
               )}
@@ -209,7 +215,7 @@ export function FeedbackModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -217,7 +223,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     width: '90%',
     maxHeight: '85%',
@@ -241,7 +247,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
@@ -249,12 +255,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.xs,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   scrollContent: {
@@ -266,41 +272,41 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.xs,
   },
   hint: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: spacing.xs,
   },
   messageInput: {
-    backgroundColor: colors.pearlWhite,
+    backgroundColor: theme.colors.pearlWhite,
     borderWidth: 1.5,
-    borderColor: colors.oceanSurface,
+    borderColor: theme.colors.oceanSurface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     fontSize: 16,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     minHeight: 120,
     maxHeight: 220,
     textAlignVertical: 'top',
   },
   charCount: {
     fontSize: 12,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     textAlign: 'right',
     marginTop: spacing.xxs,
   },
   emailInput: {
-    backgroundColor: colors.pearlWhite,
+    backgroundColor: theme.colors.pearlWhite,
     borderWidth: 1.5,
-    borderColor: colors.oceanSurface,
+    borderColor: theme.colors.oceanSurface,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: 16,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     minHeight: 48,
     textAlignVertical: 'center',
   },
@@ -318,7 +324,7 @@ const styles = StyleSheet.create({
   privacyText: {
     flex: 1,
     fontSize: 13,
-    color: colors.seaweedGreen,
+    color: theme.colors.seaweedGreen,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -326,33 +332,33 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.divider,
+    borderTopColor: theme.colors.divider,
   },
   cancelButton: {
     flex: 1,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   submitButton: {
     flex: 1,
     flexDirection: 'row',
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.primaryDark,
+    borderColor: theme.colors.primaryDark,
     borderBottomWidth: 3,
-    borderBottomColor: colors.oceanDeep,
+    borderBottomColor: theme.colors.oceanDeep,
   },
   submitButtonDisabled: {
     opacity: 0.7,
@@ -363,7 +369,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.white,
   },
 });
 

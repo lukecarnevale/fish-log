@@ -26,7 +26,10 @@ import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { RootStackParamList } from "../types";
 import { SubmittedReport, QueuedReport } from "../types/harvestReport";
-import { colors, spacing, typography, borderRadius } from "../styles/common";
+import { spacing, typography, borderRadius } from "../styles/common";
+import { useTheme } from "../contexts/ThemeContext";
+import { useThemedStyles } from "../hooks/useThemedStyles";
+import { Theme } from "../styles/theme";
 import { isTestMode } from "../config/appConfig";
 import ScreenLayout from "../components/ScreenLayout";
 import { useAllFishSpecies } from "../api/speciesApi";
@@ -151,6 +154,9 @@ const convertToDisplayReport = (
 };
 
 const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   const [submittedReports, setSubmittedReports] = useState<SubmittedReport[]>([]);
   const [queuedReports, setQueuedReports] = useState<QueuedReport[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -485,15 +491,15 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         <View style={styles.statusIconContainer}>
           {isPending ? (
             <View style={styles.pendingStatusBadge}>
-              <Feather name="clock" size={24} color={colors.warning} />
+              <Feather name="clock" size={24} color={theme.colors.warning} />
             </View>
           ) : item.reportType === 'catch_log' ? (
             <View style={styles.syncedStatusBadge}>
-              <Feather name="camera" size={24} color={colors.secondary} />
+              <Feather name="camera" size={24} color={theme.colors.secondary} />
             </View>
           ) : (
             <View style={styles.syncedStatusBadge}>
-              <Feather name="check-circle" size={28} color={colors.success} />
+              <Feather name="check-circle" size={28} color={theme.colors.success} />
             </View>
           )}
         </View>
@@ -507,7 +513,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
             {/* Location */}
             <View style={styles.locationRow}>
-              <Feather name="map-pin" size={14} color={colors.textSecondary} />
+              <Feather name="map-pin" size={14} color={theme.colors.textSecondary} />
               <Text style={styles.cardLocation} numberOfLines={1}>
                 {item.areaLabel || `Area ${item.areaCode}`}
               </Text>
@@ -533,7 +539,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             {/* Footer Row */}
             <View style={styles.cardFooter}>
               <View style={styles.footerLeft}>
-                <Feather name="anchor" size={14} color={colors.primary} />
+                <Feather name="anchor" size={14} color={theme.colors.primary} />
                 <Text style={styles.fishCountText}>{totalFish} fish</Text>
                 <Text style={styles.methodDivider}>•</Text>
                 <Text style={styles.methodText}>
@@ -558,7 +564,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               </View>
             ) : (
               <View style={styles.cardPhotoPlaceholder}>
-                <Feather name="image" size={28} color={colors.lightGray} />
+                <Feather name="image" size={28} color={theme.colors.lightGray} />
               </View>
             )}
             {isUserPhoto && (
@@ -588,12 +594,12 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           {isPending ? (
             <>
               <Text style={styles.confirmationLabel}>Status</Text>
-              <Text style={[styles.confirmationNumber, { color: colors.warning }]}>Pending</Text>
+              <Text style={[styles.confirmationNumber, { color: theme.colors.warning }]}>Pending</Text>
             </>
           ) : item.reportType === 'catch_log' ? (
             <>
               <Text style={styles.confirmationLabel}>Type</Text>
-              <Text style={[styles.confirmationNumber, { color: colors.secondary }]}>Catch Log</Text>
+              <Text style={[styles.confirmationNumber, { color: theme.colors.secondary }]}>Catch Log</Text>
             </>
           ) : (
             <>
@@ -609,7 +615,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         {/* Pending Banner */}
         {isPending && (
           <View style={styles.cardPendingBanner}>
-            <Feather name="wifi-off" size={14} color={colors.warning} />
+            <Feather name="wifi-off" size={14} color={theme.colors.warning} />
             <Text style={styles.cardPendingBannerText}>
               {item.retryCount && item.retryCount > 0
                 ? `Sync failed (${item.retryCount}x) — will retry`
@@ -636,7 +642,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             onPress={() => setSelectedReport(null)}
             activeOpacity={0.7}
           >
-            <Feather name="x" size={24} color={colors.textSecondary} />
+            <Feather name="x" size={24} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
           <ScrollView
@@ -653,7 +659,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               <Feather
                 name={selectedReport?.type === "queued" ? "clock" : selectedReport?.reportType === "catch_log" ? "camera" : "check-circle"}
                 size={24}
-                color={colors.white}
+                color={theme.colors.white}
               />
               <Text style={styles.modalStatusText}>
                 {selectedReport?.type === "queued" ? "Pending Sync" : selectedReport?.reportType === "catch_log" ? "Catch Log" : "Submitted to DMF"}
@@ -679,11 +685,11 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 </Text>
               </View>
             ) : selectedReport?.reportType === "catch_log" ? (
-              <View style={[styles.modalConfirmationBox, { backgroundColor: `${colors.secondary}15`, borderColor: colors.secondary }]}>
-                <Text style={[styles.modalConfirmationLabel, { color: colors.secondary }]}>
+              <View style={[styles.modalConfirmationBox, { backgroundColor: `${theme.colors.secondary}15`, borderColor: theme.colors.secondary }]}>
+                <Text style={[styles.modalConfirmationLabel, { color: theme.colors.secondary }]}>
                   CATCH LOG
                 </Text>
-                <Text style={[styles.modalConfirmationNumber, { color: colors.secondary, fontSize: 18 }]}>
+                <Text style={[styles.modalConfirmationNumber, { color: theme.colors.secondary, fontSize: 18 }]}>
                   Personal Catch Record
                 </Text>
               </View>
@@ -867,7 +873,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             {selectedReport?.enteredRaffle && (
               <View style={styles.modalRaffleSection}>
                 <View style={styles.modalRaffleHeader}>
-                  <Feather name="gift" size={20} color={colors.primary} />
+                  <Feather name="gift" size={20} color={theme.colors.primary} />
                   <Text style={styles.modalRaffleTitle}>Raffle Entry</Text>
                 </View>
                 <Text style={styles.modalRaffleText}>
@@ -904,7 +910,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         <Feather
           name={isPending ? "check-circle" : "file-text"}
           size={64}
-          color={isPending ? colors.success : colors.lightGray}
+          color={isPending ? theme.colors.success : theme.colors.lightGray}
         />
         <Text style={styles.emptyTitle}>{title}</Text>
         <Text style={styles.emptyText}>{description}</Text>
@@ -913,7 +919,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             style={styles.emptyButton}
             onPress={() => navigation.navigate("ReportForm")}
           >
-            <Feather name="plus" size={18} color={colors.white} style={{ marginRight: 8 }} />
+            <Feather name="plus" size={18} color={theme.colors.white} style={{ marginRight: 8 }} />
             <Text style={styles.emptyButtonText}>Submit a Report</Text>
           </TouchableOpacity>
         )}
@@ -953,7 +959,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       {queuedReports.length > 0 && (
         <View style={styles.pendingBanner}>
           <View style={styles.pendingBannerContent}>
-            <Feather name="wifi-off" size={18} color={colors.warning} />
+            <Feather name="wifi-off" size={18} color={theme.colors.warning} />
             <Text style={styles.pendingBannerText}>
               {queuedReports.length} report{queuedReports.length > 1 ? "s" : ""} pending sync
             </Text>
@@ -997,7 +1003,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           style={[styles.filterButton, styles.dateFilterToggle, (showDateFilter || hasDateFilter) && styles.dateFilterToggleActive]}
           onPress={toggleDateFilter}
         >
-          <Feather name="calendar" size={14} color={(showDateFilter || hasDateFilter) ? colors.primary : colors.textSecondary} />
+          <Feather name="calendar" size={14} color={(showDateFilter || hasDateFilter) ? theme.colors.primary : theme.colors.textSecondary} />
           {hasDateFilter && <View style={styles.dateFilterDot} />}
         </TouchableOpacity>
       </View>
@@ -1021,7 +1027,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             >
               <Text style={styles.datePickerLabel}>From</Text>
               <View style={styles.datePickerValueContainer}>
-                <Feather name="calendar" size={14} color={colors.primary} />
+                <Feather name="calendar" size={14} color={theme.colors.primary} />
                 <Text style={[styles.datePickerValue, !dateRange.from && styles.datePickerValuePlaceholder]}>
                   {formatFilterDate(dateRange.from)}
                 </Text>
@@ -1035,7 +1041,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             >
               <Text style={styles.datePickerLabel}>To</Text>
               <View style={styles.datePickerValueContainer}>
-                <Feather name="calendar" size={14} color={colors.primary} />
+                <Feather name="calendar" size={14} color={theme.colors.primary} />
                 <Text style={[styles.datePickerValue, !dateRange.to && styles.datePickerValuePlaceholder]}>
                   {formatFilterDate(dateRange.to)}
                 </Text>
@@ -1048,7 +1054,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 style={styles.clearDateButton}
                 onPress={clearDateFilters}
               >
-                <Feather name="x" size={16} color={colors.textSecondary} />
+                <Feather name="x" size={16} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -1073,8 +1079,8 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
         ListEmptyComponent={renderEmptyState}
@@ -1119,7 +1125,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 {picker.mode === "from" ? "From Date" : "To Date"}
               </Text>
               <TouchableOpacity onPress={() => setPicker(prev => ({ ...prev, open: false }))}>
-                <Feather name="x" size={24} color={colors.textSecondary} />
+                <Feather name="x" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <DateTimePicker
@@ -1149,10 +1155,10 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 };
 
 // Styles
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     justifyContent: "center",
@@ -1160,17 +1166,17 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: spacing.md,
   },
   testModeBadge: {
-    backgroundColor: colors.warning,
+    backgroundColor: theme.colors.warning,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
   },
   testModeBadgeText: {
-    color: colors.white,
+    color: theme.colors.white,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,
@@ -1179,7 +1185,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: colors.warningLight,
+    backgroundColor: theme.colors.warningLight,
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
     padding: spacing.md,
@@ -1207,21 +1213,21 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   filterButton: {
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.sm,
     marginRight: spacing.sm,
   },
   filterButtonActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
   },
   filterButtonText: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   filterButtonTextActive: {
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: "600",
   },
   listContainer: {
@@ -1231,7 +1237,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   reportCard: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: 16,
     marginBottom: spacing.lg,
     marginTop: spacing.md,
@@ -1264,7 +1270,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.warningLight,
+    backgroundColor: theme.colors.warningLight,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -1273,13 +1279,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
     borderWidth: 3,
-    borderColor: colors.white,
+    borderColor: theme.colors.white,
   },
   syncedStatusBadge: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.successLight,
+    backgroundColor: theme.colors.successLight,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -1288,7 +1294,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
     borderWidth: 3,
-    borderColor: colors.white,
+    borderColor: theme.colors.white,
   },
   cardHeader: {
     flexDirection: "row",
@@ -1302,7 +1308,7 @@ const styles = StyleSheet.create({
   cardDate: {
     fontSize: 18,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: 4,
   },
   locationRow: {
@@ -1312,7 +1318,7 @@ const styles = StyleSheet.create({
   },
   cardLocation: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginLeft: 6,
     flex: 1,
   },
@@ -1340,12 +1346,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
     borderWidth: 3,
-    borderColor: colors.white,
+    borderColor: theme.colors.white,
   },
   confirmationNumber: {
     fontSize: 15,
     fontWeight: "700",
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   confirmationRow: {
     alignItems: "center",
@@ -1353,7 +1359,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     marginTop: 0,
     marginHorizontal: -spacing.md,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
   },
   confirmationRowBottom: {
     borderBottomLeftRadius: 16,
@@ -1361,7 +1367,7 @@ const styles = StyleSheet.create({
   },
   confirmationLabel: {
     fontSize: 12,
-    color: colors.primary,
+    color: theme.colors.primary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -1378,7 +1384,7 @@ const styles = StyleSheet.create({
   perforationNotchLeft: {
     width: 12,
     height: 24,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
     marginLeft: -1,
@@ -1387,7 +1393,7 @@ const styles = StyleSheet.create({
   perforationNotchRight: {
     width: 12,
     height: 24,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
     marginRight: -1,
@@ -1404,7 +1410,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   speciesTagsContainer: {
     flexDirection: "row",
@@ -1425,17 +1431,17 @@ const styles = StyleSheet.create({
   speciesTagCount: {
     fontSize: 15,
     fontWeight: "700",
-    color: colors.primary,
+    color: theme.colors.primary,
     marginRight: 5,
   },
   speciesTagName: {
     fontSize: 14,
     fontWeight: "500",
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   noFishText: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontStyle: "italic",
   },
   cardFooter: {
@@ -1455,11 +1461,11 @@ const styles = StyleSheet.create({
   fishCountText: {
     fontSize: 15,
     fontWeight: "600",
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   methodText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   footerRight: {
     flexDirection: "row",
@@ -1469,7 +1475,7 @@ const styles = StyleSheet.create({
   pendingBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.warningLight,
+    backgroundColor: theme.colors.warningLight,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1478,20 +1484,20 @@ const styles = StyleSheet.create({
   pendingText: {
     fontSize: 12,
     fontWeight: "600",
-    color: colors.warning,
+    color: theme.colors.warning,
   },
   syncedBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.successLight,
+    backgroundColor: theme.colors.successLight,
     alignItems: "center",
     justifyContent: "center",
   },
   retryBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.dangerLight,
+    backgroundColor: theme.colors.dangerLight,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -1500,7 +1506,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontSize: 12,
-    color: colors.error,
+    color: theme.colors.error,
     fontWeight: "500",
     flex: 1,
   },
@@ -1512,27 +1518,27 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.h2,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   emptyText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: "center",
     marginBottom: spacing.lg,
   },
   emptyButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.md,
   },
   emptyButtonText: {
     ...typography.button,
-    color: colors.white,
+    color: theme.colors.white,
   },
   // Modal styles
   modalContainer: {
@@ -1542,7 +1548,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     width: "90%",
     maxHeight: "85%",
@@ -1558,7 +1564,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
@@ -1573,52 +1579,52 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   modalStatusHeaderSynced: {
-    backgroundColor: colors.success,
+    backgroundColor: theme.colors.success,
   },
   modalStatusHeaderPending: {
-    backgroundColor: colors.warning,
+    backgroundColor: theme.colors.warning,
   },
   modalStatusText: {
     ...typography.h3,
-    color: colors.white,
+    color: theme.colors.white,
     marginLeft: spacing.sm,
   },
   modalConfirmationBox: {
-    backgroundColor: colors.successLight,
+    backgroundColor: theme.colors.successLight,
     padding: spacing.lg,
     borderRadius: borderRadius.md,
     alignItems: "center",
     marginBottom: spacing.lg,
     borderWidth: 2,
     borderStyle: "dashed",
-    borderColor: colors.success,
+    borderColor: theme.colors.success,
   },
   modalConfirmationBoxPending: {
-    backgroundColor: colors.warningLight,
-    borderColor: colors.warning,
+    backgroundColor: theme.colors.warningLight,
+    borderColor: theme.colors.warning,
   },
   modalConfirmationLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: colors.success,
+    color: theme.colors.success,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   modalConfirmationLabelPending: {
-    color: colors.warning,
+    color: theme.colors.warning,
   },
   modalConfirmationNumber: {
     fontSize: 32,
     fontWeight: "bold",
-    color: colors.success,
+    color: theme.colors.success,
     letterSpacing: 3,
   },
   modalConfirmationNumberPending: {
-    color: colors.warning,
+    color: theme.colors.warning,
   },
   modalConfirmationHint: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: 8,
   },
   modalPhotoContainer: {
@@ -1629,39 +1635,39 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 4 / 5,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
   },
   modalDetailSection: {
     marginBottom: spacing.md,
   },
   modalDetailTitle: {
     ...typography.h3,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.xs,
   },
   modalDetailTable: {
     borderWidth: 1,
-    borderColor: colors.lightGray,
+    borderColor: theme.colors.lightGray,
     borderRadius: borderRadius.sm,
     overflow: "hidden",
   },
   modalDetailRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightGray,
+    borderBottomColor: theme.colors.lightGray,
   },
   modalDetailLabel: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
-    backgroundColor: colors.lightestGray,
+    color: theme.colors.textSecondary,
+    backgroundColor: theme.colors.lightestGray,
     padding: spacing.sm,
     width: "40%",
     borderRightWidth: 1,
-    borderRightColor: colors.lightGray,
+    borderRightColor: theme.colors.lightGray,
   },
   modalDetailValue: {
     ...typography.body,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     padding: spacing.sm,
     flex: 1,
   },
@@ -1669,24 +1675,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightGray,
+    borderBottomColor: theme.colors.lightGray,
   },
   modalLengthsLabel: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontStyle: "italic",
     marginRight: spacing.sm,
   },
   modalLengthsValue: {
     ...typography.bodySmall,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: "600",
     flex: 1,
   },
   modalCloseButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     alignItems: "center",
@@ -1694,11 +1700,11 @@ const styles = StyleSheet.create({
   },
   modalCloseButtonText: {
     ...typography.button,
-    color: colors.white,
+    color: theme.colors.white,
   },
   // Modal raffle section
   modalRaffleSection: {
-    backgroundColor: colors.infoLight,
+    backgroundColor: theme.colors.infoLight,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     paddingBottom: spacing.md + 28,
@@ -1711,12 +1717,12 @@ const styles = StyleSheet.create({
   },
   modalRaffleTitle: {
     ...typography.h3,
-    color: colors.primary,
+    color: theme.colors.primary,
     marginLeft: spacing.sm,
   },
   modalRaffleText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   // New card layout styles
   cardContent: {
@@ -1732,7 +1738,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 12,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
@@ -1745,7 +1751,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 12,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -1759,11 +1765,11 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: theme.colors.white,
   },
   infoSection: {
     flex: 1,
@@ -1778,17 +1784,17 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.warning,
+    backgroundColor: theme.colors.warning,
   },
   moreSpeciesText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontStyle: "italic",
     alignSelf: "center",
   },
   methodDivider: {
     fontSize: 14,
-    color: colors.lightGray,
+    color: theme.colors.lightGray,
   },
   chevronContainer: {
     marginLeft: spacing.sm,
@@ -1797,7 +1803,7 @@ const styles = StyleSheet.create({
   cardPendingBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.warningLight,
+    backgroundColor: theme.colors.warningLight,
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
     marginTop: spacing.sm,
@@ -1819,7 +1825,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   dateFilterToggleActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
   },
   dateFilterDot: {
     position: "absolute",
@@ -1828,7 +1834,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   dateFilterContainer: {
     overflow: "hidden",
@@ -1844,15 +1850,15 @@ const styles = StyleSheet.create({
   },
   datePickerButton: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.md,
     padding: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.lightGray,
+    borderColor: theme.colors.lightGray,
   },
   datePickerLabel: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -1865,23 +1871,23 @@ const styles = StyleSheet.create({
   datePickerValue: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   datePickerValuePlaceholder: {
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontWeight: "400",
   },
   clearDateButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     alignItems: "center",
     justifyContent: "center",
   },
   dateFilterResultsText: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: spacing.xs,
     fontStyle: "italic",
   },
@@ -1895,7 +1901,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   dateModalContent: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: Platform.OS === "ios" ? 34 : 20,
@@ -1906,15 +1912,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightGray,
+    borderBottomColor: theme.colors.lightGray,
   },
   dateModalTitle: {
     fontSize: 17,
     fontWeight: "600",
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   dateModalConfirmButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
     paddingVertical: spacing.md,
@@ -1924,7 +1930,7 @@ const styles = StyleSheet.create({
   dateModalConfirmText: {
     fontSize: 16,
     fontWeight: "600",
-    color: colors.white,
+    color: theme.colors.white,
   },
 });
 

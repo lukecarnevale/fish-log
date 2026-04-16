@@ -20,7 +20,9 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 
-import { colors } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { safeOpenURL } from '../utils/openURL';
 import { RootStackParamList } from '../types';
 import { Prize, PrizeCategory } from '../types/rewards';
@@ -175,6 +177,8 @@ const SkeletonBox: React.FC<{
 
 /** Skeleton loader for QuarterlyRewardsCard */
 const QuarterlyRewardsCardSkeleton: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.container}>
       {/* Entry Status Tab Skeleton */}
@@ -273,6 +277,7 @@ const QuarterlyRewardsCardSkeleton: React.FC = () => {
 // ============================================
 
 const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false, hasProfileEmail = false, refreshKey }) => {
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NavigationProp>();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -995,7 +1000,7 @@ const COLORS = {
 // STYLES
 // ============================================
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginVertical: 8,

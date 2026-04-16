@@ -14,7 +14,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { MANDATORY_HARVEST_FAQS, FULL_FAQ_URL } from '../constants/faqData';
 import { FishIcon } from './icons/MandatoryHarvestIcons';
 import { safeOpenURL } from '../utils/openURL';
@@ -41,6 +43,8 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
   onDismiss,
   onFishPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [showFaqModal, setShowFaqModal] = useState(false);
 
   const handleLearnMore = () => {
@@ -146,7 +150,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
           <View style={styles.faqModalContent}>
             <View style={styles.faqModalHeader}>
               <View style={styles.faqModalHeaderLeft}>
-                <Feather name="help-circle" size={24} color={colors.primary} />
+                <Feather name="help-circle" size={24} color={theme.colors.primary} />
                 <Text style={styles.faqModalTitle}>FAQs</Text>
               </View>
               <TouchableOpacity
@@ -177,7 +181,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
                 }}
                 activeOpacity={0.7}
               >
-                <Feather name="external-link" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+                <Feather name="external-link" size={16} color={theme.colors.primary} style={{ marginRight: 8 }} />
                 <Text style={styles.faqLinkText}>View Full FAQs on NC DEQ Website</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -196,9 +200,9 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: 16,
     overflow: 'hidden',
     marginHorizontal: 16,
@@ -225,7 +229,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
   },
   subtitle: {
     fontSize: 13,
@@ -322,7 +326,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 1.5,
     borderColor: '#ccc',
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
   },
   btnOutlineText: {
     fontSize: 14,
@@ -343,7 +347,7 @@ const styles = StyleSheet.create({
   btnSolidText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.white,
   },
 
   // FAQ Modal styles
@@ -355,7 +359,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   faqModalContent: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: 20,
     width: '100%',
     maxHeight: '85%',
@@ -426,7 +430,7 @@ const styles = StyleSheet.create({
   faqCloseButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.white,
   },
 });
 

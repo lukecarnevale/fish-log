@@ -12,7 +12,10 @@ import {
   Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, borderRadius, spacing, shadows } from '../styles/common';
+import { borderRadius, spacing, shadows } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { useBulletins } from '../contexts/BulletinContext';
 import type { Bulletin, BulletinType } from '../types/bulletin';
 import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
@@ -26,15 +29,15 @@ const BANNER_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof WAV
 };
 
 // Banner-specific background/border colors (design system tokens, not parchment palette)
-const BANNER_STYLE_CONFIG: Record<BulletinType, {
+const getBannerStyleConfig = (themeColors: Theme['colors']): Record<BulletinType, {
   backgroundColor: string;
   borderColor: string;
-}> = {
-  closure: { backgroundColor: colors.dangerLight, borderColor: colors.error },
-  advisory: { backgroundColor: colors.warningLight, borderColor: colors.warning },
-  educational: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-  info: { backgroundColor: colors.lightestGray, borderColor: colors.secondary },
-};
+}> => ({
+  closure: { backgroundColor: themeColors.dangerLight, borderColor: themeColors.error },
+  advisory: { backgroundColor: themeColors.warningLight, borderColor: themeColors.warning },
+  educational: { backgroundColor: themeColors.primaryLight, borderColor: themeColors.primary },
+  info: { backgroundColor: themeColors.lightestGray, borderColor: themeColors.secondary },
+});
 
 // =============================================================================
 // Component
@@ -50,6 +53,8 @@ interface SpeciesDetailBulletinBannerProps {
 export const SpeciesDetailBulletinBanner: React.FC<
   SpeciesDetailBulletinBannerProps
 > = ({ bulletins, onDismiss }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { showBulletinDetail } = useBulletins();
   const [dismissed, setDismissed] = useState(false);
   const entranceAnim = useRef(new Animated.Value(0)).current;
@@ -69,7 +74,7 @@ export const SpeciesDetailBulletinBanner: React.FC<
   // Show the most urgent bulletin first
   const primaryBulletin = bulletins[0];
   const typeConfig = BULLETIN_TYPE_CONFIG[primaryBulletin.bulletinType];
-  const bannerStyle = BANNER_STYLE_CONFIG[primaryBulletin.bulletinType];
+  const bannerStyle = getBannerStyleConfig(theme.colors)[primaryBulletin.bulletinType];
   const iconColor = typeConfig.color;
 
   const translateY = entranceAnim.interpolate({
@@ -148,7 +153,7 @@ export const SpeciesDetailBulletinBanner: React.FC<
           onPress={handleDismiss}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="x" size={16} color={colors.darkGray} />
+          <Feather name="x" size={16} color={theme.colors.darkGray} />
         </TouchableOpacity>
       </View>
       <WaveAccent {...(BANNER_WAVE_MAP[primaryBulletin.bulletinType] ?? WAVE_PRESETS.primary)} />
@@ -156,7 +161,7 @@ export const SpeciesDetailBulletinBanner: React.FC<
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   banner: {
     marginHorizontal: 0,
     marginBottom: spacing.md,
@@ -187,17 +192,17 @@ const styles = StyleSheet.create({
   moreCount: {
     fontSize: 10,
     fontWeight: '500',
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
   },
   title: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.black,
+    color: theme.colors.black,
     lineHeight: 18,
   },
   description: {
     fontSize: 12,
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
     marginTop: 2,
   },
   actions: {

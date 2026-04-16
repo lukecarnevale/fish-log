@@ -23,7 +23,10 @@ import type { StackScreenProps } from '@react-navigation/stack';
 import ScreenLayout from '../components/ScreenLayout';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { REGION_OPTIONS } from '../constants/regionOptions';
-import { colors, spacing, borderRadius, shadows } from '../styles/common';
+import { spacing, borderRadius, shadows } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { useSubmitPartnerInquiry } from '../api/promotionsApi';
 import {
   type BusinessType,
@@ -34,6 +37,9 @@ import type { RootStackParamList } from '../types';
 type Props = StackScreenProps<RootStackParamList, 'PartnerInquiry'>;
 
 const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
+  // Theme
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   // Partner inquiry mutation
   const submitMutation = useSubmitPartnerInquiry();
   const submitting = submitMutation.isPending;
@@ -112,7 +118,7 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
       >
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
-            <Feather name="check-circle" size={56} color={colors.success} />
+            <Feather name="check-circle" size={56} color={theme.colors.success} />
           </View>
           <Text style={styles.successTitle}>Inquiry Submitted!</Text>
           <Text style={styles.successMessage}>
@@ -145,7 +151,7 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
         <View style={styles.formContainer}>
           {/* Intro text */}
           <View style={styles.introCard}>
-            <Feather name="info" size={16} color={colors.primary} />
+            <Feather name="info" size={16} color={theme.colors.primary} />
             <Text style={styles.introText}>
               Interested in reaching thousands of NC anglers? Fill out the form
               below and our team will reach out to discuss partnership opportunities.
@@ -160,7 +166,7 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
               value={businessName}
               onChangeText={setBusinessName}
               placeholder="e.g. Captain Bob's Charters"
-              placeholderTextColor={colors.mediumGray}
+              placeholderTextColor={theme.colors.mediumGray}
             />
             {errors.businessName && (
               <Text style={styles.errorText}>{errors.businessName}</Text>
@@ -175,7 +181,7 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
               value={contactName}
               onChangeText={setContactName}
               placeholder="Your full name"
-              placeholderTextColor={colors.mediumGray}
+              placeholderTextColor={theme.colors.mediumGray}
             />
             {errors.contactName && (
               <Text style={styles.errorText}>{errors.contactName}</Text>
@@ -190,7 +196,7 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
               value={email}
               onChangeText={setEmail}
               placeholder="you@business.com"
-              placeholderTextColor={colors.mediumGray}
+              placeholderTextColor={theme.colors.mediumGray}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -207,7 +213,7 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
               value={phone}
               onChangeText={setPhone}
               placeholder="(optional)"
-              placeholderTextColor={colors.mediumGray}
+              placeholderTextColor={theme.colors.mediumGray}
               keyboardType="phone-pad"
             />
           </View>
@@ -220,7 +226,7 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
               value={website}
               onChangeText={setWebsite}
               placeholder="https://www.yourbusiness.com"
-              placeholderTextColor={colors.mediumGray}
+              placeholderTextColor={theme.colors.mediumGray}
               keyboardType="url"
               autoCapitalize="none"
             />
@@ -292,7 +298,7 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
               value={message}
               onChangeText={setMessage}
               placeholder="Tell us about your business and what you'd like to promote to NC anglers..."
-              placeholderTextColor={colors.mediumGray}
+              placeholderTextColor={theme.colors.mediumGray}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -310,10 +316,10 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
             activeOpacity={0.8}
           >
             {submitting ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={theme.colors.white} />
             ) : (
               <>
-                <Feather name="send" size={18} color={colors.white} />
+                <Feather name="send" size={18} color={theme.colors.white} />
                 <Text style={styles.submitButtonText}>Submit Inquiry</Text>
               </>
             )}
@@ -324,7 +330,7 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   formContainer: {
     padding: spacing.md,
     paddingBottom: spacing.xxl,
@@ -341,7 +347,7 @@ const styles = StyleSheet.create({
   introText: {
     flex: 1,
     fontSize: 13,
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
     lineHeight: 19,
   },
   fieldGroup: {
@@ -350,26 +356,26 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.black,
+    color: theme.colors.black,
     marginBottom: 6,
   },
   labelHint: {
     fontSize: 11,
-    color: colors.mediumGray,
+    color: theme.colors.mediumGray,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.pearlWhite,
+    backgroundColor: theme.colors.pearlWhite,
     borderWidth: 1.5,
     borderColor: 'rgba(11, 84, 139, 0.12)',
     borderRadius: borderRadius.sm,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: colors.black,
+    color: theme.colors.black,
   },
   inputError: {
-    borderColor: colors.error,
+    borderColor: theme.colors.error,
   },
   textArea: {
     minHeight: 100,
@@ -377,7 +383,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 11,
-    color: colors.error,
+    color: theme.colors.error,
     marginTop: 4,
   },
   chipGrid: {
@@ -389,21 +395,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: borderRadius.xl,
-    backgroundColor: colors.pearlWhite,
+    backgroundColor: theme.colors.pearlWhite,
     borderWidth: 1.5,
     borderColor: 'rgba(11, 84, 139, 0.12)',
   },
   typeChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   typeChipText: {
     fontSize: 13,
     fontWeight: '500',
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
   },
   typeChipTextSelected: {
-    color: colors.white,
+    color: theme.colors.white,
     fontWeight: '600',
   },
   areaChip: {
@@ -415,23 +421,23 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(6, 116, 127, 0.15)',
   },
   areaChipSelected: {
-    backgroundColor: colors.secondary,
-    borderColor: colors.secondary,
+    backgroundColor: theme.colors.secondary,
+    borderColor: theme.colors.secondary,
   },
   areaChipText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.secondary,
+    color: theme.colors.secondary,
   },
   areaChipTextSelected: {
-    color: colors.white,
+    color: theme.colors.white,
     fontWeight: '600',
   },
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     borderRadius: borderRadius.md,
     paddingVertical: 16,
     marginTop: spacing.lg,
@@ -444,7 +450,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
   },
   // Success state
   successContainer: {
@@ -460,18 +466,18 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.black,
+    color: theme.colors.black,
     marginBottom: spacing.sm,
   },
   successMessage: {
     fontSize: 15,
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: spacing.xl,
   },
   successButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: borderRadius.md,
@@ -480,7 +486,7 @@ const styles = StyleSheet.create({
   successButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.white,
   },
 });
 

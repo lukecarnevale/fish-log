@@ -8,7 +8,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { NCFlagIcon } from './NCFlagIcon';
-import { colors, spacing, borderRadius, shadows } from '../styles/common';
+import { spacing, borderRadius, shadows } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 
 interface LicenseCardProps {
@@ -47,6 +50,9 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
   expiryDate,
   onPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <TouchableOpacity
       style={styles.container}
@@ -54,7 +60,7 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
       activeOpacity={0.7}
     >
       <LinearGradient
-        colors={[colors.primary, colors.primaryDark]}
+        colors={[theme.colors.primary, theme.colors.primaryDark]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
@@ -92,14 +98,14 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
               </Text>
             )}
           </View>
-          <Feather name="chevron-right" size={24} color={colors.white} />
+          <Feather name="chevron-right" size={24} color={theme.colors.white} />
         </View>
       </LinearGradient>
     </TouchableOpacity>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.lg,
@@ -121,7 +127,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: colors.white,
+    color: theme.colors.white,
     marginBottom: 2,
   },
   subtitle: {
@@ -131,7 +137,7 @@ const styles = StyleSheet.create({
   licenseNumber: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: colors.white,
+    color: theme.colors.white,
     marginTop: 4,
   },
   rightSection: {
@@ -156,7 +162,7 @@ const styles = StyleSheet.create({
   activePillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.white,
     letterSpacing: 0.3,
   },
 });

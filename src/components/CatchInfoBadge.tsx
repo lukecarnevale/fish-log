@@ -6,7 +6,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing } from '../styles/common';
+import { spacing } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { SpeciesTheme } from '../constants/speciesColors';
 import { useFontScale, FONT_SCALE_CAP_BODY } from '../hooks/useFontScale';
 
@@ -35,6 +38,8 @@ const CatchInfoBadge: React.FC<CatchInfoBadgeProps> = ({
   speciesTheme,
   maxWidth,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   // Scale the location badge's maxWidth with the OS font scale so longer
   // truncated text still has room to breathe at large accessibility sizes.
   const { fontScale } = useFontScale();
@@ -118,7 +123,7 @@ const CatchInfoBadge: React.FC<CatchInfoBadgeProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   // Species badge - premium glassmorphism, prominent
   speciesContainer: {
     flexDirection: 'row',
@@ -145,7 +150,7 @@ const styles = StyleSheet.create({
   speciesText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     letterSpacing: 0.1,
   },
 
@@ -163,7 +168,7 @@ const styles = StyleSheet.create({
   sizeText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     opacity: 0.9,
   },
 
@@ -182,7 +187,7 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     opacity: 0.9,
     flexShrink: 1,
   },

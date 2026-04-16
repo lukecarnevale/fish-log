@@ -31,7 +31,7 @@ import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation'
 import { useToast } from '../hooks/useToast';
 import { RootStackParamList, FishReportData, UserProfile, FishingLicense } from "../types";
 import styles from "../styles/reportFormScreenStyles";
-import { colors } from "../styles/common";
+import { useTheme } from "../contexts/ThemeContext";
 import { useFontScale } from "../hooks/useFontScale";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
 import BottomDrawer from "../components/BottomDrawer";
@@ -85,6 +85,8 @@ const REPORT_SPECIES = ['Red Drum', 'Flounder', 'Spotted Seatrout', 'Striped Bas
 
 
 const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+
   // Safe area insets for bottom sheet padding on Android
   const insets = useSafeAreaInsets();
   // Font scale for dynamic header spacer
@@ -1516,7 +1518,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                     isSelected && localStyles.optionTextSelected
                   ]}>{item}</Text>
                   {speciesItem?.note && (
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{speciesItem.note}</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>{speciesItem.note}</Text>
                   )}
                 </View>
                 {speciesItem && speciesItem.harvestStatus !== 'open' && (
@@ -1524,7 +1526,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 )}
               </View>
               {isSelected && (
-                <Feather name="check" size={20} color={colors.primary} />
+                <Feather name="check" size={20} color={theme.colors.primary} />
               )}
             </Pressable>
           );
@@ -1565,7 +1567,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <View style={{ flex: 1 }}>
                 <Text style={styles.selectorText}>{String(rawValue)}</Text>
                 {speciesItem?.note && (
-                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{speciesItem.note}</Text>
+                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>{speciesItem.note}</Text>
                 )}
               </View>
               {speciesItem && speciesItem.harvestStatus !== 'open' && (
@@ -1585,7 +1587,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   return (
     <View style={localStyles.screenContainer}>
-      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
 
       {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
       <StatusBarScrollBlur scrollY={scrollY} />
@@ -1599,7 +1601,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Feather name="arrow-left" size={24} color={colors.white} />
+            <Feather name="arrow-left" size={24} color={theme.colors.white} />
           </TouchableOpacity>
 
           <View style={localStyles.headerTextContainer}>
@@ -1620,7 +1622,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             onPress={() => setShowFaqModal(true)}
             activeOpacity={0.7}
           >
-            <Feather name="help-circle" size={22} color={colors.white} />
+            <Feather name="help-circle" size={22} color={theme.colors.white} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1706,7 +1708,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <Feather
                 name="file-text"
                 size={14}
-                color={reportMode === 'harvest_report' ? colors.primary : 'rgba(255,255,255,0.85)'}
+                color={reportMode === 'harvest_report' ? theme.colors.primary : 'rgba(255,255,255,0.85)'}
               />
               <Text style={[
                 localStyles.modeTabText,
@@ -1729,7 +1731,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <Feather
                 name="camera"
                 size={14}
-                color={reportMode === 'catch_log' ? colors.primary : 'rgba(255,255,255,0.85)'}
+                color={reportMode === 'catch_log' ? theme.colors.primary : 'rgba(255,255,255,0.85)'}
               />
               <Text style={[
                 localStyles.modeTabText,
@@ -1770,7 +1772,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       {/* DMF disclaimer — only for harvest reports */}
       {!isCatchLog && (
       <View style={localStyles.dmfDisclaimerContainer}>
-        <Feather name="info" size={14} color={colors.primary} style={localStyles.dmfDisclaimerIcon} />
+        <Feather name="info" size={14} color={theme.colors.primary} style={localStyles.dmfDisclaimerIcon} />
         <Text style={localStyles.dmfDisclaimerText}>
           This is a valid form of submission to the NC Division of Marine Fisheries (DMF) database.
         </Text>
@@ -1820,7 +1822,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 onPress={() => setFormData({ ...formData, totalPeopleCount: Math.max(2, formData.totalPeopleCount - 1) })}
                 disabled={formData.totalPeopleCount <= 2}
               >
-                <Feather name="minus" size={20} color={formData.totalPeopleCount <= 2 ? colors.textTertiary : colors.primary} />
+                <Feather name="minus" size={20} color={formData.totalPeopleCount <= 2 ? theme.colors.textTertiary : theme.colors.primary} />
               </TouchableOpacity>
               <TextInput
                 style={localStyles.countInput}
@@ -1845,7 +1847,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 onPress={() => setFormData({ ...formData, totalPeopleCount: Math.min(MAX_PEOPLE_COUNT, formData.totalPeopleCount + 1) })}
                 disabled={formData.totalPeopleCount >= MAX_PEOPLE_COUNT}
               >
-                <Feather name="plus" size={20} color={colors.primary} />
+                <Feather name="plus" size={20} color={theme.colors.primary} />
               </TouchableOpacity>
             </View>
             <Text style={localStyles.helperText}>
@@ -1872,7 +1874,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <Text style={formData.species ? styles.selectorText : styles.selectorPlaceholder}>
                 {formData.species || "Search for a species"}
               </Text>
-              <Feather name="search" size={16} color={colors.mediumGray} />
+              <Feather name="search" size={16} color={theme.colors.mediumGray} />
             </TouchableOpacity>
           </>
         ) : (
@@ -1889,7 +1891,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 onPress={() => handleCountChange(formData.count - 1)}
                 disabled={formData.count <= 1}
               >
-                <Feather name="minus" size={20} color={formData.count <= 1 ? colors.textTertiary : colors.primary} />
+                <Feather name="minus" size={20} color={formData.count <= 1 ? theme.colors.textTertiary : theme.colors.primary} />
               </TouchableOpacity>
               <TextInput
                 style={localStyles.countInput}
@@ -1916,7 +1918,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 onPress={() => handleCountChange(formData.count + 1)}
                 disabled={formData.count >= MAX_STEPPER_COUNT}
               >
-                <Feather name="plus" size={20} color={formData.count >= MAX_STEPPER_COUNT ? colors.textTertiary : colors.primary} />
+                <Feather name="plus" size={20} color={formData.count >= MAX_STEPPER_COUNT ? theme.colors.textTertiary : theme.colors.primary} />
               </TouchableOpacity>
             </View>
 
@@ -1932,7 +1934,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <Feather
                 name={showOptionalDetails ? "chevron-up" : "chevron-down"}
                 size={18}
-                color={colors.primary}
+                color={theme.colors.primary}
               />
             </TouchableOpacity>
 
@@ -2025,7 +2027,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   onPress={() => handleRemoveFish(index)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Feather name="x" size={14} color={colors.darkGray} />
+                  <Feather name="x" size={14} color={theme.colors.darkGray} />
                 </TouchableOpacity>
               </View>
               );
@@ -2040,7 +2042,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             onPress={handleAddAnotherFish}
             activeOpacity={0.7}
           >
-            <Feather name="plus-circle" size={18} color={colors.primary} />
+            <Feather name="plus-circle" size={18} color={theme.colors.primary} />
             <Text style={localStyles.addFishButtonText}>
               {currentFishIndex !== null ? "Save & Add Another Species" : "Add Another Species"}
             </Text>
@@ -2051,7 +2053,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         {(isCatchLog || hasEnteredCurrentRaffle) && (formData.species || fishEntries.length > 0) && (
           <View style={localStyles.catchFeedPhotoSection}>
             <Text style={localStyles.catchFeedPhotoLabel}>
-              <Feather name="camera" size={14} color={colors.primary} /> {isCatchLog ? 'Add a Photo' : 'Add Photo for Catch Feed'}
+              <Feather name="camera" size={14} color={theme.colors.primary} /> {isCatchLog ? 'Add a Photo' : 'Add Photo for Catch Feed'}
             </Text>
             <Text style={localStyles.catchFeedPhotoDesc}>
               Share your catch with the community (optional)
@@ -2069,15 +2071,15 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                     style={localStyles.catchFeedPhotoActionButton}
                     onPress={handleTakePhoto}
                   >
-                    <Feather name="camera" size={16} color={colors.primary} />
+                    <Feather name="camera" size={16} color={theme.colors.primary} />
                     <Text style={localStyles.catchFeedPhotoActionText}>Retake</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={localStyles.catchFeedPhotoActionButton}
                     onPress={handleRemovePhoto}
                   >
-                    <Feather name="trash-2" size={16} color={colors.error} />
-                    <Text style={[localStyles.catchFeedPhotoActionText, { color: colors.error }]}>Remove</Text>
+                    <Feather name="trash-2" size={16} color={theme.colors.error} />
+                    <Text style={[localStyles.catchFeedPhotoActionText, { color: theme.colors.error }]}>Remove</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -2086,7 +2088,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 style={localStyles.catchFeedAddPhotoButton}
                 onPress={isCatchLog ? handleAddPhoto : handleTakePhoto}
               >
-                <Feather name="camera" size={20} color={colors.primary} />
+                <Feather name="camera" size={20} color={theme.colors.primary} />
                 <Text style={localStyles.catchFeedAddPhotoText}>{isCatchLog ? 'Add Photo' : 'Take Photo'}</Text>
               </TouchableOpacity>
             )}
@@ -2111,7 +2113,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 onPress={() => setShowAreaInfoModal(true)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name="info" size={18} color={colors.primary} />
+                <Feather name="info" size={18} color={theme.colors.primary} />
               </TouchableOpacity>
             </View>
             <TouchableOpacity
@@ -2143,7 +2145,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   { transform: [{ scale: primaryAreaCheckboxAnim }] }
                 ]}>
                   {saveAsPrimaryArea && (
-                    <Feather name="check" size={14} color={colors.white} />
+                    <Feather name="check" size={14} color={theme.colors.white} />
                   )}
                 </Animated.View>
                 <Text style={localStyles.checkboxLabel}>
@@ -2167,7 +2169,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             setShowDatePicker(true);
           }}
         >
-          <Feather name="calendar" size={18} color={colors.primary} style={{ marginRight: 8 }} />
+          <Feather name="calendar" size={18} color={theme.colors.primary} style={{ marginRight: 8 }} />
           <Text style={styles.dateText}>
             {formData.date.toLocaleDateString("en-US", {
               weekday: "short",
@@ -2195,7 +2197,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <View style={localStyles.dateModalHeader}>
                 <Text style={localStyles.dateModalTitle}>Select Date</Text>
                 <TouchableOpacity onPress={closeDatePicker}>
-                  <Feather name="x" size={24} color={colors.darkGray} />
+                  <Feather name="x" size={24} color={theme.colors.darkGray} />
                 </TouchableOpacity>
               </View>
               {isPickerMounted && (
@@ -2327,7 +2329,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 onPress={() => setShowWrcIdInfoModal(true)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name="info" size={18} color={colors.primary} />
+                <Feather name="info" size={18} color={theme.colors.primary} />
               </TouchableOpacity>
             </View>
             <TextInput
@@ -2388,7 +2390,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   { transform: [{ scale: licenseCheckboxAnim }] }
                 ]}>
                   {saveLicenseNumber && (
-                    <Feather name="check" size={14} color={colors.white} />
+                    <Feather name="check" size={14} color={theme.colors.white} />
                   )}
                 </Animated.View>
                 <Text style={localStyles.checkboxLabel}>
@@ -2671,7 +2673,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           activeOpacity={0.7}
         >
           <View style={localStyles.contactSectionToggleLeft}>
-            <Feather name="mail" size={18} color={colors.primary} />
+            <Feather name="mail" size={18} color={theme.colors.primary} />
             <Text style={localStyles.contactSectionToggleText}>
               Get Confirmation
             </Text>
@@ -2679,7 +2681,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           <Feather
             name={showContactSection ? "chevron-up" : "chevron-down"}
             size={20}
-            color={colors.textSecondary}
+            color={theme.colors.textSecondary}
           />
         </TouchableOpacity>
 
@@ -2757,7 +2759,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   { transform: [{ scale: emailCheckboxAnim }] }
                 ]}>
                   {formData.wantEmailConfirmation && (
-                    <Feather name="check" size={14} color={colors.white} />
+                    <Feather name="check" size={14} color={theme.colors.white} />
                   )}
                 </Animated.View>
                 <Text style={localStyles.checkboxLabel}>Send email confirmation from NC DMF</Text>
@@ -2834,7 +2836,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   { transform: [{ scale: phoneCheckboxAnim }] }
                 ]}>
                   {formData.wantTextConfirmation && (
-                    <Feather name="check" size={14} color={colors.white} />
+                    <Feather name="check" size={14} color={theme.colors.white} />
                   )}
                 </Animated.View>
                 <Text style={localStyles.checkboxLabel}>Send text confirmation from NC DMF</Text>
@@ -2861,7 +2863,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <Feather
                 name={saveAnglerInfo ? "check" : "save"}
                 size={14}
-                color={saveAnglerInfo ? colors.success : colors.primary}
+                color={saveAnglerInfo ? theme.colors.success : theme.colors.primary}
               />
               <Text style={[
                 localStyles.saveButtonText,
@@ -2884,7 +2886,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         activeOpacity={0.8}
         disabled={catchLogSubmitting}
       >
-        <Feather name={catchLogSubmitting ? "loader" : "check-circle"} size={20} color={colors.white} />
+        <Feather name={catchLogSubmitting ? "loader" : "check-circle"} size={20} color={theme.colors.white} />
         <Text style={styles.submitButtonText}>{catchLogSubmitting ? 'Saving...' : 'Log Catch'}</Text>
       </TouchableOpacity>
       </>
@@ -2907,7 +2909,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             <Feather
               name={(hasEnteredCurrentRaffle || enterRaffle) ? "check-circle" : "gift"}
               size={24}
-              color={(hasEnteredCurrentRaffle || enterRaffle) ? colors.white : colors.primary}
+              color={(hasEnteredCurrentRaffle || enterRaffle) ? theme.colors.white : theme.colors.primary}
             />
           </View>
           <View style={localStyles.raffleTitleContainer}>
@@ -2922,7 +2924,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
         {hasEnteredCurrentRaffle ? (
           <View style={localStyles.raffleEnteredMessage}>
-            <Feather name="award" size={18} color={colors.success} />
+            <Feather name="award" size={18} color={theme.colors.success} />
             <Text style={localStyles.raffleEnteredText}>
               You're entered in this quarter's drawing. Selected contributors will be notified via email once the drawing period ends.
             </Text>
@@ -2936,13 +2938,13 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             {enterRaffle ? (
               <>
                 <View style={[localStyles.raffleButton, localStyles.raffleButtonSelected]}>
-                  <Feather name="check-circle" size={20} color={colors.white} />
+                  <Feather name="check-circle" size={20} color={theme.colors.white} />
                   <Text style={[localStyles.raffleButtonText, localStyles.raffleButtonTextSelected]}>
                     Joined Rewards Program
                   </Text>
                 </View>
                 <View style={localStyles.privacyAssurance}>
-                  <Feather name="lock" size={14} color={colors.success} style={{ marginRight: 6 }} />
+                  <Feather name="lock" size={14} color={theme.colors.success} style={{ marginRight: 6 }} />
                   <Text style={localStyles.privacyAssuranceText}>
                     Your catch & profile will be shared on Catch Feed, but all user data NEVER leaves the app. We really don't like people who sell user data. They are bilge scum.
                   </Text>
@@ -2963,7 +2965,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 onPress={() => setShowRaffleModal(true)}
                 activeOpacity={0.7}
               >
-                <Feather name="circle" size={20} color={colors.primary} />
+                <Feather name="circle" size={20} color={theme.colors.primary} />
                 <Text style={localStyles.raffleButtonText}>Learn More</Text>
               </TouchableOpacity>
             )}
@@ -2977,7 +2979,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         onPress={handleSubmit}
         activeOpacity={0.8}
       >
-        <Feather name="send" size={20} color={colors.white} />
+        <Feather name="send" size={20} color={theme.colors.white} />
         <Text style={styles.submitButtonText}>Submit Report</Text>
       </TouchableOpacity>
 
@@ -2995,7 +2997,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             { transform: [{ translateY: toast.animValue }] },
           ]}
         >
-          <Feather name="check-circle" size={24} color={colors.white} />
+          <Feather name="check-circle" size={24} color={theme.colors.white} />
           <View style={localStyles.toastContent}>
             <Text style={localStyles.toastTitle}>{toast.title}</Text>
             <Text style={localStyles.toastSubtitle}>{toast.subtitle}</Text>
