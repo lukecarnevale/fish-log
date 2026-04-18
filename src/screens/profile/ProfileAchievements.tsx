@@ -4,7 +4,11 @@ import { Feather } from '@expo/vector-icons';
 import { UserAchievement } from '../../types/user';
 import { getAchievementColor, getAchievementIcon } from '../../constants/achievementMappings';
 import { useTheme } from '../../contexts/ThemeContext';
-import { styles, localStyles } from '../../styles/profileScreenStyles';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import {
+  createProfileMainStyles,
+  createProfileLocalStyles,
+} from '../../styles/profileScreenStyles';
 
 interface ProfileAchievementsProps {
   achievements: UserAchievement[];
@@ -12,6 +16,8 @@ interface ProfileAchievementsProps {
 
 const ProfileAchievements: React.FC<ProfileAchievementsProps> = ({ achievements }) => {
   const { theme } = useTheme();
+  const styles = useThemedStyles(createProfileMainStyles);
+  const localStyles = useThemedStyles(createProfileLocalStyles);
 
   return (
     <View style={styles.statsSection}>
@@ -30,7 +36,7 @@ const ProfileAchievements: React.FC<ProfileAchievementsProps> = ({ achievements 
                   <Feather
                     name={iconName}
                     size={20}
-                    color={theme.colors.white}
+                    color={theme.colors.textOnPrimary}
                   />
                 </View>
                 <View style={localStyles.achievementTextContainer}>

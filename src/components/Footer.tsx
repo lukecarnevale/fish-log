@@ -15,7 +15,7 @@ import { Theme } from '../styles/theme';
 import { APP_VERSION } from '../config/appConfig';
 import { usePartners } from '../hooks/usePartners';
 import { trackPartnerClick } from '../services/partnersService';
-import { GhostFish, WaveTransition, FOOTER_BG } from './icons/FooterIcons';
+import { GhostFish, WaveTransition } from './icons/FooterIcons';
 import { safeOpenURL } from '../utils/openURL';
 
 interface FooterProps {
@@ -150,8 +150,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
 
   // Footer content area
+  // Use primaryDark so the body matches WaveTransition's fill in both modes
+  // and stays grounded — primary is too washed-out in dark mode for a large
+  // surface like the footer.
   footerContent: {
-    backgroundColor: FOOTER_BG,
+    backgroundColor: theme.colors.primaryDark,
     paddingTop: 16,
     paddingBottom: 60, // Extended to cover safe area
     position: 'relative',
@@ -190,12 +193,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   partnerCard: {
     width: 80,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    // In light mode keep the white background brand logos expect.
+    // In dark mode use an elevated surface so the cards don't look stark
+    // against the navy footer.
+    backgroundColor: theme.mode === 'dark' ? theme.colors.surfaceElevated : 'rgba(255,255,255,0.95)',
     borderRadius: 12,
     padding: 10,
     paddingHorizontal: 8,
     marginRight: 10,
     alignItems: 'center',
+    // Subtle border in dark mode for definition; transparent in light mode.
+    borderWidth: theme.mode === 'dark' ? 1 : 0,
+    borderColor: theme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -231,7 +240,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   appName: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.colors.white,
+    // Footer background is theme.colors.primaryDark in both modes; use
+    // textOnPrimary (always white) so the brand name reads correctly
+    // and avoids theme.colors.white, whose dark-mode alias is navy.
+    color: theme.colors.textOnPrimary,
     marginBottom: 2,
   },
   appOrg: {

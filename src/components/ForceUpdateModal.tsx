@@ -82,7 +82,7 @@ const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({
           <Feather
             name="external-link"
             size={18}
-            color={theme.colors.white}
+            color={theme.colors.textOnPrimary}
             style={styles.buttonIcon}
           />
           <Text style={styles.updateButtonText}>Update Now</Text>
@@ -141,7 +141,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   updateButtonText: {
     ...typography.button,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

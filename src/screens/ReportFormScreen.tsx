@@ -30,7 +30,9 @@ import { HEADER_HEIGHT } from "../constants/ui";
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { useToast } from '../hooks/useToast';
 import { RootStackParamList, FishReportData, UserProfile, FishingLicense } from "../types";
-import styles from "../styles/reportFormScreenStyles";
+import { createReportFormScreenStyles } from "../styles/reportFormScreenStyles";
+import { createReportFormLocalStyles } from "../styles/reportFormScreenLocalStyles";
+import { useThemedStyles } from "../hooks/useThemedStyles";
 import { useTheme } from "../contexts/ThemeContext";
 import { useFontScale } from "../hooks/useFontScale";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
@@ -68,9 +70,6 @@ import { FishEntry, ReportingType, FormState, PickerData, ReportFormScreenProps 
 // Extracted validation utilities
 import { validateEmail, validatePhone, formatPhoneNumber } from '../utils/formValidation';
 
-// Extracted local styles
-import { localStyles } from '../styles/reportFormScreenLocalStyles';
-
 // Extracted modal components
 import AbandonConfirmModal from './reportForm/AbandonConfirmModal';
 import FaqModal from './reportForm/FaqModal';
@@ -86,6 +85,8 @@ const REPORT_SPECIES = ['Red Drum', 'Flounder', 'Spotted Seatrout', 'Striped Bas
 
 const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
+  const styles = useThemedStyles(createReportFormScreenStyles);
+  const localStyles = useThemedStyles(createReportFormLocalStyles);
 
   // Safe area insets for bottom sheet padding on Android
   const insets = useSafeAreaInsets();
@@ -1587,7 +1588,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
 
   return (
     <View style={localStyles.screenContainer}>
-      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primaryDark : theme.colors.background} translucent animated />
 
       {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
       <StatusBarScrollBlur scrollY={scrollY} />
@@ -1601,7 +1602,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Feather name="arrow-left" size={24} color={theme.colors.white} />
+            <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
 
           <View style={localStyles.headerTextContainer}>
@@ -1622,7 +1623,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             onPress={() => setShowFaqModal(true)}
             activeOpacity={0.7}
           >
-            <Feather name="help-circle" size={22} color={theme.colors.white} />
+            <Feather name="help-circle" size={22} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -1953,6 +1954,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                     value={formData.lengths[0] || ""}
                     onChangeText={(text) => updateLength(0, text)}
                     placeholder="Enter the length"
+                    placeholderTextColor={theme.colors.textSecondary}
                     onFocus={onNumericFocus}
                     onBlur={onNumericBlur}
                   />
@@ -1969,6 +1971,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                           value={length}
                           onChangeText={(text) => updateLength(index, text)}
                           placeholder={`Fish ${index + 1}`}
+                          placeholderTextColor={theme.colors.textSecondary}
                           onFocus={onNumericFocus}
                           onBlur={onNumericBlur}
                         />
@@ -1986,6 +1989,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   value={formData.tagNumber}
                   onChangeText={(text) => setFormData({ ...formData, tagNumber: text })}
                   placeholder="Enter tag number if fish is tagged"
+                  placeholderTextColor={theme.colors.textSecondary}
                   onFocus={scrollToCenter}
                 />
               </View>
@@ -2145,7 +2149,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   { transform: [{ scale: primaryAreaCheckboxAnim }] }
                 ]}>
                   {saveAsPrimaryArea && (
-                    <Feather name="check" size={14} color={theme.colors.white} />
+                    <Feather name="check" size={14} color={theme.colors.textOnPrimary} />
                   )}
                 </Animated.View>
                 <Text style={localStyles.checkboxLabel}>
@@ -2367,6 +2371,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 }
               }}
               placeholder="Enter your WRC ID or Customer ID"
+              placeholderTextColor={theme.colors.textSecondary}
               autoCapitalize="characters"
               returnKeyType="done"
               blurOnSubmit={false}
@@ -2390,7 +2395,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   { transform: [{ scale: licenseCheckboxAnim }] }
                 ]}>
                   {saveLicenseNumber && (
-                    <Feather name="check" size={14} color={theme.colors.white} />
+                    <Feather name="check" size={14} color={theme.colors.textOnPrimary} />
                   )}
                 </Animated.View>
                 <Text style={localStyles.checkboxLabel}>
@@ -2426,6 +2431,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="First"
+                placeholderTextColor={theme.colors.textSecondary}
                 textContentType="givenName"
                 autoComplete="given-name"
                 onFocus={scrollToCenter}
@@ -2452,6 +2458,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="Last"
+                placeholderTextColor={theme.colors.textSecondary}
                 textContentType="familyName"
                 autoComplete="family-name"
                 onFocus={scrollToCenter}
@@ -2475,6 +2482,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="12345"
+                placeholderTextColor={theme.colors.textSecondary}
                 keyboardType="number-pad"
                 textContentType="postalCode"
                 autoComplete="postal-code"
@@ -2548,6 +2556,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="First"
+                placeholderTextColor={theme.colors.textSecondary}
                 textContentType="givenName"
                 autoComplete="given-name"
                 onFocus={scrollToCenter}
@@ -2587,6 +2596,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="Last"
+                placeholderTextColor={theme.colors.textSecondary}
                 textContentType="familyName"
                 autoComplete="family-name"
                 onFocus={scrollToCenter}
@@ -2629,6 +2639,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   }
                 }}
                 placeholder="12345"
+                placeholderTextColor={theme.colors.textSecondary}
                 keyboardType="number-pad"
                 textContentType="postalCode"
                 autoComplete="postal-code"
@@ -2725,6 +2736,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 }
               }}
               placeholder="Your email"
+              placeholderTextColor={theme.colors.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
               textContentType="emailAddress"
@@ -2759,7 +2771,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   { transform: [{ scale: emailCheckboxAnim }] }
                 ]}>
                   {formData.wantEmailConfirmation && (
-                    <Feather name="check" size={14} color={theme.colors.white} />
+                    <Feather name="check" size={14} color={theme.colors.textOnPrimary} />
                   )}
                 </Animated.View>
                 <Text style={localStyles.checkboxLabel}>Send email confirmation from NC DMF</Text>
@@ -2803,6 +2815,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                 }
               }}
               placeholder="555-555-5555"
+              placeholderTextColor={theme.colors.textSecondary}
               keyboardType="phone-pad"
               textContentType="telephoneNumber"
               autoComplete="tel"
@@ -2836,7 +2849,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   { transform: [{ scale: phoneCheckboxAnim }] }
                 ]}>
                   {formData.wantTextConfirmation && (
-                    <Feather name="check" size={14} color={theme.colors.white} />
+                    <Feather name="check" size={14} color={theme.colors.textOnPrimary} />
                   )}
                 </Animated.View>
                 <Text style={localStyles.checkboxLabel}>Send text confirmation from NC DMF</Text>
@@ -2886,7 +2899,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         activeOpacity={0.8}
         disabled={catchLogSubmitting}
       >
-        <Feather name={catchLogSubmitting ? "loader" : "check-circle"} size={20} color={theme.colors.white} />
+        <Feather name={catchLogSubmitting ? "loader" : "check-circle"} size={20} color={theme.colors.textOnPrimary} />
         <Text style={styles.submitButtonText}>{catchLogSubmitting ? 'Saving...' : 'Log Catch'}</Text>
       </TouchableOpacity>
       </>
@@ -2909,7 +2922,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             <Feather
               name={(hasEnteredCurrentRaffle || enterRaffle) ? "check-circle" : "gift"}
               size={24}
-              color={(hasEnteredCurrentRaffle || enterRaffle) ? theme.colors.white : theme.colors.primary}
+              color={(hasEnteredCurrentRaffle || enterRaffle) ? theme.colors.textOnPrimary : theme.colors.primary}
             />
           </View>
           <View style={localStyles.raffleTitleContainer}>
@@ -2938,7 +2951,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             {enterRaffle ? (
               <>
                 <View style={[localStyles.raffleButton, localStyles.raffleButtonSelected]}>
-                  <Feather name="check-circle" size={20} color={theme.colors.white} />
+                  <Feather name="check-circle" size={20} color={theme.colors.textOnPrimary} />
                   <Text style={[localStyles.raffleButtonText, localStyles.raffleButtonTextSelected]}>
                     Joined Rewards Program
                   </Text>
@@ -2979,7 +2992,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         onPress={handleSubmit}
         activeOpacity={0.8}
       >
-        <Feather name="send" size={20} color={theme.colors.white} />
+        <Feather name="send" size={20} color={theme.colors.textOnPrimary} />
         <Text style={styles.submitButtonText}>Submit Report</Text>
       </TouchableOpacity>
 
@@ -2997,7 +3010,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             { transform: [{ translateY: toast.animValue }] },
           ]}
         >
-          <Feather name="check-circle" size={24} color={theme.colors.white} />
+          <Feather name="check-circle" size={24} color={theme.colors.textOnPrimary} />
           <View style={localStyles.toastContent}>
             <Text style={localStyles.toastTitle}>{toast.title}</Text>
             <Text style={localStyles.toastSubtitle}>{toast.subtitle}</Text>

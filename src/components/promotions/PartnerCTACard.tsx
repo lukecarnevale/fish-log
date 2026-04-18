@@ -44,7 +44,7 @@ const PartnerCTACard: React.FC<PartnerCTACardProps> = ({ onPress }) => {
 
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Feather name="briefcase" size={24} color={theme.colors.white} />
+          <Feather name="briefcase" size={24} color={theme.colors.textOnPrimary} />
         </View>
 
         <View style={styles.textContent}>
@@ -91,7 +91,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     marginBottom: 3,
   },
   subtitle: {

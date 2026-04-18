@@ -60,7 +60,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
           <Feather
             name="grid"
             size={14}
-            color={selectedCategory === null ? theme.colors.white : theme.colors.secondary}
+            color={selectedCategory === null ? theme.colors.textOnPrimary : theme.colors.secondary}
           />
           <Text
             style={[
@@ -88,7 +88,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
               <Feather
                 name={getCategoryIcon(cat) as any}
                 size={14}
-                color={isActive ? theme.colors.white : theme.colors.secondary}
+                color={isActive ? theme.colors.textOnPrimary : theme.colors.secondary}
               />
               <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
                 {getCategoryLabel(cat)}
@@ -133,7 +133,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.secondary,
   },
   tabTextActive: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   countBadge: {
     backgroundColor: 'rgba(6, 116, 127, 0.15)',

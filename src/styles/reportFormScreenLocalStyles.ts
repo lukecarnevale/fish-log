@@ -1366,7 +1366,7 @@ export const localStyles = StyleSheet.create({
 });
 
 // Theme-aware factory function
-export const createReportFormStyles = (theme: Theme) =>
+export const createReportFormLocalStyles = (theme: Theme) =>
   StyleSheet.create({
     // Label row with info icon
     labelRow: {
@@ -1410,14 +1410,14 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     screenContainer: {
       flex: 1,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryDark,
     },
     fixedHeader: {
       position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryDark,
       paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 56,
       paddingBottom: 20,
       paddingHorizontal: 20,
@@ -1442,11 +1442,11 @@ export const createReportFormStyles = (theme: Theme) =>
     headerTitle: {
       fontSize: 22,
       fontWeight: '700',
-      color: theme.colors.white,
+      color: theme.colors.textOnPrimary,
     },
     headerSubtitle: {
       fontSize: 13,
-      color: theme.colors.white,
+      color: theme.colors.textOnPrimary,
       opacity: 0.85,
       marginTop: 2,
     },
@@ -1477,6 +1477,7 @@ export const createReportFormStyles = (theme: Theme) =>
     faqModalOverlay: modals.overlay,
     faqModalContent: {
       ...modals.content,
+      backgroundColor: theme.colors.surfaceElevated,
       maxHeight: '85%',
     },
     faqModalHeader: {
@@ -1485,7 +1486,7 @@ export const createReportFormStyles = (theme: Theme) =>
       justifyContent: 'space-between',
       padding: spacing.md,
       borderBottomWidth: 1,
-      borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+      borderBottomColor: theme.colors.border,
     },
     faqModalHeaderLeft: {
       flexDirection: 'row',
@@ -1513,7 +1514,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     faqAnswer: {
       fontSize: 14,
-      color: theme.colors.textSecondary,
+      color: theme.colors.textPrimary,
       lineHeight: 20,
     },
     faqLinkButton: {
@@ -1680,7 +1681,7 @@ export const createReportFormStyles = (theme: Theme) =>
       width: 32,
       fontSize: 14,
       fontWeight: "600",
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
     },
     lengthInput: {
       flex: 1,
@@ -1711,12 +1712,12 @@ export const createReportFormStyles = (theme: Theme) =>
     dmfDisclaimerText: {
       flex: 1,
       fontSize: 12,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       lineHeight: 16,
     },
     helperText: {
       fontSize: 12,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       marginBottom: 8,
       fontStyle: "italic",
     },
@@ -1742,7 +1743,7 @@ export const createReportFormStyles = (theme: Theme) =>
     licenseToggleText: {
       fontSize: 16,
       fontWeight: "600",
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
     },
     licenseToggleTextActive: {
       color: theme.colors.primary,
@@ -1763,7 +1764,7 @@ export const createReportFormStyles = (theme: Theme) =>
     fishListTitle: {
       fontSize: 14,
       fontWeight: "600",
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       marginBottom: 8,
     },
     fishChip: {
@@ -1825,7 +1826,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     switchLabel: {
       fontSize: 14,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       flex: 1,
       marginRight: 12,
     },
@@ -1884,12 +1885,12 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     raffleSubtitle: {
       fontSize: 13,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       marginTop: 2,
     },
     raffleDescription: {
       fontSize: 14,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       lineHeight: 20,
       marginBottom: spacing.md,
     },
@@ -1924,7 +1925,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     raffleRemoveButtonText: {
       fontSize: 14,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       textDecorationLine: "underline",
     },
     privacyAssurance: {
@@ -1958,7 +1959,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     catchFeedPhotoDesc: {
       fontSize: 13,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       marginBottom: 12,
     },
     catchFeedPhotoContainer: {
@@ -2007,6 +2008,7 @@ export const createReportFormStyles = (theme: Theme) =>
     raffleModalOverlay: modals.overlay,
     raffleModalContent: {
       ...modals.content,
+      backgroundColor: theme.colors.surfaceElevated,
       width: "90%",
       maxHeight: "85%",
     },
@@ -2034,13 +2036,13 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     raffleModalSubtitle: {
       fontSize: 14,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       textAlign: "center",
       marginTop: 4,
     },
     raffleModalText: {
       fontSize: 15,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       marginBottom: spacing.md,
     },
     raffleModalList: {
@@ -2060,7 +2062,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     raffleModalNote: {
       fontSize: 13,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       fontStyle: "italic",
       marginBottom: spacing.lg,
       textAlign: "center",
@@ -2120,7 +2122,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     raffleModalSectionDesc: {
       fontSize: 14,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       marginBottom: 12,
     },
     rafflePhotoContainer: {
@@ -2267,7 +2269,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     takePhotoSubtitle: {
       fontSize: 13,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
     },
     raffleRequiredNote: {
       fontSize: 13,
@@ -2331,6 +2333,7 @@ export const createReportFormStyles = (theme: Theme) =>
     abandonModalOverlay: modals.overlay,
     abandonModalContent: {
       ...modals.content,
+      backgroundColor: theme.colors.surfaceElevated,
       width: "85%",
       alignItems: "center",
       padding: spacing.lg,
@@ -2355,7 +2358,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     abandonModalText: {
       fontSize: 15,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       textAlign: "center",
       lineHeight: 22,
       marginBottom: 24,
@@ -2413,7 +2416,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     checkboxLabel: {
       fontSize: 15,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       flex: 1,
     },
     saveButton: {
@@ -2522,7 +2525,9 @@ export const createReportFormStyles = (theme: Theme) =>
       color: theme.colors.primary,
     },
     contactSectionContent: {
-      backgroundColor: "#fafbfc",
+      // surfaceElevated lifts the card one step above the form body in dark
+      // mode, making it visually distinct without a bright background.
+      backgroundColor: theme.colors.surfaceElevated,
       borderRadius: 10,
       borderTopLeftRadius: 0,
       borderTopRightRadius: 0,
@@ -2530,17 +2535,17 @@ export const createReportFormStyles = (theme: Theme) =>
       marginTop: -2,
       borderWidth: 1,
       borderTopWidth: 0,
-      borderColor: "rgba(0, 102, 153, 0.1)",
+      borderColor: theme.colors.border,
     },
     contactSectionHint: {
       fontSize: 13,
-      color: theme.colors.darkGray,
+      color: theme.colors.textPrimary,
       marginBottom: 4,
       lineHeight: 18,
     },
     phoneDisclaimer: {
       fontSize: 11,
-      color: theme.colors.textSecondary,
+      color: theme.colors.textPrimary,
       marginBottom: 8,
       lineHeight: 15,
       fontStyle: 'italic',
@@ -2548,6 +2553,7 @@ export const createReportFormStyles = (theme: Theme) =>
     areaInfoModalOverlay: modals.overlay,
     areaInfoModalContent: {
       ...modals.content,
+      backgroundColor: theme.colors.surfaceElevated,
       width: "100%",
       maxWidth: 340,
       padding: spacing.lg,
@@ -2565,7 +2571,7 @@ export const createReportFormStyles = (theme: Theme) =>
     },
     areaInfoModalText: {
       fontSize: 15,
-      color: theme.colors.textSecondary,
+      color: theme.colors.textPrimary,
       lineHeight: 22,
       marginBottom: 12,
     },

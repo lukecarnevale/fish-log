@@ -232,7 +232,7 @@ const AchievementModal: React.FC<AchievementModalProps> = ({
             },
           ]}
         >
-          <Feather name={iconName as keyof typeof Feather.glyphMap} size={48} color={theme.colors.white} />
+          <Feather name={iconName as keyof typeof Feather.glyphMap} size={48} color={theme.colors.textOnPrimary} />
         </Animated.View>
 
         {/* Achievement Name */}
@@ -320,7 +320,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   continueButtonText: {
     ...typography.button,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

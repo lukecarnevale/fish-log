@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { localStyles } from '../../styles/reportFormScreenLocalStyles';
+import { createReportFormLocalStyles } from '../../styles/reportFormScreenLocalStyles';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { safeOpenURL } from '../../utils/openURL';
 
 interface AreaInfoModalProps {
@@ -20,6 +21,7 @@ interface AreaInfoModalProps {
 
 const AreaInfoModal: React.FC<AreaInfoModalProps> = ({ visible, onClose }) => {
   const { theme } = useTheme();
+  const localStyles = useThemedStyles(createReportFormLocalStyles);
 
   return (
     <Modal
@@ -56,7 +58,7 @@ const AreaInfoModal: React.FC<AreaInfoModalProps> = ({ visible, onClose }) => {
                 }}
                 activeOpacity={0.7}
               >
-                <Feather name="map" size={18} color={theme.colors.white} style={{ marginRight: 8 }} />
+                <Feather name="map" size={18} color={theme.colors.textOnPrimary} style={{ marginRight: 8 }} />
                 <Text style={localStyles.areaInfoModalButtonText}>View Interactive Map</Text>
               </TouchableOpacity>
               <TouchableOpacity

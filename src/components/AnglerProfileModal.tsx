@@ -442,7 +442,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 40,
   },
   avatarInitialLarge: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 32,
     fontWeight: '700',
   },

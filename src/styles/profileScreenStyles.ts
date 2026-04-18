@@ -981,11 +981,20 @@ export const localStyles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 18,
   },
+
+  // Theme selector — tighter padding so 3 buttons fit comfortably
+  themeToggleRow: {
+    marginTop: spacing.xs,
+  },
+  themeToggleButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
 });
 
-// Theme-aware factory function
-export const createProfileScreenStyles = (theme: Theme) => ({
-  styles: StyleSheet.create({
+// Theme-aware factory for the main profile screen styles
+export const createProfileMainStyles = (theme: Theme) =>
+  StyleSheet.create({
     safeArea: {
       flex: 1,
       backgroundColor: theme.colors.background,
@@ -1519,8 +1528,11 @@ export const createProfileScreenStyles = (theme: Theme) => ({
       fontSize: 16,
       fontWeight: '600' as const,
     },
-  }),
-  localStyles: StyleSheet.create({
+  });
+
+// Theme-aware factory for the profile screen's local (auth/rewards/skeleton) styles
+export const createProfileLocalStyles = (theme: Theme) =>
+  StyleSheet.create({
     pendingAuthSection: {
       backgroundColor: '#FFF9E6',
       borderColor: theme.colors.gold,
@@ -1943,5 +1955,20 @@ export const createProfileScreenStyles = (theme: Theme) => ({
       color: theme.colors.textSecondary,
       lineHeight: 18,
     },
-  }),
+
+    // Theme selector — tighter padding so 3 buttons fit comfortably
+    themeToggleRow: {
+      marginTop: spacing.xs,
+    },
+    themeToggleButton: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.xs,
+    },
+  });
+
+// Legacy combined factory — returns both styles and localStyles in a single object.
+// Kept for backwards compatibility; prefer the standalone factories above.
+export const createProfileScreenStyles = (theme: Theme) => ({
+  styles: createProfileMainStyles(theme),
+  localStyles: createProfileLocalStyles(theme),
 });

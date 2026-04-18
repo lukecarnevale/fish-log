@@ -502,10 +502,10 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           disabled={isSubmitting || !firstName.trim() || !lastName.trim() || !email.trim()}
         >
           {isSubmitting ? (
-            <ActivityIndicator color={theme.colors.white} />
+            <ActivityIndicator color={theme.colors.textOnPrimary} />
           ) : (
             <>
-              <Feather name="mail" size={18} color={theme.colors.white} />
+              <Feather name="mail" size={18} color={theme.colors.textOnPrimary} />
               <Text style={styles.joinButtonText}>
                 {requiresSignup ? "Send Verification Link" : "Send Sign-In Link"}
               </Text>
@@ -588,10 +588,10 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           disabled={isSubmitting || !email.trim()}
         >
           {isSubmitting ? (
-            <ActivityIndicator color={theme.colors.white} />
+            <ActivityIndicator color={theme.colors.textOnPrimary} />
           ) : (
             <>
-              <Feather name="mail" size={18} color={theme.colors.white} />
+              <Feather name="mail" size={18} color={theme.colors.textOnPrimary} />
               <Text style={styles.joinButtonText}>Send Sign-In Link</Text>
             </>
           )}
@@ -621,7 +621,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <View style={[styles.iconContainer, styles.iconContainerSuccess]}>
-          <Feather name="mail" size={32} color={theme.colors.white} />
+          <Feather name="mail" size={32} color={theme.colors.textOnPrimary} />
         </View>
         <Text style={styles.title}>Check Your Email!</Text>
         <Text style={styles.subtitle}>
@@ -922,7 +922,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   joinButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   laterButton: {
     alignItems: 'center',
@@ -995,7 +995,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   resendButton: {
     flexDirection: 'row',

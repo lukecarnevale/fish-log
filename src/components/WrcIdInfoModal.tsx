@@ -50,7 +50,7 @@ const WrcIdInfoModal: React.FC<WrcIdInfoModalProps> = ({ visible, onClose }) => 
         onPress={handleLookup}
         activeOpacity={0.7}
       >
-        <Feather name="external-link" size={18} color={theme.colors.white} style={{ marginRight: 8 }} />
+        <Feather name="external-link" size={18} color={theme.colors.textOnPrimary} style={{ marginRight: 8 }} />
         <Text style={styles.buttonText}>Look Up My ID</Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -97,7 +97,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 12,
   },
   buttonText: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 16,
     fontWeight: "600",
   },

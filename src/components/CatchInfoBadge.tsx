@@ -75,7 +75,9 @@ const CatchInfoBadge: React.FC<CatchInfoBadgeProps> = ({
     if (variant === 'species' && speciesTheme) {
       return speciesTheme.primary;
     }
-    return 'rgba(255, 255, 255, 0.9)';
+    // Pill backgrounds are always white/near-white (hardcoded rgba(255,255,255,...)),
+    // so icons must always be dark regardless of theme mode.
+    return 'rgba(38, 50, 56, 0.65)';
   };
 
   const getIcon = (): keyof typeof Feather.glyphMap => {
@@ -150,7 +152,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   speciesText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.textPrimary,
+    // Background is always rgba(255,255,255,0.92) — hardcode dark text so it
+    // remains readable in both light and dark mode.
+    color: '#263238',
     letterSpacing: 0.1,
   },
 
@@ -168,7 +172,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   sizeText: {
     fontSize: 12,
     fontWeight: '500',
-    color: theme.colors.textPrimary,
+    // Background is always rgba(255,255,255,0.75) — hardcode dark text.
+    color: '#263238',
     opacity: 0.9,
   },
 
@@ -187,7 +192,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   locationText: {
     fontSize: 12,
     fontWeight: '500',
-    color: theme.colors.textPrimary,
+    // Background is always rgba(255,255,255,0.75) — hardcode dark text.
+    color: '#263238',
     opacity: 0.9,
     flexShrink: 1,
   },

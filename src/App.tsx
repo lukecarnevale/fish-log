@@ -161,6 +161,22 @@ const forNoFlickerAndroid: StackCardStyleInterpolator = ({ current, next, layout
 
 // Component to initialize data and listeners on app startup
 const AppInitializer: React.FC = () => {
+  const { theme } = useTheme();
+
+  // Sync iOS keyboard appearance to the active theme so the on-screen
+  // keyboard matches dark mode (iOS only — Android keyboard styling is
+  // controlled by the system).
+  useEffect(() => {
+    // @ts-expect-error defaultProps exists at runtime on TextInput
+    TextInput.defaultProps = TextInput.defaultProps || {};
+    // @ts-expect-error same
+    TextInput.defaultProps.placeholderTextColor = theme.colors.textSecondary;
+    if (Platform.OS === 'ios') {
+      // @ts-expect-error same
+      TextInput.defaultProps.keyboardAppearance = theme.isDark ? 'dark' : 'light';
+    }
+  }, [theme.isDark, theme.colors.textSecondary]);
+
   // Initialize anonymous user on app startup
   useAnonymousUserInitialization();
 

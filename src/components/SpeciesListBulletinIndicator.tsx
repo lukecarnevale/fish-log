@@ -36,7 +36,7 @@ export const SpeciesListBulletinIndicator: React.FC<
           accessibilityRole="text"
           accessibilityLabel="Harvest closed"
         >
-          <Feather name="alert-octagon" size={12} color={theme.colors.white} />
+          <Feather name="alert-octagon" size={12} color={theme.colors.textOnPrimary} />
           {showLabels && <Text style={styles.badgeText}>CLOSED</Text>}
         </View>
       )}
@@ -47,7 +47,7 @@ export const SpeciesListBulletinIndicator: React.FC<
           accessibilityRole="text"
           accessibilityLabel="Harvest advisory"
         >
-          <Feather name="alert-triangle" size={12} color={theme.colors.white} />
+          <Feather name="alert-triangle" size={12} color={theme.colors.textOnPrimary} />
           {showLabels && <Text style={styles.badgeText}>ADVISORY</Text>}
         </View>
       )}
@@ -58,7 +58,7 @@ export const SpeciesListBulletinIndicator: React.FC<
           accessibilityRole="text"
           accessibilityLabel="Catch and release only"
         >
-          <Feather name="alert-triangle" size={12} color={theme.colors.white} />
+          <Feather name="alert-triangle" size={12} color={theme.colors.textOnPrimary} />
           {showLabels && <Text style={styles.badgeText}>C&R ONLY</Text>}
         </View>
       )}
@@ -87,7 +87,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.colors.warning,
   },
   badgeText: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 0.5,

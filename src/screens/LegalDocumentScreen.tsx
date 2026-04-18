@@ -187,7 +187,7 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
             onPress={() => navigation.goBack()}
             activeOpacity={0.7}
           >
-            <Feather name="arrow-left" size={24} color={theme.colors.white} />
+            <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{document.title}</Text>
           <View style={styles.headerSpacer} />
@@ -240,7 +240,7 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
               onPress={handleContact}
               activeOpacity={0.7}
             >
-              <Feather name="mail" size={16} color={theme.colors.white} />
+              <Feather name="mail" size={16} color={theme.colors.textOnPrimary} />
               <Text style={styles.contactButtonText}>Contact Us</Text>
             </TouchableOpacity>
           </View>
@@ -281,7 +281,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   headerTitle: {
     ...typography.h1,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 20,
     textAlign: 'center',
     flex: 1,
@@ -377,7 +377,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   contactButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   bottomSpacer: {
     height: spacing.xl * 2,

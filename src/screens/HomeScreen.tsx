@@ -20,8 +20,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import styles, { menuWidth } from "../styles/homeScreenStyles";
-import { localStyles } from "../styles/homeScreenLocalStyles";
+import { menuWidth, createHomeScreenStyles } from "../styles/homeScreenStyles";
+import { createHomeScreenLocalStyles } from "../styles/homeScreenLocalStyles";
+import { useThemedStyles } from "../hooks/useThemedStyles";
 import { RootStackParamList } from "../types";
 import { useTheme } from "../contexts/ThemeContext";
 import { useFontScale } from "../hooks/useFontScale";
@@ -68,6 +69,9 @@ interface HomeScreenProps {
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   // Theme
   const { theme } = useTheme();
+  // Themed styles — re-render when theme changes
+  const styles = useThemedStyles(createHomeScreenStyles);
+  const localStyles = useThemedStyles(createHomeScreenLocalStyles);
   // Font scale for dynamic header spacer
   const { fontScale } = useFontScale();
   // Achievement notifications - flush any pending achievements when this screen gains focus
@@ -552,9 +556,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
   return (
     <GestureDetector gesture={edgeSwipeGesture}>
-      <View style={{ flex: 1, backgroundColor: theme.colors.primary }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.primaryDark }}>
         <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
+      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primaryDark : theme.colors.background} translucent animated />
       
       {/* Drawer Menu */}
       <DrawerMenu
@@ -650,7 +654,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             style={localStyles.floatingMenuTouchable}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
-            <WavyMenuIcon size={24} color={theme.colors.white} />
+            <WavyMenuIcon size={24} color={theme.colors.textOnPrimary} />
             {pendingAuth && (
               <Animated.View style={[
                 localStyles.floatingBadge,
@@ -667,7 +671,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       {refreshing && (
         <ActivityIndicator
           size="large"
-          color={theme.colors.white}
+          color={theme.colors.textOnPrimary}
           style={localStyles.refreshSpinner}
         />
       )}

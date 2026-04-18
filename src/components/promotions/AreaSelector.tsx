@@ -59,7 +59,7 @@ const AreaSelector: React.FC<AreaSelectorProps> = ({
           <Feather
             name="map-pin"
             size={13}
-            color={selectedArea === null ? theme.colors.white : theme.colors.primary}
+            color={selectedArea === null ? theme.colors.textOnPrimary : theme.colors.primary}
             style={styles.pillIcon}
           />
           <Text
@@ -133,7 +133,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.primary,
   },
   pillTextSelected: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

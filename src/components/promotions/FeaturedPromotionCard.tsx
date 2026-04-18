@@ -88,7 +88,7 @@ const FeaturedPromotionCard: React.FC<FeaturedPromotionCardProps> = ({
 
       {/* Featured badge */}
       <View style={styles.featuredBadge}>
-        <Feather name="star" size={10} color={theme.colors.white} />
+        <Feather name="star" size={10} color={theme.colors.textOnPrimary} />
         <Text style={styles.featuredBadgeText}>Featured</Text>
       </View>
 
@@ -129,7 +129,7 @@ const FeaturedPromotionCard: React.FC<FeaturedPromotionCardProps> = ({
           )}
           <View style={styles.ctaButton}>
             <Text style={styles.ctaText}>View Deal</Text>
-            <Feather name="arrow-right" size={14} color={theme.colors.white} />
+            <Feather name="arrow-right" size={14} color={theme.colors.textOnPrimary} />
           </View>
         </View>
       </View>
@@ -165,7 +165,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   featuredBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -191,7 +191,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   categoryChipText: {
     fontSize: 10,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
@@ -208,7 +208,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   companyName: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     marginBottom: 4,
   },
   promoText: {
@@ -239,7 +239,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   promoCodeValue: {
     fontSize: 12,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     letterSpacing: 0.5,
   },
   ctaButton: {
@@ -254,7 +254,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   ctaText: {
     fontSize: 12,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

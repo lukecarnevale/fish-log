@@ -36,7 +36,7 @@ import { safeOpenURL } from '../utils/openURL';
 import { AppLogoIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, MultipleFishIcon, LicenseCardIcon } from './icons/DrawerMenuIcons';
 import DefaultAnglerAvatarIcon from './icons/DefaultAnglerAvatarIcon';
 import type { Bulletin } from '../types/bulletin';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { getBulletinTypeConfig } from '../constants/bulletin';
 import { useBulletins } from '../contexts/BulletinContext';
 
 // ============================================
@@ -122,6 +122,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   const styles = useThemedStyles(createStyles);
   const { isBulletinRead } = useBulletins();
   const { enabled: promotionsEnabled } = useFeatureFlag('promotions_hub');
+  const bulletinConfig = getBulletinTypeConfig(theme);
 
   // MenuItem defined inside DrawerMenu to close over `styles` and `theme`
   const MenuItem: React.FC<MenuItemProps> = ({
@@ -130,7 +131,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
     label,
     subtitle,
     onPress,
-    iconBgColor = '#E8F5F4',
+    iconBgColor = theme.isDark ? theme.colors.surface : '#E8F5F4',
     iconColor = theme.colors.primary,
     showBadge,
     badgeScale: itemBadgeScale,
@@ -145,9 +146,13 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
       onPress={disabled ? onDisabledPress : onPress}
       activeOpacity={0.7}
     >
-      <View style={[styles.menuItemIcon, { backgroundColor: disabled ? '#F0F0F0' : iconBgColor }]}>
+      <View style={[styles.menuItemIcon, {
+        backgroundColor: disabled
+          ? (theme.isDark ? theme.colors.surfaceMuted : '#F0F0F0')
+          : (theme.isDark ? theme.colors.surface : iconBgColor),
+      }]}>
         {customIcon || (
-          <Feather name={icon as any} size={20} color={disabled ? '#999' : iconColor} />
+          <Feather name={icon as any} size={20} color={disabled ? theme.colors.textSecondary : iconColor} />
         )}
         {showBadge && itemBadgeScale && itemBadgeOpacity && (
           <Animated.View style={[styles.menuBadge, { opacity: itemBadgeOpacity, transform: [{ scale: itemBadgeScale }] }]}>
@@ -166,11 +171,11 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
         {disabled && <Text style={styles.menuItemSubtitleDisabled} numberOfLines={1} maxFontSizeMultiplier={1.2}>Sign in to view</Text>}
       </View>
       {disabled ? (
-        <Feather name="lock" size={14} color="#999" />
+        <Feather name="lock" size={14} color={theme.colors.textSecondary} />
       ) : isExternal ? (
-        <Feather name="external-link" size={14} color="#ccc" />
+        <Feather name="external-link" size={14} color={theme.colors.textSecondary} />
       ) : (
-        <Feather name="chevron-right" size={16} color="#ccc" />
+        <Feather name="chevron-right" size={16} color={theme.colors.textSecondary} />
       )}
     </TouchableOpacity>
   );
@@ -267,7 +272,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
           <View style={styles.headerContent}>
             <Text style={styles.appTitleText}>Fish Log Co.</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Feather name="x" size={20} color={theme.colors.white} />
+              <Feather name="x" size={20} color={theme.colors.textOnPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -329,7 +334,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             <>
               <View style={styles.bulletinParchmentSection}>
                 {bulletins.slice(0, 3).map((bulletin) => {
-                  const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
+                  const cfg = bulletinConfig[bulletin.bulletinType];
                   const renderRightActions = (
                     _progress: Animated.AnimatedInterpolation<number>,
                     dragX: Animated.AnimatedInterpolation<number>
@@ -489,8 +494,8 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             icon="anchor"
             label="Boating Info"
             onPress={() => handleExternalLink("https://www.ncwildlife.org/boating")}
-            iconBgColor="#E3EBF6"
-            iconColor="#1E3A5F"
+            iconBgColor={theme.isDark ? theme.colors.surface : '#E3EBF6'}
+            iconColor={theme.isDark ? theme.colors.primary : '#1E3A5F'}
             isExternal
           />
 
@@ -569,7 +574,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     right: -BOUNCE_BUFFER, // Extend past screen edge to hide bounce
     width: MENU_WIDTH + BOUNCE_BUFFER,
     height: '100%',
-    backgroundColor: theme.colors.primary, // Match header so rounded corner shows correctly
+    backgroundColor: theme.colors.primaryDark, // Match HomeScreen header/footer
     zIndex: 1000,
     shadowColor: '#000',
     shadowOffset: { width: -4, height: 0 },
@@ -583,7 +588,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
 
   // Header
   menuHeader: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark, // Match HomeScreen header
     paddingTop: Platform.OS === 'android' ? 74 : 60, // Match HomeScreen header position
     paddingBottom: 32, // Larger header area to match HomeScreen
     paddingLeft: 20,
@@ -597,7 +602,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   appTitleText: {
     fontSize: 20, // Match HomeScreen title
     fontWeight: 'bold',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   closeButton: {
     padding: 8,
@@ -642,7 +647,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   profileName: {
     fontSize: 15,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   profileSubtitle: {
     fontSize: 11,
@@ -708,22 +713,22 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   menuItemLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.colors.textPrimary,
   },
   menuItemSubtitle: {
     fontSize: 11,
-    color: '#888888',
+    color: theme.colors.textSecondary,
     marginTop: 1,
   },
   menuItemDisabled: {
     opacity: 0.7,
   },
   menuItemLabelDisabled: {
-    color: '#999',
+    color: theme.colors.textSecondary,
   },
   menuItemSubtitleDisabled: {
     fontSize: 11,
-    color: '#aaa',
+    color: theme.colors.textSecondary,
     marginTop: 1,
   },
   menuBadge: {
@@ -752,10 +757,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderWidth: 2,
-    borderColor: '#E8F5F4',
+    borderColor: theme.colors.surface,
   },
   menuCountBadgeText: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -763,7 +768,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   // Divider
   divider: {
     height: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.border,
     marginVertical: 6,
     marginHorizontal: 14,
   },
@@ -775,12 +780,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingLeft: 14,
     paddingRight: 14 + BOUNCE_BUFFER, // Extra padding for bounce buffer
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: theme.colors.border,
   },
   versionText: {
     textAlign: 'center',
     fontSize: 10,
-    color: '#bbbbbb',
+    color: theme.colors.textSecondary,
     marginTop: 6,
   },
 

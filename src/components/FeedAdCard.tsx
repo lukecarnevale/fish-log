@@ -99,7 +99,7 @@ const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
         {/* Company info overlay at top (matches angler section position) */}
         <View style={styles.topOverlay}>
           <View style={styles.companyIconContainer}>
-            <Feather name="shopping-bag" size={16} color={theme.colors.white} />
+            <Feather name="shopping-bag" size={16} color={theme.colors.textOnPrimary} />
           </View>
           <View style={styles.topTextContainer}>
             <Text style={styles.companyName} numberOfLines={1} maxFontSizeMultiplier={1.2}>{ad.companyName}</Text>
@@ -219,7 +219,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   companyName: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,

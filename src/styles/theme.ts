@@ -235,7 +235,10 @@ export const darkPalette: ColorPalette = {
 
   // Secondary — desaturated teal for dark backgrounds
   secondary: '#2AA5B0',
-  secondaryLight: '#1B3D42',
+  // Dark-mode secondary surface — matches the Profile screen header gradient
+  // start (#05626C → #06747F). Dark enough to feel at home in dark mode while
+  // keeping the teal identity vivid and alive.
+  secondaryLight: '#05626C',
 
   // Accent — slightly desaturated sunset orange
   accent: '#FF9A52',

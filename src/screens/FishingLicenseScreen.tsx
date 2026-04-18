@@ -29,7 +29,7 @@ import { spacing, borderRadius } from "../styles/common";
 import { useTheme } from "../contexts/ThemeContext";
 import { useThemedStyles } from "../hooks/useThemedStyles";
 import { Theme } from "../styles/theme";
-import styles from "../styles/fishingLicenseScreenStyles";
+import { createFishingLicenseScreenStyles } from "../styles/fishingLicenseScreenStyles";
 import LicenseTypePicker from "../components/LicenseTypePicker";
 import { NCFlagIcon } from "../components/NCFlagIcon";
 import ExpandableSection from "../components/ExpandableSection";
@@ -54,6 +54,7 @@ interface FishingLicenseScreenProps {
 
 const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation }) => {
   const { theme } = useTheme();
+  const styles = useThemedStyles(createFishingLicenseScreenStyles);
   const profileStyles = useThemedStyles(createProfileStyles);
   const flStyles = useThemedStyles(createFlStyles);
 
@@ -380,7 +381,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
           onPress={handleCloseEditForm}
           activeOpacity={0.7}
         >
-          <Feather name="x" size={24} color={theme.colors.white} />
+          <Feather name="x" size={24} color={theme.colors.textOnPrimary} />
         </TouchableOpacity>
         <Text style={styles.formHeaderTitle}>Edit License</Text>
         <View style={{ width: 40 }} />
@@ -602,7 +603,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               onPress={() => setInfoModalVisible(true)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Feather name="info" size={20} color={theme.colors.white} />
+              <Feather name="info" size={20} color={theme.colors.textOnPrimary} />
             </TouchableOpacity>
           </View>
           
@@ -649,7 +650,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
                 accessibilityLabel="Edit license"
                 testID="license-edit-button"
               >
-                <Feather name="edit-2" size={20} color={theme.colors.white} />
+                <Feather name="edit-2" size={20} color={theme.colors.textOnPrimary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -723,7 +724,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             onPress={() => safeOpenURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
             activeOpacity={0.8}
           >
-            <Feather name="external-link" size={16} color={theme.colors.white} />
+            <Feather name="external-link" size={16} color={theme.colors.textOnPrimary} />
             <Text style={styles.lookupButtonText}>Look Up My License</Text>
           </TouchableOpacity>
         </View>
@@ -818,7 +819,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             onPress={() => toggleEditMode(true)}
             activeOpacity={0.8}
           >
-            <Feather name="plus" size={16} color={theme.colors.white} />
+            <Feather name="plus" size={16} color={theme.colors.textOnPrimary} />
             <Text style={styles.addLicensePillText}>Add License</Text>
           </TouchableOpacity>
         </View>
@@ -894,7 +895,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             onPress={() => safeOpenURL('https://license.gooutdoorsnorthcarolina.com/Licensing/CustomerLookup.aspx')}
             activeOpacity={0.8}
           >
-            <Feather name="external-link" size={16} color={theme.colors.white} />
+            <Feather name="external-link" size={16} color={theme.colors.textOnPrimary} />
             <Text style={styles.lookupButtonText}>Look Up My License</Text>
           </TouchableOpacity>
         </View>
@@ -925,7 +926,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
               onPress={() => navigation.goBack()}
               activeOpacity={0.7}
             >
-              <Feather name="arrow-left" size={24} color={theme.colors.white} />
+              <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
             </TouchableOpacity>
             <View style={flStyles.headerTextContainer}>
               <Text style={flStyles.headerTitle}>{SCREEN_LABELS.fishingLicense.title}</Text>
@@ -956,7 +957,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Feather name="arrow-left" size={24} color={theme.colors.white} />
+            <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
           <View style={flStyles.headerTextContainer}>
             <Text style={flStyles.headerTitle}>{SCREEN_LABELS.fishingLicense.title}</Text>
@@ -1042,7 +1043,7 @@ const createProfileStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   profileLinkText: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontWeight: "600" as const,
     marginLeft: spacing.xs,
   },
@@ -1086,11 +1087,11 @@ const createFlStyles = (theme: Theme) => StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.85,
     marginTop: 2,
   },

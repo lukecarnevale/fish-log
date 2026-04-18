@@ -316,10 +316,10 @@ const PartnerInquiryScreen: React.FC<Props> = ({ navigation }) => {
             activeOpacity={0.8}
           >
             {submitting ? (
-              <ActivityIndicator size="small" color={theme.colors.white} />
+              <ActivityIndicator size="small" color={theme.colors.textOnPrimary} />
             ) : (
               <>
-                <Feather name="send" size={18} color={theme.colors.white} />
+                <Feather name="send" size={18} color={theme.colors.textOnPrimary} />
                 <Text style={styles.submitButtonText}>Submit Inquiry</Text>
               </>
             )}
@@ -409,7 +409,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.darkGray,
   },
   typeChipTextSelected: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontWeight: '600',
   },
   areaChip: {
@@ -430,7 +430,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.secondary,
   },
   areaChipTextSelected: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontWeight: '600',
   },
   submitButton: {
@@ -450,7 +450,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   // Success state
   successContainer: {
@@ -486,7 +486,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   successButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

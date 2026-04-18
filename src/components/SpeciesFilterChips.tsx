@@ -83,12 +83,12 @@ const SpeciesFilterChips: React.FC<SpeciesFilterChipsProps> = ({ filters, isExpa
               <Feather
                 name={filter.icon as any}
                 size={14}
-                color={filter.isActive ? theme.colors.white : chipColor}
+                color={filter.isActive ? theme.colors.textOnPrimary : chipColor}
               />
               <Text
                 style={[
                   chipStyles.label,
-                  { color: filter.isActive ? theme.colors.white : chipColor },
+                  { color: filter.isActive ? theme.colors.textOnPrimary : chipColor },
                 ]}
               >
                 {filter.label}
@@ -145,7 +145,7 @@ const createChipStyles = (theme: Theme) => StyleSheet.create({
   badgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

@@ -22,7 +22,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useThemedStyles } from '../hooks/useThemedStyles';
 import { Theme } from '../styles/theme';
 import { formatBulletinDate } from '../utils/dateUtils';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { getBulletinTypeConfig } from '../constants/bulletin';
 import { useBulletins } from '../contexts/BulletinContext';
 import type { Bulletin } from '../types/bulletin';
 
@@ -59,6 +59,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
   const styles = useThemedStyles(createStyles);
   const { isBulletinRead } = useBulletins();
   const [expanded, setExpanded] = useState(true);
+  const bulletinConfig = getBulletinTypeConfig(theme);
 
   const toggleExpanded = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -74,7 +75,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
     <View style={styles.container}>
       {/* Parchment gradient background for the whole card */}
       <LinearGradient
-        colors={[theme.colors.parchment, '#FDF6E9']}
+        colors={[theme.colors.parchment, theme.colors.parchment]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -140,7 +141,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
         <>
           <View style={styles.bulletinList}>
             {bulletins.slice(0, MAX_VISIBLE).map((bulletin) => {
-              const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
+              const cfg = bulletinConfig[bulletin.bulletinType];
 
               return (
                 <TouchableOpacity
@@ -176,7 +177,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                     )}
                   </View>
 
-                  <Feather name="chevron-right" size={16} color="#C9B68E" />
+                  <Feather name="chevron-right" size={16} color={theme.colors.parchmentTextSecondary} />
                 </TouchableOpacity>
               );
             })}
@@ -257,13 +258,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.colors.parchment,
+    // Header gradient is dark amber in both light and dark modes, so the title
+    // must always be a light cream — using `theme.colors.parchment` would make
+    // this nearly invisible in dark mode where parchment is dark brown.
+    color: theme.isDark ? theme.colors.parchmentText : theme.colors.parchment,
     lineHeight: 24,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 11,
     fontWeight: '500',
+    // parchmentTextSecondary reads as a muted cream on the dark amber gradient
+    // in both modes (light: #A3865A, dark: #A39272).
     color: theme.colors.parchmentTextSecondary,
     marginTop: 2,
     textAlign: 'center',
@@ -277,7 +283,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   bulletinCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFDF8',
+    backgroundColor: theme.colors.parchment,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: theme.colors.parchmentBorder,
@@ -338,8 +344,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: theme.colors.advisory,
+    borderWidth: 1,
+    // Tinted advisory border so the button reads as accented without glowing
+    // against the parchment background, especially in dark mode.
+    borderColor: theme.isDark
+      ? 'rgba(240,138,74,0.45)'
+      : 'rgba(234,88,12,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -353,7 +363,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#D4C5A9',
+    borderColor: theme.colors.parchmentBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },

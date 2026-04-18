@@ -44,6 +44,11 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
 
   return (
     <View style={styles.card}>
+      {/* Nautical navigation lights — port (red) left, starboard (green) right */}
+      {/* Positioned on the card so the card's overflow:hidden clips them into the corners */}
+      {theme.isDark && <View style={styles.navLightPort} />}
+      {theme.isDark && <View style={styles.navLightStarboard} />}
+
       {/* Greeting Section */}
       {userName !== '' && (
         <View style={[styles.greeting, { position: 'relative', overflow: 'hidden' }]}>
@@ -59,7 +64,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 transition={200}
               />
             ) : (
-              <Feather name="anchor" size={30} color={theme.colors.white} />
+              <Feather name="anchor" size={30} color={theme.colors.textOnPrimary} />
             )}
           </View>
           <View style={[styles.greetingText, { zIndex: 1 }]}>
@@ -106,7 +111,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
                         index > 0 && { marginLeft: -8 },
                       ]}
                     >
-                      <Feather name={iconName} size={14} color={theme.colors.white} />
+                      <Feather name={iconName} size={14} color={theme.colors.textOnPrimary} />
                     </View>
                   );
                 })}
@@ -144,7 +149,9 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.secondary,
+    // secondaryLight in dark mode is a deep-teal (#1B3D42) — muted without
+    // losing the teal identity. Light mode keeps the full-saturation teal.
+    backgroundColor: theme.isDark ? theme.colors.secondaryLight : theme.colors.secondary,
     borderRadius: borderRadius.lg,
     marginHorizontal: spacing.md,
     marginBottom: 0,
@@ -175,25 +182,25 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   greetingLine: {
     fontSize: 14,
     fontWeight: '500',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.9,
   },
   userName: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     marginVertical: 2,
   },
   rewardsSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: theme.colors.surface,
     padding: spacing.sm,
     paddingHorizontal: spacing.md,
   },
   rewardsSectionWithGreeting: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.3)',
+    borderTopColor: theme.colors.divider,
   },
   rewardsIcon: {
     width: 32,
@@ -239,7 +246,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   achievementIconsRow: {
     flexDirection: 'row',
@@ -265,7 +272,39 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   achievementCountText: {
     fontSize: 10,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
+  },
+
+  // Nautical navigation lights — decorative port/starboard corners
+  navLightPort: {
+    position: 'absolute',
+    top: -18,
+    left: -14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E53935',
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    elevation: 4,
+    zIndex: 2,
+  },
+  navLightStarboard: {
+    position: 'absolute',
+    top: -18,
+    right: -14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#43A047',
+    shadowColor: '#43A047',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    elevation: 4,
+    zIndex: 2,
   },
 });
 

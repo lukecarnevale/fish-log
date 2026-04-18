@@ -64,7 +64,7 @@ import { profileSchema } from "../constants/validationSchemas";
 import { PHONE_MASK } from "../constants/inputMasks";
 import * as yup from 'yup';
 import DefaultAnglerAvatarIcon from "../components/icons/DefaultAnglerAvatarIcon";
-import { styles, localStyles } from "../styles/profileScreenStyles";
+import { createProfileMainStyles, createProfileLocalStyles } from "../styles/profileScreenStyles";
 import ProfileStats from "./profile/ProfileStats";
 import ProfileAchievements from "./profile/ProfileAchievements";
 import { useFloatingHeaderAnimation } from "../hooks/useFloatingHeaderAnimation";
@@ -72,8 +72,10 @@ import FloatingBackButton from "../components/FloatingBackButton";
 import UnsavedChangesModal from "../components/UnsavedChangesModal";
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
-  const { theme } = useTheme();
+  const { theme, themeMode, setThemeMode, darkModeAvailable } = useTheme();
   const photoPreviewStyles = useThemedStyles(createPhotoPreviewStyles);
+  const styles = useThemedStyles(createProfileMainStyles);
+  const localStyles = useThemedStyles(createProfileLocalStyles);
 
   const [profile, setProfile] = useState<UserProfile>({});
   const [loading, setLoading] = useState<boolean>(true);
@@ -906,7 +908,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           onPress={handleCloseEditForm}
           activeOpacity={0.7}
         >
-          <Feather name="x" size={24} color={theme.colors.white} />
+          <Feather name="x" size={24} color={theme.colors.textOnPrimary} />
         </TouchableOpacity>
         <Text style={styles.formHeaderTitle}>Edit Profile</Text>
         <View style={{ width: 40 }} />
@@ -1234,7 +1236,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={localStyles.deleteAccountSection}>
             <View style={localStyles.deleteAccountHeader}>
               <View style={localStyles.deleteAccountIcon}>
-                <Feather name="alert-triangle" size={18} color={theme.colors.white} />
+                <Feather name="alert-triangle" size={18} color={theme.colors.textOnPrimary} />
               </View>
               <Text style={localStyles.deleteAccountTitle}>Delete Account</Text>
             </View>
@@ -1374,7 +1376,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               onPress={() => navigation.goBack()}
               activeOpacity={0.7}
             >
-              <Feather name="arrow-left" size={24} color={theme.colors.white} />
+              <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Profile</Text>
             <View style={styles.headerSpacer} />
@@ -1430,7 +1432,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={[styles.infoSection, localStyles.rewardsMemberSection]}>
             <View style={localStyles.rewardsMemberHeader}>
               <View style={localStyles.rewardsMemberIcon}>
-                <Feather name="award" size={20} color={theme.colors.white} />
+                <Feather name="award" size={20} color={theme.colors.textOnPrimary} />
               </View>
               <View style={localStyles.rewardsMemberInfo}>
                 <Text style={localStyles.rewardsMemberTitle}>Rewards Member</Text>
@@ -1465,7 +1467,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={[styles.infoSection, localStyles.pendingAuthSection]}>
             <View style={localStyles.pendingAuthHeader}>
               <View style={localStyles.pendingAuthIcon}>
-                <Feather name="mail" size={20} color={theme.colors.white} />
+                <Feather name="mail" size={20} color={theme.colors.textOnPrimary} />
               </View>
               <Text style={localStyles.pendingAuthTitle}>Rewards Sign Up Pending</Text>
             </View>
@@ -1519,10 +1521,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 activeOpacity={0.7}
               >
                 {isResendingLink ? (
-                  <ActivityIndicator size="small" color={theme.colors.white} />
+                  <ActivityIndicator size="small" color={theme.colors.textOnPrimary} />
                 ) : (
                   <>
-                    <Feather name="send" size={16} color={theme.colors.white} />
+                    <Feather name="send" size={16} color={theme.colors.textOnPrimary} />
                     <Text style={localStyles.pendingAuthButtonText}>
                       {isEditingPendingEmail ? 'Send Link' : 'Resend Link'}
                     </Text>
@@ -1545,7 +1547,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={[styles.infoSection, localStyles.signInSection]}>
             <View style={localStyles.signInHeader}>
               <View style={localStyles.signInIcon}>
-                <Feather name="award" size={20} color={theme.colors.white} />
+                <Feather name="award" size={20} color={theme.colors.textOnPrimary} />
               </View>
               <Text style={localStyles.signInTitle}>Quarterly Rewards</Text>
             </View>
@@ -1621,10 +1623,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     activeOpacity={0.7}
                   >
                     {isSendingSignInLink ? (
-                      <ActivityIndicator size="small" color={theme.colors.white} />
+                      <ActivityIndicator size="small" color={theme.colors.textOnPrimary} />
                     ) : (
                       <>
-                        <Feather name="send" size={16} color={theme.colors.white} />
+                        <Feather name="send" size={16} color={theme.colors.textOnPrimary} />
                         <Text style={localStyles.signInSubmitText}>Send Sign-In Link</Text>
                       </>
                     )}
@@ -1656,7 +1658,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 }}
                 activeOpacity={0.7}
               >
-                <Feather name="user-plus" size={18} color={theme.colors.white} />
+                <Feather name="user-plus" size={18} color={theme.colors.textOnPrimary} />
                 <Text style={localStyles.joinRewardsText}>{profile.email ? 'Sign In to Rewards Program' : 'Join Rewards Program'}</Text>
               </TouchableOpacity>
             )}
@@ -1763,11 +1765,63 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           )}
         </View>
 
+        {darkModeAvailable && (
+          <View style={styles.infoSection}>
+            <Text style={styles.infoSectionTitle}>Preferences</Text>
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconContainer}>
+                <Feather
+                  name={theme.isDark ? 'moon' : 'sun'}
+                  size={18}
+                  color={theme.colors.primary}
+                />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Appearance</Text>
+                <View style={[styles.toggleRow, localStyles.themeToggleRow]}>
+                  {(['light', 'dark', 'system'] as const).map((mode) => {
+                    const isActive = themeMode === mode;
+                    const label =
+                      mode === 'light'
+                        ? 'Light'
+                        : mode === 'dark'
+                        ? 'Dark'
+                        : 'System';
+                    return (
+                      <TouchableOpacity
+                        key={mode}
+                        style={[
+                          styles.toggleButton,
+                          localStyles.themeToggleButton,
+                          isActive && styles.toggleButtonActive,
+                        ]}
+                        onPress={() => setThemeMode(mode)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isActive }}
+                        accessibilityLabel={`${label} appearance`}
+                      >
+                        <Text
+                          style={[
+                            styles.toggleButtonText,
+                            isActive && styles.toggleButtonTextActive,
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
         <TouchableOpacity
           style={styles.editButton}
           onPress={() => animateTransition(true)}
         >
-          <Feather name="edit-2" size={18} color={theme.colors.white} />
+          <Feather name="edit-2" size={18} color={theme.colors.textOnPrimary} />
           <Text style={styles.editButtonText}>Edit Profile</Text>
         </TouchableOpacity>
       </View>

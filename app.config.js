@@ -13,6 +13,12 @@ module.exports = {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
       backgroundColor: "#1B808C",
+      // Dark mode splash uses a deeper navy that matches the dark theme background
+      dark: {
+        image: "./assets/splash-icon.png",
+        resizeMode: "contain",
+        backgroundColor: "#0D1B2A",
+      },
     },
     ios: {
       supportsTablet: true,

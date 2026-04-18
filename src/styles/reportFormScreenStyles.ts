@@ -1,6 +1,7 @@
 // styles/reportFormScreenStyles.ts
 import { StyleSheet, ViewStyle, TextStyle, ImageStyle } from 'react-native';
 import { colors, spacing, typography, borderRadius, shadows } from './common';
+import { Theme } from './theme';
 
 interface ReportFormScreenStyles {
   container: ViewStyle;
@@ -345,3 +346,300 @@ const reportFormScreenStyles = StyleSheet.create<ReportFormScreenStyles>({
 });
 
 export default reportFormScreenStyles;
+
+// Theme-aware factory function
+export const createReportFormScreenStyles = (theme: Theme) =>
+  StyleSheet.create<ReportFormScreenStyles>({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    headerAccent: {
+      // Kept for backwards compatibility but no longer used
+      height: 0,
+      backgroundColor: 'transparent',
+      width: '100%',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: -1,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+    },
+    scrollContainer: {
+      flex: 1,
+      backgroundColor: 'transparent',
+    },
+    scrollContent: {
+      paddingBottom: spacing.xl * 2,
+    },
+    content: {
+      padding: spacing.screenHorizontal,
+    },
+    section: {
+      backgroundColor: theme.colors.card,
+      borderRadius: borderRadius.xl,
+      padding: spacing.lg,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+      borderTopWidth: 0,
+      shadowColor: 'rgba(0, 69, 126, 0.12)',
+      shadowOffset: {
+        width: 0,
+        height: 10
+      },
+      shadowOpacity: 0.2,
+      shadowRadius: 15,
+      elevation: 10,
+    },
+    sectionTitle: {
+      ...typography.heading,
+      color: theme.colors.primary,
+      marginBottom: spacing.md,
+      fontWeight: '800',
+      fontSize: 22,
+      letterSpacing: 0.5,
+      paddingLeft: spacing.sm,
+    },
+    label: {
+      ...typography.bodySmall,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+      marginBottom: spacing.xs,
+      marginTop: spacing.sm,
+    },
+    input: {
+      minHeight: 52,
+      paddingVertical: 10,
+      textAlignVertical: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: borderRadius.lg,
+      paddingHorizontal: spacing.md,
+      backgroundColor: theme.colors.white,
+      color: theme.colors.textPrimary,
+      marginBottom: spacing.md,
+      fontSize: 16,
+      shadowColor: 'rgba(0, 0, 0, 0.05)',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 1,
+    },
+    textArea: {
+      height: 120,
+      textAlignVertical: 'top',
+    },
+    selectorButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.colors.white,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: borderRadius.lg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      marginBottom: spacing.md,
+      shadowColor: 'rgba(0, 0, 0, 0.05)',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 1,
+    },
+    selectorText: {
+      fontSize: 16,
+      color: theme.colors.black,
+    },
+    selectorPlaceholder: {
+      fontSize: 16,
+      color: theme.colors.mediumGray,
+    },
+    selectorArrow: {
+      fontSize: 12,
+      color: theme.colors.primary,
+    },
+    datePickerButton: {
+      backgroundColor: theme.colors.white,
+      borderWidth: 1.5,
+      borderColor: theme.colors.border,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      marginBottom: spacing.md,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    dateText: {
+      fontSize: 16,
+      color: theme.colors.black,
+    },
+    locationContainer: {
+      marginBottom: spacing.sm,
+    },
+    locationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: spacing.xs,
+    },
+    switchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginVertical: spacing.sm,
+    },
+    switchLabel: {
+      fontSize: 16,
+      color: theme.colors.darkGray,
+    },
+    disabledInput: {
+      backgroundColor: theme.colors.lightGray,
+    },
+    submitButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 30,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: spacing.lg,
+      marginHorizontal: spacing.lg,
+      flexDirection: 'row',
+      shadowColor: 'rgba(0, 69, 126, 0.4)',
+      shadowOffset: {
+        width: 0,
+        height: 6
+      },
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    submitButtonText: {
+      color: theme.colors.white,
+      fontSize: 18,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+      marginLeft: spacing.sm,
+    },
+    requiredFields: {
+      fontSize: 14,
+      color: theme.colors.darkGray,
+      textAlign: 'center',
+      marginBottom: spacing.xl,
+    },
+    photoInstructions: {
+      fontSize: 16,
+      color: theme.colors.darkGray,
+      marginBottom: spacing.md,
+    },
+    photoButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+    },
+    photoButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.lg,
+      minWidth: '48%',
+      alignItems: 'center',
+      shadowColor: 'rgba(0, 69, 126, 0.25)',
+      shadowOffset: {
+        width: 0,
+        height: 3
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 5,
+      elevation: 4,
+    },
+    photoButtonText: {
+      color: theme.colors.white,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    photoPreviewContainer: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.md,
+      borderRadius: borderRadius.md,
+      overflow: 'hidden',
+    },
+    photoPreview: {
+      width: '100%',
+      height: 200,
+      borderRadius: borderRadius.md,
+    },
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: theme.colors.overlay,
+    },
+    modalContent: {
+      backgroundColor: theme.colors.white,
+      borderTopLeftRadius: borderRadius.lg,
+      borderTopRightRadius: borderRadius.lg,
+      paddingVertical: spacing.lg,
+      maxHeight: '80%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      marginBottom: spacing.sm,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: theme.colors.black,
+    },
+    closeButton: {
+      fontSize: 16,
+      color: theme.colors.primary,
+      fontWeight: '600',
+    },
+    optionItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+    },
+    optionText: {
+      fontSize: 16,
+      color: theme.colors.darkGray,
+    },
+    checkmark: {
+      color: theme.colors.primary,
+      fontSize: 18,
+      fontWeight: 'bold',
+    },
+    separator: {
+      height: 1,
+      backgroundColor: theme.colors.border,
+      marginHorizontal: spacing.lg,
+    },
+    licenseRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    licenseButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.md,
+      marginLeft: spacing.sm,
+    },
+    licenseButtonText: {
+      color: theme.colors.white,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+  });

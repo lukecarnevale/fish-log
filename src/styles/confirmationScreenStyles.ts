@@ -1,6 +1,7 @@
 // styles/confirmationScreenStyles.ts
 import { StyleSheet, ViewStyle, TextStyle, ImageStyle } from 'react-native';
 import { colors, spacing, typography, borderRadius, shadows } from './common';
+import { Theme } from './theme';
 
 interface ConfirmationScreenStyles {
   container: ViewStyle;
@@ -155,5 +156,135 @@ const confirmationScreenStyles = StyleSheet.create<ConfirmationScreenStyles>({
     color: colors.primary,
   },
 });
+
+export const createConfirmationScreenStyles = (theme: Theme) =>
+  StyleSheet.create<ConfirmationScreenStyles>({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    content: {
+      padding: spacing.screenHorizontal,
+      paddingTop: spacing.lg,
+    },
+    header: {
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    icon: {
+      width: 100,
+      height: 100,
+      marginBottom: spacing.md,
+      tintColor: theme.colors.success,
+    },
+    title: {
+      ...typography.largeTitle,
+      color: theme.colors.success,
+      marginBottom: spacing.xs,
+      textAlign: 'center',
+    },
+    subtitle: {
+      ...typography.subtitle,
+      textAlign: 'center',
+      maxWidth: '80%',
+      lineHeight: 22,
+    },
+    summaryContainer: {
+      backgroundColor: theme.colors.card,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.lg,
+      ...shadows.medium,
+    },
+    summaryTitle: {
+      ...typography.heading,
+      marginBottom: spacing.md,
+      color: theme.colors.black,
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    summaryLabel: {
+      ...typography.bodySmall,
+      fontWeight: '600',
+      color: theme.colors.darkGray,
+    },
+    summaryValue: {
+      ...typography.bodySmall,
+      fontWeight: '700',
+      color: theme.colors.black,
+      maxWidth: '60%',
+      textAlign: 'right',
+    },
+    photoContainer: {
+      marginTop: spacing.md,
+    },
+    photo: {
+      width: '100%',
+      height: 200,
+      borderRadius: borderRadius.md,
+      marginTop: spacing.xs,
+    },
+    infoContainer: {
+      backgroundColor: theme.colors.info,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      paddingBottom: spacing.lg + 28,
+      marginBottom: spacing.lg,
+      ...shadows.small,
+    },
+    infoTitle: {
+      ...typography.heading,
+      color: theme.colors.black,
+      marginBottom: spacing.sm,
+    },
+    infoText: {
+      ...typography.body,
+      color: theme.colors.darkGray,
+      marginBottom: spacing.md,
+    },
+    reportIdText: {
+      ...typography.bodySmall,
+      fontWeight: '600',
+      color: theme.colors.darkGray,
+    },
+    buttonContainer: {
+      marginVertical: spacing.lg,
+    },
+    button: {
+      backgroundColor: theme.colors.success,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      marginBottom: spacing.md,
+      ...shadows.medium,
+    },
+    buttonText: {
+      ...typography.buttonText,
+      color: theme.colors.white,
+    },
+    secondaryButton: {
+      backgroundColor: theme.colors.card,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      borderWidth: 1.5,
+      borderColor: theme.colors.primary,
+    },
+    secondaryButtonText: {
+      ...typography.buttonText,
+      color: theme.colors.primary,
+    },
+  });
 
 export default confirmationScreenStyles;

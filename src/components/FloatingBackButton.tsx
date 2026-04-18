@@ -40,7 +40,7 @@ const FloatingBackButton: React.FC<FloatingBackButtonProps> = ({
       style={fbStyles.touchable}
       hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
     >
-      <Feather name="arrow-left" size={22} color={theme.colors.white} />
+      <Feather name="arrow-left" size={22} color={theme.colors.textOnPrimary} />
     </TouchableOpacity>
   </Animated.View>
   );
@@ -52,7 +52,7 @@ const createFbStyles = (theme: Theme) => StyleSheet.create({
     top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 52,
     left: 16,
     zIndex: 100,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
     borderRadius: borderRadius.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

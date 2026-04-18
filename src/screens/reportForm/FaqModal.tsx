@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { localStyles } from '../../styles/reportFormScreenLocalStyles';
+import { createReportFormLocalStyles } from '../../styles/reportFormScreenLocalStyles';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { safeOpenURL } from '../../utils/openURL';
 
 interface FaqModalProps {
@@ -20,6 +21,7 @@ interface FaqModalProps {
 
 const FaqModal: React.FC<FaqModalProps> = ({ visible, onClose }) => {
   const { theme } = useTheme();
+  const localStyles = useThemedStyles(createReportFormLocalStyles);
 
   return (
     <Modal

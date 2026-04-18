@@ -23,7 +23,7 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 import { Theme } from '../styles/theme';
 import { safeOpenURL } from '../utils/openURL';
 import type { Bulletin } from '../types/bulletin';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { getBulletinTypeConfig } from '../constants/bulletin';
 import { formatBulletinDateLong } from '../utils/dateUtils';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 
@@ -97,7 +97,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
 
   if (!bulletin) return null;
 
-  const config = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
+  const config = getBulletinTypeConfig(theme)[bulletin.bulletinType];
   const hasImages = bulletin.imageUrls.length > 0;
   const hasMultipleImages = bulletin.imageUrls.length > 1;
 
@@ -287,7 +287,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
               style={styles.fullscreenCloseButton}
               activeOpacity={0.7}
             >
-              <Feather name="x" size={24} color={theme.colors.white} />
+              <Feather name="x" size={24} color={theme.colors.textOnPrimary} />
             </TouchableOpacity>
           </View>
           {fullscreenImageUrl && (
@@ -401,7 +401,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   notesText: {
     ...typography.bodySmall,
-    color: '#000000',
+    color: theme.colors.parchmentText,
     flex: 1,
     lineHeight: 20,
   },
@@ -431,7 +431,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   primaryButtonText: {
     ...typography.button,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   dismissButton: {
     paddingVertical: spacing.sm,

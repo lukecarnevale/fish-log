@@ -146,7 +146,7 @@ const FilterPill: React.FC<{
       <Feather
         name="chevron-down"
         size={14}
-        color={isActive ? theme.colors.white : theme.colors.textSecondary}
+        color={isActive ? theme.colors.textOnPrimary : theme.colors.textSecondary}
       />
     </TouchableOpacity>
   );
@@ -673,7 +673,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
           />
-          <Feather name="plus" size={18} color={theme.colors.white} />
+          <Feather name="plus" size={18} color={theme.colors.textOnPrimary} />
           <Text style={styles.emptyCTAText}>Report Your Catch</Text>
         </TouchableOpacity>
       )}
@@ -693,7 +693,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         onPress={() => loadFeed(true)}
         activeOpacity={0.85}
       >
-        <Feather name="refresh-cw" size={16} color={theme.colors.white} />
+        <Feather name="refresh-cw" size={16} color={theme.colors.textOnPrimary} />
         <Text style={styles.retryButtonText}>Try Again</Text>
       </TouchableOpacity>
     </View>
@@ -754,7 +754,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           <Feather
             name="image"
             size={14}
-            color={showPhotosOnly ? theme.colors.white : theme.colors.textSecondary}
+            color={showPhotosOnly ? theme.colors.textOnPrimary : theme.colors.textSecondary}
           />
           <Text style={[styles.filterPillText, showPhotosOnly && styles.filterPillTextActive]}>
             Photos
@@ -812,7 +812,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   return (
     <View style={styles.screenContainer}>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} translucent />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primaryDark} translucent />
 
         {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
         <StatusBarScrollBlur scrollY={scrollY} />
@@ -837,7 +837,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
             style={styles.floatingBackTouchable}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
-            <Feather name="arrow-left" size={22} color={theme.colors.white} />
+            <Feather name="arrow-left" size={22} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -862,16 +862,16 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
               refreshing={refreshing}
               onRefresh={handleRefresh}
               colors={[theme.colors.primary]}
-              tintColor={theme.colors.white}
-              progressBackgroundColor={theme.colors.white}
+              tintColor={theme.colors.textOnPrimary}
+              progressBackgroundColor={theme.colors.textOnPrimary}
             />
           }
           // Header scrolls with content
           ListHeaderComponent={
-            <View style={{ backgroundColor: theme.colors.primary }}>
+            <View style={{ backgroundColor: theme.colors.primaryDark }}>
               {/* Scrolling header - dark blue background */}
               <LinearGradient
-                colors={[theme.colors.primary, theme.colors.primary]}
+                colors={[theme.colors.primaryDark, theme.colors.primaryDark]}
                 style={styles.scrollingHeader}
               >
                 <View style={styles.headerContent}>
@@ -881,7 +881,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
                     activeOpacity={0.7}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Feather name="arrow-left" size={24} color={theme.colors.white} />
+                    <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
                   </TouchableOpacity>
 
                   <View style={styles.headerTextContainer}>
@@ -957,11 +957,11 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 const createStyles = (theme: Theme) => StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: theme.colors.primary, // Dark blue for status bar area visibility
+    backgroundColor: theme.colors.primaryDark, // Dark background for status bar area visibility
   },
   container: {
     flex: 1,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
 
   // Scrolling header - part of FlatList, scrolls with content
@@ -989,11 +989,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.85,
     marginTop: 2,
   },
@@ -1017,7 +1017,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   liveText: {
     fontSize: 14,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 
   // Floating back button - appears when header scrolls away
@@ -1025,7 +1025,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     position: 'absolute',
     left: 16,
     zIndex: 100,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1043,7 +1043,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   // FlatList styles
   flatList: {
     flex: 1,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
   flatListContent: {
     backgroundColor: theme.colors.background,
@@ -1111,7 +1111,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     letterSpacing: 0.1,
   },
   filterPillTextActive: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontWeight: '700',
   },
 
@@ -1291,7 +1291,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   emptyCTAText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 
   // Error state
@@ -1336,7 +1336,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   retryButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

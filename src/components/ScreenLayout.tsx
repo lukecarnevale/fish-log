@@ -72,7 +72,7 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.primary, // Dark background for status bar visibility
+      backgroundColor: theme.colors.primaryDark, // Dark background for status bar visibility
     },
     loadingContainer: {
       flex: 1,
@@ -92,10 +92,10 @@ const createStyles = (theme: Theme) =>
       left: 0,
       right: 0,
       height: 500,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryDark,
     },
     header: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryDark,
       paddingTop: 60,
       paddingHorizontal: spacing.lg,
       paddingBottom: spacing.xl,
@@ -139,7 +139,7 @@ const createStyles = (theme: Theme) =>
     },
     noScrollContainer: {
       flex: 1,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryDark,
     },
     noScrollContentWrapper: {
       flex: 1,
@@ -196,7 +196,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   if (loading && loadingComponent) {
     return (
       <SafeAreaView style={styles.container} edges={["left", "right"]}>
-        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primaryDark : theme.colors.background} translucent animated />
         <View style={styles.loadingContainer}>
           {loadingComponent}
         </View>
@@ -249,7 +249,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   if (noScroll) {
     return (
       <SafeAreaView style={styles.noScrollContainer} edges={["left", "right"]}>
-        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
+        <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primaryDark : theme.colors.background} translucent animated />
         {renderHeader()}
         <View style={styles.noScrollContentWrapper}>
           <View style={[styles.noScrollContent, contentContainerStyle]}>
@@ -263,7 +263,7 @@ const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   // Scrollable layout with bounce areas
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      <StatusBar barStyle={activeBarStyle} backgroundColor={activeBarStyle === 'light-content' ? theme.colors.primary : theme.colors.background} translucent animated />
+      <StatusBar barStyle={activeBarStyle} backgroundColor={activeBarStyle === 'light-content' ? theme.colors.primaryDark : theme.colors.background} translucent animated />
       <ScrollView
         ref={activeScrollRef}
         style={styles.scrollView}

@@ -14,7 +14,10 @@ import { Theme } from '../styles/theme';
 // Prevent the native splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
-const TEAL = "#1B808C";
+// Brand splash background — matches app.config.js splash.backgroundColor.
+// Light mode uses brand teal; dark mode uses deep navy that matches darkPalette.background.
+const SPLASH_BG_LIGHT = "#1B808C";
+const SPLASH_BG_DARK = "#0D1B2A";
 const { width } = Dimensions.get("window");
 const ICON_SIZE = width * 0.38;
 
@@ -124,11 +127,11 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: TEAL,
+    backgroundColor: theme.isDark ? SPLASH_BG_DARK : SPLASH_BG_LIGHT,
   },
   splashContainer: {
     flex: 1,
-    backgroundColor: TEAL,
+    backgroundColor: theme.isDark ? SPLASH_BG_DARK : SPLASH_BG_LIGHT,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -151,7 +154,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 24,
     fontSize: 32,
     fontWeight: "700",
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     letterSpacing: 1,
   },
 });

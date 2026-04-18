@@ -213,7 +213,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   badgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -276,7 +276,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   promoCodeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     letterSpacing: 0.5,
   },
   linkIndicator: {

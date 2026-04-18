@@ -18,7 +18,7 @@ import { useThemedStyles } from '../hooks/useThemedStyles';
 import { Theme } from '../styles/theme';
 import { useBulletins } from '../contexts/BulletinContext';
 import type { Bulletin, BulletinType } from '../types/bulletin';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { getBulletinTypeConfig } from '../constants/bulletin';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 
 const BANNER_WAVE_MAP: Record<BulletinType, typeof WAVE_PRESETS[keyof typeof WAVE_PRESETS]> = {
@@ -73,7 +73,7 @@ export const SpeciesDetailBulletinBanner: React.FC<
 
   // Show the most urgent bulletin first
   const primaryBulletin = bulletins[0];
-  const typeConfig = BULLETIN_TYPE_CONFIG[primaryBulletin.bulletinType];
+  const typeConfig = getBulletinTypeConfig(theme)[primaryBulletin.bulletinType];
   const bannerStyle = getBannerStyleConfig(theme.colors)[primaryBulletin.bulletinType];
   const iconColor = typeConfig.color;
 

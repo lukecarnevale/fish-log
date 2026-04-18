@@ -124,7 +124,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
             onPress={handleLearnMore}
             activeOpacity={0.7}
           >
-            <Feather name="external-link" size={16} color="#666" />
+            <Feather name="external-link" size={16} color={theme.colors.textSecondary} />
             <Text style={styles.btnOutlineText}>Learn More</Text>
           </TouchableOpacity>
 
@@ -157,7 +157,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
                 onPress={() => setShowFaqModal(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name="x" size={24} color="#666" />
+                <Feather name="x" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -229,7 +229,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   subtitle: {
     fontSize: 13,
@@ -277,7 +277,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   fishName: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#555',
+    color: theme.colors.textPrimary,
     textAlign: 'center',
     lineHeight: 14,
   },
@@ -325,13 +325,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 25,
     borderWidth: 1.5,
-    borderColor: '#ccc',
+    borderColor: theme.colors.border,
     backgroundColor: theme.colors.white,
   },
   btnOutlineText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.textPrimary,
   },
   btnSolid: {
     flex: 1,
@@ -347,7 +347,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   btnSolidText: {
     fontSize: 14,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 
   // FAQ Modal styles
@@ -376,7 +376,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderBottomColor: theme.colors.divider,
   },
   faqModalHeaderLeft: {
     flexDirection: 'row',
@@ -386,7 +386,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   faqModalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#333',
+    color: theme.colors.textPrimary,
   },
   faqScrollView: {
     paddingHorizontal: 16,
@@ -394,17 +394,17 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   faqItem: {
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+    borderBottomColor: theme.colors.divider,
   },
   faqQuestion: {
     fontSize: 15,
     fontWeight: '600',
-    color: HEADER_BG,
+    color: theme.colors.primary,
     marginBottom: 6,
   },
   faqAnswer: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textPrimary,
     lineHeight: 20,
   },
   faqLinkButton: {
@@ -414,23 +414,23 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: 16,
     marginTop: 8,
     marginBottom: 16,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: 12,
   },
   faqLinkText: {
     fontSize: 14,
     fontWeight: '600',
-    color: HEADER_BG,
+    color: theme.colors.primary,
   },
   faqCloseButton: {
-    backgroundColor: HEADER_BG,
+    backgroundColor: theme.colors.primary,
     paddingVertical: 14,
     alignItems: 'center',
   },
   faqCloseButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

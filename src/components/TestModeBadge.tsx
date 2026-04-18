@@ -71,10 +71,10 @@ const TestModeBadge: React.FC<TestModeBadgeProps> = ({
 
   const content = (
     <View style={badgeStyle}>
-      <Feather name="alert-triangle" size={10} color={theme.colors.white} />
+      <Feather name="alert-triangle" size={10} color={theme.colors.textOnPrimary} />
       <Text style={styles.badgeText} maxFontSizeMultiplier={1.1}>TEST MODE</Text>
       {showInfo && (
-        <Feather name="info" size={10} color={theme.colors.white} style={styles.infoIcon} />
+        <Feather name="info" size={10} color={theme.colors.textOnPrimary} style={styles.infoIcon} />
       )}
     </View>
   );
@@ -118,7 +118,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     elevation: 5,
   },
   badgeText: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,

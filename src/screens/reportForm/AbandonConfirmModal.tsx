@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { localStyles } from '../../styles/reportFormScreenLocalStyles';
+import { createReportFormLocalStyles } from '../../styles/reportFormScreenLocalStyles';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
 
 interface AbandonConfirmModalProps {
   visible: boolean;
@@ -23,6 +24,7 @@ const AbandonConfirmModal: React.FC<AbandonConfirmModalProps> = ({
   onDiscard,
 }) => {
   const { theme } = useTheme();
+  const localStyles = useThemedStyles(createReportFormLocalStyles);
 
   return (
     <Modal

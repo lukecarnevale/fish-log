@@ -132,7 +132,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   discardText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

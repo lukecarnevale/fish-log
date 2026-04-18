@@ -365,14 +365,17 @@ export const localStyles = StyleSheet.create<HomeScreenLocalStyles>({
 });
 
 // Theme-aware factory function
-export const createHomeScreenStyles = (theme: Theme) =>
+export const createHomeScreenLocalStyles = (theme: Theme) =>
   StyleSheet.create<HomeScreenLocalStyles>({
     fixedHeader: {
       position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
-      backgroundColor: theme.colors.primary,
+      // Match the footer — use primaryDark so header and footer are the same
+      // tone. In dark mode primary is lifted to #3A8AC2 (too bright for large
+      // surfaces), while primaryDark stays a grounded navy.
+      backgroundColor: theme.colors.primaryDark,
       paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 60,
       paddingBottom: 20,
       zIndex: 1,
@@ -422,7 +425,7 @@ export const createHomeScreenStyles = (theme: Theme) =>
       top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 54,
       right: 16,
       zIndex: 100,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryDark, // Match fixed header
       borderRadius: borderRadius.md,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -481,7 +484,8 @@ export const createHomeScreenStyles = (theme: Theme) =>
       bottom: 0,
       left: 0,
       right: 0,
-      backgroundColor: theme.colors.primary,
+      // Must match footer background so it doesn't peek through below the wave
+      backgroundColor: theme.colors.primaryDark,
     },
     hamburgerBadge: {
       position: 'absolute',
@@ -510,7 +514,10 @@ export const createHomeScreenStyles = (theme: Theme) =>
       borderColor: theme.colors.badgeRed,
     },
     welcomeCard: {
-      backgroundColor: theme.colors.secondary,
+      // In dark mode secondary (#2AA5B0) is too vivid against a dark bg —
+      // secondaryLight (#1B3D42) is a deep-teal that reads as teal without
+      // glowing. Light mode keeps the full-saturation teal.
+      backgroundColor: theme.isDark ? theme.colors.secondaryLight : theme.colors.secondary,
       borderRadius: borderRadius.lg,
       marginHorizontal: spacing.md,
       marginBottom: 0,

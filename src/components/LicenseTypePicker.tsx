@@ -213,7 +213,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   cancelButtonText: {
     ...typography.button,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

@@ -91,7 +91,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
       <Feather
         name={disabled ? 'lock' : 'chevron-right'}
         size={16}
-        color={disabled ? '#999' : '#CCC'}
+        color={disabled ? theme.colors.textSecondary : theme.colors.textTertiary}
         style={styles.chevron}
       />
       <View style={styles.imageContainer}>
@@ -120,7 +120,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
       {disabled && (
         <View style={styles.disabledOverlay}>
           <View style={styles.lockBadge}>
-            <Feather name="lock" size={14} color="#666" />
+            <Feather name="lock" size={14} color={theme.colors.textSecondary} />
             <Text
               style={styles.lockText}
               numberOfLines={2}
@@ -148,7 +148,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     zIndex: 10,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 20,
     padding: 16,
     minHeight: 170,
@@ -156,7 +156,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     // Shadow for iOS
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -164,7 +164,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     elevation: 3,
   },
   cardDisabled: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   textContainer: {
     zIndex: 1,
@@ -178,18 +178,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: theme.colors.textPrimary,
   },
   titleDisabled: {
-    color: '#999',
+    color: theme.colors.textSecondary,
   },
   subtitle: {
     fontSize: 11,
-    color: '#999',
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   subtitleDisabled: {
-    color: '#BBB',
+    color: theme.colors.textTertiary,
   },
   chevron: {
     position: 'absolute',
@@ -235,7 +235,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   lockText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.textPrimary,
   },
 });
 

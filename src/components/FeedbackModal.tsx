@@ -200,10 +200,10 @@ export function FeedbackModal({
               activeOpacity={0.7}
             >
               {isSubmitting ? (
-                <ActivityIndicator color={theme.colors.white} size="small" />
+                <ActivityIndicator color={theme.colors.textOnPrimary} size="small" />
               ) : (
                 <>
-                  <Feather name="send" size={18} color={theme.colors.white} style={styles.submitIcon} />
+                  <Feather name="send" size={18} color={theme.colors.textOnPrimary} style={styles.submitIcon} />
                   <Text style={styles.submitButtonText}>Submit</Text>
                 </>
               )}
@@ -369,7 +369,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

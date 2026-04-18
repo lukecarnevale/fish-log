@@ -659,7 +659,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               <Feather
                 name={selectedReport?.type === "queued" ? "clock" : selectedReport?.reportType === "catch_log" ? "camera" : "check-circle"}
                 size={24}
-                color={theme.colors.white}
+                color={theme.colors.textOnPrimary}
               />
               <Text style={styles.modalStatusText}>
                 {selectedReport?.type === "queued" ? "Pending Sync" : selectedReport?.reportType === "catch_log" ? "Catch Log" : "Submitted to DMF"}
@@ -919,7 +919,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             style={styles.emptyButton}
             onPress={() => navigation.navigate("ReportForm")}
           >
-            <Feather name="plus" size={18} color={theme.colors.white} style={{ marginRight: 8 }} />
+            <Feather name="plus" size={18} color={theme.colors.textOnPrimary} style={{ marginRight: 8 }} />
             <Text style={styles.emptyButtonText}>Submit a Report</Text>
           </TouchableOpacity>
         )}
@@ -1176,7 +1176,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 4,
   },
   testModeBadgeText: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,
@@ -1538,7 +1538,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   emptyButtonText: {
     ...typography.button,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   // Modal styles
   modalContainer: {
@@ -1586,7 +1586,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   modalStatusText: {
     ...typography.h3,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     marginLeft: spacing.sm,
   },
   modalConfirmationBox: {
@@ -1700,7 +1700,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   modalCloseButtonText: {
     ...typography.button,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   // Modal raffle section
   modalRaffleSection: {
@@ -1930,7 +1930,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   dateModalConfirmText: {
     fontSize: 16,
     fontWeight: "600",
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

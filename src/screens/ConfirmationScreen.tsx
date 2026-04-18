@@ -23,7 +23,7 @@ import { StackNavigationProp } from "@react-navigation/stack";
 import { RouteProp, CommonActions } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import styles from "../styles/confirmationScreenStyles";
+import { createConfirmationScreenStyles } from "../styles/confirmationScreenStyles";
 import { WaveAccent, WAVE_PRESETS } from "../components/WaveAccent";
 import { RootStackParamList, FishReportData, HarvestReportInput } from "../types";
 import { spacing, borderRadius, typography } from "../styles/common";
@@ -70,7 +70,16 @@ interface ConfirmationScreenProps {
 
 const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({ route, navigation }) => {
   const { theme } = useTheme();
+  const styles = useThemedStyles(createConfirmationScreenStyles);
   const localStyles = useThemedStyles(createLocalStyles);
+
+  // Helper component for summary rows (defined inside to access themed styles)
+  const SummaryRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}:</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
 
   const { reportData } = route.params || { reportData: {} as FishReportData };
 
@@ -395,7 +404,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
     return (
       <View style={localStyles.errorContainer}>
         <View style={localStyles.errorIconCircle}>
-          <Feather name="alert-circle" size={50} color={theme.colors.white} />
+          <Feather name="alert-circle" size={50} color={theme.colors.textOnPrimary} />
         </View>
         <Text style={localStyles.errorTitle}>Submission Failed</Text>
         <Text style={localStyles.errorText}>{submitError}</Text>
@@ -404,7 +413,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           onPress={submitToDMF}
           activeOpacity={0.8}
         >
-          <Feather name="refresh-cw" size={18} color={theme.colors.white} style={{ marginRight: 8 }} />
+          <Feather name="refresh-cw" size={18} color={theme.colors.textOnPrimary} style={{ marginRight: 8 }} />
           <Text style={localStyles.retryButtonText}>Try Again</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -461,7 +470,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
           <View style={styles.header}>
             {/* Status icon */}
             <View style={[localStyles.iconCircle, { backgroundColor: headerColor }]}>
-              <Feather name={statusIcon} size={50} color={theme.colors.white} />
+              <Feather name={statusIcon} size={50} color={theme.colors.textOnPrimary} />
             </View>
             <Text style={styles.title}>
               {submitResult?.queued ? "Saved for Later" : "Thank You!"}
@@ -644,7 +653,7 @@ This report was submitted to the NC Division of Marine Fisheries.`;
               onPress={() => navigation.reset({ index: 0, routes: [{ name: "Home" }] })}
               activeOpacity={0.8}
             >
-              <Feather name="home" size={20} color={theme.colors.white} style={{ marginRight: 10 }} />
+              <Feather name="home" size={20} color={theme.colors.textOnPrimary} style={{ marginRight: 10 }} />
               <Text style={localStyles.primaryButtonText}>Return to Home</Text>
             </TouchableOpacity>
 
@@ -744,14 +753,6 @@ This report was submitted to the NC Division of Marine Fisheries.`;
   );
 };
 
-// Helper component for summary rows
-const SummaryRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <View style={styles.summaryRow}>
-    <Text style={styles.summaryLabel}>{label}:</Text>
-    <Text style={styles.summaryValue}>{value}</Text>
-  </View>
-);
-
 // Local styles
 const createLocalStyles = (theme: Theme) => StyleSheet.create({
   // Loading state
@@ -811,7 +812,7 @@ const createLocalStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: spacing.md,
   },
   retryButtonText: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontWeight: "600",
     fontSize: 16,
   },
@@ -847,7 +848,7 @@ const createLocalStyles = (theme: Theme) => StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     letterSpacing: 0.3,
   },
   closeButton: {
@@ -870,7 +871,7 @@ const createLocalStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 8,
   },
   testModeBadgeText: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,
@@ -1082,7 +1083,7 @@ const createLocalStyles = (theme: Theme) => StyleSheet.create({
     elevation: 4,
   },
   primaryButtonText: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontWeight: "700",
     fontSize: 17,
   },

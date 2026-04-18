@@ -198,7 +198,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Feather name="arrow-left" size={24} color={theme.colors.white} />
+              <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
             </TouchableOpacity>
 
             <View style={styles.headerTextContainer}>
@@ -285,7 +285,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.floatingBackTouchable}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
-            <Feather name="arrow-left" size={22} color={theme.colors.white} />
+            <Feather name="arrow-left" size={22} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -303,7 +303,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
                   activeOpacity={0.7}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Feather name="arrow-left" size={24} color={theme.colors.white} />
+                  <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
                 </TouchableOpacity>
 
                 <View style={styles.headerTextContainer}>
@@ -348,9 +348,9 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={theme.colors.white}
+                tintColor={theme.colors.textOnPrimary}
                 colors={[theme.colors.primary]}
-                progressBackgroundColor={theme.colors.white}
+                progressBackgroundColor={theme.colors.textOnPrimary}
               />
             }
           />
@@ -395,11 +395,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.85,
     marginTop: 2,
   },

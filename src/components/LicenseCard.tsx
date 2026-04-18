@@ -98,7 +98,7 @@ const LicenseCard: React.FC<LicenseCardProps> = ({
               </Text>
             )}
           </View>
-          <Feather name="chevron-right" size={24} color={theme.colors.white} />
+          <Feather name="chevron-right" size={24} color={theme.colors.textOnPrimary} />
         </View>
       </LinearGradient>
     </TouchableOpacity>
@@ -127,7 +127,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     marginBottom: 2,
   },
   subtitle: {
@@ -137,7 +137,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   licenseNumber: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     marginTop: 4,
   },
   rightSection: {
@@ -162,7 +162,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   activePillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     letterSpacing: 0.3,
   },
 });

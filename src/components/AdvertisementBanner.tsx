@@ -348,7 +348,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
             )}
           </View>
           <View style={styles.ctaContainer}>
-            <Feather name="external-link" size={16} color={theme.colors.white} />
+            <Feather name="external-link" size={16} color={theme.colors.textOnPrimary} />
           </View>
         </View>
       </View>
@@ -441,18 +441,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   companyName: {
     ...typography.subtitle,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontWeight: '700',
     marginBottom: 2,
   },
   promoText: {
     ...typography.bodySmall,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.9,
   },
   promoCodeText: {
     ...typography.caption,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.85,
     marginTop: 4,
   },
@@ -480,7 +480,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   sponsoredText: {
     ...typography.caption,
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'uppercase',

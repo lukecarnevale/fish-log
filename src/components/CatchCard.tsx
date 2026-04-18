@@ -381,7 +381,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.8)',
   },
   topAvatarInitial: {
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -391,7 +391,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   topAnglerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,

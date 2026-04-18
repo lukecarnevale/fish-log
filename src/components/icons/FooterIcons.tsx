@@ -31,6 +31,9 @@ export const GhostFish: React.FC<{
 );
 
 // Wave SVG component
+// Wave fill uses primaryDark (the deeper brand navy) to match the footer body
+// in both modes. Using `primary` here would be too washed-out in dark mode,
+// where primary intentionally lifts to a lighter brand accent.
 export const WaveTransition: React.FC = () => {
   const { theme } = useTheme();
   return (
@@ -43,7 +46,7 @@ export const WaveTransition: React.FC = () => {
     >
       <Path
         d={`M0 0 Q${SCREEN_WIDTH * 0.1} 25 ${SCREEN_WIDTH * 0.2} 18 Q${SCREEN_WIDTH * 0.3} 11 ${SCREEN_WIDTH * 0.4} 20 Q${SCREEN_WIDTH * 0.5} 29 ${SCREEN_WIDTH * 0.6} 18 Q${SCREEN_WIDTH * 0.7} 7 ${SCREEN_WIDTH * 0.8} 16 Q${SCREEN_WIDTH * 0.9} 25 ${SCREEN_WIDTH} 15 L${SCREEN_WIDTH} 35 L0 35 Z`}
-        fill={theme.colors.primary}
+        fill={theme.colors.primaryDark}
       />
     </Svg>
   </View>

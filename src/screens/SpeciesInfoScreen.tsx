@@ -24,7 +24,8 @@ import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../types";
 import { EnhancedFishSpecies } from "../types/fishSpecies";
 import { useAllFishSpecies } from "../api/speciesApi";
-import styles from "../styles/enhancedSpeciesStyles";
+import { createEnhancedSpeciesStyles } from "../styles/enhancedSpeciesStyles";
+import { createSpeciesInfoScreenStyles } from "../styles/speciesInfoScreenStyles";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
 import { useThemedStyles } from "../hooks/useThemedStyles";
@@ -56,6 +57,7 @@ interface SpeciesInfoScreenProps {
 
 // Skeleton loader for species cards
 const SkeletonCard: React.FC = () => {
+  const styles = useThemedStyles(createEnhancedSpeciesStyles);
   const pulseAnim = useRef(new Animated.Value(0.3)).current;
 
   React.useEffect(() => {
@@ -178,6 +180,9 @@ const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route }) => {
   const { theme } = useTheme();
+  const styles = useThemedStyles(createEnhancedSpeciesStyles);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const screenStyles = useThemedStyles(createSpeciesInfoScreenStyles);
   const localStyles = useThemedStyles(createLocalStyles);
   const closureStyles = useThemedStyles(createClosureStyles);
 
@@ -705,7 +710,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         {/* Harvest closure card — prominent, inside the regulations section */}
         {isClosed && (
           <View style={closureStyles.closureCard}>
-            <Feather name="alert-octagon" size={24} color={theme.colors.white} />
+            <Feather name="alert-octagon" size={24} color={theme.colors.textOnPrimary} />
             <View style={closureStyles.closureContent}>
               <Text style={closureStyles.closureTitle}>HARVEST CLOSED</Text>
               {selectedSpecies.harvestStatusNote && (
@@ -725,7 +730,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                   activeOpacity={0.7}
                 >
                   <Text style={closureStyles.viewAdvisoryText}>View Advisory</Text>
-                  <Feather name="chevron-right" size={14} color={theme.colors.white} />
+                  <Feather name="chevron-right" size={14} color={theme.colors.textOnPrimary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -735,7 +740,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
         {/* Harvest restriction card */}
         {isRestricted && (
           <View style={closureStyles.restrictionCard}>
-            <Feather name="alert-triangle" size={24} color={theme.colors.white} />
+            <Feather name="alert-triangle" size={24} color={theme.colors.textOnPrimary} />
             <View style={closureStyles.closureContent}>
               <Text style={closureStyles.closureTitle}>
                 {selectedSpecies.harvestStatus === 'catch_and_release'
@@ -759,7 +764,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
                   activeOpacity={0.7}
                 >
                   <Text style={closureStyles.viewAdvisoryText}>View Advisory</Text>
-                  <Feather name="chevron-right" size={14} color={theme.colors.white} />
+                  <Feather name="chevron-right" size={14} color={theme.colors.textOnPrimary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -1072,6 +1077,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
             <TextInput
               style={[styles.searchInput, localStyles.searchInput, localStyles.searchInputFlex]}
               placeholder="Search by name..."
+              placeholderTextColor={theme.colors.textSecondary}
               value={searchQuery}
               onChangeText={setSearchQuery}
               clearButtonMode="while-editing"
@@ -1320,7 +1326,7 @@ const createLocalStyles = (theme: Theme) => StyleSheet.create({
   alphabetLetterActive: {
     fontSize: 11,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     backgroundColor: theme.colors.primary,
     borderRadius: 8,
     width: 16,
@@ -1349,7 +1355,7 @@ const createLocalStyles = (theme: Theme) => StyleSheet.create({
   letterBubbleText: {
     fontSize: 28,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 
@@ -1389,7 +1395,7 @@ const createClosureStyles = (theme: Theme) => StyleSheet.create({
   closureTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     letterSpacing: 0.5,
   },
   closureNote: {
@@ -1413,7 +1419,7 @@ const createClosureStyles = (theme: Theme) => StyleSheet.create({
   viewAdvisoryText: {
     fontSize: 13,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.textOnPrimary,
     textDecorationLine: 'underline',
   },
 });

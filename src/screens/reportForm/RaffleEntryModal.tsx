@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { localStyles } from '../../styles/reportFormScreenLocalStyles';
+import { createReportFormLocalStyles } from '../../styles/reportFormScreenLocalStyles';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { validateEmail, validatePhone, formatPhoneNumber } from '../../utils/formValidation';
 import { FormState } from './reportForm.types';
 
@@ -57,6 +58,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
   onSubmitRaffle,
 }) => {
   const { theme } = useTheme();
+  const localStyles = useThemedStyles(createReportFormLocalStyles);
 
   return (
     <Modal
@@ -318,7 +320,7 @@ const RaffleEntryModal: React.FC<RaffleEntryModalProps> = ({
                          !formData.angler.email?.trim() || !!validateEmail(formData.angler.email || "") ||
                          !!validatePhone(formData.angler.phone || "")}
               >
-                <Feather name="check" size={18} color={theme.colors.white} />
+                <Feather name="check" size={18} color={theme.colors.textOnPrimary} />
                 <Text style={localStyles.raffleModalPrimaryButtonText}> Enter</Text>
               </TouchableOpacity>
             </View>
