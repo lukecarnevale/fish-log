@@ -14,7 +14,10 @@ import {
   UIManager,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { spacing, borderRadius, typography } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android') {
@@ -32,6 +35,8 @@ export const ExpandableSection: React.FC<ExpandableSectionProps> = ({
   children,
   defaultOpen = false,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [open, setOpen] = useState(defaultOpen);
   const rotation = useRef(new Animated.Value(defaultOpen ? 1 : 0)).current;
 
@@ -55,7 +60,7 @@ export const ExpandableSection: React.FC<ExpandableSectionProps> = ({
       <TouchableOpacity style={styles.header} onPress={toggle} activeOpacity={0.7}>
         <Text style={styles.title}>{title}</Text>
         <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
-          <Feather name="chevron-right" size={20} color={colors.primary} />
+          <Feather name="chevron-right" size={20} color={theme.colors.primary} />
         </Animated.View>
       </TouchableOpacity>
 
@@ -68,11 +73,11 @@ export const ExpandableSection: React.FC<ExpandableSectionProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -90,7 +95,7 @@ const styles = StyleSheet.create({
   title: {
     ...typography.body,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   body: {
     paddingHorizontal: spacing.md,

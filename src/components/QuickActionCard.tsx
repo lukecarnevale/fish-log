@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { Image, ImageStyle } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 interface QuickActionCardProps {
   title: string;
@@ -48,6 +51,8 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
   renderCornerBadge,
   renderTextBadge,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.cardWrapper}>
       {/* Corner badge - positioned at top-right edge of card */}
@@ -62,13 +67,23 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
         activeOpacity={disabled ? 0.7 : 0.7}
       >
       <View style={styles.textContainer}>
-        <Text style={[styles.title, disabled && styles.titleDisabled]}>{title}</Text>
+        <Text
+          style={[styles.title, disabled && styles.titleDisabled]}
+          numberOfLines={2}
+          maxFontSizeMultiplier={1.3}
+        >
+          {title}
+        </Text>
         {subtitle && (
-          <Text style={[
-            styles.subtitle,
-            subtitleColor && !disabled && { color: subtitleColor },
-            disabled && styles.subtitleDisabled,
-          ]}>
+          <Text
+            style={[
+              styles.subtitle,
+              subtitleColor && !disabled && { color: subtitleColor },
+              disabled && styles.subtitleDisabled,
+            ]}
+            numberOfLines={2}
+            maxFontSizeMultiplier={1.3}
+          >
             {subtitle}
           </Text>
         )}
@@ -76,7 +91,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
       <Feather
         name={disabled ? 'lock' : 'chevron-right'}
         size={16}
-        color={disabled ? '#999' : '#CCC'}
+        color={disabled ? theme.colors.textSecondary : theme.colors.textTertiary}
         style={styles.chevron}
       />
       <View style={styles.imageContainer}>
@@ -105,8 +120,14 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
       {disabled && (
         <View style={styles.disabledOverlay}>
           <View style={styles.lockBadge}>
-            <Feather name="lock" size={14} color="#666" />
-            <Text style={styles.lockText}>{disabledMessage}</Text>
+            <Feather name="lock" size={14} color={theme.colors.textSecondary} />
+            <Text
+              style={styles.lockText}
+              numberOfLines={2}
+              maxFontSizeMultiplier={1.2}
+            >
+              {disabledMessage}
+            </Text>
           </View>
         </View>
       )}
@@ -115,7 +136,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   cardWrapper: {
     flex: 1,
     position: 'relative',
@@ -127,15 +148,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: 20,
     padding: 16,
-    height: 170,
+    minHeight: 170,
     flex: 1,
     position: 'relative',
     overflow: 'hidden',
     // Shadow for iOS
-    shadowColor: '#000',
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -143,7 +164,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cardDisabled: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   textContainer: {
     zIndex: 1,
@@ -157,18 +178,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: theme.colors.textPrimary,
   },
   titleDisabled: {
-    color: '#999',
+    color: theme.colors.textSecondary,
   },
   subtitle: {
     fontSize: 11,
-    color: '#999',
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   subtitleDisabled: {
-    color: '#BBB',
+    color: theme.colors.textTertiary,
   },
   chevron: {
     position: 'absolute',
@@ -214,7 +235,7 @@ const styles = StyleSheet.create({
   lockText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.textPrimary,
   },
 });
 

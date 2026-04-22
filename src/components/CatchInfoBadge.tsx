@@ -6,8 +6,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing } from '../styles/common';
+import { spacing } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { SpeciesTheme } from '../constants/speciesColors';
+import { useFontScale, FONT_SCALE_CAP_BODY } from '../hooks/useFontScale';
 
 type BadgeVariant = 'species' | 'size' | 'location';
 
@@ -34,6 +38,13 @@ const CatchInfoBadge: React.FC<CatchInfoBadgeProps> = ({
   speciesTheme,
   maxWidth,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  // Scale the location badge's maxWidth with the OS font scale so longer
+  // truncated text still has room to breathe at large accessibility sizes.
+  const { fontScale } = useFontScale();
+  const scaledLocationMaxWidth = (maxWidth ?? 150) * Math.min(Math.max(fontScale, 1), FONT_SCALE_CAP_BODY);
+
   const getContainerStyle = () => {
     switch (variant) {
       case 'species':
@@ -41,7 +52,7 @@ const CatchInfoBadge: React.FC<CatchInfoBadgeProps> = ({
       case 'size':
         return styles.sizeContainer;
       case 'location':
-        return [styles.locationContainer, maxWidth ? { maxWidth } : null];
+        return [styles.locationContainer, { maxWidth: scaledLocationMaxWidth }];
       default:
         return styles.speciesContainer;
     }
@@ -64,7 +75,9 @@ const CatchInfoBadge: React.FC<CatchInfoBadgeProps> = ({
     if (variant === 'species' && speciesTheme) {
       return speciesTheme.primary;
     }
-    return 'rgba(255, 255, 255, 0.9)';
+    // Pill backgrounds are always white/near-white (hardcoded rgba(255,255,255,...)),
+    // so icons must always be dark regardless of theme mode.
+    return 'rgba(38, 50, 56, 0.65)';
   };
 
   const getIcon = (): keyof typeof Feather.glyphMap => {
@@ -112,7 +125,7 @@ const CatchInfoBadge: React.FC<CatchInfoBadgeProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   // Species badge - premium glassmorphism, prominent
   speciesContainer: {
     flexDirection: 'row',
@@ -139,7 +152,9 @@ const styles = StyleSheet.create({
   speciesText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textPrimary,
+    // Background is always rgba(255,255,255,0.92) — hardcode dark text so it
+    // remains readable in both light and dark mode.
+    color: '#263238',
     letterSpacing: 0.1,
   },
 
@@ -157,7 +172,8 @@ const styles = StyleSheet.create({
   sizeText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.textPrimary,
+    // Background is always rgba(255,255,255,0.75) — hardcode dark text.
+    color: '#263238',
     opacity: 0.9,
   },
 
@@ -176,7 +192,8 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.textPrimary,
+    // Background is always rgba(255,255,255,0.75) — hardcode dark text.
+    color: '#263238',
     opacity: 0.9,
     flexShrink: 1,
   },

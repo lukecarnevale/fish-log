@@ -8,8 +8,8 @@ import './services/deepLinkBuffer';
 import { initSentry, Sentry, sentryNavigationIntegration } from './config/sentry';
 initSentry();
 
-import React, { useState, useEffect } from "react";
-import { NavigationContainer, DefaultTheme, useNavigationContainerRef } from "@react-navigation/native";
+import React, { useState, useEffect, useCallback } from "react";
+import { NavigationContainer, DefaultTheme, DarkTheme, useNavigationContainerRef } from "@react-navigation/native";
 import {
   createStackNavigator,
   TransitionPresets,
@@ -20,10 +20,25 @@ import type { StackCardStyleInterpolator } from "@react-navigation/stack";
 import { Feather } from "@expo/vector-icons";
 import { colors } from "./styles/common";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { AppState, AppStateStatus, Platform, View, Text, StyleSheet } from 'react-native';
+import { AppState, AppStateStatus, Platform, View, Text, StyleSheet, TextInput } from 'react-native';
+
+// Global accessibility default: cap Dynamic Type scaling so layouts don't
+// break at the largest iOS/Android text sizes. Individual components can
+// override via `maxFontSizeMultiplier` prop, or use AppText/CaptionText/
+// BadgeText wrappers from ./components/AppText for tighter caps.
+// See src/components/AppText.tsx for details.
+// @ts-expect-error defaultProps exists at runtime on Text/TextInput
+Text.defaultProps = Text.defaultProps || {};
+// @ts-expect-error same
+Text.defaultProps.maxFontSizeMultiplier = 1.3;
+// @ts-expect-error defaultProps exists at runtime on TextInput
+TextInput.defaultProps = TextInput.defaultProps || {};
+// @ts-expect-error same
+TextInput.defaultProps.maxFontSizeMultiplier = 1.3;
 import { Image as ExpoImage } from 'expo-image';
 
 // Import Redux store
@@ -52,6 +67,9 @@ import { SpeciesAlertsProvider } from './contexts/SpeciesAlertsContext';
 
 // Import Force Update context for blocking outdated app versions
 import { ForceUpdateProvider } from './contexts/ForceUpdateContext';
+
+// Import Theme context for light/dark mode support
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 
 // Import Supabase config check
 import { isSupabaseConfigured } from './config/supabase';
@@ -85,20 +103,24 @@ import PromotionsScreen from "./screens/PromotionsScreen";
 import PartnerInquiryScreen from "./screens/PartnerInquiryScreen";
 
 // Import styles
-import { navigationStyles } from "./styles/navigationStyles";
+import { navigationStyles, buildNavigationStyles } from "./styles/navigationStyles";
 
-// Create a custom navigation theme
-const AppTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: (navigationStyles.screenOptions.headerStyle as { backgroundColor: string })?.backgroundColor ?? '#0B548B',
-    background: (navigationStyles.screenOptions.cardStyle as { backgroundColor: string })?.backgroundColor ?? '#E5F4FF',
-    card: '#FFFFFF',
-    text: '#263238',
-    border: '#BBDEFB',
-  },
-};
+// Create theme-aware navigation themes
+function useNavigationTheme() {
+  const { theme } = useTheme();
+  const baseTheme = theme.isDark ? DarkTheme : DefaultTheme;
+  return {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.surfaceElevated,
+      text: theme.colors.textPrimary,
+      border: theme.colors.border,
+    },
+  };
+}
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -139,6 +161,22 @@ const forNoFlickerAndroid: StackCardStyleInterpolator = ({ current, next, layout
 
 // Component to initialize data and listeners on app startup
 const AppInitializer: React.FC = () => {
+  const { theme } = useTheme();
+
+  // Sync iOS keyboard appearance to the active theme so the on-screen
+  // keyboard matches dark mode (iOS only — Android keyboard styling is
+  // controlled by the system).
+  useEffect(() => {
+    // @ts-expect-error defaultProps exists at runtime on TextInput
+    TextInput.defaultProps = TextInput.defaultProps || {};
+    // @ts-expect-error same
+    TextInput.defaultProps.placeholderTextColor = theme.colors.textSecondary;
+    if (Platform.OS === 'ios') {
+      // @ts-expect-error same
+      TextInput.defaultProps.keyboardAppearance = theme.isDark ? 'dark' : 'light';
+    }
+  }, [theme.isDark, theme.colors.textSecondary]);
+
   // Initialize anonymous user on app startup
   useAnonymousUserInitialization();
 
@@ -181,6 +219,9 @@ const AppInitializer: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const navigation = useNavigationContainerRef();
+  const { theme } = useTheme();
+  const navTheme = useNavigationTheme();
+  const themedNavStyles = buildNavigationStyles(theme);
 
   return (
     <NavigationContainer
@@ -188,7 +229,7 @@ const AppContent: React.FC = () => {
       onReady={() => {
         sentryNavigationIntegration.registerNavigationContainer(navigation);
       }}
-      theme={AppTheme}
+      theme={navTheme}
       linking={{
       // Define app linking configuration for React Navigation v7
       prefixes: ['fishlog://'],
@@ -209,20 +250,20 @@ const AppContent: React.FC = () => {
         },
       },
     }}>
-      <StatusBar style="light" />
+      <StatusBar style={theme.statusBarStyle} />
       <AppInitializer />
       <Stack.Navigator
         initialRouteName="Home"
         detachInactiveScreens={true}
         screenOptions={{
-          ...navigationStyles.screenOptions,
+          ...themedNavStyles.screenOptions,
           headerBackButtonDisplayMode: 'minimal', // Hide back button title in v7
           headerLeftContainerStyle: { paddingLeft: 16 }, // Give the back button more padding
           headerBackImage: ({ tintColor }) => (
             <Feather
               name="chevron-left"
               size={30}
-              color={tintColor || colors.white}
+              color={tintColor || theme.colors.textOnPrimary}
               style={{ marginLeft: 4 }}
             />
           ),
@@ -248,7 +289,7 @@ const AppContent: React.FC = () => {
           ),
           gestureEnabled: true,
           // Ensure card background matches app theme to prevent white flash
-          cardStyle: { backgroundColor: colors.primary },
+          cardStyle: { backgroundColor: theme.colors.primary },
         }}
       >
           <Stack.Screen
@@ -396,14 +437,15 @@ const configErrorStyles = StyleSheet.create({
 const App: React.FC = () => {
   const [appReady, setAppReady] = useState(false);
 
+  // Step 4 — ThemeProvider calls markReady() once both AsyncStorage and the
+  // feature flag have resolved so the correct theme is in place before the
+  // splash animates away.  A 3-second hard cap ensures the splash never hangs
+  // indefinitely on a slow network; ThemeProvider will usually win much sooner.
+  const markReady = useCallback(() => setAppReady(true), []);
+
   useEffect(() => {
-    async function prepare() {
-      // Small delay to ensure providers and initial data hooks have mounted
-      // The actual data loading happens in AppInitializer hooks
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      setAppReady(true);
-    }
-    prepare();
+    const timeout = setTimeout(() => setAppReady(true), 3000);
+    return () => clearTimeout(timeout);
   }, []);
 
   if (!isSupabaseConfigured) {
@@ -411,27 +453,41 @@ const App: React.FC = () => {
   }
 
   return (
-    <ErrorBoundary>
-      <AnimatedSplashScreen ready={appReady}>
+    // GestureHandlerRootView must wrap the entire app for react-native-
+    // gesture-handler to work on Android (required) and to behave
+    // consistently on iOS. Used for the right-edge drawer swipe and any
+    // other gesture handlers (e.g. Swipeable in DrawerMenu).
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        {/*
+          Step 1 — ThemeProvider (and its QueryClientProvider dependency) now
+          wrap AnimatedSplashScreen so the splash itself renders with the
+          correct dark/light background from frame 1, and onReady can fire as
+          soon as the theme has resolved.
+        */}
         <Provider store={store}>
           <QueryClientProvider client={queryClient}>
-            <ForceUpdateProvider>
-              <RewardsProvider>
-                <AchievementProvider>
-                  <BulletinProvider>
-                    <SpeciesAlertsProvider>
-                      <SafeAreaProvider>
-                        <AppContent />
-                      </SafeAreaProvider>
-                    </SpeciesAlertsProvider>
-                  </BulletinProvider>
-                </AchievementProvider>
-              </RewardsProvider>
-            </ForceUpdateProvider>
+            <ThemeProvider onReady={markReady}>
+              <AnimatedSplashScreen ready={appReady}>
+                <ForceUpdateProvider>
+                  <RewardsProvider>
+                    <AchievementProvider>
+                      <BulletinProvider>
+                        <SpeciesAlertsProvider>
+                          <SafeAreaProvider>
+                            <AppContent />
+                          </SafeAreaProvider>
+                        </SpeciesAlertsProvider>
+                      </BulletinProvider>
+                    </AchievementProvider>
+                  </RewardsProvider>
+                </ForceUpdateProvider>
+              </AnimatedSplashScreen>
+            </ThemeProvider>
           </QueryClientProvider>
         </Provider>
-      </AnimatedSplashScreen>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 };
 

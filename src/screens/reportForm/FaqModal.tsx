@@ -9,8 +9,9 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../styles/common';
-import { localStyles } from '../../styles/reportFormScreenLocalStyles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { createReportFormLocalStyles } from '../../styles/reportFormScreenLocalStyles';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { safeOpenURL } from '../../utils/openURL';
 
 interface FaqModalProps {
@@ -19,6 +20,9 @@ interface FaqModalProps {
 }
 
 const FaqModal: React.FC<FaqModalProps> = ({ visible, onClose }) => {
+  const { theme } = useTheme();
+  const localStyles = useThemedStyles(createReportFormLocalStyles);
+
   return (
     <Modal
       transparent
@@ -30,14 +34,14 @@ const FaqModal: React.FC<FaqModalProps> = ({ visible, onClose }) => {
         <View style={localStyles.faqModalContent}>
           <View style={localStyles.faqModalHeader}>
             <View style={localStyles.faqModalHeaderLeft}>
-              <Feather name="help-circle" size={24} color={colors.primary} />
+              <Feather name="help-circle" size={24} color={theme.colors.primary} />
               <Text style={localStyles.faqModalTitle}>FAQs</Text>
             </View>
             <TouchableOpacity
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Feather name="x" size={24} color={colors.textSecondary} />
+              <Feather name="x" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -126,7 +130,7 @@ const FaqModal: React.FC<FaqModalProps> = ({ visible, onClose }) => {
               }}
               activeOpacity={0.7}
             >
-              <Feather name="external-link" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+              <Feather name="external-link" size={16} color={theme.colors.primary} style={{ marginRight: 8 }} />
               <Text style={localStyles.faqLinkText}>View Full FAQs on NC DEQ Website</Text>
             </TouchableOpacity>
           </ScrollView>

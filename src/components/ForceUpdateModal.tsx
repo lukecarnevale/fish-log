@@ -13,7 +13,10 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { spacing, borderRadius, typography } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import type { AppVersionConfig } from '../services/forceUpdateService';
 import { safeOpenURL } from '../utils/openURL';
 
@@ -34,6 +37,9 @@ const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({
   visible,
   config,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   if (!config) return null;
 
   const storeUrl =
@@ -56,7 +62,7 @@ const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({
       {/* Icon */}
       <View style={styles.iconContainer}>
         <View style={styles.iconCircle}>
-          <Feather name="download" size={32} color={colors.primary} />
+          <Feather name="download" size={32} color={theme.colors.primary} />
         </View>
       </View>
 
@@ -76,7 +82,7 @@ const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({
           <Feather
             name="external-link"
             size={18}
-            color={colors.white}
+            color={theme.colors.textOnPrimary}
             style={styles.buttonIcon}
           />
           <Text style={styles.updateButtonText}>Update Now</Text>
@@ -90,7 +96,7 @@ const ForceUpdateModal: React.FC<ForceUpdateModalProps> = ({
 // Styles
 // =============================================================================
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   iconContainer: {
     alignItems: 'center',
     marginBottom: spacing.lg,
@@ -99,19 +105,19 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: `${colors.primary}15`,
+    backgroundColor: `${theme.colors.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
     ...typography.h2,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
   message: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: spacing.lg,
@@ -124,7 +130,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
@@ -135,7 +141,7 @@ const styles = StyleSheet.create({
   },
   updateButtonText: {
     ...typography.button,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

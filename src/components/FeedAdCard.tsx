@@ -15,7 +15,10 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-import { colors, spacing } from '../styles/common';
+import { spacing } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { Advertisement } from '../services/transformers/advertisementTransformer';
 import { trackAdClick, trackAdImpression } from '../services/advertisementsService';
 import CatchInfoBadge from './CatchInfoBadge';
@@ -33,6 +36,8 @@ interface FeedAdCardProps {
 const IMPRESSION_COOLDOWN_MS = 30_000; // 30 seconds
 
 const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const isFocused = useIsFocused();
   const viewabilityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -94,11 +99,11 @@ const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
         {/* Company info overlay at top (matches angler section position) */}
         <View style={styles.topOverlay}>
           <View style={styles.companyIconContainer}>
-            <Feather name="shopping-bag" size={16} color={colors.white} />
+            <Feather name="shopping-bag" size={16} color={theme.colors.textOnPrimary} />
           </View>
           <View style={styles.topTextContainer}>
-            <Text style={styles.companyName}>{ad.companyName}</Text>
-            <Text style={styles.sponsoredLabel}>Sponsored</Text>
+            <Text style={styles.companyName} numberOfLines={1} maxFontSizeMultiplier={1.2}>{ad.companyName}</Text>
+            <Text style={styles.sponsoredLabel} maxFontSizeMultiplier={1.15}>Sponsored</Text>
           </View>
         </View>
 
@@ -123,13 +128,13 @@ const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
       {/* Bottom section - promo text + CTA */}
       <View style={styles.bottomSection}>
         <View style={styles.promoRow}>
-          <Text style={styles.promoText} numberOfLines={2}>
+          <Text style={styles.promoText} numberOfLines={2} maxFontSizeMultiplier={1.2}>
             {ad.promoText}
           </Text>
           {ad.promoCode && (
             <View style={styles.promoCodeBadge}>
-              <Feather name="tag" size={11} color={colors.primary} />
-              <Text style={styles.promoCodeText}>{ad.promoCode}</Text>
+              <Feather name="tag" size={11} color={theme.colors.primary} />
+              <Text style={styles.promoCodeText} maxFontSizeMultiplier={1.15}>{ad.promoCode}</Text>
             </View>
           )}
         </View>
@@ -138,21 +143,21 @@ const FeedAdCard: React.FC<FeedAdCardProps> = ({ ad, trackedImpressions }) => {
           onPress={handlePress}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Feather name="external-link" size={18} color={colors.primary} />
+          <Feather name="external-link" size={18} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   // Card container - matches CatchCard exactly
   container: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: 20,
     marginHorizontal: spacing.md,
     marginVertical: 8,
-    shadowColor: colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -164,7 +169,7 @@ const styles = StyleSheet.create({
   photoContainer: {
     width: '100%',
     aspectRatio: 4 / 5,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     position: 'relative',
   },
   photo: {
@@ -214,7 +219,7 @@ const styles = StyleSheet.create({
   companyName: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -262,7 +267,7 @@ const styles = StyleSheet.create({
   promoText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     letterSpacing: 0.1,
     flexShrink: 1,
   },
@@ -278,7 +283,7 @@ const styles = StyleSheet.create({
   promoCodeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.primary,
+    color: theme.colors.primary,
     letterSpacing: 0.3,
   },
   ctaButton: {

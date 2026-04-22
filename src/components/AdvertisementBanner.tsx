@@ -13,7 +13,10 @@ import {
 import { Image as ExpoImage } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { spacing, borderRadius, typography } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { safeOpenURL } from '../utils/openURL';
 import {
   Advertisement as RemoteAdvertisement,
@@ -59,6 +62,8 @@ interface AdvertisementBannerProps {
   onPress?: (ad: DisplayAd) => void;
   // Optional: disable auto-rotation
   autoRotate?: boolean;
+  // Optional: bump this value to force a re-fetch of ads (used by pull-to-refresh)
+  refreshKey?: number;
 }
 
 /**
@@ -79,7 +84,10 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   placement,
   onPress,
   autoRotate = true,
+  refreshKey,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -118,7 +126,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
     };
 
     loadAds();
-  }, [placement]);
+  }, [placement, refreshKey]);
 
   // Get ads to display
   const originalAds: DisplayAd[] = fetchedAds;
@@ -331,23 +339,23 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
       <View style={styles.overlay}>
         <View style={styles.contentContainer}>
           <View style={styles.textContainer}>
-            <Text style={styles.companyName}>{ad.companyName}</Text>
-            <Text style={styles.promoText}>{ad.promoText}</Text>
+            <Text style={styles.companyName} numberOfLines={1} maxFontSizeMultiplier={1.2}>{ad.companyName}</Text>
+            <Text style={styles.promoText} numberOfLines={2} maxFontSizeMultiplier={1.2}>{ad.promoText}</Text>
             {ad.promoCode && (
-              <Text style={styles.promoCodeText}>
+              <Text style={styles.promoCodeText} numberOfLines={1} maxFontSizeMultiplier={1.15}>
                 Use code: <Text style={styles.promoCode}>{ad.promoCode}</Text>
               </Text>
             )}
           </View>
           <View style={styles.ctaContainer}>
-            <Feather name="external-link" size={16} color={colors.white} />
+            <Feather name="external-link" size={16} color={theme.colors.textOnPrimary} />
           </View>
         </View>
       </View>
 
       {/* Sponsored label */}
       <View style={styles.sponsoredBadge}>
-        <Text style={styles.sponsoredText}>Sponsored</Text>
+        <Text style={styles.sponsoredText} maxFontSizeMultiplier={1.15}>Sponsored</Text>
       </View>
     </TouchableOpacity>
   );
@@ -392,7 +400,7 @@ const AdvertisementBanner: React.FC<AdvertisementBannerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginVertical: spacing.sm,
   },
@@ -403,8 +411,8 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.white,
-    shadowColor: colors.shadow,
+    backgroundColor: theme.colors.white,
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -412,7 +420,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 160,
+    minHeight: 180,
   },
   overlay: {
     position: 'absolute',
@@ -433,24 +441,24 @@ const styles = StyleSheet.create({
   },
   companyName: {
     ...typography.subtitle,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     fontWeight: '700',
     marginBottom: 2,
   },
   promoText: {
     ...typography.bodySmall,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.9,
   },
   promoCodeText: {
     ...typography.caption,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.85,
     marginTop: 4,
   },
   promoCode: {
     fontWeight: '700',
-    color: '#FFD700',
+    color: theme.colors.gold,
   },
   ctaContainer: {
     width: 36,
@@ -472,7 +480,7 @@ const styles = StyleSheet.create({
   },
   sponsoredText: {
     ...typography.caption,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -492,7 +500,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   paginationDotActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     width: 20,
   },
 });

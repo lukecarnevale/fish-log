@@ -23,7 +23,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { RootStackParamList } from '../types';
 import { WaveBackground } from './WaveBackground';
 import { devConfig } from '../config/devConfig';
@@ -34,7 +36,7 @@ import { safeOpenURL } from '../utils/openURL';
 import { AppLogoIcon, JumpingFishIcon, StackedFishIcon, SwimmingFishIcon, MultipleFishIcon, LicenseCardIcon } from './icons/DrawerMenuIcons';
 import DefaultAnglerAvatarIcon from './icons/DefaultAnglerAvatarIcon';
 import type { Bulletin } from '../types/bulletin';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { getBulletinTypeConfig } from '../constants/bulletin';
 import { useBulletins } from '../contexts/BulletinContext';
 
 // ============================================
@@ -69,7 +71,7 @@ interface DrawerMenuProps {
 }
 
 // ============================================
-// MENU ITEM COMPONENT
+// MENU ITEM TYPES
 // ============================================
 
 interface MenuItemProps {
@@ -91,57 +93,6 @@ interface MenuItemProps {
   /** Numeric count badge shown on the icon (e.g. bulletin count) */
   badgeCount?: number;
 }
-
-const MenuItem: React.FC<MenuItemProps> = ({
-  icon,
-  customIcon,
-  label,
-  subtitle,
-  onPress,
-  iconBgColor = '#E8F5F4',
-  iconColor = colors.primary,
-  showBadge,
-  badgeScale,
-  badgeOpacity,
-  isExternal,
-  disabled = false,
-  onDisabledPress,
-  badgeCount,
-}) => (
-  <TouchableOpacity
-    style={[styles.menuItem, disabled && styles.menuItemDisabled]}
-    onPress={disabled ? onDisabledPress : onPress}
-    activeOpacity={0.7}
-  >
-    <View style={[styles.menuItemIcon, { backgroundColor: disabled ? '#F0F0F0' : iconBgColor }]}>
-      {customIcon || (
-        <Feather name={icon as any} size={20} color={disabled ? '#999' : iconColor} />
-      )}
-      {showBadge && badgeScale && badgeOpacity && (
-        <Animated.View style={[styles.menuBadge, { opacity: badgeOpacity, transform: [{ scale: badgeScale }] }]}>
-          <View style={styles.menuBadgeDot} />
-        </Animated.View>
-      )}
-      {typeof badgeCount === 'number' && badgeCount > 0 && (
-        <View style={styles.menuCountBadge}>
-          <Text style={styles.menuCountBadgeText}>{badgeCount}</Text>
-        </View>
-      )}
-    </View>
-    <View style={styles.menuItemContent}>
-      <Text style={[styles.menuItemLabel, disabled && styles.menuItemLabelDisabled]}>{label}</Text>
-      {subtitle && !disabled && <Text style={styles.menuItemSubtitle}>{subtitle}</Text>}
-      {disabled && <Text style={styles.menuItemSubtitleDisabled}>Sign in to view</Text>}
-    </View>
-    {disabled ? (
-      <Feather name="lock" size={14} color="#999" />
-    ) : isExternal ? (
-      <Feather name="external-link" size={14} color="#ccc" />
-    ) : (
-      <Feather name="chevron-right" size={16} color="#ccc" />
-    )}
-  </TouchableOpacity>
-);
 
 // ============================================
 // MAIN COMPONENT
@@ -167,8 +118,67 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
   onDismissBulletin,
 }) => {
   const menuScrollRef = useRef<ScrollView>(null);
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { isBulletinRead } = useBulletins();
   const { enabled: promotionsEnabled } = useFeatureFlag('promotions_hub');
+  const bulletinConfig = getBulletinTypeConfig(theme);
+
+  // MenuItem defined inside DrawerMenu to close over `styles` and `theme`
+  const MenuItem: React.FC<MenuItemProps> = ({
+    icon,
+    customIcon,
+    label,
+    subtitle,
+    onPress,
+    iconBgColor = theme.isDark ? theme.colors.surface : '#E8F5F4',
+    iconColor = theme.colors.primary,
+    showBadge,
+    badgeScale: itemBadgeScale,
+    badgeOpacity: itemBadgeOpacity,
+    isExternal,
+    disabled = false,
+    onDisabledPress,
+    badgeCount,
+  }) => (
+    <TouchableOpacity
+      style={[styles.menuItem, disabled && styles.menuItemDisabled]}
+      onPress={disabled ? onDisabledPress : onPress}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.menuItemIcon, {
+        backgroundColor: disabled
+          ? (theme.isDark ? theme.colors.surfaceMuted : '#F0F0F0')
+          : (theme.isDark ? theme.colors.surface : iconBgColor),
+      }]}>
+        {customIcon || (
+          <Feather name={icon as any} size={20} color={disabled ? theme.colors.textSecondary : iconColor} />
+        )}
+        {showBadge && itemBadgeScale && itemBadgeOpacity && (
+          <Animated.View style={[styles.menuBadge, { opacity: itemBadgeOpacity, transform: [{ scale: itemBadgeScale }] }]}>
+            <View style={styles.menuBadgeDot} />
+          </Animated.View>
+        )}
+        {typeof badgeCount === 'number' && badgeCount > 0 && (
+          <View style={styles.menuCountBadge}>
+            <Text style={styles.menuCountBadgeText} maxFontSizeMultiplier={1.1}>{badgeCount}</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.menuItemContent}>
+        <Text style={[styles.menuItemLabel, disabled && styles.menuItemLabelDisabled]}>{label}</Text>
+        {subtitle && !disabled && <Text style={styles.menuItemSubtitle} numberOfLines={2} maxFontSizeMultiplier={1.2}>{subtitle}</Text>}
+        {disabled && <Text style={styles.menuItemSubtitleDisabled} numberOfLines={1} maxFontSizeMultiplier={1.2}>Sign in to view</Text>}
+      </View>
+      {disabled ? (
+        <Feather name="lock" size={14} color={theme.colors.textSecondary} />
+      ) : isExternal ? (
+        <Feather name="external-link" size={14} color={theme.colors.textSecondary} />
+      ) : (
+        <Feather name="chevron-right" size={16} color={theme.colors.textSecondary} />
+      )}
+    </TouchableOpacity>
+  );
 
   // Reset scroll position when menu opens
   useEffect(() => {
@@ -262,7 +272,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
           <View style={styles.headerContent}>
             <Text style={styles.appTitleText}>Fish Log Co.</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Feather name="x" size={20} color={colors.white} />
+              <Feather name="x" size={20} color={theme.colors.textOnPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -324,7 +334,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             <>
               <View style={styles.bulletinParchmentSection}>
                 {bulletins.slice(0, 3).map((bulletin) => {
-                  const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
+                  const cfg = bulletinConfig[bulletin.bulletinType];
                   const renderRightActions = (
                     _progress: Animated.AnimatedInterpolation<number>,
                     dragX: Animated.AnimatedInterpolation<number>
@@ -363,7 +373,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                         activeOpacity={0.7}
                       >
                         {!isBulletinRead(bulletin.id) && (
-                          <View style={[styles.bulletinDot, { backgroundColor: colors.primary }]} />
+                          <View style={[styles.bulletinDot, { backgroundColor: theme.colors.primary }]} />
                         )}
                         <View style={styles.bulletinItemContent}>
                           <View style={[styles.bulletinTypeBadge, { backgroundColor: cfg.badgeBg }]}>
@@ -372,7 +382,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                           </View>
                           <Text style={styles.bulletinItemTitle} numberOfLines={2}>{bulletin.title}</Text>
                         </View>
-                        <Feather name="chevron-right" size={14} color="#C9B68E" />
+                        <Feather name="chevron-right" size={14} color={theme.colors.parchmentTextSecondary} />
                       </TouchableOpacity>
                     </Swipeable>
                   );
@@ -390,7 +400,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                     <Text style={styles.bulletinViewAllText}>
                       View All Bulletins ({bulletins.length})
                     </Text>
-                    <Feather name="chevron-right" size={14} color="#EA580C" />
+                    <Feather name="chevron-right" size={14} color={theme.colors.advisory} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -398,7 +408,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             </>
           )}
 
-          <Text style={styles.sectionHeader}>Quick Actions</Text>
+          <Text style={styles.sectionHeader} maxFontSizeMultiplier={1.2}>Quick Actions</Text>
 
           {/* Bulletins menu item — shown only when no inline previews above */}
           {bulletins.length === 0 && (
@@ -471,21 +481,21 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
                 subtitle={SCREEN_LABELS.promotions.subtitle}
                 onPress={() => handleNavigate("Promotions")}
                 iconBgColor="#FFF3E0"
-                iconColor="#FF7F25"
+                iconColor={theme.colors.accent}
                 disabled={!isSignedIn}
                 onDisabledPress={() => handleNavigate("Profile")}
               />
             </>
           )}
 
-          <Text style={styles.sectionHeader}>External Links</Text>
+          <Text style={styles.sectionHeader} maxFontSizeMultiplier={1.2}>External Links</Text>
 
           <MenuItem
             icon="anchor"
             label="Boating Info"
             onPress={() => handleExternalLink("https://www.ncwildlife.org/boating")}
-            iconBgColor="#E3EBF6"
-            iconColor="#1E3A5F"
+            iconBgColor={theme.isDark ? theme.colors.surface : '#E3EBF6'}
+            iconColor={theme.isDark ? theme.colors.primary : '#1E3A5F'}
             isExternal
           />
 
@@ -493,7 +503,7 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
             icon="compass"
             label="Fishing Resources"
             onPress={() => handleExternalLink("https://www.ncwildlife.org/fishing")}
-            iconBgColor="#E8F5E9"
+            iconBgColor={theme.colors.successLight}
             iconColor="#4CAF50"
             isExternal
           />
@@ -509,28 +519,28 @@ const DrawerMenu: React.FC<DrawerMenuProps> = ({
               setTimeout(() => onFeedbackPress?.('feedback'), 280);
             }}
             iconBgColor="#E8F5F4"
-            iconColor={colors.primary}
+            iconColor={theme.colors.primary}
           />
 
           {devConfig.SHOW_DEVELOPER_OPTIONS && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.sectionHeader}>Developer Tools</Text>
+              <Text style={styles.sectionHeader} maxFontSizeMultiplier={1.2}>Developer Tools</Text>
 
               <MenuItem
                 icon="trash-2"
                 label="Clear All Data"
                 onPress={handleClearData}
-                iconBgColor="#FFEBEE"
-                iconColor="#D32F2F"
+                iconBgColor={theme.colors.dangerLight}
+                iconColor={theme.colors.error}
               />
 
               <MenuItem
                 icon={currentMode === "mock" ? "toggle-left" : "toggle-right"}
                 label={`DMF Mode: ${currentMode === "mock" ? "TEST" : "PRODUCTION"}`}
                 onPress={handleToggleDMFMode}
-                iconBgColor={currentMode === "mock" ? "#E8F5E9" : "#FFEBEE"}
-                iconColor={currentMode === "mock" ? "#4CAF50" : "#D32F2F"}
+                iconBgColor={currentMode === "mock" ? theme.colors.successLight : theme.colors.dangerLight}
+                iconColor={currentMode === "mock" ? "#4CAF50" : theme.colors.error}
               />
             </>
           )}
@@ -557,14 +567,14 @@ const SWIPE_ACTION_WIDTH = 72;
 // Extra width to hide spring bounce overshoot
 const BOUNCE_BUFFER = 30;
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   menuContainer: {
     position: 'absolute',
     top: 0,
     right: -BOUNCE_BUFFER, // Extend past screen edge to hide bounce
     width: MENU_WIDTH + BOUNCE_BUFFER,
     height: '100%',
-    backgroundColor: colors.primary, // Match header so rounded corner shows correctly
+    backgroundColor: theme.colors.primaryDark, // Match HomeScreen header/footer
     zIndex: 1000,
     shadowColor: '#000',
     shadowOffset: { width: -4, height: 0 },
@@ -578,7 +588,7 @@ const styles = StyleSheet.create({
 
   // Header
   menuHeader: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primaryDark, // Match HomeScreen header
     paddingTop: Platform.OS === 'android' ? 74 : 60, // Match HomeScreen header position
     paddingBottom: 32, // Larger header area to match HomeScreen
     paddingLeft: 20,
@@ -592,7 +602,7 @@ const styles = StyleSheet.create({
   appTitleText: {
     fontSize: 20, // Match HomeScreen title
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: theme.colors.textOnPrimary,
   },
   closeButton: {
     padding: 8,
@@ -637,7 +647,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: theme.colors.textOnPrimary,
   },
   profileSubtitle: {
     fontSize: 11,
@@ -652,15 +662,15 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.badgeRed,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.badgeRed,
   },
 
   // Menu Content
   menuContent: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.white,
     borderTopLeftRadius: 24,
     marginTop: -12, // Overlap header slightly for card effect
   },
@@ -677,7 +687,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     fontSize: 10,
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -703,22 +713,22 @@ const styles = StyleSheet.create({
   menuItemLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.colors.textPrimary,
   },
   menuItemSubtitle: {
     fontSize: 11,
-    color: '#888888',
+    color: theme.colors.textSecondary,
     marginTop: 1,
   },
   menuItemDisabled: {
     opacity: 0.7,
   },
   menuItemLabelDisabled: {
-    color: '#999',
+    color: theme.colors.textSecondary,
   },
   menuItemSubtitleDisabled: {
     fontSize: 11,
-    color: '#aaa',
+    color: theme.colors.textSecondary,
     marginTop: 1,
   },
   menuBadge: {
@@ -730,26 +740,27 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: theme.colors.badgeRed,
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: theme.colors.badgeRed,
   },
   menuCountBadge: {
     position: 'absolute',
     top: -5,
     right: -7,
-    backgroundColor: '#D32F2F',
+    backgroundColor: theme.colors.error,
     borderRadius: 9,
     minWidth: 18,
-    height: 18,
+    minHeight: 18,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
+    paddingVertical: 1,
     borderWidth: 2,
-    borderColor: '#E8F5F4',
+    borderColor: theme.colors.surface,
   },
   menuCountBadgeText: {
-    color: '#FFFFFF',
+    color: theme.colors.textOnPrimary,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -757,24 +768,24 @@ const styles = StyleSheet.create({
   // Divider
   divider: {
     height: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.border,
     marginVertical: 6,
     marginHorizontal: 14,
   },
 
   // Footer
   menuFooter: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.white,
     paddingVertical: 12,
     paddingLeft: 14,
     paddingRight: 14 + BOUNCE_BUFFER, // Extra padding for bounce buffer
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: theme.colors.border,
   },
   versionText: {
     textAlign: 'center',
     fontSize: 10,
-    color: '#bbbbbb',
+    color: theme.colors.textSecondary,
     marginTop: 6,
   },
 
@@ -783,10 +794,10 @@ const styles = StyleSheet.create({
   bulletinParchmentSection: {
     marginHorizontal: 14,
     marginTop: 4,
-    backgroundColor: '#FEF9F0',
+    backgroundColor: theme.colors.parchment,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E8DCC8',
+    borderColor: theme.colors.parchmentBorder,
     overflow: 'hidden',
   },
   bulletinItem: {
@@ -794,7 +805,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 9,
     paddingHorizontal: 12,
-    backgroundColor: '#FEF9F0',
+    backgroundColor: theme.colors.parchment,
   },
   bulletinDot: {
     width: 6,
@@ -828,7 +839,7 @@ const styles = StyleSheet.create({
   bulletinItemTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#44300A',
+    color: theme.colors.parchmentText,
     lineHeight: 18,
   },
   // Swipe-to-dismiss action button
@@ -856,12 +867,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     gap: 4,
     borderTopWidth: 1,
-    borderTopColor: '#E8DCC8',
+    borderTopColor: theme.colors.parchmentBorder,
   },
   bulletinViewAllText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#EA580C',
+    color: theme.colors.advisory,
   },
 });
 

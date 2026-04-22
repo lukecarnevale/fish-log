@@ -1,6 +1,7 @@
 // styles/speciesInfoScreenStyles.ts
 import { StyleSheet, ViewStyle, TextStyle, ImageStyle } from 'react-native';
 import { colors, spacing, typography, borderRadius, shadows } from './common';
+import { Theme } from './theme';
 
 interface SpeciesInfoScreenStyles {
   container: ViewStyle;
@@ -212,3 +213,179 @@ const speciesInfoScreenStyles = StyleSheet.create<SpeciesInfoScreenStyles>({
 });
 
 export default speciesInfoScreenStyles;
+
+// Theme-aware factory mirroring `speciesInfoScreenStyles` above.
+// All `colors.xxx` references are swapped for `theme.colors.xxx`.
+export const createSpeciesInfoScreenStyles = (theme: Theme) =>
+  StyleSheet.create<SpeciesInfoScreenStyles>({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      backgroundColor: theme.colors.primary,
+      padding: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    headerTitle: {
+      ...typography.title,
+      color: theme.colors.white,
+      marginBottom: spacing.xs,
+    },
+    headerSubtitle: {
+      ...typography.subtitle,
+      color: theme.colors.white,
+      opacity: 0.9,
+    },
+    searchContainer: {
+      paddingHorizontal: spacing.lg,
+      marginTop: -spacing.lg,
+      marginBottom: spacing.md,
+    },
+    searchInput: {
+      backgroundColor: theme.colors.white,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      paddingHorizontal: spacing.lg,
+      fontSize: 16,
+      ...shadows.medium,
+    },
+    listContainer: {
+      padding: spacing.md,
+      paddingBottom: spacing.xl,
+    },
+    speciesCard: {
+      backgroundColor: theme.colors.card,
+      borderRadius: borderRadius.lg,
+      flexDirection: 'row',
+      overflow: 'hidden',
+      marginBottom: spacing.md,
+      ...shadows.medium,
+    },
+    speciesImage: {
+      width: 120,
+      height: 120,
+      backgroundColor: theme.colors.lightGray,
+    },
+    speciesBasicInfo: {
+      flex: 1,
+      padding: spacing.md,
+      justifyContent: 'center',
+    },
+    speciesName: {
+      ...typography.heading,
+      color: theme.colors.primary,
+      marginBottom: spacing.xxs,
+    },
+    speciesScientific: {
+      ...typography.caption,
+      fontStyle: 'italic',
+      color: theme.colors.darkGray,
+      marginBottom: spacing.xs,
+    },
+    speciesBrief: {
+      ...typography.bodySmall,
+      color: theme.colors.darkGray,
+      marginBottom: spacing.xs,
+    },
+    tapPrompt: {
+      ...typography.caption,
+      color: theme.colors.primary,
+      fontWeight: '600',
+    },
+    emptyContainer: {
+      padding: spacing.xl,
+      alignItems: 'center',
+    },
+    emptyText: {
+      ...typography.body,
+      color: theme.colors.darkGray,
+      textAlign: 'center',
+    },
+    // Detail view styles
+    detailContainer: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    backButton: {
+      padding: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    backButtonText: {
+      ...typography.body,
+      color: theme.colors.primary,
+      fontWeight: '600',
+    },
+    detailImage: {
+      width: '100%',
+      height: 220,
+      backgroundColor: theme.colors.lightGray,
+    },
+    detailInfo: {
+      padding: spacing.lg,
+    },
+    detailName: {
+      ...typography.largeTitle,
+      color: theme.colors.black,
+      marginBottom: spacing.xxs,
+    },
+    detailScientific: {
+      ...typography.subtitle,
+      fontStyle: 'italic',
+      color: theme.colors.darkGray,
+      marginBottom: spacing.md,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: theme.colors.divider,
+      marginVertical: spacing.md,
+    },
+    sectionTitle: {
+      ...typography.heading,
+      color: theme.colors.primary,
+      marginBottom: spacing.sm,
+      marginTop: spacing.md,
+    },
+    sectionText: {
+      ...typography.body,
+      color: theme.colors.darkGray,
+      lineHeight: 24,
+    },
+    regulationsBox: {
+      backgroundColor: theme.colors.info,
+      padding: spacing.md,
+      paddingBottom: spacing.md + 28,
+      borderRadius: borderRadius.md,
+      marginVertical: spacing.lg,
+    },
+    regulationsTitle: {
+      ...typography.heading,
+      color: theme.colors.black,
+      marginBottom: spacing.sm,
+    },
+    regulationsText: {
+      ...typography.body,
+      fontWeight: '600',
+      marginBottom: spacing.sm,
+    },
+    regulationsFooter: {
+      ...typography.caption,
+      color: theme.colors.darkGray,
+      fontStyle: 'italic',
+    },
+    reportButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: borderRadius.md,
+      alignItems: 'center',
+      marginTop: spacing.xl,
+      marginBottom: spacing.xl,
+      ...shadows.medium,
+    },
+    reportButtonText: {
+      ...typography.buttonText,
+      color: theme.colors.white,
+    },
+  });

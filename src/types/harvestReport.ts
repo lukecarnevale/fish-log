@@ -422,6 +422,9 @@ export interface QueuedReport extends Omit<HarvestReportInput, 'harvestDate'> {
 
   /** Last error message if retry failed */
   lastError?: string;
+
+  /** Report type — distinguishes DMF harvest reports from personal catch logs */
+  reportType?: 'dmf_harvest' | 'catch_log';
 }
 
 /**
@@ -449,6 +452,9 @@ export interface SubmittedReport extends Omit<HarvestReportInput, 'harvestDate'>
 
   /** Raffle ID if entered */
   raffleId?: string;
+
+  /** Report type — distinguishes DMF harvest reports from personal catch logs */
+  reportType?: 'dmf_harvest' | 'catch_log';
 }
 
 // ============================================

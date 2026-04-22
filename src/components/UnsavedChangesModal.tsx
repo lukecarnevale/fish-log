@@ -9,7 +9,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, modals, shadows } from '../styles/common';
+import { spacing, borderRadius, modals, shadows } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 interface UnsavedChangesModalProps {
   visible: boolean;
@@ -28,6 +31,9 @@ const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({
   title = 'Discard Changes?',
   message = 'You have unsaved changes. Are you sure you want to leave? Your changes will be lost.',
 }) => {
+  const { theme } = useTheme();
+  const modalStyles = useThemedStyles(createStyles);
+
   return (
     <Modal
       animationType="fade"
@@ -38,7 +44,7 @@ const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({
       <View style={modalStyles.overlay}>
         <View style={modalStyles.content}>
           <View style={modalStyles.iconContainer}>
-            <Feather name="alert-circle" size={32} color={colors.warning} />
+            <Feather name="alert-circle" size={32} color={theme.colors.warning} />
           </View>
           <Text style={modalStyles.title}>{title}</Text>
           <Text style={modalStyles.message}>{message}</Text>
@@ -64,7 +70,7 @@ const UnsavedChangesModal: React.FC<UnsavedChangesModalProps> = ({
   );
 };
 
-const modalStyles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     ...modals.overlay,
   },
@@ -88,13 +94,13 @@ const modalStyles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
     fontSize: 15,
-    color: colors.darkGray,
+    color: theme.colors.darkGray,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 24,
@@ -108,25 +114,25 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
     alignItems: 'center',
   },
   cancelText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   discardButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.error,
+    backgroundColor: theme.colors.error,
     alignItems: 'center',
   },
   discardText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

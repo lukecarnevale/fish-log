@@ -13,7 +13,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { TopAngler } from '../types/catchFeed';
-import { colors, spacing } from '../styles/common';
+import { spacing } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { TrophyIcon, FishIcon, RulerIcon } from './icons/TopAnglerIcons';
 
 // Premium color palette
@@ -35,6 +38,8 @@ interface TopAnglerCardProps {
 }
 
 const TopAnglerCard: React.FC<TopAnglerCardProps> = ({ angler, rank }) => {
+  const styles = useThemedStyles(createStyles);
+
   const getRankColor = () => {
     switch (rank) {
       case 1:
@@ -116,6 +121,8 @@ interface TopAnglersSectionProps {
 }
 
 const TopAnglersSection: React.FC<TopAnglersSectionProps> = ({ anglers }) => {
+  const styles = useThemedStyles(createStyles);
+
   if (anglers.length === 0) return null;
 
   return (
@@ -153,7 +160,7 @@ const TopAnglersSection: React.FC<TopAnglersSectionProps> = ({ anglers }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.sm,
@@ -244,7 +251,7 @@ const styles = StyleSheet.create({
 
   // Category title
   categoryTitle: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     color: COLORS.textMuted,
     textTransform: 'uppercase',

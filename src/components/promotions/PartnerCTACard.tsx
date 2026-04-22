@@ -13,13 +13,19 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, shadows } from '../../styles/common';
+import { spacing, borderRadius, shadows } from '../../styles/common';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { Theme } from '../../styles/theme';
 
 interface PartnerCTACardProps {
   onPress: () => void;
 }
 
 const PartnerCTACard: React.FC<PartnerCTACardProps> = ({ onPress }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -30,7 +36,7 @@ const PartnerCTACard: React.FC<PartnerCTACardProps> = ({ onPress }) => {
       accessibilityHint="Double tap to open the partner inquiry form"
     >
       <LinearGradient
-        colors={[colors.primary, colors.primaryDark]}
+        colors={[theme.colors.primary, theme.colors.primaryDark]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -38,7 +44,7 @@ const PartnerCTACard: React.FC<PartnerCTACardProps> = ({ onPress }) => {
 
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Feather name="briefcase" size={24} color={colors.white} />
+          <Feather name="briefcase" size={24} color={theme.colors.textOnPrimary} />
         </View>
 
         <View style={styles.textContent}>
@@ -56,7 +62,7 @@ const PartnerCTACard: React.FC<PartnerCTACardProps> = ({ onPress }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
@@ -85,7 +91,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     marginBottom: 3,
   },
   subtitle: {

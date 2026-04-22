@@ -1,7 +1,7 @@
 import React from 'react';
 import Svg, { Path, G, Ellipse, Circle, Rect, Line, Text as SvgText } from 'react-native-svg';
 
-import { colors } from '../../styles/common';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export const AppLogoIcon: React.FC = () => (
   <Svg width={46} height={46} viewBox="0 0 50 50">
@@ -95,14 +95,17 @@ export const MultipleFishIcon: React.FC = () => (
   </Svg>
 );
 
-export const LicenseCardIcon: React.FC = () => (
+export const LicenseCardIcon: React.FC = () => {
+  const { theme } = useTheme();
+  return (
   <Svg width={30} height={22} viewBox="0 0 50 36">
     <Rect x={2} y={4} width={46} height={28} rx={4} fill="#E3EBF6" />
-    <Rect x={2} y={4} width={46} height={10} fill={colors.primary} />
+    <Rect x={2} y={4} width={46} height={10} fill={theme.colors.primary} />
     <Rect x={6} y={18} width={14} height={10} fill="#CC0000" />
     <Rect x={13} y={18} width={7} height={10} fill="white" />
     <SvgText x={8} y={26} fontSize={6} fill="white" fontWeight="bold">NC</SvgText>
-    <Line x1={24} y1={20} x2={42} y2={20} stroke={colors.primary} strokeWidth={2} strokeLinecap="round" opacity={0.3} />
-    <Line x1={24} y1={26} x2={38} y2={26} stroke={colors.primary} strokeWidth={2} strokeLinecap="round" opacity={0.3} />
+    <Line x1={24} y1={20} x2={42} y2={20} stroke={theme.colors.primary} strokeWidth={2} strokeLinecap="round" opacity={0.3} />
+    <Line x1={24} y1={26} x2={38} y2={26} stroke={theme.colors.primary} strokeWidth={2} strokeLinecap="round" opacity={0.3} />
   </Svg>
-);
+  );
+};

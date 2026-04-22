@@ -9,11 +9,13 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { APP_VERSION } from '../config/appConfig';
 import { usePartners } from '../hooks/usePartners';
 import { trackPartnerClick } from '../services/partnersService';
-import { GhostFish, WaveTransition, FOOTER_BG } from './icons/FooterIcons';
+import { GhostFish, WaveTransition } from './icons/FooterIcons';
 import { safeOpenURL } from '../utils/openURL';
 
 interface FooterProps {
@@ -31,6 +33,8 @@ const Footer: React.FC<FooterProps> = ({
   onContactPress,
   onInfoPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { partners } = usePartners();
 
   const handlePartnerPress = (partnerId: string, url: string) => {
@@ -134,20 +138,23 @@ const Footer: React.FC<FooterProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     // No background - wave handles the transition
   },
 
   // Wave
   waveContainer: {
-    backgroundColor: colors.background, // Light background above wave
+    backgroundColor: theme.colors.background, // Light background above wave
     height: 35,
   },
 
   // Footer content area
+  // Use primaryDark so the body matches WaveTransition's fill in both modes
+  // and stays grounded — primary is too washed-out in dark mode for a large
+  // surface like the footer.
   footerContent: {
-    backgroundColor: FOOTER_BG,
+    backgroundColor: theme.colors.primaryDark,
     paddingTop: 16,
     paddingBottom: 60, // Extended to cover safe area
     position: 'relative',
@@ -186,12 +193,18 @@ const styles = StyleSheet.create({
   },
   partnerCard: {
     width: 80,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    // In light mode keep the white background brand logos expect.
+    // In dark mode use an elevated surface so the cards don't look stark
+    // against the navy footer.
+    backgroundColor: theme.mode === 'dark' ? theme.colors.surfaceElevated : 'rgba(255,255,255,0.95)',
     borderRadius: 12,
     padding: 10,
     paddingHorizontal: 8,
     marginRight: 10,
     alignItems: 'center',
+    // Subtle border in dark mode for definition; transparent in light mode.
+    borderWidth: theme.mode === 'dark' ? 1 : 0,
+    borderColor: theme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -211,11 +224,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   partnerName: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.textPrimary,
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: 14,
   },
 
   // Branding
@@ -227,11 +240,14 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    // Footer background is theme.colors.primaryDark in both modes; use
+    // textOnPrimary (always white) so the brand name reads correctly
+    // and avoids theme.colors.white, whose dark-mode alias is navy.
+    color: theme.colors.textOnPrimary,
     marginBottom: 2,
   },
   appOrg: {
-    fontSize: 10,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.7)',
   },
 
@@ -263,7 +279,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   copyright: {
-    fontSize: 9,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
     marginBottom: 6,
@@ -273,16 +289,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   legalLink: {
-    fontSize: 10,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.65)',
   },
   legalDot: {
-    fontSize: 10,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.4)',
     marginHorizontal: 8,
   },
   version: {
-    fontSize: 9,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.4)',
     marginTop: 6,
   },

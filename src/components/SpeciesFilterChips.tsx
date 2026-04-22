@@ -1,7 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing } from '../styles/common';
+import { spacing } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 export interface FilterChipConfig {
   key: string;
@@ -19,6 +22,8 @@ interface SpeciesFilterChipsProps {
 }
 
 const SpeciesFilterChips: React.FC<SpeciesFilterChipsProps> = ({ filters, isExpanded }) => {
+  const { theme } = useTheme();
+  const chipStyles = useThemedStyles(createChipStyles);
   const expandAnim = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
 
   useEffect(() => {
@@ -69,7 +74,7 @@ const SpeciesFilterChips: React.FC<SpeciesFilterChipsProps> = ({ filters, isExpa
                 chipStyles.chip,
                 {
                   borderColor: chipColor,
-                  backgroundColor: filter.isActive ? chipColor : colors.white,
+                  backgroundColor: filter.isActive ? chipColor : theme.colors.white,
                 },
               ]}
               onPress={filter.onToggle}
@@ -78,12 +83,12 @@ const SpeciesFilterChips: React.FC<SpeciesFilterChipsProps> = ({ filters, isExpa
               <Feather
                 name={filter.icon as any}
                 size={14}
-                color={filter.isActive ? colors.white : chipColor}
+                color={filter.isActive ? theme.colors.textOnPrimary : chipColor}
               />
               <Text
                 style={[
                   chipStyles.label,
-                  { color: filter.isActive ? colors.white : chipColor },
+                  { color: filter.isActive ? theme.colors.textOnPrimary : chipColor },
                 ]}
               >
                 {filter.label}
@@ -92,7 +97,7 @@ const SpeciesFilterChips: React.FC<SpeciesFilterChipsProps> = ({ filters, isExpa
 
             {filter.count != null && filter.count > 0 && (
               <View style={chipStyles.badge}>
-                <Text style={chipStyles.badgeText}>{filter.count}</Text>
+                <Text style={chipStyles.badgeText} maxFontSizeMultiplier={1.1}>{filter.count}</Text>
               </View>
             )}
           </View>
@@ -102,7 +107,7 @@ const SpeciesFilterChips: React.FC<SpeciesFilterChipsProps> = ({ filters, isExpa
   );
 };
 
-const chipStyles = StyleSheet.create({
+const createChipStyles = (theme: Theme) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: spacing.xs,
@@ -129,17 +134,18 @@ const chipStyles = StyleSheet.create({
     top: -6,
     right: -6,
     minWidth: 18,
-    height: 18,
+    minHeight: 18,
     borderRadius: 9,
-    backgroundColor: colors.error,
+    backgroundColor: theme.colors.error,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
+    paddingVertical: 1,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

@@ -14,7 +14,10 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, shadows } from '../../styles/common';
+import { spacing, borderRadius, shadows } from '../../styles/common';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import { Theme } from '../../styles/theme';
 import type { Advertisement } from '../../services/transformers/advertisementTransformer';
 import { getCategoryLabel } from '../../services/promotionsService';
 import { getRegionLabel } from '../../constants/regionOptions';
@@ -34,6 +37,8 @@ const FeaturedPromotionCard: React.FC<FeaturedPromotionCardProps> = ({
   localImage,
   onPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const handlePress = () => {
     if (onPress) {
       onPress(promotion);
@@ -83,7 +88,7 @@ const FeaturedPromotionCard: React.FC<FeaturedPromotionCardProps> = ({
 
       {/* Featured badge */}
       <View style={styles.featuredBadge}>
-        <Feather name="star" size={10} color={colors.white} />
+        <Feather name="star" size={10} color={theme.colors.textOnPrimary} />
         <Text style={styles.featuredBadgeText}>Featured</Text>
       </View>
 
@@ -124,7 +129,7 @@ const FeaturedPromotionCard: React.FC<FeaturedPromotionCardProps> = ({
           )}
           <View style={styles.ctaButton}>
             <Text style={styles.ctaText}>View Deal</Text>
-            <Feather name="arrow-right" size={14} color={colors.white} />
+            <Feather name="arrow-right" size={14} color={theme.colors.textOnPrimary} />
           </View>
         </View>
       </View>
@@ -132,14 +137,14 @@ const FeaturedPromotionCard: React.FC<FeaturedPromotionCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
     height: 200,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.primaryDark,
+    backgroundColor: theme.colors.primaryDark,
     ...shadows.medium,
   },
   backgroundImage: {
@@ -160,7 +165,7 @@ const styles = StyleSheet.create({
   featuredBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -186,7 +191,7 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: 10,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
@@ -203,7 +208,7 @@ const styles = StyleSheet.create({
   companyName: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     marginBottom: 4,
   },
   promoText: {
@@ -234,13 +239,13 @@ const styles = StyleSheet.create({
   promoCodeValue: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     letterSpacing: 0.5,
   },
   ctaButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.accent,
+    backgroundColor: theme.colors.accent,
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: borderRadius.sm,
@@ -249,7 +254,7 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

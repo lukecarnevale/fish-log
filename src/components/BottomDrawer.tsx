@@ -18,10 +18,21 @@ import {
   Platform,
   StatusBar,
   ViewStyle,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius } from '../styles/common';
+import { spacing, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
+
+// Default slide distance for open/close animations. Using the screen height
+// guarantees the drawer fully leaves the viewport on close — even on tall
+// phones where the drawer itself can exceed 700pt. A smaller default caused
+// the close animation to finish with the top of the drawer still visible,
+// producing a "stutter" as the modal then snapped shut.
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 interface BottomDrawerProps {
   visible: boolean;
@@ -48,10 +59,12 @@ const BottomDrawer: React.FC<BottomDrawerProps> = ({
   maxHeight = '90%',
   minHeight,
   containerStyle,
-  slideDistance = 400,
+  slideDistance = SCREEN_HEIGHT,
   springTension = 65,
   springFriction = 11,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(0)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -170,7 +183,7 @@ const BottomDrawer: React.FC<BottomDrawerProps> = ({
               onPress={handleClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Feather name="x" size={24} color={colors.textPrimary} />
+              <Feather name="x" size={24} color={theme.colors.textPrimary} />
             </TouchableOpacity>
           )}
 
@@ -181,7 +194,7 @@ const BottomDrawer: React.FC<BottomDrawerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   wrapper: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -191,7 +204,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   container: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     // Premium shadow
@@ -218,7 +231,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     justifyContent: 'center',
     alignItems: 'center',
   },

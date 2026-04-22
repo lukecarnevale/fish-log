@@ -20,7 +20,10 @@ import {
   Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius } from '../styles/common';
+import { spacing, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { useRewards } from '../contexts/RewardsContext';
 import { sendMagicLink, storePendingAuth, onAuthStateChange, PendingAuth } from '../services/authService';
 import { dismissRewardsPrompt, getDeviceId } from '../services/anonymousUserService';
@@ -59,6 +62,8 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
   requiresSignup = false,
   reportId,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { currentDrawing } = useRewards();
 
   // Animation for modal content slide-up
@@ -379,7 +384,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Feather name={requiresSignup ? "check-circle" : "gift"} size={32} color={colors.primary} />
+          <Feather name={requiresSignup ? "check-circle" : "gift"} size={32} color={theme.colors.primary} />
         </View>
         <Text style={styles.title}>
           {requiresSignup ? "Complete Your Rewards Setup" : "Join the Rewards Program"}
@@ -394,23 +399,23 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       {/* Benefits Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
-          <Feather name="star" size={16} color={colors.primary} /> Member Benefits
+          <Feather name="star" size={16} color={theme.colors.primary} /> Member Benefits
         </Text>
         <View style={styles.benefitsList}>
           <View style={styles.benefitItem}>
-            <Feather name="award" size={16} color={colors.success} />
+            <Feather name="award" size={16} color={theme.colors.success} />
             <Text style={styles.benefitText}>
               Eligible for quarterly prize drawings with each report
             </Text>
           </View>
           <View style={styles.benefitItem}>
-            <Feather name="bar-chart-2" size={16} color={colors.success} />
+            <Feather name="bar-chart-2" size={16} color={theme.colors.success} />
             <Text style={styles.benefitText}>
               Appear on the community leaderboard
             </Text>
           </View>
           <View style={styles.benefitItem}>
-            <Feather name="smartphone" size={16} color={colors.success} />
+            <Feather name="smartphone" size={16} color={theme.colors.success} />
             <Text style={styles.benefitText}>
               Access your account from any device
             </Text>
@@ -426,7 +431,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       {/* Form Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
-          <Feather name="user" size={16} color={colors.primary} /> {requiresSignup ? "Verify Your Information" : "Create Your Profile"}
+          <Feather name="user" size={16} color={theme.colors.primary} /> {requiresSignup ? "Verify Your Information" : "Create Your Profile"}
         </Text>
         <Text style={styles.sectionDesc}>
           {requiresSignup
@@ -441,7 +446,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
             value={firstName}
             onChangeText={setFirstName}
             placeholder="First"
-            placeholderTextColor={colors.textTertiary}
+            placeholderTextColor={theme.colors.textTertiary}
             autoCapitalize="words"
           />
           <TextInput
@@ -449,7 +454,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
             value={lastName}
             onChangeText={setLastName}
             placeholder="Last"
-            placeholderTextColor={colors.textTertiary}
+            placeholderTextColor={theme.colors.textTertiary}
             autoCapitalize="words"
           />
         </View>
@@ -460,7 +465,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           value={email}
           onChangeText={setEmail}
           placeholder="your@email.com"
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor={theme.colors.textTertiary}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -472,7 +477,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           value={phone}
           onChangeText={setPhone}
           placeholder="(555) 555-5555"
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor={theme.colors.textTertiary}
           keyboardType="phone-pad"
         />
       </View>
@@ -497,10 +502,10 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           disabled={isSubmitting || !firstName.trim() || !lastName.trim() || !email.trim()}
         >
           {isSubmitting ? (
-            <ActivityIndicator color={colors.white} />
+            <ActivityIndicator color={theme.colors.textOnPrimary} />
           ) : (
             <>
-              <Feather name="mail" size={18} color={colors.white} />
+              <Feather name="mail" size={18} color={theme.colors.textOnPrimary} />
               <Text style={styles.joinButtonText}>
                 {requiresSignup ? "Send Verification Link" : "Send Sign-In Link"}
               </Text>
@@ -548,7 +553,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Feather name="log-in" size={32} color={colors.primary} />
+          <Feather name="log-in" size={32} color={theme.colors.primary} />
         </View>
         <Text style={styles.title}>Welcome Back!</Text>
         <Text style={styles.subtitle}>
@@ -564,7 +569,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           value={email}
           onChangeText={setEmail}
           placeholder="your@email.com"
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor={theme.colors.textTertiary}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -583,10 +588,10 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           disabled={isSubmitting || !email.trim()}
         >
           {isSubmitting ? (
-            <ActivityIndicator color={colors.white} />
+            <ActivityIndicator color={theme.colors.textOnPrimary} />
           ) : (
             <>
-              <Feather name="mail" size={18} color={colors.white} />
+              <Feather name="mail" size={18} color={theme.colors.textOnPrimary} />
               <Text style={styles.joinButtonText}>Send Sign-In Link</Text>
             </>
           )}
@@ -600,7 +605,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
           }}
           disabled={isSubmitting}
         >
-          <Feather name="arrow-left" size={16} color={colors.primary} />
+          <Feather name="arrow-left" size={16} color={theme.colors.primary} />
           <Text style={styles.resendButtonText}>Back to sign up</Text>
         </TouchableOpacity>
       </View>
@@ -616,7 +621,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <View style={[styles.iconContainer, styles.iconContainerSuccess]}>
-          <Feather name="mail" size={32} color={colors.white} />
+          <Feather name="mail" size={32} color={theme.colors.textOnPrimary} />
         </View>
         <Text style={styles.title}>Check Your Email!</Text>
         <Text style={styles.subtitle}>
@@ -655,7 +660,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
 
       {/* Note */}
       <View style={styles.noteSection}>
-        <Feather name="info" size={16} color={colors.textSecondary} />
+        <Feather name="info" size={16} color={theme.colors.textSecondary} />
         <Text style={styles.noteText}>
           The link expires in 1 hour. Check your spam folder if you don't see the email.
         </Text>
@@ -676,7 +681,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
             setStep('form');
           }}
         >
-          <Feather name="arrow-left" size={16} color={colors.primary} />
+          <Feather name="arrow-left" size={16} color={theme.colors.primary} />
           <Text style={styles.resendButtonText}>Back to form</Text>
         </TouchableOpacity>
       </View>
@@ -731,7 +736,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
               }}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Feather name="x" size={24} color={colors.textSecondary} />
+              <Feather name="x" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>
 
             <ScrollView
@@ -750,7 +755,7 @@ const RewardsPromptModal: React.FC<RewardsPromptModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
   },
@@ -762,7 +767,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   container: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.xl,
     width: '100%',
     maxWidth: 400,
@@ -785,7 +790,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
@@ -798,30 +803,30 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
   iconContainerSuccess: {
-    backgroundColor: colors.success,
+    backgroundColor: theme.colors.success,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: spacing.xs,
   },
   emailHighlight: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
     textAlign: 'center',
     marginTop: spacing.sm,
   },
@@ -829,17 +834,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: theme.colors.border,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.sm,
   },
   sectionDesc: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: spacing.md,
   },
   benefitsList: {
@@ -852,14 +857,14 @@ const styles = StyleSheet.create({
   },
   benefitText: {
     fontSize: 14,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginLeft: spacing.sm,
     flex: 1,
     lineHeight: 20,
   },
   drawingInfo: {
     fontSize: 13,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: '600',
     marginTop: spacing.sm,
     textAlign: 'center',
@@ -867,19 +872,21 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.xs,
     marginTop: spacing.sm,
   },
   input: {
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
     borderRadius: borderRadius.md,
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 14,
+    minHeight: 48,
     fontSize: 16,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.colors.border,
+    textAlignVertical: 'center',
   },
   nameRow: {
     flexDirection: 'row',
@@ -893,7 +900,7 @@ const styles = StyleSheet.create({
   },
   termsText: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -904,7 +911,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: 14,
     borderRadius: borderRadius.md,
     gap: spacing.sm,
@@ -915,7 +922,7 @@ const styles = StyleSheet.create({
   joinButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
   laterButton: {
     alignItems: 'center',
@@ -924,7 +931,7 @@ const styles = StyleSheet.create({
   laterButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   dontShowButton: {
     alignItems: 'center',
@@ -932,7 +939,7 @@ const styles = StyleSheet.create({
   },
   dontShowButtonText: {
     fontSize: 14,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     textDecorationLine: 'underline',
   },
   // Email sent step styles
@@ -948,7 +955,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
@@ -956,24 +963,24 @@ const styles = StyleSheet.create({
   instructionNumberText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   instructionText: {
     fontSize: 15,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     flex: 1,
   },
   noteSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
     padding: spacing.md,
     borderRadius: borderRadius.md,
     marginBottom: spacing.lg,
   },
   noteText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginLeft: spacing.sm,
     flex: 1,
     lineHeight: 18,
@@ -981,14 +988,14 @@ const styles = StyleSheet.create({
   doneButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: 14,
     borderRadius: borderRadius.md,
   },
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
   resendButton: {
     flexDirection: 'row',
@@ -999,7 +1006,7 @@ const styles = StyleSheet.create({
   },
   resendButtonText: {
     fontSize: 14,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: '500',
   },
   // Login link styles
@@ -1010,20 +1017,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: theme.colors.border,
   },
   loginLinkText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   loginLinkButton: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   loginHint: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: spacing.sm,
     textAlign: 'center',
   },

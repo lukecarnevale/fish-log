@@ -26,7 +26,10 @@ import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { RootStackParamList } from "../types";
 import { SubmittedReport, QueuedReport } from "../types/harvestReport";
-import { colors, spacing, typography, borderRadius } from "../styles/common";
+import { spacing, typography, borderRadius } from "../styles/common";
+import { useTheme } from "../contexts/ThemeContext";
+import { useThemedStyles } from "../hooks/useThemedStyles";
+import { Theme } from "../styles/theme";
 import { isTestMode } from "../config/appConfig";
 import ScreenLayout from "../components/ScreenLayout";
 import { useAllFishSpecies } from "../api/speciesApi";
@@ -60,6 +63,7 @@ interface FishEntryDisplay {
 // Combined report type for display (either submitted or queued)
 interface DisplayReport {
   type: "submitted" | "queued";
+  reportType?: "dmf_harvest" | "catch_log";
   confirmationNumber: string;
   harvestDate: string;
   areaLabel?: string;
@@ -87,42 +91,111 @@ interface DisplayReport {
   fishEntries?: FishEntryDisplay[];
 }
 
+// Pure conversion function — lives outside the component so it's not
+// recreated on every render and can be called inside useMemo without
+// defeating memoization.
+const convertToDisplayReport = (
+  report: SubmittedReport | QueuedReport,
+  type: "submitted" | "queued"
+): DisplayReport => {
+  if (type === "submitted") {
+    const submitted = report as SubmittedReport;
+    return {
+      type: "submitted",
+      reportType: submitted.reportType ?? "dmf_harvest",
+      confirmationNumber: submitted.confirmationNumber,
+      harvestDate: submitted.harvestDate,
+      areaLabel: submitted.areaLabel,
+      areaCode: submitted.areaCode,
+      usedHookAndLine: submitted.usedHookAndLine,
+      gearLabel: submitted.gearLabel,
+      redDrumCount: submitted.redDrumCount,
+      flounderCount: submitted.flounderCount,
+      spottedSeatroutCount: submitted.spottedSeatroutCount,
+      weakfishCount: submitted.weakfishCount,
+      stripedBassCount: submitted.stripedBassCount,
+      catchPhoto: submitted.catchPhoto,
+      submittedAt: submitted.submittedAt,
+      firstName: submitted.firstName,
+      lastName: submitted.lastName,
+      wrcId: submitted.wrcId,
+      objectId: submitted.objectId,
+      enteredRaffle: submitted.raffleEntered,
+      raffleId: submitted.raffleId,
+      fishEntries: submitted.fishEntries,
+    };
+  } else {
+    const queued = report as QueuedReport;
+    return {
+      type: "queued",
+      reportType: queued.reportType ?? "dmf_harvest",
+      confirmationNumber: queued.localConfirmationNumber,
+      harvestDate: queued.harvestDate,
+      areaLabel: queued.areaLabel,
+      areaCode: queued.areaCode,
+      usedHookAndLine: queued.usedHookAndLine,
+      gearLabel: queued.gearLabel,
+      redDrumCount: queued.redDrumCount,
+      flounderCount: queued.flounderCount,
+      spottedSeatroutCount: queued.spottedSeatroutCount,
+      weakfishCount: queued.weakfishCount,
+      stripedBassCount: queued.stripedBassCount,
+      catchPhoto: queued.catchPhoto,
+      queuedAt: queued.queuedAt,
+      firstName: queued.firstName,
+      lastName: queued.lastName,
+      wrcId: queued.wrcId,
+      retryCount: queued.retryCount,
+      lastError: queued.lastError,
+      enteredRaffle: queued.enterRaffle,
+      fishEntries: queued.fishEntries,
+    };
+  }
+};
+
 const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   const [submittedReports, setSubmittedReports] = useState<SubmittedReport[]>([]);
   const [queuedReports, setQueuedReports] = useState<QueuedReport[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [selectedReport, setSelectedReport] = useState<DisplayReport | null>(null);
   const [filterType, setFilterType] = useState<"all" | "synced" | "pending">("all");
+  const loadingRef = useRef(false);
 
-  // Date filter state
+  // Date filter state — panel visibility + selected range
   const [showDateFilter, setShowDateFilter] = useState<boolean>(false);
-  const [fromDate, setFromDate] = useState<Date | null>(null);
-  const [toDate, setToDate] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
-  const [datePickerMode, setDatePickerMode] = useState<"from" | "to">("from");
-  const [tempDate, setTempDate] = useState<Date>(new Date());
+  const [dateRange, setDateRange] = useState<{ from: Date | null; to: Date | null }>({ from: null, to: null });
   const dateFilterHeight = useRef(new Animated.Value(0)).current;
+
+  // Date picker modal state — all picker UI in one object
+  const [picker, setPicker] = useState<{
+    open: boolean;
+    visible: boolean;
+    mode: "from" | "to";
+    tempDate: Date;
+  }>({ open: false, visible: false, mode: "from", tempDate: new Date() });
 
   // Date picker modal animation values
   const datePickerOverlayOpacity = useRef(new Animated.Value(0)).current;
   const datePickerSlide = useRef(new Animated.Value(300)).current;
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   // Fetch species data for stock images
   const { data: fishSpeciesData = [] } = useAllFishSpecies();
 
   // Map species names to their stock images
-  const getSpeciesImage = (speciesName: string): string | null => {
+  const getSpeciesImage = useCallback((speciesName: string): string | null => {
     const species = fishSpeciesData.find(
       (s) => s.name.toLowerCase().includes(speciesName.toLowerCase()) ||
              speciesName.toLowerCase().includes(s.name.toLowerCase())
     );
     return species?.images?.primary || null;
-  };
+  }, [fishSpeciesData]);
 
   // Get the best image for a report (user photo or primary species stock image)
-  const getReportImage = (report: DisplayReport): string | null => {
+  const getReportImage = useCallback((report: DisplayReport): string | null => {
     // User's catch photo takes priority
     if (report.catchPhoto) return report.catchPhoto;
 
@@ -134,10 +207,12 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     if (report.weakfishCount > 0) return getSpeciesImage("Weakfish");
 
     return null;
-  };
+  }, [getSpeciesImage]);
 
   // Load reports from storage
   const loadReports = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     try {
       const [history, queue] = await Promise.all([
         getHistory(),
@@ -147,7 +222,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       setQueuedReports(queue);
     } catch (error) {
       console.error("Failed to load reports:", error);
-      Alert.alert("Error", "Failed to load your past reports");
+      Alert.alert("Error", "Failed to load your past reports. Pull down to try again.");
+    } finally {
+      loadingRef.current = false;
     }
   }, []);
 
@@ -173,9 +250,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
   // Animate date picker modal (overlay fades, content slides)
   useEffect(() => {
-    if (showDatePicker) {
+    if (picker.open) {
       // Show modal immediately, then animate in
-      setDatePickerVisible(true);
+      setPicker(prev => ({ ...prev, visible: true }));
       // Reset values before animating open
       datePickerOverlayOpacity.setValue(0);
       datePickerSlide.setValue(300);
@@ -207,72 +284,18 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           useNativeDriver: true,
         }),
       ]).start(() => {
-        setDatePickerVisible(false);
+        setPicker(prev => ({ ...prev, visible: false }));
       });
     }
-  }, [showDatePicker, datePickerOverlayOpacity, datePickerSlide]);
+  }, [picker.open, datePickerOverlayOpacity, datePickerSlide]);
 
   // Copy confirmation number
   const handleCopyConfirmation = async (confirmationNumber: string) => {
-    await Clipboard.setStringAsync(confirmationNumber);
-    Alert.alert("Copied!", "Confirmation number copied to clipboard");
-  };
-
-  // Convert reports to display format
-  const convertToDisplayReport = (
-    report: SubmittedReport | QueuedReport,
-    type: "submitted" | "queued"
-  ): DisplayReport => {
-    if (type === "submitted") {
-      const submitted = report as SubmittedReport;
-      return {
-        type: "submitted",
-        confirmationNumber: submitted.confirmationNumber,
-        harvestDate: submitted.harvestDate,
-        areaLabel: submitted.areaLabel,
-        areaCode: submitted.areaCode,
-        usedHookAndLine: submitted.usedHookAndLine,
-        gearLabel: submitted.gearLabel,
-        redDrumCount: submitted.redDrumCount,
-        flounderCount: submitted.flounderCount,
-        spottedSeatroutCount: submitted.spottedSeatroutCount,
-        weakfishCount: submitted.weakfishCount,
-        stripedBassCount: submitted.stripedBassCount,
-        catchPhoto: submitted.catchPhoto,
-        submittedAt: submitted.submittedAt,
-        firstName: submitted.firstName,
-        lastName: submitted.lastName,
-        wrcId: submitted.wrcId,
-        objectId: submitted.objectId,
-        enteredRaffle: submitted.raffleEntered,
-        raffleId: submitted.raffleId,
-        fishEntries: submitted.fishEntries,
-      };
-    } else {
-      const queued = report as QueuedReport;
-      return {
-        type: "queued",
-        confirmationNumber: queued.localConfirmationNumber,
-        harvestDate: queued.harvestDate,
-        areaLabel: queued.areaLabel,
-        areaCode: queued.areaCode,
-        usedHookAndLine: queued.usedHookAndLine,
-        gearLabel: queued.gearLabel,
-        redDrumCount: queued.redDrumCount,
-        flounderCount: queued.flounderCount,
-        spottedSeatroutCount: queued.spottedSeatroutCount,
-        weakfishCount: queued.weakfishCount,
-        stripedBassCount: queued.stripedBassCount,
-        catchPhoto: queued.catchPhoto,
-        queuedAt: queued.queuedAt,
-        firstName: queued.firstName,
-        lastName: queued.lastName,
-        wrcId: queued.wrcId,
-        retryCount: queued.retryCount,
-        lastError: queued.lastError,
-        enteredRaffle: queued.enterRaffle,
-        fishEntries: queued.fishEntries,
-      };
+    try {
+      await Clipboard.setStringAsync(confirmationNumber);
+      Alert.alert("Copied!", "Confirmation number copied to clipboard");
+    } catch {
+      Alert.alert("Error", "Could not copy to clipboard");
     }
   };
 
@@ -294,20 +317,22 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     }
 
     // Apply date range filter
-    if (fromDate || toDate) {
+    if (dateRange.from || dateRange.to) {
       combined = combined.filter(report => {
         const reportDate = new Date(report.harvestDate);
+        // Skip filtering for unparseable dates rather than silently dropping them
+        if (isNaN(reportDate.getTime())) return true;
         // Reset time components for date-only comparison
         reportDate.setHours(0, 0, 0, 0);
 
-        if (fromDate) {
-          const fromDateStart = new Date(fromDate);
+        if (dateRange.from) {
+          const fromDateStart = new Date(dateRange.from);
           fromDateStart.setHours(0, 0, 0, 0);
           if (reportDate < fromDateStart) return false;
         }
 
-        if (toDate) {
-          const toDateEnd = new Date(toDate);
+        if (dateRange.to) {
+          const toDateEnd = new Date(dateRange.to);
           toDateEnd.setHours(23, 59, 59, 999);
           if (reportDate > toDateEnd) return false;
         }
@@ -322,7 +347,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       const dateB = new Date(b.submittedAt || b.queuedAt || b.harvestDate).getTime();
       return dateB - dateA;
     });
-  }, [submittedReports, queuedReports, filterType, fromDate, toDate]);
+  }, [submittedReports, queuedReports, filterType, dateRange]);
 
   // Toggle date filter visibility with animation
   const toggleDateFilter = useCallback(() => {
@@ -337,44 +362,42 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
   // Open date picker for from/to
   const openDatePicker = useCallback((mode: "from" | "to") => {
-    setDatePickerMode(mode);
-    setTempDate(mode === "from" ? (fromDate || new Date()) : (toDate || new Date()));
-    setShowDatePicker(true);
-  }, [fromDate, toDate]);
+    setPicker(prev => ({
+      ...prev,
+      mode,
+      tempDate: mode === "from" ? (dateRange.from || new Date()) : (dateRange.to || new Date()),
+      open: true,
+    }));
+  }, [dateRange.from, dateRange.to]);
 
   // Handle date selection
   const handleDateChange = useCallback((event: any, selectedDate?: Date) => {
     if (Platform.OS === "android") {
-      setShowDatePicker(false);
+      setPicker(prev => ({ ...prev, open: false }));
       if (event.type === "set" && selectedDate) {
-        if (datePickerMode === "from") {
-          setFromDate(selectedDate);
-        } else {
-          setToDate(selectedDate);
-        }
+        setDateRange(prev =>
+          picker.mode === "from" ? { ...prev, from: selectedDate } : { ...prev, to: selectedDate }
+        );
       }
     } else {
       // iOS - update temp date, confirm with Done button
       if (selectedDate) {
-        setTempDate(selectedDate);
+        setPicker(prev => ({ ...prev, tempDate: selectedDate }));
       }
     }
-  }, [datePickerMode]);
+  }, [picker.mode]);
 
   // Confirm date selection (iOS)
   const confirmDateSelection = useCallback(() => {
-    if (datePickerMode === "from") {
-      setFromDate(tempDate);
-    } else {
-      setToDate(tempDate);
-    }
-    setShowDatePicker(false);
-  }, [datePickerMode, tempDate]);
+    setDateRange(prev =>
+      picker.mode === "from" ? { ...prev, from: picker.tempDate } : { ...prev, to: picker.tempDate }
+    );
+    setPicker(prev => ({ ...prev, open: false }));
+  }, [picker.mode, picker.tempDate]);
 
   // Clear date filters
   const clearDateFilters = useCallback(() => {
-    setFromDate(null);
-    setToDate(null);
+    setDateRange({ from: null, to: null });
   }, []);
 
   // Format date for display in filter
@@ -388,10 +411,13 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   };
 
   // Check if date filter is active
-  const hasDateFilter = fromDate !== null || toDate !== null;
+  const hasDateFilter = dateRange.from !== null || dateRange.to !== null;
 
   // Get total fish count
-  const getTotalFish = (report: DisplayReport): number => {
+  const getTotalFish = useCallback((report: DisplayReport): number => {
+    if (report.reportType === 'catch_log' && report.fishEntries?.length) {
+      return report.fishEntries.reduce((sum, fe) => sum + fe.count, 0);
+    }
     return (
       report.redDrumCount +
       report.flounderCount +
@@ -399,7 +425,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       report.weakfishCount +
       report.stripedBassCount
     );
-  };
+  }, []);
 
   // Format date — handles both ISO timestamps and date-only strings.
   // Appends T12:00:00 to date-only strings to prevent timezone-shift issues
@@ -420,7 +446,12 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   };
 
   // Get species chips for display
-  const getSpeciesChips = (report: DisplayReport): Array<{ name: string; count: number }> => {
+  const getSpeciesChips = useCallback((report: DisplayReport): Array<{ name: string; count: number }> => {
+    // Catch logs: use fishEntries directly (species can be anything)
+    if (report.reportType === 'catch_log' && report.fishEntries?.length) {
+      return report.fishEntries.map(fe => ({ name: fe.species, count: fe.count }));
+    }
+    // DMF harvest: use the 5 species count fields
     const chips: Array<{ name: string; count: number }> = [];
     if (report.redDrumCount > 0) chips.push({ name: "Red Drum", count: report.redDrumCount });
     if (report.flounderCount > 0) chips.push({ name: "Flounder", count: report.flounderCount });
@@ -428,7 +459,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     if (report.weakfishCount > 0) chips.push({ name: "Weakfish", count: report.weakfishCount });
     if (report.stripedBassCount > 0) chips.push({ name: "Striped Bass", count: report.stripedBassCount });
     return chips;
-  };
+  }, []);
 
   // Memoized keyExtractor for FlatList performance
   const keyExtractor = useCallback((item: DisplayReport) => item.confirmationNumber, []);
@@ -460,11 +491,15 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         <View style={styles.statusIconContainer}>
           {isPending ? (
             <View style={styles.pendingStatusBadge}>
-              <Feather name="clock" size={24} color={colors.warning} />
+              <Feather name="clock" size={24} color={theme.colors.warning} />
+            </View>
+          ) : item.reportType === 'catch_log' ? (
+            <View style={styles.syncedStatusBadge}>
+              <Feather name="camera" size={24} color={theme.colors.secondary} />
             </View>
           ) : (
             <View style={styles.syncedStatusBadge}>
-              <Feather name="check-circle" size={28} color={colors.success} />
+              <Feather name="check-circle" size={28} color={theme.colors.success} />
             </View>
           )}
         </View>
@@ -478,7 +513,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
             {/* Location */}
             <View style={styles.locationRow}>
-              <Feather name="map-pin" size={14} color={colors.textSecondary} />
+              <Feather name="map-pin" size={14} color={theme.colors.textSecondary} />
               <Text style={styles.cardLocation} numberOfLines={1}>
                 {item.areaLabel || `Area ${item.areaCode}`}
               </Text>
@@ -504,7 +539,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             {/* Footer Row */}
             <View style={styles.cardFooter}>
               <View style={styles.footerLeft}>
-                <Feather name="anchor" size={14} color={colors.primary} />
+                <Feather name="anchor" size={14} color={theme.colors.primary} />
                 <Text style={styles.fishCountText}>{totalFish} fish</Text>
                 <Text style={styles.methodDivider}>•</Text>
                 <Text style={styles.methodText}>
@@ -529,7 +564,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               </View>
             ) : (
               <View style={styles.cardPhotoPlaceholder}>
-                <Feather name="image" size={28} color={colors.lightGray} />
+                <Feather name="image" size={28} color={theme.colors.lightGray} />
               </View>
             )}
             {isUserPhoto && (
@@ -551,7 +586,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           <View style={styles.perforationNotchRight} />
         </View>
 
-        {/* Footer - Confirmation Number (only for submitted reports) */}
+        {/* Footer - Confirmation Number or Catch Log label */}
         <View style={[
           styles.confirmationRow,
           !isPending && styles.confirmationRowBottom
@@ -559,7 +594,12 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           {isPending ? (
             <>
               <Text style={styles.confirmationLabel}>Status</Text>
-              <Text style={[styles.confirmationNumber, { color: colors.warning }]}>Pending</Text>
+              <Text style={[styles.confirmationNumber, { color: theme.colors.warning }]}>Pending</Text>
+            </>
+          ) : item.reportType === 'catch_log' ? (
+            <>
+              <Text style={styles.confirmationLabel}>Type</Text>
+              <Text style={[styles.confirmationNumber, { color: theme.colors.secondary }]}>Catch Log</Text>
             </>
           ) : (
             <>
@@ -575,7 +615,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         {/* Pending Banner */}
         {isPending && (
           <View style={styles.cardPendingBanner}>
-            <Feather name="wifi-off" size={14} color={colors.warning} />
+            <Feather name="wifi-off" size={14} color={theme.colors.warning} />
             <Text style={styles.cardPendingBannerText}>
               {item.retryCount && item.retryCount > 0
                 ? `Sync failed (${item.retryCount}x) — will retry`
@@ -585,7 +625,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         )}
       </TouchableOpacity>
     );
-  }, [fishSpeciesData]);
+  }, [getReportImage, getSpeciesChips, getTotalFish]);
 
   // Render detail modal
   const renderDetailModal = () => (
@@ -602,7 +642,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             onPress={() => setSelectedReport(null)}
             activeOpacity={0.7}
           >
-            <Feather name="x" size={24} color={colors.textSecondary} />
+            <Feather name="x" size={24} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
           <ScrollView
@@ -617,16 +657,16 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 : styles.modalStatusHeaderSynced
             ]}>
               <Feather
-                name={selectedReport?.type === "queued" ? "clock" : "check-circle"}
+                name={selectedReport?.type === "queued" ? "clock" : selectedReport?.reportType === "catch_log" ? "camera" : "check-circle"}
                 size={24}
-                color={colors.white}
+                color={theme.colors.textOnPrimary}
               />
               <Text style={styles.modalStatusText}>
-                {selectedReport?.type === "queued" ? "Pending Sync" : "Submitted to DMF"}
+                {selectedReport?.type === "queued" ? "Pending Sync" : selectedReport?.reportType === "catch_log" ? "Catch Log" : "Submitted to DMF"}
               </Text>
             </View>
 
-            {/* Confirmation Number — only show for submitted reports */}
+            {/* Confirmation Number / Status / Catch Log label */}
             {selectedReport?.type === "queued" ? (
               <View
                 style={[
@@ -642,6 +682,15 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 </Text>
                 <Text style={styles.modalConfirmationHint}>
                   Will sync automatically when online
+                </Text>
+              </View>
+            ) : selectedReport?.reportType === "catch_log" ? (
+              <View style={[styles.modalConfirmationBox, { backgroundColor: `${theme.colors.secondary}15`, borderColor: theme.colors.secondary }]}>
+                <Text style={[styles.modalConfirmationLabel, { color: theme.colors.secondary }]}>
+                  CATCH LOG
+                </Text>
+                <Text style={[styles.modalConfirmationNumber, { color: theme.colors.secondary, fontSize: 18 }]}>
+                  Personal Catch Record
                 </Text>
               </View>
             ) : (
@@ -669,7 +718,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                   style={styles.modalPhoto}
                   contentFit="cover"
                   cachePolicy="disk"
-                  recyclingKey={`report-modal-${selectedReport.confirmationNumber}`}
+                  recyclingKey={`report-modal-${selectedReport?.confirmationNumber}`}
                   transition={200}
                 />
               </View>
@@ -824,7 +873,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             {selectedReport?.enteredRaffle && (
               <View style={styles.modalRaffleSection}>
                 <View style={styles.modalRaffleHeader}>
-                  <Feather name="gift" size={20} color={colors.primary} />
+                  <Feather name="gift" size={20} color={theme.colors.primary} />
                   <Text style={styles.modalRaffleTitle}>Raffle Entry</Text>
                 </View>
                 <Text style={styles.modalRaffleText}>
@@ -861,7 +910,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
         <Feather
           name={isPending ? "check-circle" : "file-text"}
           size={64}
-          color={isPending ? colors.success : colors.lightGray}
+          color={isPending ? theme.colors.success : theme.colors.lightGray}
         />
         <Text style={styles.emptyTitle}>{title}</Text>
         <Text style={styles.emptyText}>{description}</Text>
@@ -870,7 +919,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             style={styles.emptyButton}
             onPress={() => navigation.navigate("ReportForm")}
           >
-            <Feather name="plus" size={18} color={colors.white} style={{ marginRight: 8 }} />
+            <Feather name="plus" size={18} color={theme.colors.textOnPrimary} style={{ marginRight: 8 }} />
             <Text style={styles.emptyButtonText}>Submit a Report</Text>
           </TouchableOpacity>
         )}
@@ -910,7 +959,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
       {queuedReports.length > 0 && (
         <View style={styles.pendingBanner}>
           <View style={styles.pendingBannerContent}>
-            <Feather name="wifi-off" size={18} color={colors.warning} />
+            <Feather name="wifi-off" size={18} color={theme.colors.warning} />
             <Text style={styles.pendingBannerText}>
               {queuedReports.length} report{queuedReports.length > 1 ? "s" : ""} pending sync
             </Text>
@@ -954,7 +1003,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           style={[styles.filterButton, styles.dateFilterToggle, (showDateFilter || hasDateFilter) && styles.dateFilterToggleActive]}
           onPress={toggleDateFilter}
         >
-          <Feather name="calendar" size={14} color={(showDateFilter || hasDateFilter) ? colors.primary : colors.textSecondary} />
+          <Feather name="calendar" size={14} color={(showDateFilter || hasDateFilter) ? theme.colors.primary : theme.colors.textSecondary} />
           {hasDateFilter && <View style={styles.dateFilterDot} />}
         </TouchableOpacity>
       </View>
@@ -978,9 +1027,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             >
               <Text style={styles.datePickerLabel}>From</Text>
               <View style={styles.datePickerValueContainer}>
-                <Feather name="calendar" size={14} color={colors.primary} />
-                <Text style={[styles.datePickerValue, !fromDate && styles.datePickerValuePlaceholder]}>
-                  {formatFilterDate(fromDate)}
+                <Feather name="calendar" size={14} color={theme.colors.primary} />
+                <Text style={[styles.datePickerValue, !dateRange.from && styles.datePickerValuePlaceholder]}>
+                  {formatFilterDate(dateRange.from)}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -992,9 +1041,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             >
               <Text style={styles.datePickerLabel}>To</Text>
               <View style={styles.datePickerValueContainer}>
-                <Feather name="calendar" size={14} color={colors.primary} />
-                <Text style={[styles.datePickerValue, !toDate && styles.datePickerValuePlaceholder]}>
-                  {formatFilterDate(toDate)}
+                <Feather name="calendar" size={14} color={theme.colors.primary} />
+                <Text style={[styles.datePickerValue, !dateRange.to && styles.datePickerValuePlaceholder]}>
+                  {formatFilterDate(dateRange.to)}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -1005,7 +1054,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
                 style={styles.clearDateButton}
                 onPress={clearDateFilters}
               >
-                <Feather name="x" size={16} color={colors.textSecondary} />
+                <Feather name="x" size={16} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
@@ -1030,8 +1079,8 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={[theme.colors.primary]}
+            tintColor={theme.colors.primary}
           />
         }
         ListEmptyComponent={renderEmptyState}
@@ -1045,10 +1094,10 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
       {/* Date Picker Modal */}
       <Modal
-        visible={datePickerVisible}
+        visible={picker.visible}
         transparent
         animationType="none"
-        onRequestClose={() => setShowDatePicker(false)}
+        onRequestClose={() => setPicker(prev => ({ ...prev, open: false }))}
       >
         <View style={styles.dateModalContainer}>
           {/* Animated overlay - fades in/out */}
@@ -1061,7 +1110,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             <TouchableOpacity
               style={StyleSheet.absoluteFill}
               activeOpacity={1}
-              onPress={() => setShowDatePicker(false)}
+              onPress={() => setPicker(prev => ({ ...prev, open: false }))}
             />
           </Animated.View>
           {/* Animated content - slides up/down */}
@@ -1073,14 +1122,14 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
           >
             <View style={styles.dateModalHeader}>
               <Text style={styles.dateModalTitle}>
-                {datePickerMode === "from" ? "From Date" : "To Date"}
+                {picker.mode === "from" ? "From Date" : "To Date"}
               </Text>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <Feather name="x" size={24} color={colors.textSecondary} />
+              <TouchableOpacity onPress={() => setPicker(prev => ({ ...prev, open: false }))}>
+                <Feather name="x" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
             <DateTimePicker
-              value={tempDate}
+              value={picker.tempDate}
               mode="date"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDateChange}
@@ -1106,10 +1155,10 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 };
 
 // Styles
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     justifyContent: "center",
@@ -1117,17 +1166,17 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: spacing.md,
   },
   testModeBadge: {
-    backgroundColor: "#ff9800",
+    backgroundColor: theme.colors.warning,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
   },
   testModeBadgeText: {
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.5,
@@ -1136,7 +1185,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff8e1",
+    backgroundColor: theme.colors.warningLight,
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
     padding: spacing.md,
@@ -1164,21 +1213,21 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   filterButton: {
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.sm,
     marginRight: spacing.sm,
   },
   filterButtonActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
   },
   filterButtonText: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   filterButtonTextActive: {
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: "600",
   },
   listContainer: {
@@ -1188,7 +1237,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   reportCard: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: 16,
     marginBottom: spacing.lg,
     marginTop: spacing.md,
@@ -1221,7 +1270,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#fff8e1",
+    backgroundColor: theme.colors.warningLight,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -1230,13 +1279,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
     borderWidth: 3,
-    borderColor: colors.white,
+    borderColor: theme.colors.white,
   },
   syncedStatusBadge: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#e8f5e9",
+    backgroundColor: theme.colors.successLight,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -1245,7 +1294,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
     borderWidth: 3,
-    borderColor: colors.white,
+    borderColor: theme.colors.white,
   },
   cardHeader: {
     flexDirection: "row",
@@ -1259,7 +1308,7 @@ const styles = StyleSheet.create({
   cardDate: {
     fontSize: 18,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: 4,
   },
   locationRow: {
@@ -1269,7 +1318,7 @@ const styles = StyleSheet.create({
   },
   cardLocation: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginLeft: 6,
     flex: 1,
   },
@@ -1297,12 +1346,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
     borderWidth: 3,
-    borderColor: colors.white,
+    borderColor: theme.colors.white,
   },
   confirmationNumber: {
     fontSize: 15,
     fontWeight: "700",
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   confirmationRow: {
     alignItems: "center",
@@ -1310,7 +1359,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     marginTop: 0,
     marginHorizontal: -spacing.md,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
   },
   confirmationRowBottom: {
     borderBottomLeftRadius: 16,
@@ -1318,7 +1367,7 @@ const styles = StyleSheet.create({
   },
   confirmationLabel: {
     fontSize: 12,
-    color: colors.primary,
+    color: theme.colors.primary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -1335,7 +1384,7 @@ const styles = StyleSheet.create({
   perforationNotchLeft: {
     width: 12,
     height: 24,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
     marginLeft: -1,
@@ -1344,7 +1393,7 @@ const styles = StyleSheet.create({
   perforationNotchRight: {
     width: 12,
     height: 24,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
     marginRight: -1,
@@ -1361,7 +1410,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   speciesTagsContainer: {
     flexDirection: "row",
@@ -1382,17 +1431,17 @@ const styles = StyleSheet.create({
   speciesTagCount: {
     fontSize: 15,
     fontWeight: "700",
-    color: colors.primary,
+    color: theme.colors.primary,
     marginRight: 5,
   },
   speciesTagName: {
     fontSize: 14,
     fontWeight: "500",
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   noFishText: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontStyle: "italic",
   },
   cardFooter: {
@@ -1412,11 +1461,11 @@ const styles = StyleSheet.create({
   fishCountText: {
     fontSize: 15,
     fontWeight: "600",
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   methodText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   footerRight: {
     flexDirection: "row",
@@ -1426,7 +1475,7 @@ const styles = StyleSheet.create({
   pendingBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff8e1",
+    backgroundColor: theme.colors.warningLight,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1435,20 +1484,20 @@ const styles = StyleSheet.create({
   pendingText: {
     fontSize: 12,
     fontWeight: "600",
-    color: colors.warning,
+    color: theme.colors.warning,
   },
   syncedBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#e8f5e9",
+    backgroundColor: theme.colors.successLight,
     alignItems: "center",
     justifyContent: "center",
   },
   retryBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ffebee",
+    backgroundColor: theme.colors.dangerLight,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -1457,7 +1506,7 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontSize: 12,
-    color: "#c0392b",
+    color: theme.colors.error,
     fontWeight: "500",
     flex: 1,
   },
@@ -1469,27 +1518,27 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.h2,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   emptyText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: "center",
     marginBottom: spacing.lg,
   },
   emptyButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.md,
   },
   emptyButtonText: {
     ...typography.button,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
   // Modal styles
   modalContainer: {
@@ -1499,7 +1548,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     width: "90%",
     maxHeight: "85%",
@@ -1515,7 +1564,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 10,
@@ -1530,52 +1579,52 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   modalStatusHeaderSynced: {
-    backgroundColor: colors.success,
+    backgroundColor: theme.colors.success,
   },
   modalStatusHeaderPending: {
-    backgroundColor: colors.warning,
+    backgroundColor: theme.colors.warning,
   },
   modalStatusText: {
     ...typography.h3,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     marginLeft: spacing.sm,
   },
   modalConfirmationBox: {
-    backgroundColor: "#f0f7f0",
+    backgroundColor: theme.colors.successLight,
     padding: spacing.lg,
     borderRadius: borderRadius.md,
     alignItems: "center",
     marginBottom: spacing.lg,
     borderWidth: 2,
     borderStyle: "dashed",
-    borderColor: colors.success,
+    borderColor: theme.colors.success,
   },
   modalConfirmationBoxPending: {
-    backgroundColor: "#fff8e1",
-    borderColor: colors.warning,
+    backgroundColor: theme.colors.warningLight,
+    borderColor: theme.colors.warning,
   },
   modalConfirmationLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: colors.success,
+    color: theme.colors.success,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   modalConfirmationLabelPending: {
-    color: colors.warning,
+    color: theme.colors.warning,
   },
   modalConfirmationNumber: {
     fontSize: 32,
     fontWeight: "bold",
-    color: colors.success,
+    color: theme.colors.success,
     letterSpacing: 3,
   },
   modalConfirmationNumberPending: {
-    color: colors.warning,
+    color: theme.colors.warning,
   },
   modalConfirmationHint: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: 8,
   },
   modalPhotoContainer: {
@@ -1586,39 +1635,39 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 4 / 5,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
   },
   modalDetailSection: {
     marginBottom: spacing.md,
   },
   modalDetailTitle: {
     ...typography.h3,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.xs,
   },
   modalDetailTable: {
     borderWidth: 1,
-    borderColor: colors.lightGray,
+    borderColor: theme.colors.lightGray,
     borderRadius: borderRadius.sm,
     overflow: "hidden",
   },
   modalDetailRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightGray,
+    borderBottomColor: theme.colors.lightGray,
   },
   modalDetailLabel: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
-    backgroundColor: colors.lightestGray,
+    color: theme.colors.textSecondary,
+    backgroundColor: theme.colors.lightestGray,
     padding: spacing.sm,
     width: "40%",
     borderRightWidth: 1,
-    borderRightColor: colors.lightGray,
+    borderRightColor: theme.colors.lightGray,
   },
   modalDetailValue: {
     ...typography.body,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     padding: spacing.sm,
     flex: 1,
   },
@@ -1626,24 +1675,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightGray,
+    borderBottomColor: theme.colors.lightGray,
   },
   modalLengthsLabel: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontStyle: "italic",
     marginRight: spacing.sm,
   },
   modalLengthsValue: {
     ...typography.bodySmall,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: "600",
     flex: 1,
   },
   modalCloseButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     alignItems: "center",
@@ -1651,11 +1700,11 @@ const styles = StyleSheet.create({
   },
   modalCloseButtonText: {
     ...typography.button,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
   // Modal raffle section
   modalRaffleSection: {
-    backgroundColor: "#e3f2fd",
+    backgroundColor: theme.colors.infoLight,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     paddingBottom: spacing.md + 28,
@@ -1668,12 +1717,12 @@ const styles = StyleSheet.create({
   },
   modalRaffleTitle: {
     ...typography.h3,
-    color: colors.primary,
+    color: theme.colors.primary,
     marginLeft: spacing.sm,
   },
   modalRaffleText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   // New card layout styles
   cardContent: {
@@ -1689,7 +1738,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 12,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
@@ -1702,7 +1751,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 12,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -1716,11 +1765,11 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: theme.colors.white,
   },
   infoSection: {
     flex: 1,
@@ -1735,17 +1784,17 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.warning,
+    backgroundColor: theme.colors.warning,
   },
   moreSpeciesText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontStyle: "italic",
     alignSelf: "center",
   },
   methodDivider: {
     fontSize: 14,
-    color: colors.lightGray,
+    color: theme.colors.lightGray,
   },
   chevronContainer: {
     marginLeft: spacing.sm,
@@ -1754,7 +1803,7 @@ const styles = StyleSheet.create({
   cardPendingBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff8e1",
+    backgroundColor: theme.colors.warningLight,
     paddingVertical: 10,
     paddingHorizontal: spacing.md,
     marginTop: spacing.sm,
@@ -1776,7 +1825,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   dateFilterToggleActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
   },
   dateFilterDot: {
     position: "absolute",
@@ -1785,7 +1834,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   dateFilterContainer: {
     overflow: "hidden",
@@ -1801,15 +1850,15 @@ const styles = StyleSheet.create({
   },
   datePickerButton: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.md,
     padding: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.lightGray,
+    borderColor: theme.colors.lightGray,
   },
   datePickerLabel: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -1822,23 +1871,23 @@ const styles = StyleSheet.create({
   datePickerValue: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   datePickerValuePlaceholder: {
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontWeight: "400",
   },
   clearDateButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     alignItems: "center",
     justifyContent: "center",
   },
   dateFilterResultsText: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: spacing.xs,
     fontStyle: "italic",
   },
@@ -1852,7 +1901,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   dateModalContent: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: Platform.OS === "ios" ? 34 : 20,
@@ -1863,15 +1912,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.lightGray,
+    borderBottomColor: theme.colors.lightGray,
   },
   dateModalTitle: {
     fontSize: 17,
     fontWeight: "600",
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   dateModalConfirmButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
     paddingVertical: spacing.md,
@@ -1881,7 +1930,7 @@ const styles = StyleSheet.create({
   dateModalConfirmText: {
     fontSize: 16,
     fontWeight: "600",
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

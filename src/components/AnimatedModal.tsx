@@ -18,7 +18,10 @@ import {
   ViewStyle,
   ScrollView,
 } from 'react-native';
-import { colors, spacing, borderRadius } from '../styles/common';
+import { spacing, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 interface AnimatedModalProps {
   visible: boolean;
@@ -52,6 +55,8 @@ const AnimatedModal: React.FC<AnimatedModalProps> = ({
   springTension = 65,
   springFriction = 11,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   // Animation value for slide-up effect
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -156,7 +161,7 @@ const AnimatedModal: React.FC<AnimatedModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
   },
@@ -174,7 +179,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   container: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.xl,
     width: '100%',
     maxWidth: 400,

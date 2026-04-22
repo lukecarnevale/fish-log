@@ -7,11 +7,17 @@ import {
   Dimensions,
 } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 // Prevent the native splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
-const TEAL = "#1B808C";
+// Brand splash background — matches app.config.js splash.backgroundColor.
+// Light mode uses brand teal; dark mode uses deep navy that matches darkPalette.background.
+const SPLASH_BG_LIGHT = "#1B808C";
+const SPLASH_BG_DARK = "#0D1B2A";
 const { width } = Dimensions.get("window");
 const ICON_SIZE = width * 0.38;
 
@@ -22,6 +28,7 @@ interface Props {
 }
 
 export default function AnimatedSplashScreen({ children, ready }: Props) {
+  const styles = useThemedStyles(createStyles);
   const [animationDone, setAnimationDone] = useState(false);
 
   // Icon starts fully visible and at full scale so there is no blank frame
@@ -117,14 +124,14 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: TEAL,
+    backgroundColor: theme.isDark ? SPLASH_BG_DARK : SPLASH_BG_LIGHT,
   },
   splashContainer: {
     flex: 1,
-    backgroundColor: TEAL,
+    backgroundColor: theme.isDark ? SPLASH_BG_DARK : SPLASH_BG_LIGHT,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -147,7 +154,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     fontSize: 32,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: theme.colors.textOnPrimary,
     letterSpacing: 1,
   },
 });

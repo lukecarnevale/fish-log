@@ -1,5 +1,6 @@
 import { StyleSheet, Platform, Dimensions } from 'react-native';
 import { colors, spacing, borderRadius, shadows, typography, modals } from './common';
+import { Theme } from './theme';
 
 export const styles = StyleSheet.create({
   safeArea: {
@@ -379,11 +380,11 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inputError: {
-    borderColor: colors.error || '#FF3B30',
+    borderColor: colors.error,
     borderWidth: 1,
   },
   errorText: {
-    color: colors.error || '#FF3B30',
+    color: colors.error,
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
@@ -416,7 +417,7 @@ export const styles = StyleSheet.create({
   },
   zipFeedbackSuccessText: {
     fontSize: 13,
-    color: '#28a745',
+    color: colors.success,
     fontWeight: '500',
   },
   zipFeedbackWarning: {
@@ -426,7 +427,7 @@ export const styles = StyleSheet.create({
   },
   zipFeedbackWarningText: {
     fontSize: 13,
-    color: '#ff9800',
+    color: colors.warning,
     fontWeight: '500',
   },
   textArea: {
@@ -554,7 +555,7 @@ export const styles = StyleSheet.create({
 export const localStyles = StyleSheet.create({
   pendingAuthSection: {
     backgroundColor: '#FFF9E6',
-    borderColor: '#FFD700',
+    borderColor: colors.gold,
     borderWidth: 1,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
@@ -657,8 +658,8 @@ export const localStyles = StyleSheet.create({
   },
   // Rewards member section styles
   rewardsMemberSection: {
-    backgroundColor: '#E8F5E9',
-    borderColor: '#4CAF50',
+    backgroundColor: colors.successLight,
+    borderColor: colors.success,
     borderWidth: 1,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
@@ -770,11 +771,11 @@ export const localStyles = StyleSheet.create({
     color: colors.textPrimary,
   },
   signInInputError: {
-    borderColor: colors.error || '#FF3B30',
+    borderColor: colors.error,
     borderWidth: 1,
   },
   signInInputErrorText: {
-    color: colors.error || '#FF3B30',
+    color: colors.error,
     fontSize: 12,
     marginTop: 4,
   },
@@ -828,7 +829,7 @@ export const localStyles = StyleSheet.create({
   // Delete account section styles
   deleteAccountSection: {
     backgroundColor: '#FFF5F5',
-    borderColor: '#FF3B30',
+    borderColor: colors.error,
     borderWidth: 1,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
@@ -844,7 +845,7 @@ export const localStyles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FF3B30',
+    backgroundColor: colors.error,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.sm,
@@ -852,7 +853,7 @@ export const localStyles = StyleSheet.create({
   deleteAccountTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FF3B30',
+    color: colors.error,
   },
   deleteAccountDesc: {
     fontSize: 14,
@@ -869,11 +870,11 @@ export const localStyles = StyleSheet.create({
     borderRadius: borderRadius.md,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#FF3B30',
+    borderColor: colors.error,
     gap: 6,
   },
   deleteAccountButtonText: {
-    color: '#FF3B30',
+    color: colors.error,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -980,4 +981,1000 @@ export const localStyles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 18,
   },
+
+  // Theme selector — tighter padding so 3 buttons fit comfortably
+  themeToggleRow: {
+    marginTop: spacing.xs,
+  },
+  themeToggleButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+});
+
+// Theme-aware factory for the main profile screen styles
+export const createProfileMainStyles = (theme: Theme) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scrollView: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    contentContainer: {
+      flexGrow: 1,
+    },
+    topBounceArea: {
+      // Must match the TOP of the header LinearGradient (['#05626C', ...]).
+      // theme.colors.secondary = #2AA5B0 in dark mode (too light/bright vs the
+      // dark gradient start), so hardcode the gradient start color for all modes.
+      backgroundColor: '#05626C',
+      height: 500,
+      marginTop: -500,
+    },
+    contentArea: {
+      backgroundColor: theme.colors.background,
+      flexGrow: 1,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xl * 2,
+    },
+    headerRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      width: '100%' as const,
+      marginBottom: spacing.lg,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: borderRadius.md,
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    headerSpacer: {
+      width: 40,
+      height: 40,
+    },
+    profileHeader: {
+      backgroundColor: 'transparent',
+      paddingTop: 60,
+      paddingBottom: spacing.xl,
+      paddingHorizontal: spacing.lg,
+      alignItems: 'center' as const,
+    },
+    headerTitle: {
+      ...typography.h1,
+      color: theme.colors.textOnPrimary,
+      fontSize: 20,
+      textAlign: 'center' as const,
+      flex: 1,
+    },
+    profileImageContainer: {
+      width: 160,
+      height: 160,
+      borderRadius: 80,
+      backgroundColor: 'rgba(255,255,255,0.8)',
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      marginTop: spacing.sm,
+      marginBottom: spacing.xl,
+      overflow: 'visible' as const,
+      position: 'relative' as const,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    profileImage: {
+      width: 160,
+      height: 160,
+      borderRadius: 80,
+    },
+    cameraIconContainer: {
+      position: 'absolute' as const,
+      bottom: 2,
+      right: 2,
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.08)',
+      ...shadows.small,
+    },
+    profileNamePill: {
+      backgroundColor: 'rgba(0,0,0,0.25)',
+      paddingHorizontal: 16,
+      paddingVertical: 5,
+      borderRadius: 20,
+      marginBottom: spacing.xxs,
+    },
+    profileName: {
+      ...typography.h1,
+      // theme.colors.white = '#162A3E' in dark mode (surface alias, not actual
+      // white) → name appears dark on the teal header. Use textOnPrimary which
+      // is always #FFFFFF regardless of theme mode.
+      color: theme.colors.textOnPrimary,
+      marginBottom: 0,
+    },
+    profileSubtitle: {
+      ...typography.body,
+      color: theme.colors.textOnPrimary,
+      opacity: 0.9,
+    },
+    infoContainer: {
+      backgroundColor: theme.colors.white,
+      marginHorizontal: spacing.lg,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      marginTop: -spacing.xl,
+      ...shadows.medium,
+    },
+    infoSection: {
+      marginBottom: spacing.lg,
+    },
+    infoSectionTitle: {
+      ...typography.heading,
+      color: theme.colors.primary,
+      marginBottom: spacing.md,
+    },
+    infoItem: {
+      flexDirection: 'row' as const,
+      marginBottom: spacing.md,
+    },
+    infoIconContainer: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.primaryLight,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      marginRight: spacing.md,
+    },
+    infoContent: {
+      flex: 1,
+      justifyContent: 'center' as const,
+    },
+    infoLabel: {
+      ...typography.bodySmall,
+      color: theme.colors.darkGray,
+      marginBottom: spacing.xxs,
+    },
+    infoValue: {
+      ...typography.body,
+      color: theme.colors.black,
+    },
+    editButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      borderRadius: borderRadius.md,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      ...shadows.small,
+    },
+    editButtonText: {
+      ...typography.button,
+      color: theme.colors.white,
+      marginLeft: spacing.xs,
+    },
+    licenseSection: {
+      backgroundColor: theme.colors.white,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.lg,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      ...shadows.medium,
+    },
+    sectionHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: spacing.sm,
+    },
+    sectionTitle: {
+      ...typography.heading,
+      color: theme.colors.primary,
+    },
+    viewLicenseButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+    },
+    viewLicenseText: {
+      ...typography.bodySmall,
+      color: theme.colors.primary,
+      fontWeight: '600' as const,
+      marginRight: spacing.xxs,
+    },
+    licenseDescription: {
+      ...typography.body,
+      color: theme.colors.darkGray,
+      marginTop: spacing.xs,
+    },
+    statsSection: {
+      backgroundColor: theme.colors.white,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.lg,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      ...shadows.medium,
+    },
+    statsContainer: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      marginTop: spacing.md,
+    },
+    statCard: {
+      width: '30%' as const,
+      backgroundColor: theme.colors.lightGray,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    statValue: {
+      ...typography.heading,
+      color: theme.colors.primary,
+      marginBottom: spacing.xxs,
+      textAlign: 'center' as const,
+    },
+    statLabel: {
+      ...typography.bodySmall,
+      color: theme.colors.darkGray,
+      fontWeight: '600' as const,
+      textAlign: 'center' as const,
+    },
+    formContainer: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    formContentContainer: {
+      padding: spacing.lg,
+    },
+    formSection: {
+      backgroundColor: theme.colors.white,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.lg,
+      ...shadows.small,
+    },
+    formSectionTitle: {
+      ...typography.heading,
+      color: theme.colors.primary,
+      marginBottom: spacing.md,
+    },
+    sectionDescription: {
+      ...typography.body,
+      color: theme.colors.darkGray,
+      marginBottom: spacing.md,
+      marginTop: -spacing.xs,
+    },
+    toggleRow: {
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+    },
+    toggleButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: borderRadius.md,
+      borderWidth: 2,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.white,
+      alignItems: 'center' as const,
+    },
+    toggleButtonActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryLight,
+    },
+    toggleButtonText: {
+      ...typography.body,
+      fontWeight: '600' as const,
+      color: theme.colors.darkGray,
+    },
+    toggleButtonTextActive: {
+      color: theme.colors.primary,
+    },
+    helpText: {
+      ...typography.bodySmall,
+      color: theme.colors.darkGray,
+      marginTop: spacing.xxs,
+      fontStyle: 'italic' as const,
+    },
+    formHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      paddingHorizontal: spacing.lg,
+      paddingTop: 60,
+      paddingBottom: spacing.xl,
+      backgroundColor: theme.colors.primaryDark,
+      borderBottomLeftRadius: borderRadius.md,
+      borderBottomRightRadius: borderRadius.md,
+    },
+    formCloseButton: {
+      width: 40,
+      height: 40,
+      borderRadius: borderRadius.md,
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    formHeaderTitle: {
+      ...typography.h1,
+      color: theme.colors.textOnPrimary,
+      fontSize: 20,
+    },
+    profilePhotoSection: {
+      alignItems: 'center' as const,
+      marginTop: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    photoHelpText: {
+      ...typography.bodySmall,
+      color: theme.colors.primary,
+      marginTop: spacing.sm,
+    },
+    inputGroup: {
+      marginBottom: spacing.md,
+    },
+    nameRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+    },
+    nameInputRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+    },
+    nameInput: {
+      flex: 1,
+    },
+    nameInputSpacer: {
+      width: 12,
+    },
+    labelRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      marginBottom: spacing.xs,
+    },
+    inputLabel: {
+      ...typography.bodySmall,
+      fontWeight: '600' as const,
+      color: theme.colors.darkGray,
+      marginBottom: spacing.sm,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: Platform.OS === 'ios' ? spacing.sm : spacing.sm,
+      fontSize: 16,
+      color: theme.colors.black,
+      backgroundColor: theme.colors.white,
+      minHeight: 48,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+    },
+    inputError: {
+      borderColor: theme.colors.error,
+      borderWidth: 1,
+    },
+    errorText: {
+      color: theme.colors.error,
+      fontSize: 12,
+      marginTop: 4,
+      marginLeft: 4,
+    },
+    zipInputRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+    },
+    zipInput: {
+      width: 100,
+      flex: 0,
+    },
+    zipFeedback: {
+      flex: 1,
+      justifyContent: 'center' as const,
+      marginLeft: 4,
+    },
+    zipFeedbackLoading: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      fontStyle: 'italic' as const,
+    },
+    zipFeedbackSuccess: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+    },
+    zipFeedbackSuccessText: {
+      fontSize: 13,
+      color: theme.colors.success,
+      fontWeight: '500' as const,
+    },
+    zipFeedbackWarning: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+    },
+    zipFeedbackWarningText: {
+      fontSize: 13,
+      color: theme.colors.warning,
+      fontWeight: '500' as const,
+    },
+    textArea: {
+      height: 100,
+      textAlignVertical: 'top' as const,
+      paddingTop: spacing.sm,
+    },
+    inputText: {
+      fontSize: 16,
+      color: theme.colors.black,
+      flex: 1,
+    },
+    inputPlaceholder: {
+      fontSize: 16,
+      color: theme.colors.textTertiary,
+      flex: 1,
+    },
+    suggestionsContainer: {
+      backgroundColor: theme.colors.white,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: borderRadius.md,
+      marginTop: 4,
+      height: 150,
+      overflow: 'hidden' as const,
+      ...shadows.medium,
+      zIndex: 999,
+      position: 'absolute' as const,
+      top: 104,
+      left: 0,
+      right: 0,
+    },
+    suggestionsScroll: {
+      flex: 1,
+    },
+    suggestionItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      padding: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      backgroundColor: theme.colors.white,
+    },
+    suggestionIcon: {
+      marginRight: 8,
+    },
+    suggestionText: {
+      fontSize: 14,
+      color: theme.colors.black,
+      flex: 1,
+    },
+    formButtonRow: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      marginBottom: spacing.xl,
+    },
+    formButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.md,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    formCancelButton: {
+      backgroundColor: theme.colors.white,
+      marginRight: spacing.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    formSaveButton: {
+      backgroundColor: theme.colors.primary,
+      marginLeft: spacing.sm,
+    },
+    formCancelButtonText: {
+      ...typography.button,
+      color: theme.colors.darkGray,
+    },
+    formSaveButtonText: {
+      ...typography.button,
+      color: theme.colors.white,
+    },
+    dateModalOverlay: modals.overlay,
+    dateModalContent: {
+      ...modals.content,
+      padding: spacing.lg,
+    },
+    dateModalHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: spacing.md,
+    },
+    dateModalTitle: {
+      fontSize: 20,
+      fontWeight: '700' as const,
+      color: theme.colors.textPrimary,
+    },
+    datePickerContainer: {
+      width: '100%' as const,
+      minHeight: 350,
+      backgroundColor: theme.colors.white,
+      overflow: 'hidden' as const,
+    },
+    datePickerInline: {
+      height: 350,
+      width: '100%' as const,
+      backgroundColor: theme.colors.white,
+    },
+    dateModalConfirmButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 14,
+      borderRadius: 10,
+      alignItems: 'center' as const,
+      marginTop: 16,
+    },
+    dateModalConfirmText: {
+      color: theme.colors.white,
+      fontSize: 16,
+      fontWeight: '600' as const,
+    },
+  });
+
+// Theme-aware factory for the profile screen's local (auth/rewards/skeleton) styles
+export const createProfileLocalStyles = (theme: Theme) =>
+  StyleSheet.create({
+    pendingAuthSection: {
+      backgroundColor: '#FFF9E6',
+      borderColor: theme.colors.gold,
+      borderWidth: 1,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    pendingAuthHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    pendingAuthIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: theme.colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    pendingAuthTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+    },
+    pendingAuthDesc: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      marginBottom: spacing.md,
+      lineHeight: 20,
+    },
+    pendingAuthEmailContainer: {
+      marginBottom: spacing.sm,
+    },
+    pendingAuthLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      marginBottom: 4,
+    },
+    pendingAuthEmailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: theme.colors.white,
+      borderRadius: borderRadius.sm,
+      padding: spacing.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    pendingAuthEmail: {
+      fontSize: 15,
+      color: theme.colors.textPrimary,
+      flex: 1,
+    },
+    pendingAuthInput: {
+      backgroundColor: theme.colors.white,
+      borderRadius: borderRadius.sm,
+      padding: spacing.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      fontSize: 15,
+      color: theme.colors.textPrimary,
+    },
+    pendingAuthSentAt: {
+      fontSize: 12,
+      color: theme.colors.textTertiary,
+      marginBottom: spacing.md,
+    },
+    pendingAuthActions: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+    },
+    pendingAuthButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.md,
+      gap: 6,
+    },
+    pendingAuthResendButton: {
+      backgroundColor: theme.colors.primary,
+      flex: 1,
+    },
+    pendingAuthCancelButton: {
+      backgroundColor: theme.colors.white,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    pendingAuthButtonText: {
+      color: theme.colors.white,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    pendingAuthCancelText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    rewardsMemberSection: {
+      backgroundColor: theme.colors.successLight,
+      borderColor: theme.colors.success,
+      borderWidth: 1,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    rewardsMemberHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    rewardsMemberIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    rewardsMemberInfo: {
+      flex: 1,
+    },
+    rewardsMemberTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+    },
+    rewardsMemberEmail: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    rewardsMemberDesc: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      lineHeight: 20,
+      marginBottom: spacing.md,
+    },
+    signOutButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.colors.white,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      gap: 6,
+    },
+    signOutButtonText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    signInSection: {
+      backgroundColor: theme.colors.primaryLight,
+      borderColor: theme.colors.primary,
+      borderWidth: 1,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    signInHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    signInIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    signInTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+    },
+    signInDesc: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      lineHeight: 20,
+      marginBottom: spacing.md,
+    },
+    signInForm: {
+      marginTop: spacing.sm,
+    },
+    signInInputGroup: {
+      marginBottom: spacing.sm,
+    },
+    signInLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      marginBottom: 4,
+    },
+    signInInput: {
+      backgroundColor: theme.colors.white,
+      borderRadius: borderRadius.sm,
+      padding: spacing.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      fontSize: 15,
+      color: theme.colors.textPrimary,
+    },
+    signInInputError: {
+      borderColor: theme.colors.error,
+      borderWidth: 1,
+    },
+    signInInputErrorText: {
+      color: theme.colors.error,
+      fontSize: 12,
+      marginTop: 4,
+    },
+    signInNameRow: {
+      flexDirection: 'row',
+    },
+    signInActions: {
+      marginTop: spacing.sm,
+      gap: spacing.sm,
+    },
+    signInSubmitButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.colors.primary,
+      gap: 8,
+    },
+    signInSubmitText: {
+      color: theme.colors.white,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    signInCancelButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+    },
+    signInCancelText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    joinRewardsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.colors.primary,
+      gap: 8,
+    },
+    joinRewardsText: {
+      color: theme.colors.white,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    deleteAccountSection: {
+      backgroundColor: '#FFF5F5',
+      borderColor: theme.colors.error,
+      borderWidth: 1,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginTop: spacing.lg,
+      marginBottom: spacing.xl,
+    },
+    deleteAccountHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    deleteAccountIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.error,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    deleteAccountTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.colors.error,
+    },
+    deleteAccountDesc: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      lineHeight: 20,
+      marginBottom: spacing.md,
+    },
+    deleteAccountButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.colors.white,
+      borderWidth: 1,
+      borderColor: theme.colors.error,
+      gap: 6,
+    },
+    deleteAccountButtonText: {
+      color: theme.colors.error,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    skeletonSection: {
+      backgroundColor: theme.colors.lightGray,
+      borderColor: theme.colors.border,
+      borderWidth: 1,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    skeletonHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    skeletonIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.border,
+      marginRight: spacing.sm,
+    },
+    skeletonTextContainer: {
+      flex: 1,
+    },
+    skeletonTitle: {
+      width: 120,
+      height: 16,
+      borderRadius: 4,
+      backgroundColor: theme.colors.border,
+      marginBottom: 6,
+    },
+    skeletonSubtitle: {
+      width: 180,
+      height: 12,
+      borderRadius: borderRadius.xs,
+      backgroundColor: theme.colors.border,
+    },
+    skeletonDescription: {
+      width: '100%',
+      height: 40,
+      borderRadius: borderRadius.xs,
+      backgroundColor: theme.colors.border,
+      marginBottom: spacing.md,
+    },
+    skeletonButton: {
+      width: '100%',
+      height: 40,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.colors.border,
+    },
+    skeletonStatValue: {
+      width: 40,
+      height: 24,
+      borderRadius: borderRadius.xs,
+      backgroundColor: theme.colors.border,
+      marginBottom: spacing.xxs,
+    },
+    skeletonStatLabel: {
+      width: 50,
+      height: 12,
+      borderRadius: borderRadius.xs,
+      backgroundColor: theme.colors.border,
+    },
+    achievementsContainer: {
+      marginTop: spacing.md,
+      gap: spacing.sm,
+    },
+    achievementCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.white,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 2,
+    },
+    achievementIconCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    achievementTextContainer: {
+      flex: 1,
+    },
+    achievementName: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.textPrimary,
+      marginBottom: 2,
+    },
+    achievementDescription: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      lineHeight: 18,
+    },
+
+    // Theme selector — tighter padding so 3 buttons fit comfortably
+    themeToggleRow: {
+      marginTop: spacing.xs,
+    },
+    themeToggleButton: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.xs,
+    },
+  });
+
+// Legacy combined factory — returns both styles and localStyles in a single object.
+// Kept for backwards compatibility; prefer the standalone factories above.
+export const createProfileScreenStyles = (theme: Theme) => ({
+  styles: createProfileMainStyles(theme),
+  localStyles: createProfileLocalStyles(theme),
 });

@@ -20,12 +20,14 @@ export interface Colors {
   
   // Status colors
   success: string;
+  successLight: string;
   warning: string;
   warningLight: string;
   error: string;
   danger: string;
   dangerLight: string;
   info: string;
+  infoLight: string;
   
   // Neutrals
   white: string;
@@ -49,6 +51,17 @@ export interface Colors {
   shadow: string;
   transparent: string;
   
+  // Decorative
+  gold: string;
+  badgeRed: string;
+
+  // Parchment (Bulletin theme)
+  parchment: string;
+  parchmentBorder: string;
+  parchmentText: string;
+  parchmentTextSecondary: string;
+  advisory: string;
+
   // Ocean-specific colors
   oceanDeep: string;
   oceanSurface: string;
@@ -178,12 +191,14 @@ export const colors: Colors = {
   
   // Status colors
   success: '#2E7D4B',     // Natural seaweed green
+  successLight: '#E8F5E9', // Light green background
   warning: '#F9A825',     // Life jacket yellow
   warningLight: '#FFF8E1', // Light amber background
   error: '#D32F2F',       // Buoy red
   danger: '#D32F2F',      // Same as error for compatibility
   dangerLight: '#FFEBEE', // Light red background
   info: '#1A7AAD',        // Natural ocean blue
+  infoLight: '#E3F2FD',   // Light blue background
   
   // Neutral colors
   white: '#FFFFFF',
@@ -207,6 +222,17 @@ export const colors: Colors = {
   shadow: 'rgba(7, 52, 94, 0.22)', // Deeper blue-tinted shadow (more substantial)
   transparent: 'transparent',
   
+  // Decorative colors
+  gold: '#FFD700',         // Gold accent for badges, rewards, stars
+  badgeRed: '#FF6B6B',     // Notification badge red
+
+  // Parchment (Bulletin theme)
+  parchment: '#FEF9F0',           // Bulletin card background
+  parchmentBorder: '#E8DCC8',     // Bulletin card border
+  parchmentText: '#44300A',       // Primary text on parchment
+  parchmentTextSecondary: '#A3865A', // Muted text on parchment
+  advisory: '#EA580C',            // Advisory orange (closures, warnings)
+
   // Additional ocean-specific colors
   oceanDeep: '#042C5C',      // Deep ocean abyss color
   oceanSurface: '#85C5E5',   // Surface water blue
