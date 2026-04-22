@@ -15,12 +15,15 @@ interface FloatingBackButtonProps {
   opacity: Animated.AnimatedInterpolation<number>;
   translateX: Animated.AnimatedInterpolation<number>;
   onPress: () => void;
+  /** Override the button background color. Defaults to primaryDark. */
+  backgroundColor?: string;
 }
 
 const FloatingBackButton: React.FC<FloatingBackButtonProps> = ({
   opacity,
   translateX,
   onPress,
+  backgroundColor,
 }) => {
   const { theme } = useTheme();
   const fbStyles = useThemedStyles(createFbStyles);
@@ -32,6 +35,7 @@ const FloatingBackButton: React.FC<FloatingBackButtonProps> = ({
       {
         opacity,
         transform: [{ translateX }],
+        ...(backgroundColor ? { backgroundColor } : {}),
       },
     ]}
   >

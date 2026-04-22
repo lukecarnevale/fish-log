@@ -918,7 +918,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
   if (loading) {
     return (
       <View style={flStyles.screenContainer}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} translucent />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primaryDark} translucent />
         <View style={flStyles.fixedHeader}>
           <View style={flStyles.headerRow}>
             <TouchableOpacity
@@ -942,7 +942,7 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
 
   return (
     <View style={flStyles.screenContainer}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} translucent />
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.primaryDark} translucent />
 
       {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
       <StatusBarScrollBlur scrollY={scrollY} />
@@ -1055,14 +1055,14 @@ const windowHeight = Dimensions.get('window').height;
 const createFlStyles = (theme: Theme) => StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
   fixedHeader: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 16 : 56,
     paddingBottom: 20,
     paddingHorizontal: 20,

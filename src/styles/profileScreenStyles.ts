@@ -1011,7 +1011,10 @@ export const createProfileMainStyles = (theme: Theme) =>
       flexGrow: 1,
     },
     topBounceArea: {
-      backgroundColor: theme.colors.secondary,
+      // Must match the TOP of the header LinearGradient (['#05626C', ...]).
+      // theme.colors.secondary = #2AA5B0 in dark mode (too light/bright vs the
+      // dark gradient start), so hardcode the gradient start color for all modes.
+      backgroundColor: '#05626C',
       height: 500,
       marginTop: -500,
     },
@@ -1049,7 +1052,7 @@ export const createProfileMainStyles = (theme: Theme) =>
     },
     headerTitle: {
       ...typography.h1,
-      color: theme.colors.white,
+      color: theme.colors.textOnPrimary,
       fontSize: 20,
       textAlign: 'center' as const,
       flex: 1,
@@ -1096,12 +1099,15 @@ export const createProfileMainStyles = (theme: Theme) =>
     },
     profileName: {
       ...typography.h1,
-      color: theme.colors.white,
+      // theme.colors.white = '#162A3E' in dark mode (surface alias, not actual
+      // white) → name appears dark on the teal header. Use textOnPrimary which
+      // is always #FFFFFF regardless of theme mode.
+      color: theme.colors.textOnPrimary,
       marginBottom: 0,
     },
     profileSubtitle: {
       ...typography.body,
-      color: theme.colors.white,
+      color: theme.colors.textOnPrimary,
       opacity: 0.9,
     },
     infoContainer: {
@@ -1291,7 +1297,7 @@ export const createProfileMainStyles = (theme: Theme) =>
       paddingHorizontal: spacing.lg,
       paddingTop: 60,
       paddingBottom: spacing.xl,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryDark,
       borderBottomLeftRadius: borderRadius.md,
       borderBottomRightRadius: borderRadius.md,
     },
@@ -1305,7 +1311,7 @@ export const createProfileMainStyles = (theme: Theme) =>
     },
     formHeaderTitle: {
       ...typography.h1,
-      color: theme.colors.white,
+      color: theme.colors.textOnPrimary,
       fontSize: 20,
     },
     profilePhotoSection: {

@@ -8,7 +8,7 @@ import './services/deepLinkBuffer';
 import { initSentry, Sentry, sentryNavigationIntegration } from './config/sentry';
 initSentry();
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { NavigationContainer, DefaultTheme, DarkTheme, useNavigationContainerRef } from "@react-navigation/native";
 import {
   createStackNavigator,
@@ -437,14 +437,15 @@ const configErrorStyles = StyleSheet.create({
 const App: React.FC = () => {
   const [appReady, setAppReady] = useState(false);
 
+  // Step 4 — ThemeProvider calls markReady() once both AsyncStorage and the
+  // feature flag have resolved so the correct theme is in place before the
+  // splash animates away.  A 3-second hard cap ensures the splash never hangs
+  // indefinitely on a slow network; ThemeProvider will usually win much sooner.
+  const markReady = useCallback(() => setAppReady(true), []);
+
   useEffect(() => {
-    async function prepare() {
-      // Small delay to ensure providers and initial data hooks have mounted
-      // The actual data loading happens in AppInitializer hooks
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      setAppReady(true);
-    }
-    prepare();
+    const timeout = setTimeout(() => setAppReady(true), 3000);
+    return () => clearTimeout(timeout);
   }, []);
 
   if (!isSupabaseConfigured) {
@@ -458,10 +459,16 @@ const App: React.FC = () => {
     // other gesture handlers (e.g. Swipeable in DrawerMenu).
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
-        <AnimatedSplashScreen ready={appReady}>
-          <Provider store={store}>
-            <QueryClientProvider client={queryClient}>
-              <ThemeProvider>
+        {/*
+          Step 1 — ThemeProvider (and its QueryClientProvider dependency) now
+          wrap AnimatedSplashScreen so the splash itself renders with the
+          correct dark/light background from frame 1, and onReady can fire as
+          soon as the theme has resolved.
+        */}
+        <Provider store={store}>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider onReady={markReady}>
+              <AnimatedSplashScreen ready={appReady}>
                 <ForceUpdateProvider>
                   <RewardsProvider>
                     <AchievementProvider>
@@ -475,10 +482,10 @@ const App: React.FC = () => {
                     </AchievementProvider>
                   </RewardsProvider>
                 </ForceUpdateProvider>
-              </ThemeProvider>
-            </QueryClientProvider>
-          </Provider>
-        </AnimatedSplashScreen>
+              </AnimatedSplashScreen>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </Provider>
       </ErrorBoundary>
     </GestureHandlerRootView>
   );

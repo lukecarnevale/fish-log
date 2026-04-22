@@ -1328,6 +1328,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           opacity={floatingOpacity}
           translateX={floatingTranslateXLeft}
           onPress={() => navigation.goBack()}
+          backgroundColor="#05626C"
         />
       )}
 

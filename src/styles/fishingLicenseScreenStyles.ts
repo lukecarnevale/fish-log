@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: 60,
     paddingBottom: spacing.xl,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryDark,
     borderBottomLeftRadius: borderRadius.md,
     borderBottomRightRadius: borderRadius.md,
   },
@@ -1051,7 +1051,7 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
       paddingHorizontal: spacing.lg,
       paddingTop: 60,
       paddingBottom: spacing.xl,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryDark,
       borderBottomLeftRadius: borderRadius.md,
       borderBottomRightRadius: borderRadius.md,
     },
@@ -1065,7 +1065,7 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
     },
     formHeaderTitle: {
       ...typography.h1,
-      color: theme.colors.white,
+      color: theme.colors.textOnPrimary,
       fontSize: 20,
     },
     formContainer: {
@@ -1322,9 +1322,11 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
       marginHorizontal: spacing.lg,
       marginTop: spacing.sm,
       marginBottom: spacing.sm,
-      backgroundColor: '#EEF2F4',
+      // Dark mode: use the surface navy so the card doesn't blaze against
+      // the deep ocean background. Light mode keeps the cool gray-blue.
+      backgroundColor: theme.isDark ? theme.colors.surface : '#EEF2F4',
       borderWidth: 1.5,
-      borderColor: '#CFD8DC',
+      borderColor: theme.isDark ? theme.colors.border : '#CFD8DC',
       borderStyle: 'dashed',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -1342,7 +1344,8 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
     },
     emptyFlagOverlay: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(180, 195, 200, 0.5)',
+      // Light mode: cool gray-blue wash. Dark mode: dark tint to mute the flag.
+      backgroundColor: theme.isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(180, 195, 200, 0.5)',
       borderRadius: 4,
     },
     emptyCardTitleBlock: {

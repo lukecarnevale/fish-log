@@ -1709,7 +1709,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <Feather
                 name="file-text"
                 size={14}
-                color={reportMode === 'harvest_report' ? theme.colors.primary : 'rgba(255,255,255,0.85)'}
+                color={reportMode === 'harvest_report' ? theme.colors.primary : 'rgba(255,255,255,0.60)'}
               />
               <Text style={[
                 localStyles.modeTabText,
@@ -1732,7 +1732,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <Feather
                 name="camera"
                 size={14}
-                color={reportMode === 'catch_log' ? theme.colors.primary : 'rgba(255,255,255,0.85)'}
+                color={reportMode === 'catch_log' ? theme.colors.primary : 'rgba(255,255,255,0.60)'}
               />
               <Text style={[
                 localStyles.modeTabText,

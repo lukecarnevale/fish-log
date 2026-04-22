@@ -978,7 +978,9 @@ export const createEnhancedSpeciesStyles = (theme: Theme) =>
 
     // Regulations box
     regulationsBox: {
-      backgroundColor: theme.colors.primary,
+      // Dark mode: use primaryDark — consistent with all other header surfaces
+      // and less glaring than the bright primary (#3A8AC2) on a dark screen.
+      backgroundColor: theme.isDark ? theme.colors.primaryDark : theme.colors.primary,
       padding: spacing.lg,
       borderRadius: borderRadius.md,
       marginTop: spacing.lg / 2,
@@ -991,7 +993,7 @@ export const createEnhancedSpeciesStyles = (theme: Theme) =>
     },
     regulationsTitle: {
       ...typography.heading,
-      color: theme.colors.white,
+      color: theme.colors.textOnPrimary,
       marginBottom: spacing.md,
       fontSize: 20,
       fontWeight: '700',
@@ -1011,14 +1013,20 @@ export const createEnhancedSpeciesStyles = (theme: Theme) =>
     },
     regulationLabel: {
       ...typography.body,
-      color: theme.colors.primary,
+      // Row background is always rgba(255,255,255,0.9) — use primaryDark so
+      // the label stays readable in dark mode (primary #3A8AC2 is still fine
+      // but primaryDark is richer against white).
+      color: theme.isDark ? theme.colors.primaryDark : theme.colors.primary,
       width: 90,
       fontWeight: '600',
     },
     regulationValue: {
       ...typography.body,
       fontWeight: '600',
-      color: theme.colors.black,
+      // Row background is always rgba(255,255,255,0.9) — hardcode dark text so
+      // it stays readable in both modes. theme.colors.black = #E0E6ED in dark
+      // (off-white), making the value near-invisible on the white pill.
+      color: '#263238',
       flex: 1,
     },
     regulationsNotes: {

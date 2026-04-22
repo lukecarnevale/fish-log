@@ -1357,7 +1357,7 @@ export const localStyles = StyleSheet.create({
     color: colors.primary,
   },
   modeTabTextInactive: {
-    color: "rgba(255, 255, 255, 0.85)",
+    color: "rgba(255, 255, 255, 0.60)",
   },
   // When tabs are visible, the content card overlaps the bottom of the tabs
   contentContainerWithTabs: {
@@ -2672,7 +2672,7 @@ export const createReportFormLocalStyles = (theme: Theme) =>
       color: theme.colors.primary,
     },
     modeTabTextInactive: {
-      color: "rgba(255, 255, 255, 0.85)",
+      color: "rgba(255, 255, 255, 0.60)",
     },
     contentContainerWithTabs: {
       marginTop: -10,

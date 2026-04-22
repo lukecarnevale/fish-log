@@ -935,6 +935,11 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             </TouchableOpacity>
           )}
 
+          {/* DMF sponsorship disclaimer */}
+          <Text style={styles.dmfDisclaimer}>
+            Any awards offered through Fish Log Co. are not sponsored by or affliated with Division of Marine Fisheries.
+          </Text>
+
           {/* Notification Banner - only show if user hasn't added email to profile */}
           {!hasProfileEmail && (
             <TouchableOpacity
@@ -1836,6 +1841,16 @@ const createStyles = (theme: Theme) => {
   },
   eligibilityBadgeTextInactive: {
     color: '#FF9800',
+  },
+
+  dmfDisclaimer: {
+    fontSize: 11,
+    color: C.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+    lineHeight: 16,
+    fontStyle: 'italic',
   },
   });
 };

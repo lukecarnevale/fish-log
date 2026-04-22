@@ -1303,7 +1303,11 @@ const createLocalStyles = (theme: Theme) => StyleSheet.create({
     zIndex: 50,
   },
   alphabetSidebarInner: {
-    backgroundColor: 'rgba(227, 242, 253, 0.95)', // Light blue to match content area
+    // Dark mode: muted navy pill matching the content surface.
+    // Light mode: light blue pill matching the page background.
+    backgroundColor: theme.isDark
+      ? 'rgba(30, 54, 80, 0.90)'
+      : 'rgba(227, 242, 253, 0.95)',
     borderRadius: 9,
     paddingVertical: 4,
     alignItems: 'center',
@@ -1317,10 +1321,14 @@ const createLocalStyles = (theme: Theme) => StyleSheet.create({
   alphabetLetter: {
     fontSize: 9,
     fontWeight: '600',
-    color: theme.colors.primary,
+    // Dark mode: textSecondary (#8FA3B3) reads clearly on the dark navy pill.
+    // Light mode: primary blue on light blue, unchanged.
+    color: theme.isDark ? theme.colors.textSecondary : theme.colors.primary,
   },
   alphabetLetterDisabled: {
-    color: theme.colors.lightGray,
+    // lightGray in dark mode = #11232F (near-black) — invisible on dark bg.
+    // textTertiary works on both pill backgrounds.
+    color: theme.colors.textTertiary,
     opacity: 0.5,
   },
   alphabetLetterActive: {
