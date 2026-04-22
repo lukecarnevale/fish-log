@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.7.0](https://github.com/lukecarnevale/fish-log/compare/v1.6.1...v1.7.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* **PastReportsScreen:** address code review — bugs, type safety, and efficiency ([01029e2](https://github.com/lukecarnevale/fish-log/commit/01029e286fb9b816868df0bb6451e6d06288eedc)), closes [#fff8e1](https://github.com/lukecarnevale/fish-log/issues/fff8e1)
+
 ### [1.6.1](https://github.com/lukecarnevale/fish-log/compare/v1.6.0...v1.6.1) (2026-04-07)
 
 ## [1.6.0](https://github.com/lukecarnevale/fish-log/compare/v1.5.1...v1.6.0) (2026-04-02)
