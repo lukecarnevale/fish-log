@@ -4,7 +4,7 @@
 // Drop-in replacement for PrizesComponent.
 //
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,12 +20,15 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 
-import { colors } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { safeOpenURL } from '../utils/openURL';
 import { RootStackParamList } from '../types';
 import { Prize, PrizeCategory } from '../types/rewards';
 import { useRewards } from '../contexts/RewardsContext';
 import { WaveBackground, HeroFishIllustration, FishingRodIllustration, LicenseCardIllustration, GenericPrizeIllustration, SwimmingFishButton } from './icons/RewardsIllustrations';
+import { useFontScale, FONT_SCALE_CAP_BODY } from '../hooks/useFontScale';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -35,6 +38,8 @@ interface QuarterlyRewardsCardProps {
   isSignedIn?: boolean;
   /** Whether the user has an email in their profile */
   hasProfileEmail?: boolean;
+  /** Bump this value to force a re-fetch of rewards data (used by pull-to-refresh) */
+  refreshKey?: number;
 }
 
 // ============================================
@@ -52,7 +57,11 @@ const CATEGORY_ICONS: Record<PrizeCategory, keyof typeof Feather.glyphMap> = {
 /**
  * Parses text and returns Text elements with tappable phone numbers and emails.
  */
-const renderLinkedText = (text: string, baseStyle: object) => {
+const renderLinkedText = (
+  text: string,
+  baseStyle: object,
+  C: ReturnType<typeof getColors>,
+) => {
   const linkPattern = /([\w.-]+@[\w.-]+\.\w+|\d{3}[-.\s]?\d{3}[-.\s]?\d{4})/g;
   const parts = text.split(linkPattern);
 
@@ -66,7 +75,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
           return (
             <Text
               key={i}
-              style={{ color: COLORS.primary, textDecorationLine: 'underline' }}
+              style={{ color: C.primary, textDecorationLine: 'underline' }}
               onPress={() => safeOpenURL(`mailto:${part}`)}
             >
               {part}
@@ -78,7 +87,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
           return (
             <Text
               key={i}
-              style={{ color: COLORS.primary, textDecorationLine: 'underline' }}
+              style={{ color: C.primary, textDecorationLine: 'underline' }}
               onPress={() => safeOpenURL(`tel:${digits}`)}
             >
               {part}
@@ -172,6 +181,10 @@ const SkeletonBox: React.FC<{
 
 /** Skeleton loader for QuarterlyRewardsCard */
 const QuarterlyRewardsCardSkeleton: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useTheme();
+  const C = useMemo(() => getColors(theme), [theme]);
+
   return (
     <View style={styles.container}>
       {/* Entry Status Tab Skeleton */}
@@ -185,7 +198,7 @@ const QuarterlyRewardsCardSkeleton: React.FC = () => {
       <View style={styles.cardContainer}>
         {/* Hero Header Skeleton */}
         <LinearGradient
-          colors={[COLORS.navyDark, COLORS.navyLight]}
+          colors={[C.navyDark, C.navyLight]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroContainer}
@@ -233,7 +246,7 @@ const QuarterlyRewardsCardSkeleton: React.FC = () => {
           {/* Prize Section Skeleton */}
           <View style={styles.prizeSection}>
             <SkeletonBox width={140} height={15} style={{ marginBottom: 12 }} />
-            <View style={[styles.prizeItem, { backgroundColor: COLORS.bgCard }]}>
+            <View style={[styles.prizeItem, { backgroundColor: C.bgCard }]}>
               <SkeletonBox width={60} height={50} borderRadius={8} />
               <View style={[styles.prizeDetails, { marginLeft: 14 }]}>
                 <SkeletonBox width={120} height={14} style={{ marginBottom: 6 }} />
@@ -243,7 +256,7 @@ const QuarterlyRewardsCardSkeleton: React.FC = () => {
           </View>
 
           {/* Notification Banner Skeleton */}
-          <View style={[styles.notificationBanner, { backgroundColor: COLORS.bgLight }]}>
+          <View style={[styles.notificationBanner, { backgroundColor: C.bgLight }]}>
             <SkeletonBox width={36} height={36} borderRadius={10} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <SkeletonBox width="90%" height={12} style={{ marginBottom: 5 }} />
@@ -269,13 +282,28 @@ const QuarterlyRewardsCardSkeleton: React.FC = () => {
 // MAIN COMPONENT
 // ============================================
 
-const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false, hasProfileEmail = false }) => {
+const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPress, isSignedIn = false, hasProfileEmail = false, refreshKey }) => {
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useTheme();
+  const C = useMemo(() => getColors(theme), [theme]);
   const navigation = useNavigation<NavigationProp>();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [scrollToPrizes, setScrollToPrizes] = useState(false);
   const modalScrollViewRef = useRef<ScrollView>(null);
   const prizeSectionY = useRef<number>(0);
+
+  // Dynamic Type: the entry status tab is a file-folder style tab positioned
+  // above the card with a negative top offset. At larger text sizes the tab
+  // content grows, so we scale the offset and padding to keep it visible.
+  // See Phase 2 of the accessibility audit.
+  const { fontScale } = useFontScale();
+  const tabScale = Math.min(Math.max(fontScale, 1), FONT_SCALE_CAP_BODY);
+  const entryStatusDynamic = {
+    top: -18 * tabScale,
+    paddingTop: 5 * tabScale,
+    paddingBottom: 18 + (8 * (tabScale - 1)),
+  };
 
   const {
     currentDrawing,
@@ -285,7 +313,21 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
     calculated,
     hasEnteredCurrentRaffle,
     isNewQuarter,
+    refresh: refreshRewards,
   } = useRewards();
+
+  // Re-fetch rewards data whenever the caller bumps refreshKey
+  // (pull-to-refresh on HomeScreen). Skip the first render — the context
+  // already fetches on mount, so we only need to react to changes.
+  const isFirstRefreshKey = useRef(true);
+  useEffect(() => {
+    if (refreshKey === undefined) return;
+    if (isFirstRefreshKey.current) {
+      isFirstRefreshKey.current = false;
+      return;
+    }
+    refreshRewards();
+  }, [refreshKey, refreshRewards]);
 
   // Slow pulsing animation for progress indicator — native driver for smooth 60fps
   const progressPulse = useRef(new Animated.Value(0)).current;
@@ -411,7 +453,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
           <View style={styles.modalContainer}>
             {/* Gradient Header Banner */}
             <LinearGradient
-              colors={[COLORS.navyDark, COLORS.navyLight]}
+              colors={[C.navyDark, C.navyLight]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.modalBanner}
@@ -465,6 +507,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                 {renderLinkedText(
                   config?.alternativeEntryText || 'No purchase or report necessary to enter.',
                   styles.modalText,
+                  C,
                 )}
               </View>
 
@@ -472,14 +515,14 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               <View style={styles.modalDatesRow}>
                 <View style={styles.modalDateCard}>
                   <View style={[styles.modalDateIconCircle, { backgroundColor: '#E3F2FD' }]}>
-                    <Feather name="play-circle" size={18} color={COLORS.navyDark} />
+                    <Feather name="play-circle" size={18} color={C.iconOnSurface} />
                   </View>
                   <Text style={styles.modalDateLabel}>Opens</Text>
                   <Text style={styles.modalDateValue}>{formatDate(currentDrawing.startDate)}</Text>
                 </View>
                 <View style={styles.modalDateCard}>
                   <View style={[styles.modalDateIconCircle, { backgroundColor: '#FFF3E0' }]}>
-                    <Feather name="x-circle" size={18} color={COLORS.orange} />
+                    <Feather name="x-circle" size={18} color={C.orange} />
                   </View>
                   <Text style={styles.modalDateLabel}>Closes</Text>
                   <Text style={styles.modalDateValue}>{formatDate(currentDrawing.endDate)}</Text>
@@ -490,7 +533,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                     <Text style={styles.modalDrawingDay}>{drawingDay}</Text>
                   </View>
                   <Text style={styles.modalDateLabel}>Drawing</Text>
-                  <Text style={[styles.modalDateValue, { color: COLORS.navyDark, fontWeight: '700' }]}>
+                  <Text style={[styles.modalDateValue, { color: C.iconOnSurface, fontWeight: '700' }]}>
                     {formatDate(currentDrawing.drawingDate)}
                   </Text>
                 </View>
@@ -502,7 +545,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                 onLayout={(e) => { prizeSectionY.current = e.nativeEvent.layout.y; }}
               >
                 <View style={styles.modalSectionHeader}>
-                  <Feather name="gift" size={18} color={COLORS.navyDark} />
+                  <Feather name="gift" size={18} color={C.iconOnSurface} />
                   <Text style={styles.modalSectionTitle}>Prizes</Text>
                   {currentDrawing.prizes && currentDrawing.prizes.length > 0 && (
                     <View style={styles.modalPrizeCountBadge}>
@@ -530,7 +573,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                           ) : null}
                           {prize.sponsor ? (
                             <View style={styles.modalPrizeSponsorRow}>
-                              <Feather name="heart" size={11} color={COLORS.textSecondary} />
+                              <Feather name="heart" size={11} color={C.textSecondary} />
                               <Text style={styles.modalPrizeCardSponsor}>Sponsored by {prize.sponsor}</Text>
                             </View>
                           ) : null}
@@ -542,7 +585,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                           <Feather
                             name={getPrizeIcon(prize.category)}
                             size={18}
-                            color={COLORS.navyDark}
+                            color={C.iconOnSurface}
                           />
                         </View>
                         <View style={styles.modalPrizeItemContent}>
@@ -567,14 +610,14 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               {/* Eligibility */}
               <View style={styles.modalSection}>
                 <View style={styles.modalSectionHeader}>
-                  <Feather name="shield" size={18} color={COLORS.navyDark} />
+                  <Feather name="shield" size={18} color={C.iconOnSurface} />
                   <Text style={styles.modalSectionTitle}>Eligibility</Text>
                 </View>
                 <View style={styles.modalEligibilityList}>
                   {currentDrawing.eligibilityRequirements.map((req, idx) => (
                     <View key={idx} style={styles.modalEligibilityItem}>
                       <View style={styles.modalEligibilityBullet}>
-                        <Feather name="check" size={12} color={COLORS.navyDark} />
+                        <Feather name="check" size={12} color={C.iconOnSurface} />
                       </View>
                       <Text style={styles.modalEligibilityText}>{req}</Text>
                     </View>
@@ -594,9 +637,9 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
                   accessibilityRole="button"
                   accessibilityLabel="View official sweepstakes rules"
                 >
-                  <Feather name="file-text" size={16} color={COLORS.navyDark} />
+                  <Feather name="file-text" size={16} color={C.iconOnSurface} />
                   <Text style={styles.officialRulesLinkText}>View Official Rules</Text>
-                  <Feather name="chevron-right" size={16} color={COLORS.navyDark} />
+                  <Feather name="chevron-right" size={16} color={C.iconOnSurface} />
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -607,7 +650,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={[COLORS.navyDark, COLORS.navyLight]}
+                colors={[C.navyDark, C.navyLight]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={StyleSheet.absoluteFill}
@@ -632,7 +675,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <LinearGradient
-            colors={[COLORS.navyDark, COLORS.navyLight]}
+            colors={[C.navyDark, C.navyLight]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.modalBanner}
@@ -669,7 +712,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={[COLORS.navyDark, COLORS.navyLight]}
+              colors={[C.navyDark, C.navyLight]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={StyleSheet.absoluteFill}
@@ -684,9 +727,13 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
   return (
     <View style={styles.container}>
       {/* Entry Status Tab - File folder style tab sticking up from behind */}
-      <View style={styles.entryStatusTab}>
+      <View style={[styles.entryStatusTab, { top: entryStatusDynamic.top }]}>
         <View style={[
           styles.entryStatusContent,
+          {
+            paddingTop: entryStatusDynamic.paddingTop,
+            paddingBottom: entryStatusDynamic.paddingBottom,
+          },
           hasEnteredCurrentRaffle ? styles.entryStatusEntered : styles.entryStatusNotEntered
         ]}>
           <Feather
@@ -694,7 +741,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             size={13}
             color="#FFFFFF"
           />
-          <Text style={styles.entryStatusText}>
+          <Text style={styles.entryStatusText} maxFontSizeMultiplier={1.2}>
             {hasEnteredCurrentRaffle ? "Entered" : "Not Entered"}
           </Text>
         </View>
@@ -705,7 +752,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
 
         {/* Hero Header */}
         <LinearGradient
-          colors={[COLORS.navyDark, COLORS.navyLight]}
+          colors={[C.navyDark, C.navyLight]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroContainer}
@@ -756,7 +803,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
           {/* Entry Reminder (for signed-in members not yet entered, after new quarter acknowledged) */}
           {isSignedIn && !hasEnteredCurrentRaffle && !isNewQuarter && (
             <View style={styles.entryReminderBanner}>
-              <Feather name="award" size={18} color={COLORS.navyDark} />
+              <Feather name="award" size={18} color={C.iconOnSurface} />
               <Text style={styles.entryReminderText}>
                 Submit a harvest report to enter the {calculated.quarterDisplay} drawing
               </Text>
@@ -775,7 +822,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             </View>
             <View style={styles.progressBarBg}>
               <LinearGradient
-                colors={[COLORS.navyDark, COLORS.navyLight]}
+                colors={[C.navyDark, C.navyLight]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={[styles.progressBarFill, { width: `${calculated.periodProgress}%` }]}
@@ -798,7 +845,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             onPress={() => setShowDetailsModal(true)}
           >
             <View style={styles.infoIcon}>
-              <Feather name="info" size={18} color={COLORS.navyDark} />
+              <Feather name="info" size={18} color={C.iconOnSurface} />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoTitle}>How It Works</Text>
@@ -812,7 +859,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
           {/* Drawing Date Row */}
           <View style={styles.infoRow}>
             <View style={styles.infoIcon}>
-              <Feather name="calendar" size={18} color={COLORS.navyDark} />
+              <Feather name="calendar" size={18} color={C.iconOnSurface} />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoTitle}>Drawing Date</Text>
@@ -827,7 +874,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
           {(currentDrawing.prizes?.length ?? 0) > 1 ? (
             <View style={styles.prizeSectionCard}>
               <LinearGradient
-                colors={['#FFECB3', '#FFFDF5']}
+                colors={[C.prizeCardBgTop, C.prizeCardBg]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
@@ -838,7 +885,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               >
                 <View style={styles.prizeSectionHeader}>
                   <View style={styles.prizeSectionHeaderPill}>
-                    <Feather name="award" size={14} color={COLORS.orange} />
+                    <Feather name="award" size={14} color={C.orange} />
                     <Text style={styles.prizeSectionCardTitle}>
                       Current Quarter Prizes
                     </Text>
@@ -869,14 +916,14 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['#FFECB3', '#FFFDF5']}
+                colors={[C.prizeCardBgTop, C.prizeCardBg]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
               <View style={styles.prizeSectionHeader}>
                 <View style={styles.prizeSectionHeaderPill}>
-                  <Feather name="award" size={14} color={COLORS.orange} />
+                  <Feather name="award" size={14} color={C.orange} />
                   <Text style={styles.prizeSectionCardTitle}>
                     Current Quarter Prize
                   </Text>
@@ -888,6 +935,11 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
             </TouchableOpacity>
           )}
 
+          {/* DMF sponsorship disclaimer */}
+          <Text style={styles.dmfDisclaimer}>
+            Any awards offered through Fish Log Co. are not sponsored by or affliated with Division of Marine Fisheries.
+          </Text>
+
           {/* Notification Banner - only show if user hasn't added email to profile */}
           {!hasProfileEmail && (
             <TouchableOpacity
@@ -896,7 +948,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={[COLORS.navyDark, COLORS.navyLight]}
+                colors={[C.navyDark, C.navyLight]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
@@ -925,7 +977,7 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={[COLORS.navyDark, COLORS.navyLight]}
+            colors={[C.navyDark, C.navyLight]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.reportButtonGradient}
@@ -942,27 +994,51 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
 };
 
 // ============================================
-// COLORS
+// COLORS (theme-aware)
 // ============================================
+//
+// Returns the local color palette mapped to the active theme. Both light
+// and dark modes derive their values from theme tokens so the rewards card
+// (especially the expanded detail panel) properly respects dark mode.
 
-const COLORS = {
-  navyDark: '#1E3A5F',
-  navyLight: '#2D5A87',
-  primary: '#1E3A5F',
-  orange: '#FF8F00',
-  white: '#FFFFFF',
-  bgLight: '#E3EBF6',
-  bgCard: '#F8FAFC',
-  textPrimary: '#1a1a1a',
-  textSecondary: '#666666',
-  border: '#f0f0f0',
-};
+const getColors = (theme: Theme) => ({
+  // Hero/gradient navy pair — stays a dark blue gradient in both modes.
+  // In dark mode we force a darker navy gradient so it reads as a "header"
+  // surface even against the dark app background.
+  navyDark: theme.isDark ? '#063A5D' : theme.colors.primaryDark,
+  navyLight: theme.isDark ? '#0B548B' : theme.colors.primary,
+  // Used for icons and labels that sit on card/surface backgrounds.
+  // In dark mode navyDark (#063A5D) is near-black against dark surfaces,
+  // so we use the lifted primary (#3A8AC2) instead for visibility.
+  iconOnSurface: theme.isDark ? theme.colors.primary : theme.colors.primaryDark,
+  primary: theme.colors.primary,
+  orange: theme.colors.warning,
+  // `white` is the card surface — must be a dark surface in dark mode
+  white: theme.colors.surface,
+  // In dark mode infoLight (#152A38) is almost identical to the card surface
+  // (#162A3E), making pills/icon circles/progress tracks invisible. Use
+  // surfaceElevated (#1E3650) instead — meaningfully lighter than the card bg.
+  bgLight: theme.isDark ? theme.colors.surfaceElevated : theme.colors.infoLight,
+  // `bgCard` is the main detail panel background (was hardcoded white)
+  bgCard: theme.colors.surface,
+  textPrimary: theme.colors.textPrimary,
+  textSecondary: theme.colors.textSecondary,
+  textOnPrimary: theme.colors.textOnPrimary,
+  border: theme.colors.border,
+  gold: theme.colors.gold,
+  // Prize card surface — gold tint in light mode, dark surface in dark mode
+  prizeCardBg: theme.isDark ? theme.colors.surfaceElevated : '#FFFDF5',
+  prizeCardBgTop: theme.isDark ? theme.colors.surfaceElevated : '#FFECB3',
+  isDark: theme.isDark,
+});
 
 // ============================================
 // STYLES
 // ============================================
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => {
+  const C = getColors(theme);
+  return StyleSheet.create({
   container: {
     marginHorizontal: 16,
     marginVertical: 8,
@@ -981,8 +1057,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingTop: 5,
-    paddingBottom: 18, // Extra padding at bottom to tuck under card
+    // paddingTop/paddingBottom are applied dynamically based on font scale
+    // (see QuarterlyRewardsCard component body).
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     gap: 6,
@@ -1008,17 +1084,17 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     padding: 20,
-    backgroundColor: COLORS.white,
+    backgroundColor: C.white,
     borderRadius: 20,
   },
   errorText: {
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     textAlign: 'center',
   },
 
   // Card Container
   cardContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: C.white,
     borderRadius: 20,
     zIndex: 1, // Above the tab
     overflow: 'hidden',
@@ -1042,17 +1118,17 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: COLORS.white,
+    color: C.textOnPrimary,
     marginBottom: 4,
   },
   heroSubtitle: {
     fontSize: 14,
-    color: COLORS.white,
+    color: C.textOnPrimary,
     opacity: 0.9,
     marginBottom: 12,
   },
   badge: {
-    backgroundColor: COLORS.orange,
+    backgroundColor: C.orange,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
@@ -1061,7 +1137,8 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.white,
+    // Dark text on the orange/warning badge for high contrast in both modes.
+    color: '#1A1A1A',
   },
 
   // Content Container
@@ -1073,7 +1150,7 @@ const styles = StyleSheet.create({
   progressSection: {
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
     marginBottom: 12,
   },
   progressHeader: {
@@ -1084,16 +1161,18 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
   },
   daysLeft: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.navyDark,
+    // Use textPrimary so the urgency message remains readable but isn't an
+    // overly vivid blue against dark mode surfaces.
+    color: C.textPrimary,
   },
   progressBarBg: {
     height: 8,
-    backgroundColor: COLORS.bgLight,
+    backgroundColor: C.bgLight,
     borderRadius: 4,
     overflow: 'visible',
     position: 'relative',
@@ -1108,9 +1187,9 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: COLORS.orange,
+    backgroundColor: C.orange,
     borderWidth: 2.5,
-    borderColor: COLORS.orange, // Static color; opacity is animated instead
+    borderColor: C.orange, // Static color; opacity is animated instead
     marginLeft: -6,
     // Subtle shadow for depth
     shadowColor: '#000',
@@ -1126,12 +1205,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
   infoIcon: {
     width: 36,
     height: 36,
-    backgroundColor: COLORS.bgLight,
+    backgroundColor: C.bgLight,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1143,12 +1222,12 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     marginBottom: 2,
   },
   infoText: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     lineHeight: 18,
   },
 
@@ -1157,7 +1236,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1.5,
-    borderColor: '#FFD54F',
+    // Theme-aware gold border works in both light and dark modes.
+    borderColor: C.gold,
     paddingVertical: 14,
     marginTop: 4,
     marginBottom: 4,
@@ -1170,7 +1250,9 @@ const styles = StyleSheet.create({
   prizeSectionHeaderPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,143,0,0.15)',
+    // Slightly stronger orange tint in dark mode so the pill stays visible
+    // against the dark prize card surface.
+    backgroundColor: C.isDark ? 'rgba(255,187,51,0.18)' : 'rgba(255,143,0,0.15)',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 14,
@@ -1179,19 +1261,19 @@ const styles = StyleSheet.create({
   prizeSectionCardTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     letterSpacing: 0.3,
   },
   // Legacy — used in modal
   prizeSection: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
   prizeSectionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     marginBottom: 12,
   },
   prizeScrollContent: {
@@ -1204,7 +1286,10 @@ const styles = StyleSheet.create({
   prizeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    // In light mode a translucent white deepens the gold gradient slightly;
+    // in dark mode use a subtle white wash so the inner item separates from
+    // the surrounding dark prize-card surface without going light.
+    backgroundColor: C.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.7)',
     borderRadius: 12,
     padding: 12,
   },
@@ -1226,17 +1311,17 @@ const styles = StyleSheet.create({
   prizeName: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     marginBottom: 3,
   },
   prizeValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.orange,
+    color: C.orange,
   },
   prizeSponsor: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     marginTop: 2,
   },
 
@@ -1261,13 +1346,14 @@ const styles = StyleSheet.create({
   notificationText: {
     flex: 1,
     fontSize: 12,
-    color: COLORS.white,
+    // Sits on the dark navy gradient — always white in both modes.
+    color: C.textOnPrimary,
     lineHeight: 17,
   },
 
   // Footer CTA
   footerCta: {
-    backgroundColor: COLORS.bgLight,
+    backgroundColor: C.bgLight,
     borderRadius: 16,
     padding: 14,
     flexDirection: 'row',
@@ -1277,7 +1363,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     flex: 1,
     paddingRight: 12,
     lineHeight: 18,
@@ -1291,7 +1377,7 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     paddingRight: 45,
     overflow: 'visible',
-    shadowColor: COLORS.navyDark,
+    shadowColor: C.navyDark,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1308,7 +1394,8 @@ const styles = StyleSheet.create({
   reportButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.white,
+    // Sits on the dark navy gradient — always white in both modes.
+    color: C.textOnPrimary,
     zIndex: 1,
   },
 
@@ -1321,7 +1408,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalContainer: {
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: C.bgCard,
     borderRadius: 20,
     width: '100%',
     maxHeight: '85%',
@@ -1341,7 +1428,8 @@ const styles = StyleSheet.create({
   modalBannerTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: COLORS.white,
+    // Sits on the dark navy gradient — always white in both modes.
+    color: C.textOnPrimary,
     marginBottom: 6,
     letterSpacing: 0.3,
   },
@@ -1406,12 +1494,12 @@ const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     flex: 1,
   },
   modalText: {
     fontSize: 14,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     lineHeight: 20,
     marginBottom: 4,
   },
@@ -1424,15 +1512,15 @@ const styles = StyleSheet.create({
   },
   modalDateCard: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: C.white,
     borderRadius: 14,
     padding: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   modalDateCardHighlight: {
-    borderColor: COLORS.navyDark,
+    borderColor: C.navyDark,
     borderWidth: 1.5,
     backgroundColor: '#F0F5FA',
   },
@@ -1448,7 +1536,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 10,
-    backgroundColor: COLORS.navyDark,
+    backgroundColor: C.navyDark,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
@@ -1463,13 +1551,14 @@ const styles = StyleSheet.create({
   modalDrawingDay: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.white,
+    // Sits on the dark navy badge — always white in both modes.
+    color: C.textOnPrimary,
     marginTop: -2,
   },
   modalDateLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 3,
@@ -1477,13 +1566,13 @@ const styles = StyleSheet.create({
   modalDateValue: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     textAlign: 'center',
   },
 
   // Prize Count Badge
   modalPrizeCountBadge: {
-    backgroundColor: COLORS.navyDark,
+    backgroundColor: C.navyDark,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -1493,22 +1582,23 @@ const styles = StyleSheet.create({
   modalPrizeCountText: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.white,
+    // Sits on the dark navy badge — always white in both modes.
+    color: C.textOnPrimary,
   },
 
   // Prize Cards (with image)
   modalPrizeCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: C.white,
     borderRadius: 14,
     overflow: 'hidden',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   modalPrizeImage: {
     width: '100%',
     height: 150,
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: C.bgCard,
   },
   modalPrizeCardBody: {
     padding: 14,
@@ -1516,7 +1606,7 @@ const styles = StyleSheet.create({
   modalPrizeCardName: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
     marginBottom: 6,
   },
   modalPrizeValueBadge: {
@@ -1530,11 +1620,11 @@ const styles = StyleSheet.create({
   modalPrizeValueBadgeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.orange,
+    color: C.orange,
   },
   modalPrizeCardDescription: {
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     lineHeight: 19,
     marginBottom: 6,
   },
@@ -1546,19 +1636,19 @@ const styles = StyleSheet.create({
   },
   modalPrizeCardSponsor: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
   },
 
   // Prize Item Rows (no image)
   modalPrizeItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: C.white,
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   modalPrizeItemIcon: {
     width: 38,
@@ -1575,11 +1665,11 @@ const styles = StyleSheet.create({
   modalPrizeItemName: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: C.textPrimary,
   },
   modalPrizeItemDesc: {
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     marginTop: 2,
   },
   modalPrizeValueBadgeSmall: {
@@ -1592,7 +1682,7 @@ const styles = StyleSheet.create({
   modalPrizeValueBadgeSmallText: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.orange,
+    color: C.orange,
   },
 
   // Eligibility
@@ -1616,7 +1706,7 @@ const styles = StyleSheet.create({
   modalEligibilityText: {
     flex: 1,
     fontSize: 13,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
     lineHeight: 20,
   },
 
@@ -1635,12 +1725,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.navyDark,
+    color: C.iconOnSurface,
   },
   officialRulesBody: {
     fontSize: 13,
     lineHeight: 20,
-    color: COLORS.textSecondary,
+    color: C.textSecondary,
   },
   modalButton: {
     padding: 16,
@@ -1650,7 +1740,8 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.white,
+    // Sits on the dark navy gradient — always white in both modes.
+    color: C.textOnPrimary,
     letterSpacing: 0.3,
   },
 
@@ -1678,12 +1769,14 @@ const styles = StyleSheet.create({
   newQuarterTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.white,
+    // Sits on the green gradient — always white in both modes.
+    color: C.textOnPrimary,
     marginBottom: 2,
   },
   newQuarterText: {
     fontSize: 13,
-    color: COLORS.white,
+    // Sits on the green gradient — always white in both modes.
+    color: C.textOnPrimary,
     opacity: 0.9,
   },
 
@@ -1691,7 +1784,7 @@ const styles = StyleSheet.create({
   entryReminderBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.bgLight,
+    backgroundColor: C.bgLight,
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
@@ -1700,7 +1793,10 @@ const styles = StyleSheet.create({
   entryReminderText: {
     flex: 1,
     fontSize: 13,
-    color: COLORS.navyDark,
+    // Use textPrimary so the message reads cleanly against the tinted info
+    // background in both light and dark modes (avoids dark-on-dark in dark
+    // mode where the previous bright-blue navy clashed with the surface).
+    color: C.textPrimary,
     fontWeight: '500',
     lineHeight: 18,
   },
@@ -1710,7 +1806,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.bgLight,
+    backgroundColor: C.bgLight,
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
@@ -1719,7 +1815,7 @@ const styles = StyleSheet.create({
   enterDrawingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.navyDark,
+    color: C.iconOnSurface,
     flex: 1,
   },
 
@@ -1746,6 +1842,17 @@ const styles = StyleSheet.create({
   eligibilityBadgeTextInactive: {
     color: '#FF9800',
   },
-});
+
+  dmfDisclaimer: {
+    fontSize: 11,
+    color: C.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+    lineHeight: 16,
+    fontStyle: 'italic',
+  },
+  });
+};
 
 export default React.memo(QuarterlyRewardsCard);

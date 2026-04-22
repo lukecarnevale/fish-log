@@ -6,6 +6,8 @@
 
 import type { Feather } from '@expo/vector-icons';
 import type { BulletinType } from '../types/bulletin';
+import { colors } from '../styles/common';
+import type { Theme } from '../styles/theme';
 
 export interface BulletinTypeConfig {
   /** Feather icon name for this bulletin type. */
@@ -23,18 +25,24 @@ export interface BulletinTypeConfig {
  *
  * Uses `Record<BulletinType, ...>` so adding a new type to the union
  * produces a compile error here — forcing the developer to define its config.
+ *
+ * NOTE: This static export is theme-agnostic and uses light-mode values.
+ * Components rendered against theme-aware surfaces (parchment, dark mode)
+ * should prefer `getBulletinTypeConfig(theme)` so the badge backgrounds and
+ * accent colors are tuned for the active palette and don't appear over-saturated
+ * in dark mode.
  */
 export const BULLETIN_TYPE_CONFIG: Record<BulletinType, BulletinTypeConfig> = {
   closure: {
     icon: 'alert-octagon',
     label: 'CLOSURE',
-    color: '#D32F2F',
+    color: colors.error,
     badgeBg: 'rgba(211,47,47,0.10)',
   },
   advisory: {
     icon: 'alert-triangle',
     label: 'ADVISORY',
-    color: '#EA580C',
+    color: colors.advisory,
     badgeBg: 'rgba(234,88,12,0.10)',
   },
   educational: {
@@ -46,7 +54,50 @@ export const BULLETIN_TYPE_CONFIG: Record<BulletinType, BulletinTypeConfig> = {
   info: {
     icon: 'info',
     label: 'INFO',
-    color: '#06747F',
+    color: colors.secondary,
     badgeBg: 'rgba(6,116,127,0.08)',
   },
+};
+
+/**
+ * Theme-aware bulletin type config.
+ *
+ * In dark mode the accent colors and badge backgrounds are subtly desaturated
+ * so badges sit calmly on the dark parchment surface instead of glowing.
+ * Icons in feather glyphMap and labels are unchanged across modes.
+ */
+export const getBulletinTypeConfig = (
+  theme: Theme,
+): Record<BulletinType, BulletinTypeConfig> => {
+  if (!theme.isDark) {
+    return BULLETIN_TYPE_CONFIG;
+  }
+  return {
+    closure: {
+      icon: 'alert-octagon',
+      label: 'CLOSURE',
+      // Use the dark-palette error red — slightly lighter so it reads on dark surfaces
+      color: theme.colors.error,
+      badgeBg: 'rgba(239,83,80,0.16)',
+    },
+    advisory: {
+      icon: 'alert-triangle',
+      label: 'ADVISORY',
+      color: theme.colors.advisory,
+      badgeBg: 'rgba(240,138,74,0.18)',
+    },
+    educational: {
+      icon: 'book-open',
+      label: 'EDUCATIONAL',
+      // Lighter blue accent in dark mode for legibility on dark parchment
+      color: '#6FA8DC',
+      badgeBg: 'rgba(111,168,220,0.18)',
+    },
+    info: {
+      icon: 'info',
+      label: 'INFO',
+      color: theme.colors.secondary,
+      badgeBg: 'rgba(42,165,176,0.16)',
+    },
+  };
 };

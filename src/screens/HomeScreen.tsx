@@ -11,16 +11,21 @@ import {
   Platform,
   RefreshControl,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Image } from "expo-image";
+import StatusBarScrollBlur from "../components/StatusBarScrollBlur";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import styles, { menuWidth } from "../styles/homeScreenStyles";
-import { localStyles } from "../styles/homeScreenLocalStyles";
+import { menuWidth, createHomeScreenStyles } from "../styles/homeScreenStyles";
+import { createHomeScreenLocalStyles } from "../styles/homeScreenLocalStyles";
+import { useThemedStyles } from "../hooks/useThemedStyles";
 import { RootStackParamList } from "../types";
-import { colors } from "../styles/common";
+import { useTheme } from "../contexts/ThemeContext";
+import { useFontScale } from "../hooks/useFontScale";
 import QuarterlyRewardsCard from "../components/QuarterlyRewardsCard";
 import Footer from "../components/Footer";
 import AdvertisementBanner from "../components/AdvertisementBanner";
@@ -62,6 +67,13 @@ interface HomeScreenProps {
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
+  // Theme
+  const { theme } = useTheme();
+  // Themed styles — re-render when theme changes
+  const styles = useThemedStyles(createHomeScreenStyles);
+  const localStyles = useThemedStyles(createHomeScreenLocalStyles);
+  // Font scale for dynamic header spacer
+  const { fontScale } = useFontScale();
   // Achievement notifications - flush any pending achievements when this screen gains focus
   const { flushPendingAchievements } = useAchievements();
   // Bulletin card — non-critical bulletins shown inline on HomeScreen
@@ -72,6 +84,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     showBulletinDetail,
     dismissAllCardBulletins,
     permanentlyDismissBulletin,
+    refreshBulletins,
   } = useBulletins();
 
   // Network connectivity — drives the offline banner.
@@ -233,12 +246,29 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
 
   // Pull-to-refresh state and handler
   const [refreshing, setRefreshing] = useState(false);
+  // Bumping this value triggers a re-fetch in children that consume context
+  // data we don't own here directly (rewards, advertisements).
+  const [childRefreshKey, setChildRefreshKey] = useState(0);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadUserData();
-    await refreshPendingCount();
+    // Invalidate the in-memory badge cache so loadUserData → loadBadgeData
+    // fetches fresh data rather than serving the cached snapshot.
+    badgeDataCache.timestamp = 0;
+    try {
+      // Kick all independent refreshes in parallel so the spinner reflects
+      // the slowest one rather than running them serially.
+      await Promise.all([
+        loadUserData(),
+        refreshPendingCount(),
+        Promise.resolve(refreshBulletins()),
+      ]);
+    } catch (error) {
+      console.warn('Pull-to-refresh error:', error);
+    }
+    // Notify children (ads, quarterly rewards) to re-fetch their own data.
+    setChildRefreshKey((k) => k + 1);
     setRefreshing(false);
-  }, [loadUserData, refreshPendingCount]);
+  }, [loadUserData, refreshPendingCount, refreshBulletins]);
 
   useEffect(() => {
     loadUserData();
@@ -387,6 +417,115 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
     }
   }, [menuOpen, slideAnim, overlayOpacity]);
 
+  // ===== Right-edge swipe gesture =====
+  // Lets the user open the drawer by swiping left from the right edge of the
+  // screen. Uses react-native-gesture-handler's native-thread gesture system
+  // (via GestureDetector on the root View), which is the only reliable way
+  // to coordinate with the ScrollView's native vertical pan on iOS.
+  //
+  // activeOffsetX(-8): our gesture activates once the finger has moved 8pt
+  //   to the left — before that, the ScrollView can still win.
+  // failOffsetY([-12, 12]): if the finger moves more than 12pt vertically,
+  //   our gesture fails and the ScrollView wins (normal scroll).
+  //
+  // We mirror menuOpen into a ref because the gesture object is memoized
+  // and its callbacks would otherwise close over a stale value.
+  const menuOpenRef = useRef(menuOpen);
+  useEffect(() => {
+    menuOpenRef.current = menuOpen;
+  }, [menuOpen]);
+
+  const EDGE_SWIPE_ZONE_WIDTH = 32; // touch must start within this many pt of right edge
+  const OPEN_POSITION_THRESHOLD = 0.5; // drag past 50% to snap open
+  const OPEN_VELOCITY_THRESHOLD_PX_S = 400; // px/sec; flick faster than this to snap open
+
+  // Track where the touch began so we can filter to edge-only swipes.
+  const gestureStartXRef = useRef(0);
+  const gestureIsEdgeRef = useRef(false);
+
+  const edgeSwipeGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        // Activate on any leftward motion >= 8pt. Before this threshold,
+        // vertical scrolls can still take the gesture via failOffsetY.
+        .activeOffsetX([-8, 10_000])
+        .failOffsetY([-12, 12])
+        .onBegin((e) => {
+          gestureStartXRef.current = e.absoluteX;
+          const screenWidth = Dimensions.get('window').width;
+          gestureIsEdgeRef.current =
+            e.absoluteX >= screenWidth - EDGE_SWIPE_ZONE_WIDTH;
+        })
+        .onStart(() => {
+          if (!gestureIsEdgeRef.current || menuOpenRef.current) return;
+          // Stop any in-flight spring so we can follow the finger cleanly.
+          slideAnim.stopAnimation();
+          overlayOpacity.stopAnimation();
+        })
+        .onUpdate((e) => {
+          if (!gestureIsEdgeRef.current || menuOpenRef.current) return;
+          // slideAnim: 0 = fully open, menuWidth = fully closed.
+          // translationX is negative (leftward); (menuWidth + tx) walks from
+          // menuWidth → 0 as the user drags.
+          const nextX = Math.max(
+            0,
+            Math.min(menuWidth, menuWidth + e.translationX)
+          );
+          slideAnim.setValue(nextX);
+          overlayOpacity.setValue(1 - nextX / menuWidth);
+        })
+        .onEnd((e) => {
+          if (!gestureIsEdgeRef.current || menuOpenRef.current) return;
+          const finalX = Math.max(
+            0,
+            Math.min(menuWidth, menuWidth + e.translationX)
+          );
+          const shouldOpen =
+            finalX < menuWidth * OPEN_POSITION_THRESHOLD ||
+            e.velocityX < -OPEN_VELOCITY_THRESHOLD_PX_S;
+
+          Animated.parallel([
+            Animated.spring(slideAnim, {
+              toValue: shouldOpen ? 0 : menuWidth,
+              useNativeDriver: true,
+              friction: 8,
+              tension: 65,
+              velocity: e.velocityX / 1000, // spring expects px/ms
+              restDisplacementThreshold: 0.01,
+              restSpeedThreshold: 0.01,
+            }),
+            Animated.timing(overlayOpacity, {
+              toValue: shouldOpen ? 1 : 0,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+          ]).start();
+
+          setMenuOpen(shouldOpen);
+        })
+        .onFinalize((_e, success) => {
+          // If the gesture ended without a proper onEnd (e.g. was cancelled
+          // mid-drag), make sure we don't leave the drawer in a partial state.
+          if (!success && gestureIsEdgeRef.current && !menuOpenRef.current) {
+            Animated.parallel([
+              Animated.spring(slideAnim, {
+                toValue: menuWidth,
+                useNativeDriver: true,
+                friction: 8,
+                tension: 65,
+              }),
+              Animated.timing(overlayOpacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+              }),
+            ]).start();
+          }
+          gestureIsEdgeRef.current = false;
+        }),
+    [slideAnim, overlayOpacity]
+  );
+
   // Memoized navigation function.
   // NOTE: Does NOT call closeMenu() — the DrawerMenu handles its own close
   // animation and delays navigation until the animation settles (280ms).
@@ -416,9 +555,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   const handleReportPress = useCallback(() => navigateToScreen("ReportForm"), [navigateToScreen]);
 
   return (
-    <View style={{flex: 1, backgroundColor: colors.primary}}>
-      <SafeAreaView style={styles.container} edges={["left", "right"]}>
-      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? colors.primary : colors.background} translucent animated />
+    <GestureDetector gesture={edgeSwipeGesture}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.primaryDark }}>
+        <SafeAreaView style={styles.container} edges={["left", "right"]}>
+      <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primaryDark : theme.colors.background} translucent animated />
       
       {/* Drawer Menu */}
       <DrawerMenu
@@ -454,6 +594,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         />
       </TouchableWithoutFeedback>
 
+      {/* Status bar frosted-blur that fades in as the user scrolls. */}
+      <StatusBarScrollBlur scrollY={scrollY} />
+
       {/* Fixed Header - stays in place while content scrolls over it */}
       <View style={localStyles.fixedHeader}>
         <View style={styles.headerContent}>
@@ -467,8 +610,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               />
             </View>
             <View style={styles.headerTextSection}>
-              <Text style={styles.title}>Fish Log Co.</Text>
-              <Text style={styles.subtitle}>
+              <Text style={styles.title} maxFontSizeMultiplier={1.2} numberOfLines={1}>Fish Log Co.</Text>
+              <Text style={styles.subtitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>
                 Catch. Report. Win.
               </Text>
             </View>
@@ -511,7 +654,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             style={localStyles.floatingMenuTouchable}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
-            <WavyMenuIcon size={24} color={colors.white} />
+            <WavyMenuIcon size={24} color={theme.colors.textOnPrimary} />
             {pendingAuth && (
               <Animated.View style={[
                 localStyles.floatingBadge,
@@ -528,7 +671,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
       {refreshing && (
         <ActivityIndicator
           size="large"
-          color={colors.white}
+          color={theme.colors.textOnPrimary}
           style={localStyles.refreshSpinner}
         />
       )}
@@ -557,7 +700,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
               // Calculate threshold where light content covers the status bar area
               // headerSpacer height minus status bar height (with buffer for rounded corners)
               const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 50;
-              const headerSpacerHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130;
+              const headerSpacerHeight = (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130) * Math.min(Math.max(fontScale, 1), 1.25);
               const threshold = headerSpacerHeight - statusBarHeight - 24; // 24px buffer for rounded corners
 
               const scrollPosition = event.nativeEvent.contentOffset.y;
@@ -571,7 +714,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         scrollEventThrottle={16}
       >
         {/* Touchable spacer area that allows interaction with the header behind it */}
-        <View style={localStyles.headerSpacer}>
+        <View style={[localStyles.headerSpacer, {
+          height: (Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 100 : 130) * Math.min(Math.max(fontScale, 1), 1.25),
+        }]}>
           {/* Invisible touchable area positioned over the header's menu button */}
           <View style={localStyles.spacerMenuArea}>
             <TouchableOpacity
@@ -618,10 +763,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
           onReportPress={handleReportPress}
           isSignedIn={rewardsMember}
           hasProfileEmail={hasProfileEmail}
+          refreshKey={childRefreshKey}
         />
 
         {/* Advertisement Banner */}
-        <AdvertisementBanner placement="home" />
+        <AdvertisementBanner placement="home" refreshKey={childRefreshKey} />
 
         {/* Bulletin Card — non-critical bulletins shown inline */}
         {cardBulletins.length > 0 && (
@@ -668,8 +814,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
         visible={aboutModalVisible}
         onClose={() => setAboutModalVisible(false)}
       />
-    </SafeAreaView>
-    </View>
+      </SafeAreaView>
+      </View>
+    </GestureDetector>
   );
 };
 

@@ -6,7 +6,10 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, borderRadius, spacing } from '../styles/common';
+import { borderRadius, spacing } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { useSkeletonAnimation } from '../hooks/useSkeletonAnimation';
 
 interface SkeletonProps {
@@ -25,6 +28,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   borderRadius: radius = borderRadius.sm,
   style,
 }) => {
+  const styles = useThemedStyles(createStyles);
   const { translateX } = useSkeletonAnimation();
 
   return (
@@ -61,7 +65,9 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 /**
  * Skeleton for a report card in Past Reports screen.
  */
-export const ReportCardSkeleton: React.FC = () => (
+export const ReportCardSkeleton: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.reportCard}>
     {/* Status badge placeholder */}
     <View style={styles.statusBadgePlaceholder}>
@@ -107,12 +113,15 @@ export const ReportCardSkeleton: React.FC = () => (
       <Skeleton width={120} height={16} />
     </View>
   </View>
-);
+  );
+};
 
 /**
  * Skeleton for a catch card in Catch Feed screen.
  */
-export const CatchCardSkeleton: React.FC = () => (
+export const CatchCardSkeleton: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.catchCard}>
     {/* Header row - avatar and info */}
     <View style={styles.catchHeader}>
@@ -145,12 +154,15 @@ export const CatchCardSkeleton: React.FC = () => (
       <Skeleton width={50} height={14} />
     </View>
   </View>
-);
+  );
+};
 
 /**
  * Skeleton for top anglers section.
  */
-export const TopAnglersSkeleton: React.FC = () => (
+export const TopAnglersSkeleton: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.topAnglersContainer}>
     <Skeleton width={100} height={18} style={{ marginBottom: spacing.md, marginLeft: spacing.md }} />
     <View style={styles.topAnglersRow}>
@@ -162,12 +174,15 @@ export const TopAnglersSkeleton: React.FC = () => (
       ))}
     </View>
   </View>
-);
+  );
+};
 
 /**
  * Skeleton loader for Past Reports screen.
  */
-export const PastReportsSkeletonLoader: React.FC = () => (
+export const PastReportsSkeletonLoader: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.container}>
     {/* Filter tabs */}
     <View style={styles.filterTabs}>
@@ -183,12 +198,15 @@ export const PastReportsSkeletonLoader: React.FC = () => (
       <ReportCardSkeleton />
     </View>
   </View>
-);
+  );
+};
 
 /**
  * Skeleton loader for Catch Feed screen.
  */
-export const CatchFeedSkeletonLoader: React.FC = () => (
+export const CatchFeedSkeletonLoader: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.container}>
     {/* Top anglers section */}
     <TopAnglersSkeleton />
@@ -213,14 +231,17 @@ export const CatchFeedSkeletonLoader: React.FC = () => (
       <CatchCardSkeleton />
     </View>
   </View>
-);
+  );
+};
 
 /**
  * Skeleton loader for the Promotions (Fisherman's Locker) screen.
  * Mirrors the real layout: header, area pills, category tabs,
  * featured hero card, section label, and a 2-column grid of cards.
  */
-export const PromotionsSkeletonLoader: React.FC = () => (
+export const PromotionsSkeletonLoader: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.promoContainer}>
     {/* Area filter pills */}
     <View style={styles.promoFilterRow}>
@@ -260,12 +281,15 @@ export const PromotionsSkeletonLoader: React.FC = () => (
       <PromotionCardSkeleton />
     </View>
   </View>
-);
+  );
+};
 
 /**
  * Skeleton for an individual promotion card in the grid.
  */
-const PromotionCardSkeleton: React.FC = () => (
+const PromotionCardSkeleton: React.FC = () => {
+  const styles = useThemedStyles(createStyles);
+  return (
   <View style={styles.promoCard}>
     {/* Image placeholder */}
     <Skeleton width="100%" height={100} borderRadius={0} />
@@ -278,17 +302,18 @@ const PromotionCardSkeleton: React.FC = () => (
       <Skeleton width={64} height={18} borderRadius={borderRadius.xs} />
     </View>
   </View>
-);
+  );
+};
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
   skeleton: {
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
     overflow: 'hidden',
   },
   shimmer: {
@@ -299,7 +324,7 @@ const styles = StyleSheet.create({
 
   // Report card skeleton styles
   reportCard: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: 16,
     marginBottom: spacing.lg,
     marginTop: spacing.md,
@@ -340,7 +365,7 @@ const styles = StyleSheet.create({
   },
   perforationPlaceholder: {
     height: 1,
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
     marginVertical: spacing.md,
     marginHorizontal: -spacing.md,
   },
@@ -362,7 +387,7 @@ const styles = StyleSheet.create({
 
   // Catch feed skeleton styles
   catchCard: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     marginHorizontal: spacing.md,
@@ -417,7 +442,7 @@ const styles = StyleSheet.create({
   // Promotions skeleton styles
   promoContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: spacing.md,
@@ -444,7 +469,7 @@ const styles = StyleSheet.create({
   },
   promoCard: {
     flex: 1,
-    backgroundColor: colors.pearlWhite,
+    backgroundColor: theme.colors.pearlWhite,
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     shadowColor: '#000',

@@ -1,7 +1,11 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { FishingStats } from './profileScreen.types';
-import { styles, localStyles } from '../../styles/profileScreenStyles';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
+import {
+  createProfileMainStyles,
+  createProfileLocalStyles,
+} from '../../styles/profileScreenStyles';
 import { Skeleton } from '../../components/SkeletonLoader';
 
 interface ProfileStatsProps {
@@ -10,6 +14,8 @@ interface ProfileStatsProps {
 }
 
 const ProfileStats: React.FC<ProfileStatsProps> = ({ fishingStats, statsLoading }) => {
+  const styles = useThemedStyles(createProfileMainStyles);
+  const localStyles = useThemedStyles(createProfileLocalStyles);
   return (
     <View style={styles.statsSection}>
       <Text style={styles.sectionTitle}>Fishing Statistics</Text>

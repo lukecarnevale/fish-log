@@ -1,6 +1,7 @@
 // styles/homeScreenStyles.ts
 import { StyleSheet, ViewStyle, TextStyle, ImageStyle, Platform, StatusBar } from 'react-native';
 import { colors, spacing, borderRadius, shadows, typography } from './common';
+import { Theme } from './theme';
 
 export const menuWidth = 320; // Fixed width to match DrawerMenu component
 
@@ -435,3 +436,382 @@ const homeScreenStyles = StyleSheet.create<HomeScreenStyles>({
 });
 
 export default homeScreenStyles;
+
+// Theme-aware factory function — mirrors `homeScreenStyles` but uses theme.colors.*
+// in place of the static `colors` import, so styles re-render correctly in light/dark mode.
+export const createHomeScreenStyles = (theme: Theme) =>
+  StyleSheet.create<HomeScreenStyles>({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.primaryDark,
+      paddingTop: 0,
+    },
+    header: {
+      paddingTop: Platform.OS === 'android' ?
+        (StatusBar.currentHeight || 0) + spacing.xxl :
+        spacing.xxl + spacing.lg, // iOS needs more padding to avoid notch area
+      paddingBottom: spacing.md,
+      marginBottom: 0,
+      backgroundColor: theme.colors.primaryDark,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      ...shadows.none,
+    },
+    headerContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.screenHorizontal,
+    },
+    headerLeftSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    headerRightSection: {
+      marginLeft: spacing.sm,
+      padding: spacing.xs,
+    },
+    headerTextSection: {
+      marginLeft: spacing.sm,
+    },
+    greetingContainer: {
+      backgroundColor: theme.colors.secondary,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.lg,
+      marginHorizontal: spacing.md,
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      ...shadows.medium,
+    },
+    greetingIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(255,255,255,0.85)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    greetingTextContainer: {
+      flex: 1,
+    },
+    greetingText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.white,
+    },
+    userNameText: {
+      fontSize: 19,
+      fontWeight: 'bold',
+      color: theme.colors.white,
+    },
+    menuButton: {
+      position: 'absolute',
+      right: spacing.lg,
+      top: spacing.md,
+      zIndex: 10,
+    },
+    logoContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.colors.primary,
+      overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: '#FFD700',
+    },
+    logo: {
+      width: 44,
+      height: 44,
+      opacity: 0.9,
+      borderRadius: 22, // Make the logo itself rounded
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: theme.colors.textOnPrimary,
+      marginBottom: 0,
+    },
+    subtitle: {
+      fontSize: 13,
+      color: theme.colors.textOnPrimary,
+      opacity: 0.9,
+    },
+    content: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      marginTop: 0,
+      paddingBottom: 0,
+    },
+    licenseCardContainer: {
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    licenseCard: {
+      backgroundColor: theme.colors.card,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingBottom: spacing.md + 28,
+      ...shadows.medium,
+    },
+    licenseHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    licenseIcon: {
+      width: 44,
+      height: 44,
+      marginRight: spacing.sm,
+    },
+    licenseTitle: {
+      fontSize: 17,
+      fontWeight: 'bold',
+      color: theme.colors.black,
+      marginBottom: spacing.xxs,
+    },
+    licenseSubtitle: {
+      fontSize: 14,
+      color: theme.colors.darkGray,
+    },
+    buttonContainer: {
+      paddingHorizontal: spacing.md,
+      marginTop: spacing.xs,
+      marginBottom: 0,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    button: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: borderRadius.md,
+      marginBottom: spacing.md,
+      alignItems: 'center',
+      ...shadows.medium,
+    },
+    buttonText: {
+      color: theme.colors.white,
+      fontSize: 17,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+    },
+    infoContainer: {
+      backgroundColor: theme.colors.card,
+      margin: spacing.lg,
+      borderRadius: borderRadius.md,
+      padding: spacing.lg,
+      ...shadows.small,
+    },
+    infoTitle: {
+      ...typography.heading,
+      color: theme.colors.primary,
+      marginBottom: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    infoText: {
+      ...typography.body,
+      color: theme.colors.darkGray,
+      marginBottom: spacing.md,
+    },
+    checkListContainer: {
+      marginBottom: spacing.md,
+      marginTop: spacing.xs,
+    },
+    checkItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm + 2,
+      paddingVertical: 2,
+    },
+    checkIcon: {
+      width: 24,
+      height: 24,
+      marginRight: spacing.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkImage: {
+      width: 24,
+      height: 24,
+      marginRight: spacing.sm,
+    },
+    checkText: {
+      ...typography.body,
+      color: theme.colors.darkGray,
+      marginLeft: spacing.sm,
+    },
+    learnMoreButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primaryLight,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.md,
+      marginTop: spacing.md,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+    },
+    learnMoreButtonText: {
+      ...typography.bodySmall,
+      color: theme.colors.primary,
+      fontWeight: '600',
+      marginLeft: spacing.xs,
+    },
+    gotItButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primary,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.md,
+      alignSelf: 'flex-end',
+      marginTop: spacing.md,
+      ...shadows.small,
+    },
+    gotItButtonText: {
+      ...typography.bodySmall,
+      color: theme.colors.white,
+      fontWeight: '600',
+      marginLeft: spacing.xs,
+    },
+    menu: {
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      bottom: 0,
+      width: menuWidth,
+      zIndex: 100,
+      backgroundColor: theme.colors.primary,
+      borderTopLeftRadius: borderRadius.xl,
+      borderBottomLeftRadius: borderRadius.xl,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: -2,
+        height: 0,
+      },
+      shadowOpacity: 0.15,
+      shadowRadius: 10,
+      elevation: 15,
+    },
+    menuContent: {
+      flex: 1,
+      backgroundColor: theme.colors.primary,
+      paddingTop: 0,
+    },
+    menuHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingTop: Platform.OS === 'android' ?
+        (StatusBar.currentHeight || 0) + spacing.xxl :
+        spacing.xxl + spacing.lg,
+      paddingBottom: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: 0,
+      backgroundColor: theme.colors.primary,
+      ...shadows.medium,
+    },
+    closeButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    menuTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: theme.colors.white,
+    },
+    menuItems: {
+      flex: 1,
+      backgroundColor: theme.colors.white,
+      borderTopLeftRadius: borderRadius.xl,
+      borderTopRightRadius: borderRadius.xl,
+    },
+    menuItemsContent: {
+      flexGrow: 1,
+      paddingBottom: spacing.xl + 34, // Extra padding for bottom safe area
+      paddingTop: spacing.md,
+      alignItems: 'center', // Center menu items horizontally
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+      borderBottomWidth: 0,
+      marginHorizontal: spacing.sm,
+      marginVertical: 4, // Increased vertical spacing
+      borderRadius: borderRadius.md,
+      width: '92%', // Slightly reduced width for better centering
+      height: 56, // Fixed height for consistent look
+      backgroundColor: 'rgba(0,0,0,0.02)', // Very subtle background for better visibility
+    },
+    menuItemIcon: {
+      width: 32, // Slightly smaller icons
+      height: 32,
+      borderRadius: borderRadius.lg,
+      backgroundColor: theme.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0, // Prevent icon from shrinking
+    },
+    menuItemText: {
+      fontSize: 15.5, // Increased font size for better readability
+      fontWeight: '500', // Slightly bolder to make text more prominent
+      marginLeft: spacing.md,
+      color: theme.colors.textPrimary,
+      flex: 1,
+      flexShrink: 1,
+      flexWrap: 'wrap', // Allow text to wrap if needed
+      maxWidth: '75%', // Limit text width to ensure it doesn't overflow
+    },
+    menuSectionTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.colors.primary,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+      alignSelf: 'flex-start', // Align to left edge
+      paddingHorizontal: spacing.md, // Match menu item padding
+      marginLeft: spacing.md, // Align with menu items
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      opacity: 0.8,
+    },
+    menuDivider: {
+      height: 1,
+      backgroundColor: theme.colors.lightGray,
+      marginVertical: spacing.md,
+      marginHorizontal: spacing.xl,
+    },
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: theme.colors.overlay,
+      zIndex: 50,
+      elevation: 5, // Android: must sit above scrollWrapper (3) but below DrawerMenu (10)
+    },
+  });

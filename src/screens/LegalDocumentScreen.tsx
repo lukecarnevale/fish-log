@@ -16,7 +16,10 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { RootStackParamList, LegalDocumentType } from '../types';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { spacing, borderRadius, typography } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { safeOpenURL } from '../utils/openURL';
 
 type LegalDocumentScreenNavigationProp = StackNavigationProp<
@@ -159,6 +162,8 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
   navigation,
   route,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { type } = route.params;
   const document = DOCUMENTS[type];
 
@@ -182,7 +187,7 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
             onPress={() => navigation.goBack()}
             activeOpacity={0.7}
           >
-            <Feather name="arrow-left" size={24} color={colors.white} />
+            <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{document.title}</Text>
           <View style={styles.headerSpacer} />
@@ -196,7 +201,7 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
         >
           {/* Last Updated */}
           <View style={styles.metaCard}>
-            <Feather name="calendar" size={16} color={colors.primary} />
+            <Feather name="calendar" size={16} color={theme.colors.primary} />
             <Text style={styles.metaText}>
               Last Updated: {document.lastUpdated}
             </Text>
@@ -217,7 +222,7 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
               onPress={handleOpenFullDocument}
               activeOpacity={0.7}
             >
-              <Feather name="external-link" size={18} color={colors.primary} />
+              <Feather name="external-link" size={18} color={theme.colors.primary} />
               <Text style={styles.fullDocButtonText}>
                 View Full {document.title}
               </Text>
@@ -235,7 +240,7 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
               onPress={handleContact}
               activeOpacity={0.7}
             >
-              <Feather name="mail" size={16} color={colors.white} />
+              <Feather name="mail" size={16} color={theme.colors.textOnPrimary} />
               <Text style={styles.contactButtonText}>Contact Us</Text>
             </TouchableOpacity>
           </View>
@@ -248,14 +253,14 @@ const LegalDocumentScreen: React.FC<LegalDocumentScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -264,7 +269,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: 60,
     paddingBottom: spacing.lg,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   backButton: {
     width: 40,
@@ -276,7 +281,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h1,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 20,
     textAlign: 'center',
     flex: 1,
@@ -293,7 +298,7 @@ const styles = StyleSheet.create({
   metaCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
@@ -301,15 +306,15 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 14,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: '500',
   },
   section: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    shadowColor: colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -317,33 +322,33 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.heading,
-    color: colors.primary,
+    color: theme.colors.primary,
     marginBottom: spacing.sm,
   },
   sectionContent: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     lineHeight: 22,
   },
   fullDocButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     marginTop: spacing.md,
     gap: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: theme.colors.primary,
   },
   fullDocButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   contactSection: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     marginTop: spacing.lg,
@@ -351,19 +356,19 @@ const styles = StyleSheet.create({
   },
   contactTitle: {
     ...typography.heading,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.xs,
   },
   contactText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.md,
   },
   contactButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
@@ -372,7 +377,7 @@ const styles = StyleSheet.create({
   contactButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
   bottomSpacer: {
     height: spacing.xl * 2,

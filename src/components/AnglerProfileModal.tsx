@@ -21,7 +21,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { AnglerProfile, formatMemberSince } from '../types/catchFeed';
 import { fetchAnglerProfile } from '../services/catchFeedService';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { spacing, borderRadius, typography } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { getSpeciesTheme } from '../constants/speciesColors';
 import { SPECIES_ALIASES } from '../constants/speciesAliases';
 import { useAllFishSpecies } from '../api/speciesApi';
@@ -40,6 +43,8 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
   userId,
   onClose,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<AnglerProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -173,7 +178,7 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
     if (loading) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       );
@@ -182,7 +187,7 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
     if (error || !profile) {
       return (
         <View style={styles.errorContainer}>
-          <Feather name="alert-circle" size={48} color={colors.textSecondary} />
+          <Feather name="alert-circle" size={48} color={theme.colors.textSecondary} />
           <Text style={styles.errorText}>{error || 'Profile not found'}</Text>
         </View>
       );
@@ -330,7 +335,7 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
             onPress={handleClose}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Feather name="x" size={24} color={colors.textPrimary} />
+            <Feather name="x" size={24} color={theme.colors.textPrimary} />
           </TouchableOpacity>
 
           {renderContent()}
@@ -340,7 +345,7 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   modalWrapper: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -350,7 +355,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   container: {
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     maxHeight: '90%',
@@ -373,10 +378,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: colors.shadow,
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -396,7 +401,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: spacing.md,
   },
   errorContainer: {
@@ -407,7 +412,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: spacing.md,
     textAlign: 'center',
   },
@@ -421,11 +426,11 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.md,
-    shadowColor: colors.shadow,
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -437,29 +442,29 @@ const styles = StyleSheet.create({
     borderRadius: 40,
   },
   avatarInitialLarge: {
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 32,
     fontWeight: '700',
   },
   displayName: {
     ...typography.h2,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.xxs,
   },
   memberSince: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     marginHorizontal: spacing.md,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.lg,
-    shadowColor: colors.shadow,
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -471,24 +476,24 @@ const styles = StyleSheet.create({
   },
   statValue: {
     ...typography.h2,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: '700',
   },
   statValueSmall: {
     ...typography.body,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: '600',
     textAlign: 'center',
   },
   statLabel: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: spacing.xxs,
   },
   statDivider: {
     width: 1,
     height: 40,
-    backgroundColor: colors.divider,
+    backgroundColor: theme.colors.divider,
     marginHorizontal: spacing.sm,
   },
   speciesSection: {
@@ -497,7 +502,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.subtitle,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     fontWeight: '600',
     marginBottom: spacing.sm,
   },
@@ -509,7 +514,7 @@ const styles = StyleSheet.create({
   speciesTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.md,
@@ -522,7 +527,7 @@ const styles = StyleSheet.create({
   },
   speciesTagText: {
     ...typography.caption,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: '500',
   },
   catchesSection: {

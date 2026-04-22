@@ -15,6 +15,7 @@ import {
 import { SpeciesAlertBadge } from './SpeciesAlertBadge';
 import { useAllFishSpecies } from '../api/speciesApi';
 import { useSpeciesAlerts } from '../contexts/SpeciesAlertsContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { RootStackParamList } from '../types';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 
@@ -50,6 +51,13 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
   isSignedIn = false,
   badgeData,
 }) => {
+  const { theme } = useTheme();
+  // In dark mode, use a single muted color for all subtitles so they read
+  // consistently and don't clash with surrounding UI. In light mode, keep
+  // the existing rainbow accent colors for visual interest.
+  const subtitleColor = (lightModeColor: string) =>
+    theme.isDark ? theme.colors.textSecondary : lightModeColor;
+
   // Derive alert counts from species data, filtering out badge-acknowledged alerts
   const { data: allSpecies = [] } = useAllFishSpecies();
   const { acknowledgeBadgeAlerts, isBadgeAlertAcknowledged } = useSpeciesAlerts();
@@ -98,7 +106,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
         <QuickActionCard
           title={SCREEN_LABELS.pastReports.title}
           subtitle={SCREEN_LABELS.pastReports.subtitle}
-          subtitleColor="#1E3A5F"
+          subtitleColor={subtitleColor('#1E3A5F')}
           image={cardImages.pastReports}
           imageStyle={{ transform: [{ scaleX: -1 }] }}
           onPress={() => onNavigate('PastReports')}
@@ -136,7 +144,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
         <QuickActionCard
           title={SCREEN_LABELS.speciesGuide.title}
           subtitle={SCREEN_LABELS.speciesGuide.subtitle}
-          subtitleColor="#2D9596"
+          subtitleColor={subtitleColor('#2D9596')}
           image={cardImages.speciesGuide}
           imageStyle={{
             position: 'absolute',
@@ -178,7 +186,7 @@ export const QuickActionGrid: React.FC<QuickActionGridProps> = ({
         <QuickActionCard
           title={SCREEN_LABELS.catchFeed.title}
           subtitle={SCREEN_LABELS.catchFeed.subtitle}
-          subtitleColor="#81C784"
+          subtitleColor={subtitleColor('#81C784')}
           image={cardImages.catchFeed}
           imageStyle={{ width: '140%', height: '110%', marginLeft: 0 }}
           onPress={() => onNavigate('CatchFeed')}

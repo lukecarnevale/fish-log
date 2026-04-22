@@ -14,7 +14,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { MANDATORY_HARVEST_FAQS, FULL_FAQ_URL } from '../constants/faqData';
 import { FishIcon } from './icons/MandatoryHarvestIcons';
 import { safeOpenURL } from '../utils/openURL';
@@ -41,6 +43,8 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
   onDismiss,
   onFishPress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [showFaqModal, setShowFaqModal] = useState(false);
 
   const handleLearnMore = () => {
@@ -92,7 +96,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
               >
                 <FishIcon bodyColor={fish.bodyColor} tailColor={fish.tailColor} />
               </View>
-              <Text style={styles.fishName}>{fish.name}</Text>
+              <Text style={styles.fishName} maxFontSizeMultiplier={1.3} numberOfLines={2}>{fish.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -100,14 +104,14 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
         {/* Info Cards */}
         <View style={styles.infoBox}>
           <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>When</Text>
-            <Text style={styles.infoText}>
+            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>When</Text>
+            <Text style={styles.infoText} maxFontSizeMultiplier={1.3}>
               At end of trip (boat reaches shore or you stop fishing).
             </Text>
           </View>
           <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>What</Text>
-            <Text style={styles.infoText}>
+            <Text style={styles.infoLabel} maxFontSizeMultiplier={1.3}>What</Text>
+            <Text style={styles.infoText} maxFontSizeMultiplier={1.3}>
               Only fish you keep — not released fish.
             </Text>
           </View>
@@ -120,7 +124,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
             onPress={handleLearnMore}
             activeOpacity={0.7}
           >
-            <Feather name="external-link" size={16} color="#666" />
+            <Feather name="external-link" size={16} color={theme.colors.textSecondary} />
             <Text style={styles.btnOutlineText}>Learn More</Text>
           </TouchableOpacity>
 
@@ -146,14 +150,14 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
           <View style={styles.faqModalContent}>
             <View style={styles.faqModalHeader}>
               <View style={styles.faqModalHeaderLeft}>
-                <Feather name="help-circle" size={24} color={colors.primary} />
+                <Feather name="help-circle" size={24} color={theme.colors.primary} />
                 <Text style={styles.faqModalTitle}>FAQs</Text>
               </View>
               <TouchableOpacity
                 onPress={() => setShowFaqModal(false)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Feather name="x" size={24} color="#666" />
+                <Feather name="x" size={24} color={theme.colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -177,7 +181,7 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
                 }}
                 activeOpacity={0.7}
               >
-                <Feather name="external-link" size={16} color={colors.primary} style={{ marginRight: 8 }} />
+                <Feather name="external-link" size={16} color={theme.colors.primary} style={{ marginRight: 8 }} />
                 <Text style={styles.faqLinkText}>View Full FAQs on NC DEQ Website</Text>
               </TouchableOpacity>
             </ScrollView>
@@ -196,9 +200,9 @@ const MandatoryHarvestCard: React.FC<MandatoryHarvestCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.white,
     borderRadius: 16,
     overflow: 'hidden',
     marginHorizontal: 16,
@@ -225,7 +229,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: 'white',
+    color: theme.colors.textOnPrimary,
   },
   subtitle: {
     fontSize: 13,
@@ -273,7 +277,7 @@ const styles = StyleSheet.create({
   fishName: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#555',
+    color: theme.colors.textPrimary,
     textAlign: 'center',
     lineHeight: 14,
   },
@@ -321,13 +325,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 25,
     borderWidth: 1.5,
-    borderColor: '#ccc',
-    backgroundColor: 'white',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.white,
   },
   btnOutlineText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.textPrimary,
   },
   btnSolid: {
     flex: 1,
@@ -343,7 +347,7 @@ const styles = StyleSheet.create({
   btnSolidText: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'white',
+    color: theme.colors.textOnPrimary,
   },
 
   // FAQ Modal styles
@@ -355,7 +359,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   faqModalContent: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.white,
     borderRadius: 20,
     width: '100%',
     maxHeight: '85%',
@@ -372,7 +376,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderBottomColor: theme.colors.divider,
   },
   faqModalHeaderLeft: {
     flexDirection: 'row',
@@ -382,7 +386,7 @@ const styles = StyleSheet.create({
   faqModalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#333',
+    color: theme.colors.textPrimary,
   },
   faqScrollView: {
     paddingHorizontal: 16,
@@ -390,17 +394,17 @@ const styles = StyleSheet.create({
   faqItem: {
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+    borderBottomColor: theme.colors.divider,
   },
   faqQuestion: {
     fontSize: 15,
     fontWeight: '600',
-    color: HEADER_BG,
+    color: theme.colors.primary,
     marginBottom: 6,
   },
   faqAnswer: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.textPrimary,
     lineHeight: 20,
   },
   faqLinkButton: {
@@ -410,23 +414,23 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginTop: 8,
     marginBottom: 16,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: 12,
   },
   faqLinkText: {
     fontSize: 14,
     fontWeight: '600',
-    color: HEADER_BG,
+    color: theme.colors.primary,
   },
   faqCloseButton: {
-    backgroundColor: HEADER_BG,
+    backgroundColor: theme.colors.primary,
     paddingVertical: 14,
     alignItems: 'center',
   },
   faqCloseButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: theme.colors.textOnPrimary,
   },
 });
 

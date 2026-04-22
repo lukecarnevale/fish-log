@@ -89,6 +89,7 @@ export function makeStoredReport(overrides?: Partial<StoredReport>): StoredRepor
     id: uuid(),
     userId: null,
     anonymousUserId: uuid(),
+    reportType: 'dmf_harvest',
     dmfStatus: 'pending',
     dmfConfirmationNumber: null,
     dmfObjectId: null,

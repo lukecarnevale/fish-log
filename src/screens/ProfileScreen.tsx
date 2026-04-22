@@ -31,9 +31,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 // Instead of using GooglePlacesAutocomplete which causes UUID issues
 import { UserProfile } from "../types";
-import { colors, spacing, borderRadius, shadows, typography } from "../styles/common";
+import { spacing, borderRadius, shadows, typography } from "../styles/common";
+import { useTheme } from "../contexts/ThemeContext";
+import { useThemedStyles } from "../hooks/useThemedStyles";
+import { Theme } from "../styles/theme";
 import { clearCatchFeedCache } from "../services/catchFeedService";
 import WrcIdInfoModal from "../components/WrcIdInfoModal";
+import StatusBarScrollBlur from "../components/StatusBarScrollBlur";
 import { WaveBackground } from "../components/WaveBackground";
 import { StoredReport } from "../types/report";
 import {
@@ -60,7 +64,7 @@ import { profileSchema } from "../constants/validationSchemas";
 import { PHONE_MASK } from "../constants/inputMasks";
 import * as yup from 'yup';
 import DefaultAnglerAvatarIcon from "../components/icons/DefaultAnglerAvatarIcon";
-import { styles, localStyles } from "../styles/profileScreenStyles";
+import { createProfileMainStyles, createProfileLocalStyles } from "../styles/profileScreenStyles";
 import ProfileStats from "./profile/ProfileStats";
 import ProfileAchievements from "./profile/ProfileAchievements";
 import { useFloatingHeaderAnimation } from "../hooks/useFloatingHeaderAnimation";
@@ -68,6 +72,11 @@ import FloatingBackButton from "../components/FloatingBackButton";
 import UnsavedChangesModal from "../components/UnsavedChangesModal";
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  const { theme, themeMode, setThemeMode, darkModeAvailable } = useTheme();
+  const photoPreviewStyles = useThemedStyles(createPhotoPreviewStyles);
+  const styles = useThemedStyles(createProfileMainStyles);
+  const localStyles = useThemedStyles(createProfileLocalStyles);
+
   const [profile, setProfile] = useState<UserProfile>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -890,7 +899,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const renderProfileForm = () => (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
     >
       {/* Close button header */}
       <View style={styles.formHeader}>
@@ -899,7 +908,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           onPress={handleCloseEditForm}
           activeOpacity={0.7}
         >
-          <Feather name="x" size={24} color={colors.white} />
+          <Feather name="x" size={24} color={theme.colors.textOnPrimary} />
         </TouchableOpacity>
         <Text style={styles.formHeaderTitle}>Edit Profile</Text>
         <View style={{ width: 40 }} />
@@ -929,7 +938,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <DefaultAnglerAvatarIcon size={160} />
             )}
             <View style={styles.cameraIconContainer}>
-              <Feather name="camera" size={18} color={colors.primary} />
+              <Feather name="camera" size={18} color={theme.colors.primary} />
             </View>
           </TouchableOpacity>
           <Text style={styles.photoHelpText}>Tap to change profile photo</Text>
@@ -981,7 +990,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   onPress={() => setShowWrcIdInfoModal(true)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Feather name="info" size={18} color={colors.primary} />
+                  <Feather name="info" size={18} color={theme.colors.primary} />
                 </TouchableOpacity>
               </View>
               <TextInput
@@ -993,7 +1002,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 value={formData.wrcId}
                 onChangeText={(text) => handleFieldChange('wrcId', text)}
                 placeholder="Enter your WRC ID or Customer ID"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.colors.textTertiary}
                 autoCapitalize="characters"
                 returnKeyType="next"
                 onSubmitEditing={() => emailInputRef.current?.focus()}
@@ -1027,7 +1036,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   value={formData.firstName}
                   onChangeText={(text) => handleFieldChange('firstName', text)}
                   placeholder="First name"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={theme.colors.textTertiary}
                   textContentType="givenName"
                   autoComplete="given-name"
                   returnKeyType="next"
@@ -1049,7 +1058,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   value={formData.lastName}
                   onChangeText={(text) => handleFieldChange('lastName', text)}
                   placeholder="Last name"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={theme.colors.textTertiary}
                   textContentType="familyName"
                   autoComplete="family-name"
                   returnKeyType="next"
@@ -1091,7 +1100,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <Text style={formData.dateOfBirth ? styles.inputText : styles.inputPlaceholder}>
                 {formData.dateOfBirth ? formatDate(formData.dateOfBirth) : "Select date"}
               </Text>
-              <Feather name="calendar" size={16} color={colors.textSecondary} />
+              <Feather name="calendar" size={16} color={theme.colors.textSecondary} />
             </TouchableOpacity>
             {validationErrors.dateOfBirth && (
               <Text style={styles.errorText}>{validationErrors.dateOfBirth}</Text>
@@ -1109,7 +1118,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               value={formData.email}
               onChangeText={(text) => handleFieldChange('email', text)}
               placeholder="Enter your email"
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={theme.colors.textTertiary}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -1136,7 +1145,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 handleFieldChange('phone', masked);
               }}
               placeholder="(555) 123-4567"
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={theme.colors.textTertiary}
               keyboardType="phone-pad"
               textContentType="telephoneNumber"
               autoComplete="tel"
@@ -1168,7 +1177,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   handleFieldChange('zipCode', digits);
                 }}
                 placeholder="12345"
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor={theme.colors.textTertiary}
                 keyboardType="number-pad"
                 textContentType="postalCode"
                 autoComplete="postal-code"
@@ -1185,7 +1194,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   )}
                   {zipLookup.result && !zipLookup.isLoading && (
                     <View style={styles.zipFeedbackSuccess}>
-                      <Feather name="check-circle" size={14} color="#28a745" />
+                      <Feather name="check-circle" size={14} color={theme.colors.success} />
                       <Text style={styles.zipFeedbackSuccessText}>
                         {zipLookup.result.city}, {zipLookup.result.stateAbbr}
                       </Text>
@@ -1193,7 +1202,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   )}
                   {zipLookup.error && !zipLookup.isLoading && (
                     <View style={styles.zipFeedbackWarning}>
-                      <Feather name="alert-circle" size={14} color="#ff9800" />
+                      <Feather name="alert-circle" size={14} color={theme.colors.warning} />
                       <Text style={styles.zipFeedbackWarningText}>{zipLookup.error}</Text>
                     </View>
                   )}
@@ -1227,7 +1236,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={localStyles.deleteAccountSection}>
             <View style={localStyles.deleteAccountHeader}>
               <View style={localStyles.deleteAccountIcon}>
-                <Feather name="alert-triangle" size={18} color={colors.white} />
+                <Feather name="alert-triangle" size={18} color={theme.colors.textOnPrimary} />
               </View>
               <Text style={localStyles.deleteAccountTitle}>Delete Account</Text>
             </View>
@@ -1241,10 +1250,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               activeOpacity={0.7}
             >
               {isDeletingAccount ? (
-                <ActivityIndicator size="small" color="#FF3B30" />
+                <ActivityIndicator size="small" color={theme.colors.error} />
               ) : (
                 <>
-                  <Feather name="trash-2" size={16} color="#FF3B30" />
+                  <Feather name="trash-2" size={16} color={theme.colors.error} />
                   <Text style={localStyles.deleteAccountButtonText}>Delete Account</Text>
                 </>
               )}
@@ -1269,7 +1278,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <View style={styles.dateModalHeader}>
                 <Text style={styles.dateModalTitle}>Select Date of Birth</Text>
                 <TouchableOpacity onPress={closeDatePicker}>
-                  <Feather name="x" size={24} color={colors.darkGray} />
+                  <Feather name="x" size={24} color={theme.colors.darkGray} />
                 </TouchableOpacity>
               </View>
               {isPickerMounted && (
@@ -1303,7 +1312,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={{ position: 'absolute', left: 0, right: 0, bottom: keyboardHeight, flexDirection: 'row', alignItems: 'center', backgroundColor: '#d1d5db', paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#b0b0b0' }}>
           <View style={{ flex: 1 }} />
           <TouchableOpacity onPress={() => Keyboard.dismiss()} style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
-            <Text style={{ color: colors.primary, fontSize: 17, fontWeight: '600' }}>Done</Text>
+            <Text style={{ color: theme.colors.primary, fontSize: 17, fontWeight: '600' }}>Done</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -1319,6 +1328,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           opacity={floatingOpacity}
           translateX={floatingTranslateXLeft}
           onPress={() => navigation.goBack()}
+          backgroundColor="#05626C"
         />
       )}
 
@@ -1367,7 +1377,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               onPress={() => navigation.goBack()}
               activeOpacity={0.7}
             >
-              <Feather name="arrow-left" size={24} color={colors.white} />
+              <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Profile</Text>
             <View style={styles.headerSpacer} />
@@ -1423,13 +1433,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={[styles.infoSection, localStyles.rewardsMemberSection]}>
             <View style={localStyles.rewardsMemberHeader}>
               <View style={localStyles.rewardsMemberIcon}>
-                <Feather name="award" size={20} color={colors.white} />
+                <Feather name="award" size={20} color={theme.colors.textOnPrimary} />
               </View>
               <View style={localStyles.rewardsMemberInfo}>
                 <Text style={localStyles.rewardsMemberTitle}>Rewards Member</Text>
                 <Text style={localStyles.rewardsMemberEmail}>{rewardsMemberUser.email}</Text>
               </View>
-              <Feather name="check-circle" size={20} color="#4CAF50" />
+              <Feather name="check-circle" size={20} color={theme.colors.success} />
             </View>
 
             <Text style={localStyles.rewardsMemberDesc}>
@@ -1445,10 +1455,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               activeOpacity={0.7}
             >
               {isSigningOut ? (
-                <ActivityIndicator size="small" color={colors.textSecondary} />
+                <ActivityIndicator size="small" color={theme.colors.textSecondary} />
               ) : (
                 <>
-                  <Feather name="log-out" size={16} color={colors.textSecondary} />
+                  <Feather name="log-out" size={16} color={theme.colors.textSecondary} />
                   <Text style={localStyles.signOutButtonText}>Sign Out</Text>
                 </>
               )}
@@ -1458,7 +1468,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={[styles.infoSection, localStyles.pendingAuthSection]}>
             <View style={localStyles.pendingAuthHeader}>
               <View style={localStyles.pendingAuthIcon}>
-                <Feather name="mail" size={20} color={colors.white} />
+                <Feather name="mail" size={20} color={theme.colors.textOnPrimary} />
               </View>
               <Text style={localStyles.pendingAuthTitle}>Rewards Sign Up Pending</Text>
             </View>
@@ -1475,7 +1485,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   value={pendingAuthEmail}
                   onChangeText={setPendingAuthEmail}
                   placeholder="Enter your email"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={theme.colors.textTertiary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   textContentType="emailAddress"
@@ -1492,7 +1502,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     onPress={() => setIsEditingPendingEmail(true)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Feather name="edit-2" size={16} color={colors.primary} />
+                    <Feather name="edit-2" size={16} color={theme.colors.primary} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -1512,10 +1522,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 activeOpacity={0.7}
               >
                 {isResendingLink ? (
-                  <ActivityIndicator size="small" color={colors.white} />
+                  <ActivityIndicator size="small" color={theme.colors.textOnPrimary} />
                 ) : (
                   <>
-                    <Feather name="send" size={16} color={colors.white} />
+                    <Feather name="send" size={16} color={theme.colors.textOnPrimary} />
                     <Text style={localStyles.pendingAuthButtonText}>
                       {isEditingPendingEmail ? 'Send Link' : 'Resend Link'}
                     </Text>
@@ -1528,7 +1538,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 onPress={handleCancelPendingAuth}
                 activeOpacity={0.7}
               >
-                <Feather name="x" size={16} color={colors.textSecondary} />
+                <Feather name="x" size={16} color={theme.colors.textSecondary} />
                 <Text style={localStyles.pendingAuthCancelText}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -1538,7 +1548,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <View style={[styles.infoSection, localStyles.signInSection]}>
             <View style={localStyles.signInHeader}>
               <View style={localStyles.signInIcon}>
-                <Feather name="award" size={20} color={colors.white} />
+                <Feather name="award" size={20} color={theme.colors.textOnPrimary} />
               </View>
               <Text style={localStyles.signInTitle}>Quarterly Rewards</Text>
             </View>
@@ -1560,7 +1570,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     onChangeText={handleSignInEmailChange}
                     onBlur={handleSignInEmailBlur}
                     placeholder="your.email@example.com"
-                    placeholderTextColor={colors.textTertiary}
+                    placeholderTextColor={theme.colors.textTertiary}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
@@ -1579,7 +1589,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                       value={signInFirstName}
                       onChangeText={setSignInFirstName}
                       placeholder="First"
-                      placeholderTextColor={colors.textTertiary}
+                      placeholderTextColor={theme.colors.textTertiary}
                       autoCapitalize="words"
                       textContentType="givenName"
                       autoComplete="given-name"
@@ -1595,7 +1605,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                       value={signInLastName}
                       onChangeText={setSignInLastName}
                       placeholder="Last"
-                      placeholderTextColor={colors.textTertiary}
+                      placeholderTextColor={theme.colors.textTertiary}
                       autoCapitalize="words"
                       textContentType="familyName"
                       autoComplete="family-name"
@@ -1614,10 +1624,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                     activeOpacity={0.7}
                   >
                     {isSendingSignInLink ? (
-                      <ActivityIndicator size="small" color={colors.white} />
+                      <ActivityIndicator size="small" color={theme.colors.textOnPrimary} />
                     ) : (
                       <>
-                        <Feather name="send" size={16} color={colors.white} />
+                        <Feather name="send" size={16} color={theme.colors.textOnPrimary} />
                         <Text style={localStyles.signInSubmitText}>Send Sign-In Link</Text>
                       </>
                     )}
@@ -1649,7 +1659,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                 }}
                 activeOpacity={0.7}
               >
-                <Feather name="user-plus" size={18} color={colors.white} />
+                <Feather name="user-plus" size={18} color={theme.colors.textOnPrimary} />
                 <Text style={localStyles.joinRewardsText}>{profile.email ? 'Sign In to Rewards Program' : 'Join Rewards Program'}</Text>
               </TouchableOpacity>
             )}
@@ -1665,7 +1675,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <Feather
                 name={profile.hasLicense ? "check-circle" : "x-circle"}
                 size={18}
-                color={profile.hasLicense ? colors.success || colors.primary : colors.darkGray}
+                color={profile.hasLicense ? theme.colors.success || theme.colors.primary : theme.colors.darkGray}
               />
             </View>
             <View style={styles.infoContent}>
@@ -1680,7 +1690,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {profile.hasLicense === true && profile.wrcId && (
             <View style={styles.infoItem}>
               <View style={styles.infoIconContainer}>
-                <Feather name="credit-card" size={18} color={colors.primary} />
+                <Feather name="credit-card" size={18} color={theme.colors.primary} />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>WRC ID / Customer ID</Text>
@@ -1696,7 +1706,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
           <View style={styles.infoItem}>
             <View style={styles.infoIconContainer}>
-              <Feather name="user" size={18} color={colors.primary} />
+              <Feather name="user" size={18} color={theme.colors.primary} />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Name</Text>
@@ -1710,7 +1720,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {profile.dateOfBirth && (
             <View style={styles.infoItem}>
               <View style={styles.infoIconContainer}>
-                <Feather name="calendar" size={18} color={colors.primary} />
+                <Feather name="calendar" size={18} color={theme.colors.primary} />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Date of Birth</Text>
@@ -1722,7 +1732,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {profile.phone && (
             <View style={styles.infoItem}>
               <View style={styles.infoIconContainer}>
-                <Feather name="phone" size={18} color={colors.primary} />
+                <Feather name="phone" size={18} color={theme.colors.primary} />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Phone</Text>
@@ -1734,7 +1744,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {profile.email && (
             <View style={styles.infoItem}>
               <View style={styles.infoIconContainer}>
-                <Feather name="mail" size={18} color={colors.primary} />
+                <Feather name="mail" size={18} color={theme.colors.primary} />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Email</Text>
@@ -1746,7 +1756,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           {profile.zipCode && (
             <View style={styles.infoItem}>
               <View style={styles.infoIconContainer}>
-                <Feather name="map-pin" size={18} color={colors.primary} />
+                <Feather name="map-pin" size={18} color={theme.colors.primary} />
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>ZIP Code</Text>
@@ -1756,11 +1766,63 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           )}
         </View>
 
+        {darkModeAvailable && (
+          <View style={styles.infoSection}>
+            <Text style={styles.infoSectionTitle}>Preferences</Text>
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconContainer}>
+                <Feather
+                  name={theme.isDark ? 'moon' : 'sun'}
+                  size={18}
+                  color={theme.colors.primary}
+                />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Appearance</Text>
+                <View style={[styles.toggleRow, localStyles.themeToggleRow]}>
+                  {(['light', 'dark', 'system'] as const).map((mode) => {
+                    const isActive = themeMode === mode;
+                    const label =
+                      mode === 'light'
+                        ? 'Light'
+                        : mode === 'dark'
+                        ? 'Dark'
+                        : 'System';
+                    return (
+                      <TouchableOpacity
+                        key={mode}
+                        style={[
+                          styles.toggleButton,
+                          localStyles.themeToggleButton,
+                          isActive && styles.toggleButtonActive,
+                        ]}
+                        onPress={() => setThemeMode(mode)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isActive }}
+                        accessibilityLabel={`${label} appearance`}
+                      >
+                        <Text
+                          style={[
+                            styles.toggleButtonText,
+                            isActive && styles.toggleButtonTextActive,
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
         <TouchableOpacity
           style={styles.editButton}
           onPress={() => animateTransition(true)}
         >
-          <Feather name="edit-2" size={18} color={colors.white} />
+          <Feather name="edit-2" size={18} color={theme.colors.textOnPrimary} />
           <Text style={styles.editButtonText}>Edit Profile</Text>
         </TouchableOpacity>
       </View>
@@ -1773,7 +1835,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             style={styles.viewLicenseButton}
           >
             <Text style={styles.viewLicenseText}>View License</Text>
-            <Feather name="chevron-right" size={16} color={colors.primary} />
+            <Feather name="chevron-right" size={16} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
         <Text style={styles.licenseDescription}>
@@ -1797,10 +1859,12 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea} edges={["left", "right"]}>
       <StatusBar
         barStyle={isEditing ? 'light-content' : statusBarStyle}
-        backgroundColor={isEditing || statusBarStyle === 'light-content' ? colors.secondary : colors.background}
+        backgroundColor={isEditing || statusBarStyle === 'light-content' ? theme.colors.secondary : theme.colors.background}
         translucent
         animated
       />
+      {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+      <StatusBarScrollBlur scrollY={scrollY} />
       {/* Always render profile underneath */}
       {renderProfile()}
 
@@ -1858,7 +1922,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   );
 };
 
-const photoPreviewStyles = StyleSheet.create({
+const createPhotoPreviewStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',

@@ -6,7 +6,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
 
 /**
  * GradientButton Component
@@ -49,7 +49,7 @@ export interface GradientButtonProps {
 export const GradientButton = React.forwardRef<View, GradientButtonProps>(
   (
     {
-      colors: gradientColors = [colors.primary, '#1976D2'],
+      colors: gradientColors,
       start = { x: 0, y: 0 },
       end = { x: 1, y: 0 },
       onPress,
@@ -60,6 +60,9 @@ export const GradientButton = React.forwardRef<View, GradientButtonProps>(
     },
     ref
   ) => {
+    const { theme } = useTheme();
+    const resolvedColors = gradientColors ?? [theme.colors.primary, '#1976D2'];
+
     return (
       <TouchableOpacity
         ref={ref}
@@ -69,7 +72,7 @@ export const GradientButton = React.forwardRef<View, GradientButtonProps>(
         disabled={disabled}
       >
         <LinearGradient
-          colors={gradientColors}
+          colors={resolvedColors}
           start={start}
           end={end}
           style={StyleSheet.absoluteFill}

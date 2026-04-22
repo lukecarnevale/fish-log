@@ -10,7 +10,10 @@ import {
   Linking,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, shadows } from '../styles/common';
+import { spacing, borderRadius, shadows } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { APP_VERSION } from '../config/appConfig';
 import LazyModal from './LazyModal';
 
@@ -20,6 +23,9 @@ interface AboutModalProps {
 }
 
 export function AboutModal({ visible, onClose }: AboutModalProps): React.ReactElement {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <LazyModal
       visible={visible}
@@ -31,7 +37,7 @@ export function AboutModal({ visible, onClose }: AboutModalProps): React.ReactEl
         <View style={styles.modalContent}>
           {/* Close button */}
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Feather name="x" size={24} color={colors.textSecondary} />
+            <Feather name="x" size={24} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
           {/* App Icon */}
@@ -53,11 +59,11 @@ export function AboutModal({ visible, onClose }: AboutModalProps): React.ReactEl
           {/* Info Rows */}
           <View style={styles.infoSection}>
             <View style={styles.infoRow}>
-              <Feather name="anchor" size={16} color={colors.primary} />
+              <Feather name="anchor" size={16} color={theme.colors.primary} />
               <Text style={styles.infoText}>Reports are submitted to NC DMF</Text>
             </View>
             <View style={styles.infoRow}>
-              <Feather name="map-pin" size={16} color={colors.primary} />
+              <Feather name="map-pin" size={16} color={theme.colors.primary} />
               <Text style={styles.infoText}>North Carolina, USA</Text>
             </View>
           </View>
@@ -76,7 +82,7 @@ export function AboutModal({ visible, onClose }: AboutModalProps): React.ReactEl
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -84,7 +90,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     width: '85%',
     paddingTop: spacing.xl,
@@ -113,16 +119,16 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: 2,
   },
   version: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
   },
   description: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: spacing.lg,
@@ -130,7 +136,7 @@ const styles = StyleSheet.create({
   },
   infoSection: {
     width: '100%',
-    backgroundColor: colors.pearlWhite,
+    backgroundColor: theme.colors.pearlWhite,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
@@ -143,24 +149,24 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   doneButton: {
     width: '100%',
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.primaryDark,
+    borderColor: theme.colors.primaryDark,
     borderBottomWidth: 3,
-    borderBottomColor: colors.oceanDeep,
+    borderBottomColor: theme.colors.oceanDeep,
   },
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 

@@ -6,25 +6,36 @@
 import React from 'react';
 import { Animated, TouchableOpacity, Platform, StatusBar, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, borderRadius } from '../styles/common';
+import { borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 
 interface FloatingBackButtonProps {
   opacity: Animated.AnimatedInterpolation<number>;
   translateX: Animated.AnimatedInterpolation<number>;
   onPress: () => void;
+  /** Override the button background color. Defaults to primaryDark. */
+  backgroundColor?: string;
 }
 
 const FloatingBackButton: React.FC<FloatingBackButtonProps> = ({
   opacity,
   translateX,
   onPress,
-}) => (
+  backgroundColor,
+}) => {
+  const { theme } = useTheme();
+  const fbStyles = useThemedStyles(createFbStyles);
+
+  return (
   <Animated.View
     style={[
       fbStyles.container,
       {
         opacity,
         transform: [{ translateX }],
+        ...(backgroundColor ? { backgroundColor } : {}),
       },
     ]}
   >
@@ -33,18 +44,19 @@ const FloatingBackButton: React.FC<FloatingBackButtonProps> = ({
       style={fbStyles.touchable}
       hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
     >
-      <Feather name="arrow-left" size={22} color={colors.white} />
+      <Feather name="arrow-left" size={22} color={theme.colors.textOnPrimary} />
     </TouchableOpacity>
   </Animated.View>
-);
+  );
+};
 
-const fbStyles = StyleSheet.create({
+const createFbStyles = (theme: Theme) => StyleSheet.create({
   container: {
     position: 'absolute',
     top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 52,
     left: 16,
     zIndex: 100,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primaryDark,
     borderRadius: borderRadius.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

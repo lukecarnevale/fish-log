@@ -24,11 +24,15 @@ import { Feather } from '@expo/vector-icons';
 import Svg, { Path, Circle, Ellipse, G } from 'react-native-svg';
 import { RootStackParamList } from '../types';
 import { useBulletins } from '../contexts/BulletinContext';
+import StatusBarScrollBlur from '../components/StatusBarScrollBlur';
 import { SCREEN_LABELS } from '../constants/screenLabels';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { formatBulletinDate } from '../utils/dateUtils';
-import { colors, spacing } from '../styles/common';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { spacing } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
+import { getBulletinTypeConfig } from '../constants/bulletin';
 import type { Bulletin } from '../types/bulletin';
 import type { BulletinType } from '../types/bulletin';
 
@@ -63,23 +67,23 @@ const SECTION_ORDER: BulletinType[] = ['closure', 'advisory', 'educational', 'in
 // Empty State Illustration
 // =============================================================================
 
-const EmptyBulletinIllustration: React.FC = () => (
+const EmptyBulletinIllustration: React.FC<{ theme: Theme }> = ({ theme }) => (
   <Svg width={160} height={120} viewBox="0 0 160 120">
-    <Circle cx={25} cy={35} r={3} fill={colors.primaryLight} opacity={0.5} />
-    <Circle cx={140} cy={25} r={4} fill={colors.primaryLight} opacity={0.4} />
-    <Circle cx={130} cy={90} r={3} fill={colors.primaryLight} opacity={0.5} />
+    <Circle cx={25} cy={35} r={3} fill={theme.colors.primaryLight} opacity={0.5} />
+    <Circle cx={140} cy={25} r={4} fill={theme.colors.primaryLight} opacity={0.4} />
+    <Circle cx={130} cy={90} r={3} fill={theme.colors.primaryLight} opacity={0.5} />
     <G transform="translate(50, 20)">
-      <Ellipse cx={30} cy={50} rx={22} ry={6} fill={colors.primaryLight} opacity={0.3} />
+      <Ellipse cx={30} cy={50} rx={22} ry={6} fill={theme.colors.primaryLight} opacity={0.3} />
       <Path
         d="M30 10 C30 10 18 18 18 32 L18 38 C18 42 14 44 14 44 L46 44 C46 44 42 42 42 38 L42 32 C42 18 30 10 30 10 Z"
-        fill={colors.secondary}
+        fill={theme.colors.secondary}
         opacity={0.85}
       />
-      <Circle cx={30} cy={8} r={3} fill={colors.secondary} />
-      <Ellipse cx={30} cy={48} rx={5} ry={3} fill={colors.secondary} opacity={0.9} />
+      <Circle cx={30} cy={8} r={3} fill={theme.colors.secondary} />
+      <Ellipse cx={30} cy={48} rx={5} ry={3} fill={theme.colors.secondary} opacity={0.9} />
       <Path
         d="M22 28 L28 34 L38 24"
-        stroke={colors.white}
+        stroke={theme.colors.textOnPrimary}
         strokeWidth={3}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -100,7 +104,9 @@ interface BulletinCardProps {
 }
 
 const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress, isUnread }) => {
-  const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const cfg = getBulletinTypeConfig(theme)[bulletin.bulletinType];
 
   const dateText =
     bulletin.effectiveDate || bulletin.expirationDate
@@ -123,12 +129,12 @@ const BulletinCard: React.FC<BulletinCardProps> = ({ bulletin, onPress, isUnread
           {isUnread && <View style={styles.unreadDot} />}
           <View style={[styles.cardBadge, { backgroundColor: cfg.badgeBg }]}>
             <Feather name={cfg.icon} size={10} color={cfg.color} style={styles.cardBadgeIcon} />
-            <Text style={[styles.cardBadgeText, { color: cfg.color }]}>
+            <Text style={[styles.cardBadgeText, { color: cfg.color }]} maxFontSizeMultiplier={1.15}>
               {cfg.label}
             </Text>
           </View>
         </View>
-        {dateText && <Text style={styles.cardDate}>{dateText}</Text>}
+        {dateText && <Text style={styles.cardDate} maxFontSizeMultiplier={1.2}>{dateText}</Text>}
       </View>
 
       {/* Title */}
@@ -158,7 +164,9 @@ interface SectionHeaderProps {
 }
 
 const SectionHeader: React.FC<SectionHeaderProps> = ({ type, count, expanded, onToggle }) => {
-  const cfg = BULLETIN_TYPE_CONFIG[type];
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const cfg = getBulletinTypeConfig(theme)[type];
   const chevronRotation = useRef(new Animated.Value(expanded ? 1 : 0)).current;
 
   useEffect(() => {
@@ -181,14 +189,14 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ type, count, expanded, on
       activeOpacity={0.7}
     >
       <View style={[styles.sectionIconCircle, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-        <Feather name={cfg.icon} size={16} color={colors.white} />
+        <Feather name={cfg.icon} size={16} color={theme.colors.textOnPrimary} />
       </View>
       <Text style={styles.sectionTitle}>{cfg.label}</Text>
       <View style={[styles.sectionCountBadge, { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-        <Text style={[styles.sectionCountText, { color: colors.white }]}>{count}</Text>
+        <Text style={[styles.sectionCountText, { color: theme.colors.textOnPrimary }]} maxFontSizeMultiplier={1.1}>{count}</Text>
       </View>
       <Animated.View style={{ transform: [{ rotate }] }}>
-        <Feather name="chevron-down" size={20} color={colors.white} />
+        <Feather name="chevron-down" size={20} color={theme.colors.textOnPrimary} />
       </Animated.View>
     </TouchableOpacity>
   );
@@ -199,6 +207,8 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ type, count, expanded, on
 // =============================================================================
 
 const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { fetchedBulletins, showBulletinDetail, isBulletinRead } = useBulletins();
   const {
@@ -267,7 +277,10 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
   return (
     <View style={styles.screenContainer}>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primaryDark} translucent />
+
+        {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+        <StatusBarScrollBlur scrollY={scrollY} />
 
         {/* Floating back button */}
         <Animated.View
@@ -288,7 +301,7 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
             style={styles.floatingBackTouchable}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
-            <Feather name="arrow-left" size={22} color={colors.white} />
+            <Feather name="arrow-left" size={22} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -303,10 +316,10 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
           onScroll={onScroll}
           scrollEventThrottle={16}
         >
-          {/* Teal header */}
-          <View style={{ backgroundColor: colors.primary }}>
+          {/* Header */}
+          <View style={{ backgroundColor: theme.colors.primaryDark }}>
             <LinearGradient
-              colors={[colors.primary, colors.primary]}
+              colors={[theme.colors.primaryDark, theme.colors.primaryDark]}
               style={styles.scrollingHeader}
             >
               <View style={styles.headerContent}>
@@ -316,7 +329,7 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
                   activeOpacity={0.7}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Feather name="arrow-left" size={24} color={colors.white} />
+                  <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
                 </TouchableOpacity>
 
                 <View style={styles.headerTextContainer}>
@@ -330,7 +343,7 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
 
                 {fetchedBulletins.length > 0 && (
                   <View style={styles.countBadge}>
-                    <Feather name="bell" size={14} color={colors.white} />
+                    <Feather name="bell" size={14} color={theme.colors.textOnPrimary} />
                     <Text style={styles.countBadgeText}>
                       {fetchedBulletins.length}
                     </Text>
@@ -375,7 +388,7 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              <EmptyBulletinIllustration />
+              <EmptyBulletinIllustration theme={theme} />
               <Text style={styles.emptyTitle}>No Bulletins</Text>
               <Text style={styles.emptySubtext}>
                 There are no active bulletins right now.{'\n'}Check back later for
@@ -393,14 +406,14 @@ const BulletinsScreen: React.FC<BulletinsScreenProps> = ({ navigation }) => {
 // Styles
 // =============================================================================
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
 
   // ── Teal header (unchanged) ────────────────────────────────────────────────
@@ -428,11 +441,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.85,
     marginTop: 2,
   },
@@ -448,7 +461,7 @@ const styles = StyleSheet.create({
   countBadgeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 
   // ── Floating back button ───────────────────────────────────────────────────
@@ -456,7 +469,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     zIndex: 100,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primaryDark,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -474,10 +487,12 @@ const styles = StyleSheet.create({
   // ── ScrollView ───────────────────────────────────────────────────────────
   flatList: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
   flatListContent: {
-    backgroundColor: '#FEF9F0',
+    // Dark mode: use ocean-navy background so the content area coheres with
+    // the rest of the app. Light mode keeps the warm parchment aesthetic.
+    backgroundColor: theme.isDark ? theme.colors.background : theme.colors.parchment,
     flexGrow: 1,
     paddingBottom: 32,
     borderBottomLeftRadius: 24,
@@ -485,12 +500,12 @@ const styles = StyleSheet.create({
   },
   emptyListContent: {
     flexGrow: 1,
-    backgroundColor: '#FEF9F0',
+    backgroundColor: theme.isDark ? theme.colors.background : theme.colors.parchment,
   },
 
-  // Parchment area — rounded corners sliding over teal header
+  // Content area — rounded corners sliding over the header
   contentContainer: {
-    backgroundColor: '#FEF9F0',
+    backgroundColor: theme.isDark ? theme.colors.background : theme.colors.parchment,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: spacing.md,
@@ -503,10 +518,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   sectionContainer: {
-    backgroundColor: '#FFFFFF',
+    // Dark: elevated navy surface so sections lift off the deep background.
+    // Light: white card on parchment, existing aesthetic.
+    backgroundColor: theme.isDark ? theme.colors.surfaceElevated : theme.colors.white,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#EDE3D0',
+    borderColor: theme.isDark ? theme.colors.border : theme.colors.parchmentBorder,
     overflow: 'hidden',
   },
   sectionHeader: {
@@ -527,7 +544,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     letterSpacing: 0.5,
   },
   sectionCountBadge: {
@@ -544,17 +561,19 @@ const styles = StyleSheet.create({
   },
   sectionContent: {
     borderTopWidth: 1,
-    borderTopColor: '#EDE3D0',
+    borderTopColor: theme.isDark ? theme.colors.divider : theme.colors.parchmentBorder,
     paddingTop: 8,
     paddingBottom: 6,
   },
 
   // ── Bulletin card ──────────────────────────────────────────────────────────
   bulletinCard: {
-    backgroundColor: '#FEF9F0',
+    // Dark: standard surface card on the elevated section background.
+    // Light: warm parchment, unchanged.
+    backgroundColor: theme.isDark ? theme.colors.surface : theme.colors.parchment,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#EDE3D0',
+    borderColor: theme.isDark ? theme.colors.border : theme.colors.parchmentBorder,
     padding: 14,
     marginBottom: 8,
     marginHorizontal: 10,
@@ -573,7 +592,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     marginRight: 6,
   },
   cardBadge: {
@@ -593,19 +612,19 @@ const styles = StyleSheet.create({
   },
   cardDate: {
     fontSize: 12,
-    color: '#A3865A',
+    color: theme.isDark ? theme.colors.textSecondary : theme.colors.parchmentTextSecondary,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#44300A',
+    color: theme.isDark ? theme.colors.textPrimary : theme.colors.parchmentText,
     fontFamily: 'Georgia',
     lineHeight: 22,
     marginBottom: 4,
   },
   cardDescription: {
     fontSize: 14,
-    color: '#8B7355',
+    color: theme.isDark ? theme.colors.textSecondary : theme.colors.parchmentTextSecondary,
     lineHeight: 20,
   },
 
@@ -620,12 +639,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#44300A',
+    color: theme.isDark ? theme.colors.textPrimary : theme.colors.parchmentText,
     marginTop: spacing.md,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#8B7355',
+    color: theme.isDark ? theme.colors.textSecondary : theme.colors.parchmentTextSecondary,
     textAlign: 'center',
     marginTop: spacing.sm,
     lineHeight: 20,

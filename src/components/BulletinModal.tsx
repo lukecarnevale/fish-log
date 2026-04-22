@@ -17,10 +17,13 @@ import {
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import AnimatedModal from './AnimatedModal';
-import { colors, spacing, borderRadius, typography } from '../styles/common';
+import { spacing, borderRadius, typography } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { safeOpenURL } from '../utils/openURL';
 import type { Bulletin } from '../types/bulletin';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { getBulletinTypeConfig } from '../constants/bulletin';
 import { formatBulletinDateLong } from '../utils/dateUtils';
 import { WaveAccent, WAVE_PRESETS } from './WaveAccent';
 
@@ -41,7 +44,7 @@ interface BulletinModalProps {
 /**
  * Parses text and returns Text elements with tappable phone numbers and emails.
  */
-const renderLinkedText = (text: string, baseStyle: object) => {
+const renderLinkedText = (text: string, baseStyle: object, linkColor: string) => {
   // Match phone numbers (e.g. 252-515-5638) and emails
   const linkPattern = /([\w.-]+@[\w.-]+\.\w+|\d{3}[-.\s]?\d{3}[-.\s]?\d{4})/g;
   const parts = text.split(linkPattern);
@@ -56,7 +59,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
           return (
             <Text
               key={i}
-              style={{ color: colors.primary, textDecorationLine: 'underline' }}
+              style={{ color: linkColor, textDecorationLine: 'underline' }}
               onPress={() => safeOpenURL(`mailto:${part}`)}
             >
               {part}
@@ -68,7 +71,7 @@ const renderLinkedText = (text: string, baseStyle: object) => {
           return (
             <Text
               key={i}
-              style={{ color: colors.primary, textDecorationLine: 'underline' }}
+              style={{ color: linkColor, textDecorationLine: 'underline' }}
               onPress={() => safeOpenURL(`tel:${digits}`)}
             >
               {part}
@@ -87,12 +90,14 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
   onClose,
   onDismiss,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
 
   if (!bulletin) return null;
 
-  const config = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
+  const config = getBulletinTypeConfig(theme)[bulletin.bulletinType];
   const hasImages = bulletin.imageUrls.length > 0;
   const hasMultipleImages = bulletin.imageUrls.length > 1;
 
@@ -135,7 +140,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
         hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
         activeOpacity={0.7}
       >
-        <Feather name="x" size={20} color={colors.darkGray} />
+        <Feather name="x" size={20} color={theme.colors.darkGray} />
       </TouchableOpacity>
 
       {/* Type Badge */}
@@ -212,7 +217,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
       )}
 
       {/* Description */}
-      {bulletin.description && renderLinkedText(bulletin.description, styles.description)}
+      {bulletin.description && renderLinkedText(bulletin.description, styles.description, theme.colors.primary)}
 
       {/* Notes callout */}
       {bulletin.notes && (
@@ -223,7 +228,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
             color={config.color}
             style={styles.notesIcon}
           />
-          {renderLinkedText(bulletin.notes, styles.notesText)}
+          {renderLinkedText(bulletin.notes, styles.notesText, theme.colors.primary)}
           <WaveAccent {...WAVE_PRESETS.primary} height={20} />
         </View>
       )}
@@ -235,7 +240,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
           onPress={handleSourcePress}
           activeOpacity={0.7}
         >
-          <Feather name="external-link" size={14} color={colors.primary} />
+          <Feather name="external-link" size={14} color={theme.colors.primary} />
           <Text style={styles.sourceLinkText}>
             {bulletin.sourceLabel ?? 'Read more'}
           </Text>
@@ -282,7 +287,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
               style={styles.fullscreenCloseButton}
               activeOpacity={0.7}
             >
-              <Feather name="x" size={24} color={colors.white} />
+              <Feather name="x" size={24} color={theme.colors.textOnPrimary} />
             </TouchableOpacity>
           </View>
           {fullscreenImageUrl && (
@@ -304,7 +309,7 @@ const BulletinModal: React.FC<BulletinModalProps> = ({
 // Styles
 // =============================================================================
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -323,13 +328,13 @@ const styles = StyleSheet.create({
   title: {
     ...typography.h2,
     fontFamily: 'Georgia',
-    color: '#44300A',
+    color: theme.colors.parchmentText,
     marginBottom: spacing.sm,
   },
   dateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
@@ -338,7 +343,7 @@ const styles = StyleSheet.create({
   dateText: {
     ...typography.bodySmall,
     fontWeight: '600',
-    color: '#A3865A',
+    color: theme.colors.parchmentTextSecondary,
     marginLeft: spacing.xs,
   },
   imageSection: {
@@ -368,7 +373,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.lightGray,
+    backgroundColor: theme.colors.lightGray,
     marginHorizontal: 3,
   },
   dotActive: {
@@ -378,13 +383,13 @@ const styles = StyleSheet.create({
   },
   description: {
     ...typography.body,
-    color: '#44300A',
+    color: theme.colors.parchmentText,
     lineHeight: 22,
     marginBottom: spacing.md,
   },
   notesContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     padding: spacing.md,
     paddingBottom: spacing.md + 20,
     borderRadius: borderRadius.md,
@@ -396,7 +401,7 @@ const styles = StyleSheet.create({
   },
   notesText: {
     ...typography.bodySmall,
-    color: '#000000',
+    color: theme.colors.parchmentText,
     flex: 1,
     lineHeight: 20,
   },
@@ -407,7 +412,7 @@ const styles = StyleSheet.create({
   },
   sourceLinkText: {
     ...typography.bodySmall,
-    color: colors.primary,
+    color: theme.colors.primary,
     fontWeight: '600',
     marginLeft: spacing.xxs,
     textDecorationLine: 'underline',
@@ -426,17 +431,17 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     ...typography.button,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
   dismissButton: {
     paddingVertical: spacing.sm,
   },
   dismissButtonText: {
     ...typography.bodySmall,
-    color: '#8B7355',
+    color: theme.colors.parchmentTextSecondary,
   },
   modalContainer: {
-    backgroundColor: '#FFFDF8',
+    backgroundColor: theme.colors.parchment,
   },
   closeButton: {
     position: 'absolute',

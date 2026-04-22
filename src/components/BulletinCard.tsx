@@ -17,9 +17,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import Svg, { Defs, Pattern, Circle, Rect } from 'react-native-svg';
-import { colors, spacing } from '../styles/common';
+import { spacing } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { formatBulletinDate } from '../utils/dateUtils';
-import { BULLETIN_TYPE_CONFIG } from '../constants/bulletin';
+import { getBulletinTypeConfig } from '../constants/bulletin';
 import { useBulletins } from '../contexts/BulletinContext';
 import type { Bulletin } from '../types/bulletin';
 
@@ -52,8 +55,11 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
   onViewAll,
   totalCount,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { isBulletinRead } = useBulletins();
   const [expanded, setExpanded] = useState(true);
+  const bulletinConfig = getBulletinTypeConfig(theme);
 
   const toggleExpanded = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -69,7 +75,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
     <View style={styles.container}>
       {/* Parchment gradient background for the whole card */}
       <LinearGradient
-        colors={['#FEF9F0', '#FDF6E9']}
+        colors={[theme.colors.parchment, theme.colors.parchment]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -101,7 +107,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                 height="12"
                 patternUnits="userSpaceOnUse"
               >
-                <Circle cx="6" cy="6" r="1" fill="#78350F" />
+                <Circle cx="6" cy="6" r="1" fill={theme.colors.parchmentText} />
               </Pattern>
             </Defs>
             <Rect width="100%" height="100%" fill="url(#bulletinDots)" />
@@ -111,20 +117,20 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
           <View style={styles.headerContent}>
             {/* Boxed bell icon */}
             <View style={styles.iconBox}>
-              <Feather name="bell" size={22} color="#F5E6C8" />
+              <Feather name="bell" size={22} color={theme.colors.parchmentBorder} />
             </View>
 
             {/* Title + subtitle */}
             <View style={styles.headerTextGroup}>
-              <Text style={styles.headerTitle}>Bulletin Board</Text>
-              <Text style={styles.headerSubtitle}>{subtitle}</Text>
+              <Text style={styles.headerTitle} maxFontSizeMultiplier={1.2} numberOfLines={1}>Bulletin Board</Text>
+              <Text style={styles.headerSubtitle} maxFontSizeMultiplier={1.2}>{subtitle}</Text>
             </View>
 
             {/* Collapse chevron */}
             <Feather
               name={expanded ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color="#E8C98A"
+              color={theme.colors.parchmentTextSecondary}
             />
           </View>
         </View>
@@ -135,7 +141,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
         <>
           <View style={styles.bulletinList}>
             {bulletins.slice(0, MAX_VISIBLE).map((bulletin) => {
-              const cfg = BULLETIN_TYPE_CONFIG[bulletin.bulletinType];
+              const cfg = bulletinConfig[bulletin.bulletinType];
 
               return (
                 <TouchableOpacity
@@ -149,19 +155,19 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                     {/* Category badge */}
                     <View style={[styles.badge, { backgroundColor: cfg.badgeBg }]}>
                       <Feather name={cfg.icon} size={10} color={cfg.color} style={styles.badgeIcon} />
-                      <Text style={[styles.badgeText, { color: cfg.color }]}>
+                      <Text style={[styles.badgeText, { color: cfg.color }]} maxFontSizeMultiplier={1.15}>
                         {cfg.label}
                       </Text>
                     </View>
 
                     {/* Title */}
-                    <Text style={styles.bulletinTitle} numberOfLines={2}>
+                    <Text style={styles.bulletinTitle} numberOfLines={2} maxFontSizeMultiplier={1.2}>
                       {bulletin.title}
                     </Text>
 
                     {/* Date range */}
                     {(bulletin.effectiveDate || bulletin.expirationDate) && (
-                      <Text style={styles.bulletinDate}>
+                      <Text style={styles.bulletinDate} maxFontSizeMultiplier={1.2}>
                         {bulletin.effectiveDate && bulletin.expirationDate
                           ? `${formatBulletinDate(bulletin.effectiveDate)} – ${formatBulletinDate(bulletin.expirationDate)}`
                           : bulletin.effectiveDate
@@ -171,7 +177,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
                     )}
                   </View>
 
-                  <Feather name="chevron-right" size={16} color="#C9B68E" />
+                  <Feather name="chevron-right" size={16} color={theme.colors.parchmentTextSecondary} />
                 </TouchableOpacity>
               );
             })}
@@ -206,7 +212,7 @@ const BulletinCard: React.FC<BulletinCardProps> = ({
 // Styles
 // =============================================================================
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   // --- Card shell ---
   container: {
     borderRadius: 16,
@@ -214,7 +220,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#E8DCC8',
+    borderColor: theme.colors.parchmentBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -252,14 +258,19 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FBF5EA',
+    // Header gradient is dark amber in both light and dark modes, so the title
+    // must always be a light cream — using `theme.colors.parchment` would make
+    // this nearly invisible in dark mode where parchment is dark brown.
+    color: theme.isDark ? theme.colors.parchmentText : theme.colors.parchment,
     lineHeight: 24,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#E8C98A',
+    // parchmentTextSecondary reads as a muted cream on the dark amber gradient
+    // in both modes (light: #A3865A, dark: #A39272).
+    color: theme.colors.parchmentTextSecondary,
     marginTop: 2,
     textAlign: 'center',
   },
@@ -272,10 +283,10 @@ const styles = StyleSheet.create({
   bulletinCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFDF8',
+    backgroundColor: theme.colors.parchment,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#EDE3D0',
+    borderColor: theme.colors.parchmentBorder,
     padding: 14,
     marginBottom: 8,
   },
@@ -283,7 +294,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     marginRight: 8,
     alignSelf: 'center',
   },
@@ -311,14 +322,14 @@ const styles = StyleSheet.create({
   bulletinTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#44300A',
+    color: theme.colors.parchmentText,
     fontFamily: 'Georgia',
-    lineHeight: 21,
+    lineHeight: 22,
     marginBottom: 4,
   },
   bulletinDate: {
     fontSize: 13,
-    color: '#A3865A',
+    color: theme.colors.parchmentTextSecondary,
   },
 
   // --- Footer ---
@@ -333,29 +344,33 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#EA580C',
+    borderWidth: 1,
+    // Tinted advisory border so the button reads as accented without glowing
+    // against the parchment background, especially in dark mode.
+    borderColor: theme.isDark
+      ? 'rgba(240,138,74,0.45)'
+      : 'rgba(234,88,12,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   viewAllText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#EA580C',
+    color: theme.colors.advisory,
   },
   dismissButton: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#D4C5A9',
+    borderColor: theme.colors.parchmentBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dismissText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8B7355',
+    color: theme.colors.parchmentTextSecondary,
   },
 });
 

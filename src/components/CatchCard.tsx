@@ -16,7 +16,10 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { CatchFeedEntry, SpeciesCatch, formatRelativeTime } from '../types/catchFeed';
-import { colors, spacing, borderRadius } from '../styles/common';
+import { spacing, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { getSpeciesTheme } from '../constants/speciesColors';
 import CatchInfoBadge from './CatchInfoBadge';
 import SpeciesPlaceholder from './SpeciesPlaceholder';
@@ -39,6 +42,8 @@ const CatchCard: React.FC<CatchCardProps> = ({
   compact = false,
   speciesImageUrl,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const relativeTime = formatRelativeTime(entry.createdAt);
   const speciesTheme = getSpeciesTheme(entry.species);
 
@@ -116,14 +121,14 @@ const CatchCard: React.FC<CatchCardProps> = ({
           <View style={styles.compactFooterLeft}>
             {entry.location && (
               <View style={styles.compactLocation}>
-                <Feather name="map-pin" size={10} color={colors.textTertiary} />
-                <Text style={styles.compactLocationText} numberOfLines={1}>
+                <Feather name="map-pin" size={10} color={theme.colors.textTertiary} />
+                <Text style={styles.compactLocationText} numberOfLines={1} maxFontSizeMultiplier={1.2}>
                   {entry.location}
                 </Text>
               </View>
             )}
           </View>
-          <Text style={styles.compactTimestamp}>{relativeTime}</Text>
+          <Text style={styles.compactTimestamp} maxFontSizeMultiplier={1.2}>{relativeTime}</Text>
         </View>
       </View>
     );
@@ -156,7 +161,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
       <View style={[
         styles.photoContainer,
         // White background for stock photos so letterbox areas match the photo's white background
-        !entry.photoUrl && speciesImageUrl && { backgroundColor: '#FFFFFF' },
+        !entry.photoUrl && speciesImageUrl && { backgroundColor: theme.colors.white },
       ]}>
         {entry.photoUrl ? (
           <Image
@@ -269,7 +274,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
           <Ionicons
             name={entry.isLikedByCurrentUser ? 'heart' : 'heart-outline'}
             size={22}
-            color={entry.isLikedByCurrentUser ? '#E53935' : colors.textTertiary}
+            color={entry.isLikedByCurrentUser ? '#E53935' : theme.colors.textTertiary}
           />
           {entry.likeCount > 0 && (
             <Text style={[
@@ -285,17 +290,17 @@ const CatchCard: React.FC<CatchCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   // =====================
   // FULL CARD STYLES - PREMIUM
   // =====================
   container: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: 20,
     marginHorizontal: spacing.md,
     marginVertical: 8,
     // Premium shadow with blue tint
-    shadowColor: colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -307,7 +312,7 @@ const styles = StyleSheet.create({
   photoContainer: {
     width: '100%',
     aspectRatio: 4 / 5,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     position: 'relative',
   },
   photo: {
@@ -376,7 +381,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.8)',
   },
   topAvatarInitial: {
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -386,7 +391,7 @@ const styles = StyleSheet.create({
   topAnglerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -424,7 +429,7 @@ const styles = StyleSheet.create({
   likeCount: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     marginLeft: 5,
   },
   likeCountActive: {
@@ -435,10 +440,10 @@ const styles = StyleSheet.create({
   // COMPACT CARD STYLES
   // =====================
   compactContainer: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     marginVertical: spacing.xxs,
-    shadowColor: colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
@@ -448,7 +453,7 @@ const styles = StyleSheet.create({
   compactPhotoContainer: {
     width: '100%',
     height: 110,
-    backgroundColor: colors.lightestGray,
+    backgroundColor: theme.colors.lightestGray,
     position: 'relative',
   },
   compactPhoto: {
@@ -489,13 +494,13 @@ const styles = StyleSheet.create({
   },
   compactLocationText: {
     fontSize: 11,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
     marginLeft: 3,
     flexShrink: 1,
   },
   compactTimestamp: {
     fontSize: 11,
-    color: colors.textTertiary,
+    color: theme.colors.textTertiary,
   },
 });
 

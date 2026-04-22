@@ -9,7 +9,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import WaveBackground from './WaveBackground';
-import { colors, spacing, borderRadius } from '../styles/common';
+import { spacing, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { getAchievementColor, getAchievementIcon } from '../constants/achievementMappings';
 import { UserAchievement } from '../types/user';
 
@@ -34,10 +37,18 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
   hasProfileEmail,
   onProfilePress,
 }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   if (!userName && !rewardsMember) return null;
 
   return (
     <View style={styles.card}>
+      {/* Nautical navigation lights — port (red) left, starboard (green) right */}
+      {/* Positioned on the card so the card's overflow:hidden clips them into the corners */}
+      {theme.isDark && <View style={styles.navLightPort} />}
+      {theme.isDark && <View style={styles.navLightStarboard} />}
+
       {/* Greeting Section */}
       {userName !== '' && (
         <View style={[styles.greeting, { position: 'relative', overflow: 'hidden' }]}>
@@ -53,7 +64,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 transition={200}
               />
             ) : (
-              <Feather name="anchor" size={30} color={colors.white} />
+              <Feather name="anchor" size={30} color={theme.colors.textOnPrimary} />
             )}
           </View>
           <View style={[styles.greetingText, { zIndex: 1 }]}>
@@ -75,11 +86,11 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
           activeOpacity={0.7}
         >
           <View style={styles.rewardsIcon}>
-            <Feather name="award" size={18} color={colors.secondary} />
+            <Feather name="award" size={18} color={theme.colors.secondary} />
           </View>
           <View style={styles.rewardsContent}>
             <Text style={styles.rewardsTitle}>Rewards Member</Text>
-            <Text style={styles.rewardsEmail}>{rewardsMemberEmail}</Text>
+            <Text style={styles.rewardsEmail} numberOfLines={1} maxFontSizeMultiplier={1.2}>{rewardsMemberEmail}</Text>
           </View>
           {userAchievements.length > 0 ? (
             <View style={styles.achievementIconsRow}>
@@ -100,7 +111,7 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
                         index > 0 && { marginLeft: -8 },
                       ]}
                     >
-                      <Feather name={iconName} size={14} color={colors.white} />
+                      <Feather name={iconName} size={14} color={theme.colors.textOnPrimary} />
                     </View>
                   );
                 })}
@@ -109,12 +120,12 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
                   key="achievement-overflow"
                   style={[styles.achievementIconBadge, styles.achievementCountBadge, { marginLeft: -8 }]}
                 >
-                  <Text style={styles.achievementCountText}>+{userAchievements.length - 3}</Text>
+                  <Text style={styles.achievementCountText} maxFontSizeMultiplier={1.1}>+{userAchievements.length - 3}</Text>
                 </View>
               )}
             </View>
           ) : (
-            <Feather name="chevron-right" size={18} color={colors.textSecondary} />
+            <Feather name="chevron-right" size={18} color={theme.colors.textSecondary} />
           )}
         </TouchableOpacity>
       ) : userName !== '' ? (
@@ -124,9 +135,9 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
           activeOpacity={0.7}
         >
           <View style={styles.joinIcon}>
-            <Feather name="gift" size={16} color={colors.secondary} />
+            <Feather name="gift" size={16} color={theme.colors.secondary} />
           </View>
-          <Text style={styles.joinText}>
+          <Text style={styles.joinText} numberOfLines={2} maxFontSizeMultiplier={1.2}>
             {hasProfileEmail ? 'Sign In to Rewards Program' : 'Join Rewards Program'}
           </Text>
           <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.7)" />
@@ -136,9 +147,11 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
-    backgroundColor: colors.secondary,
+    // secondaryLight in dark mode is a deep-teal (#1B3D42) — muted without
+    // losing the teal identity. Light mode keeps the full-saturation teal.
+    backgroundColor: theme.isDark ? theme.colors.secondaryLight : theme.colors.secondary,
     borderRadius: borderRadius.lg,
     marginHorizontal: spacing.md,
     marginBottom: 0,
@@ -169,31 +182,31 @@ const styles = StyleSheet.create({
   greetingLine: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.9,
   },
   userName: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     marginVertical: 2,
   },
   rewardsSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: theme.colors.surface,
     padding: spacing.sm,
     paddingHorizontal: spacing.md,
   },
   rewardsSectionWithGreeting: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.3)',
+    borderTopColor: theme.colors.divider,
   },
   rewardsIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.secondaryLight,
+    backgroundColor: theme.colors.secondaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.xs,
@@ -204,11 +217,11 @@ const styles = StyleSheet.create({
   rewardsTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   rewardsEmail: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: 1,
   },
   joinRewards: {
@@ -233,7 +246,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
   achievementIconsRow: {
     flexDirection: 'row',
@@ -254,12 +267,44 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   achievementCountBadge: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   achievementCountText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
+  },
+
+  // Nautical navigation lights — decorative port/starboard corners
+  navLightPort: {
+    position: 'absolute',
+    top: -18,
+    left: -14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E53935',
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    elevation: 4,
+    zIndex: 2,
+  },
+  navLightStarboard: {
+    position: 'absolute',
+    top: -18,
+    right: -14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#43A047',
+    shadowColor: '#43A047',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    elevation: 4,
+    zIndex: 2,
   },
 });
 

@@ -168,6 +168,7 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
     gps_longitude: input.gpsLongitude ?? null,
     entered_rewards: input.enteredRewards || false,
     rewards_drawing_id: input.rewardsDrawingId || null,
+    report_type: input.reportType || 'dmf_harvest',
     fish_entries: input.fishEntries?.map((entry) => ({
       species: entry.species,
       count: entry.count,
@@ -185,6 +186,7 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
     id: rpcData.report_id,
     userId: effectiveUserId,
     anonymousUserId: effectiveAnonId,
+    reportType: input.reportType || 'dmf_harvest',
     dmfStatus: rpcData.dmf_status as StoredReport['dmfStatus'] || 'pending',
     dmfConfirmationNumber: input.dmfConfirmationNumber || null,
     dmfObjectId: input.dmfObjectId || null,
@@ -450,6 +452,7 @@ function createLocalReport(input: ReportInput): StoredReport {
     id: generateLocalId(),
     userId: input.userId || null,
     anonymousUserId: input.anonymousUserId || null,
+    reportType: input.reportType || 'dmf_harvest',
     dmfStatus: input.dmfStatus || 'pending',
     dmfConfirmationNumber: input.dmfConfirmationNumber || null,
     dmfObjectId: input.dmfObjectId || null,

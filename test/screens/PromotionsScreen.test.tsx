@@ -29,13 +29,17 @@ jest.mock('../../src/api/promotionsApi', () => ({
 
 const { usePromotions } = require('../../src/api/promotionsApi');
 
-jest.mock('../../src/hooks/useFloatingHeaderAnimation', () => ({
-  useFloatingHeaderAnimation: jest.fn(() => ({
-    scrollY: { current: { interpolate: jest.fn(() => 0) } },
-    onScroll: jest.fn(),
-    headerOpacity: 0,
-  })),
-}));
+jest.mock('../../src/hooks/useFloatingHeaderAnimation', () => {
+  const { Animated } = require('react-native');
+  return {
+    useFloatingHeaderAnimation: jest.fn(() => ({
+      scrollY: new Animated.Value(0),
+      floatingOpacity: new Animated.Value(0),
+      floatingTranslateXLeft: new Animated.Value(-60),
+      floatingTranslateXRight: new Animated.Value(60),
+    })),
+  };
+});
 
 // ============================================================================
 // MOCKS — Child Components (match existing project pattern)

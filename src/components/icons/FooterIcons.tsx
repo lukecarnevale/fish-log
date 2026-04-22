@@ -1,11 +1,19 @@
 import React from 'react';
 import { View, Dimensions } from 'react-native';
 import Svg, { Ellipse, Path } from 'react-native-svg';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Navy blue for footer background (matches app's base)
-export const FOOTER_BG = '#0B548B';
+// useFooterBg() is the preferred dynamic accessor; the static export is
+// kept only for call-sites that cannot use hooks (e.g. Footer's static stylesheet).
+export const useFooterBg = () => {
+  const { theme } = useTheme();
+  return theme.colors.primary;
+};
+/** @deprecated Use `useFooterBg()` in components that support hooks */
+export const FOOTER_BG = '#063A5D'; // fallback for non-hook contexts
 
 // Ghost fish decoration component
 export const GhostFish: React.FC<{
@@ -23,8 +31,13 @@ export const GhostFish: React.FC<{
 );
 
 // Wave SVG component
-export const WaveTransition: React.FC = () => (
-  <View style={{ backgroundColor: '#E5F4FF', height: 35 }}>
+// Wave fill uses primaryDark (the deeper brand navy) to match the footer body
+// in both modes. Using `primary` here would be too washed-out in dark mode,
+// where primary intentionally lifts to a lighter brand accent.
+export const WaveTransition: React.FC = () => {
+  const { theme } = useTheme();
+  return (
+  <View style={{ backgroundColor: theme.colors.background, height: 35 }}>
     <Svg
       width={SCREEN_WIDTH}
       height={35}
@@ -33,8 +46,9 @@ export const WaveTransition: React.FC = () => (
     >
       <Path
         d={`M0 0 Q${SCREEN_WIDTH * 0.1} 25 ${SCREEN_WIDTH * 0.2} 18 Q${SCREEN_WIDTH * 0.3} 11 ${SCREEN_WIDTH * 0.4} 20 Q${SCREEN_WIDTH * 0.5} 29 ${SCREEN_WIDTH * 0.6} 18 Q${SCREEN_WIDTH * 0.7} 7 ${SCREEN_WIDTH * 0.8} 16 Q${SCREEN_WIDTH * 0.9} 25 ${SCREEN_WIDTH} 15 L${SCREEN_WIDTH} 35 L0 35 Z`}
-        fill={FOOTER_BG}
+        fill={theme.colors.primaryDark}
       />
     </Svg>
   </View>
-);
+  );
+};

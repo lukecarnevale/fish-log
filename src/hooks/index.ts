@@ -57,3 +57,12 @@ export {
 export {
   usePartners,
 } from './usePartners';
+
+export {
+  useFontScale,
+  type FontScaleInfo,
+} from './useFontScale';
+
+export {
+  useThemedStyles,
+} from './useThemedStyles';

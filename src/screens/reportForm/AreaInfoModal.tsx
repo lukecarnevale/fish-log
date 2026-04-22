@@ -9,8 +9,9 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../styles/common';
-import { localStyles } from '../../styles/reportFormScreenLocalStyles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { createReportFormLocalStyles } from '../../styles/reportFormScreenLocalStyles';
+import { useThemedStyles } from '../../hooks/useThemedStyles';
 import { safeOpenURL } from '../../utils/openURL';
 
 interface AreaInfoModalProps {
@@ -19,6 +20,9 @@ interface AreaInfoModalProps {
 }
 
 const AreaInfoModal: React.FC<AreaInfoModalProps> = ({ visible, onClose }) => {
+  const { theme } = useTheme();
+  const localStyles = useThemedStyles(createReportFormLocalStyles);
+
   return (
     <Modal
       transparent
@@ -31,7 +35,7 @@ const AreaInfoModal: React.FC<AreaInfoModalProps> = ({ visible, onClose }) => {
           <TouchableWithoutFeedback>
             <View style={localStyles.areaInfoModalContent}>
               <View style={localStyles.areaInfoModalHeader}>
-                <Feather name="info" size={24} color={colors.primary} />
+                <Feather name="info" size={24} color={theme.colors.primary} />
                 <Text style={localStyles.areaInfoModalTitle}>Area of Harvest</Text>
               </View>
               <Text style={localStyles.areaInfoModalText}>
@@ -41,7 +45,7 @@ const AreaInfoModal: React.FC<AreaInfoModalProps> = ({ visible, onClose }) => {
                 Use the interactive map to help identify your harvest area.
               </Text>
               <View style={localStyles.areaInfoModalTip}>
-                <Feather name="info" size={16} color={colors.primary} />
+                <Feather name="info" size={16} color={theme.colors.primary} />
                 <Text style={localStyles.areaInfoModalTipText}>
                   Once the map opens, tap the blue icon at the bottom to view the color legend for Harvest Areas.
                 </Text>
@@ -54,7 +58,7 @@ const AreaInfoModal: React.FC<AreaInfoModalProps> = ({ visible, onClose }) => {
                 }}
                 activeOpacity={0.7}
               >
-                <Feather name="map" size={18} color={colors.white} style={{ marginRight: 8 }} />
+                <Feather name="map" size={18} color={theme.colors.textOnPrimary} style={{ marginRight: 8 }} />
                 <Text style={localStyles.areaInfoModalButtonText}>View Interactive Map</Text>
               </TouchableOpacity>
               <TouchableOpacity

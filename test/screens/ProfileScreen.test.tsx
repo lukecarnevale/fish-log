@@ -59,6 +59,15 @@ jest.mock('react-native-svg', () => {
   };
 });
 
+// ThemeContext — controllable mock so tests can toggle dark mode availability.
+// Default matches the real default context value (darkModeAvailable: false).
+const mockSetThemeMode = jest.fn();
+const mockUseTheme = jest.fn();
+jest.mock('../../src/contexts/ThemeContext', () => ({
+  useTheme: () => mockUseTheme(),
+  ThemeProvider: ({ children }: any) => children,
+}));
+
 // SkeletonLoader (used by ProfileStats)
 jest.mock('../../src/hooks/useSkeletonAnimation', () => ({
   useSkeletonAnimation: () => ({
@@ -325,6 +334,18 @@ describe('ProfileScreen', () => {
     mockGetCurrentUser.mockResolvedValue(null);
     mockGetUserStats.mockResolvedValue({ achievements: [] });
     mockOnAuthStateChange.mockReturnValue(jest.fn());
+
+    // Reset theme mock to default (light theme, dark mode flag off).
+    // Mirrors the real default ThemeContext value so tests behave as if
+    // no provider is wrapping them.
+    const { lightTheme } = require('../../src/styles/theme');
+    mockUseTheme.mockReturnValue({
+      theme: lightTheme,
+      themeMode: 'system',
+      setThemeMode: mockSetThemeMode,
+      isLoading: false,
+      darkModeAvailable: false,
+    });
 
     // Pre-seed profile in AsyncStorage
     await AsyncStorage.setItem('userProfile', JSON.stringify(testProfile));
@@ -631,6 +652,109 @@ describe('ProfileScreen', () => {
       expect(await findByTestId('profile-achievements')).toBeTruthy();
       expect(await findByText('Achievements')).toBeTruthy();
       expect(await findByText('First Catch')).toBeTruthy();
+    });
+  });
+
+  // ==========================================================
+  // Theme Selector (Preferences section)
+  // ==========================================================
+
+  describe('Theme Preferences', () => {
+    it('hides the Preferences section when dark_mode feature flag is off', async () => {
+      // Default ThemeContext has darkModeAvailable: false (no provider wraps the test).
+      // The Preferences section should NOT render until the feature flag is enabled.
+      const { queryByText } = render(
+        <ProfileScreen navigation={mockNavigation as any} />
+      );
+
+      // Wait for content to load fully — give multiple ticks for async work
+      await waitFor(() => {
+        expect(queryByText('Personal Information')).toBeTruthy();
+      });
+
+      // Preferences section should not appear
+      expect(queryByText('Preferences')).toBeNull();
+      expect(queryByText('Appearance')).toBeNull();
+    });
+
+    it('renders the Preferences section with three theme options when dark_mode is enabled', async () => {
+      const { lightTheme } = require('../../src/styles/theme');
+      mockUseTheme.mockReturnValue({
+        theme: lightTheme,
+        themeMode: 'system',
+        setThemeMode: mockSetThemeMode,
+        isLoading: false,
+        darkModeAvailable: true,
+      });
+
+      const { findByText, findByLabelText } = render(
+        <ProfileScreen navigation={mockNavigation as any} />
+      );
+
+      // Preferences section header and Appearance label render
+      expect(await findByText('Preferences')).toBeTruthy();
+      expect(await findByText('Appearance')).toBeTruthy();
+
+      // All three theme toggles render with their accessibility labels
+      expect(await findByLabelText('Light appearance')).toBeTruthy();
+      expect(await findByLabelText('Dark appearance')).toBeTruthy();
+      expect(await findByLabelText('System appearance')).toBeTruthy();
+    });
+
+    it('calls setThemeMode when a theme toggle is pressed', async () => {
+      const { lightTheme } = require('../../src/styles/theme');
+      mockUseTheme.mockReturnValue({
+        theme: lightTheme,
+        themeMode: 'system',
+        setThemeMode: mockSetThemeMode,
+        isLoading: false,
+        darkModeAvailable: true,
+      });
+
+      const { findByLabelText } = render(
+        <ProfileScreen navigation={mockNavigation as any} />
+      );
+
+      const darkButton = await findByLabelText('Dark appearance');
+      fireEvent.press(darkButton);
+      expect(mockSetThemeMode).toHaveBeenCalledWith('dark');
+
+      const lightButton = await findByLabelText('Light appearance');
+      fireEvent.press(lightButton);
+      expect(mockSetThemeMode).toHaveBeenCalledWith('light');
+
+      const systemButton = await findByLabelText('System appearance');
+      fireEvent.press(systemButton);
+      expect(mockSetThemeMode).toHaveBeenCalledWith('system');
+    });
+
+    it('marks the active theme button via accessibilityState.selected', async () => {
+      const { lightTheme } = require('../../src/styles/theme');
+      mockUseTheme.mockReturnValue({
+        theme: lightTheme,
+        themeMode: 'dark',
+        setThemeMode: mockSetThemeMode,
+        isLoading: false,
+        darkModeAvailable: true,
+      });
+
+      const { findByLabelText } = render(
+        <ProfileScreen navigation={mockNavigation as any} />
+      );
+
+      const darkButton = await findByLabelText('Dark appearance');
+      const lightButton = await findByLabelText('Light appearance');
+      const systemButton = await findByLabelText('System appearance');
+
+      expect(darkButton.props.accessibilityState).toEqual(
+        expect.objectContaining({ selected: true }),
+      );
+      expect(lightButton.props.accessibilityState).toEqual(
+        expect.objectContaining({ selected: false }),
+      );
+      expect(systemButton.props.accessibilityState).toEqual(
+        expect.objectContaining({ selected: false }),
+      );
     });
   });
 

@@ -30,11 +30,15 @@ import { getRewardsMemberForAnonymousUser } from '../services/rewardsConversionS
 import { onAuthStateChange } from '../services/authService';
 import { SPECIES_ALIASES } from '../constants/speciesAliases';
 import { colors, spacing, borderRadius } from '../styles/common';
+import { useTheme } from '../contexts/ThemeContext';
+import { useThemedStyles } from '../hooks/useThemedStyles';
+import { Theme } from '../styles/theme';
 import { getAllSpeciesThemes } from '../constants/speciesColors';
 import CatchCard from '../components/CatchCard';
 import FeedAdCard from '../components/FeedAdCard';
 import AnglerProfileModal from '../components/AnglerProfileModal';
 import BottomDrawer from '../components/BottomDrawer';
+import StatusBarScrollBlur from '../components/StatusBarScrollBlur';
 import WaveBackground from '../components/WaveBackground';
 import TopAnglersSection from '../components/TopAnglersSection';
 import { SCREEN_LABELS } from '../constants/screenLabels';
@@ -123,26 +127,30 @@ const FilterPill: React.FC<{
   label: string;
   isActive: boolean;
   onPress: () => void;
-}> = ({ label, isActive, onPress }) => (
-  <TouchableOpacity
-    style={[styles.filterPill, isActive && styles.filterPillActive]}
-    onPress={onPress}
-    activeOpacity={0.85}
-  >
-    <Text
-      style={[styles.filterPillText, isActive && styles.filterPillTextActive]}
-      numberOfLines={1}
-      ellipsizeMode="tail"
+}> = ({ label, isActive, onPress }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <TouchableOpacity
+      style={[styles.filterPill, isActive && styles.filterPillActive]}
+      onPress={onPress}
+      activeOpacity={0.85}
     >
-      {label}
-    </Text>
-    <Feather
-      name="chevron-down"
-      size={14}
-      color={isActive ? colors.white : colors.textSecondary}
-    />
-  </TouchableOpacity>
-);
+      <Text
+        style={[styles.filterPillText, isActive && styles.filterPillTextActive]}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+      >
+        {label}
+      </Text>
+      <Feather
+        name="chevron-down"
+        size={14}
+        color={isActive ? theme.colors.textOnPrimary : theme.colors.textSecondary}
+      />
+    </TouchableOpacity>
+  );
+};
 
 /** Filter picker modal using BottomDrawer for consistent UX */
 const FilterPickerModal: React.FC<{
@@ -153,6 +161,8 @@ const FilterPickerModal: React.FC<{
   onSelect: (value: string | null) => void;
   onClose: () => void;
 }> = ({ visible, title, options, selectedValue, onSelect, onClose }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   return (
     <BottomDrawer
       visible={visible}
@@ -162,7 +172,7 @@ const FilterPickerModal: React.FC<{
       <View style={styles.modalHeader}>
         <Text style={styles.modalTitle}>{title}</Text>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Feather name="x" size={24} color={colors.textPrimary} />
+          <Feather name="x" size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
       </View>
       <FlatList
@@ -188,7 +198,7 @@ const FilterPickerModal: React.FC<{
                 {item}
               </Text>
               {isSelected && (
-                <Feather name="check" size={20} color={colors.primary} />
+                <Feather name="check" size={20} color={theme.colors.primary} />
               )}
             </TouchableOpacity>
           );
@@ -200,30 +210,38 @@ const FilterPickerModal: React.FC<{
 };
 
 /** Loading indicator for infinite scroll */
-const LoadingMoreIndicator: React.FC = () => (
-  <View style={styles.loadingMoreContainer}>
-    <ActivityIndicator size="small" color={colors.primary} />
-    <Text style={styles.loadingMoreText}>Loading more catches...</Text>
-  </View>
-);
+const LoadingMoreIndicator: React.FC = () => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.loadingMoreContainer}>
+      <ActivityIndicator size="small" color={theme.colors.primary} />
+      <Text style={styles.loadingMoreText}>Loading more catches...</Text>
+    </View>
+  );
+};
 
 /** Enhanced footer when user reaches end of feed */
-const FeedFooter: React.FC = () => (
-  <View style={styles.feedFooter}>
-    <View style={styles.feedFooterContent}>
-      <View style={styles.feedFooterIconContainer}>
-        <Feather name="anchor" size={20} color={colors.primary} />
+const FeedFooter: React.FC = () => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  return (
+    <View style={styles.feedFooter}>
+      <View style={styles.feedFooterContent}>
+        <View style={styles.feedFooterIconContainer}>
+          <Feather name="anchor" size={20} color={theme.colors.primary} />
+        </View>
+        <Text style={styles.feedFooterTitle}>You're all caught up!</Text>
+        <Text style={styles.feedFooterSubtext}>
+          Check back later for more catches from NC anglers
+        </Text>
       </View>
-      <Text style={styles.feedFooterTitle}>You're all caught up!</Text>
-      <Text style={styles.feedFooterSubtext}>
-        Check back later for more catches from NC anglers
-      </Text>
+      <View style={styles.feedFooterWave}>
+        <WaveBackground />
+      </View>
     </View>
-    <View style={styles.feedFooterWave}>
-      <WaveBackground />
-    </View>
-  </View>
-);
+  );
+};
 
 // ============================================
 // MAIN COMPONENT
@@ -236,6 +254,8 @@ const PAGE_SIZE = 12;
 const MAX_ENTRIES_IN_MEMORY = 60;
 
 const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -648,12 +668,12 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           activeOpacity={0.85}
         >
           <LinearGradient
-            colors={[colors.primary, '#1976D2']}
+            colors={[theme.colors.primary, '#1976D2']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
           />
-          <Feather name="plus" size={18} color={colors.white} />
+          <Feather name="plus" size={18} color={theme.colors.textOnPrimary} />
           <Text style={styles.emptyCTAText}>Report Your Catch</Text>
         </TouchableOpacity>
       )}
@@ -673,7 +693,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         onPress={() => loadFeed(true)}
         activeOpacity={0.85}
       >
-        <Feather name="refresh-cw" size={16} color={colors.white} />
+        <Feather name="refresh-cw" size={16} color={theme.colors.textOnPrimary} />
         <Text style={styles.retryButtonText}>Try Again</Text>
       </TouchableOpacity>
     </View>
@@ -734,7 +754,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           <Feather
             name="image"
             size={14}
-            color={showPhotosOnly ? colors.white : colors.textSecondary}
+            color={showPhotosOnly ? theme.colors.textOnPrimary : theme.colors.textSecondary}
           />
           <Text style={[styles.filterPillText, showPhotosOnly && styles.filterPillTextActive]}>
             Photos
@@ -745,7 +765,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       {/* Premium divider between filters and content */}
       <View style={styles.filterDividerContainer}>
         <LinearGradient
-          colors={['transparent', colors.primary, 'transparent']}
+          colors={['transparent', theme.colors.primary, 'transparent']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.filterDividerGradient}
@@ -792,7 +812,10 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   return (
     <View style={styles.screenContainer}>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <StatusBar barStyle="light-content" backgroundColor={colors.primary} translucent />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primaryDark} translucent />
+
+        {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
+        <StatusBarScrollBlur scrollY={scrollY} />
 
         {/* Floating back button - appears when header scrolls away */}
         <Animated.View
@@ -814,7 +837,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
             style={styles.floatingBackTouchable}
             hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           >
-            <Feather name="arrow-left" size={22} color={colors.white} />
+            <Feather name="arrow-left" size={22} color={theme.colors.textOnPrimary} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -838,17 +861,17 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.white}
-              progressBackgroundColor={colors.white}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.textOnPrimary}
+              progressBackgroundColor={theme.colors.textOnPrimary}
             />
           }
           // Header scrolls with content
           ListHeaderComponent={
-            <View style={{ backgroundColor: colors.primary }}>
+            <View style={{ backgroundColor: theme.colors.primaryDark }}>
               {/* Scrolling header - dark blue background */}
               <LinearGradient
-                colors={[colors.primary, colors.primary]}
+                colors={[theme.colors.primaryDark, theme.colors.primaryDark]}
                 style={styles.scrollingHeader}
               >
                 <View style={styles.headerContent}>
@@ -858,7 +881,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
                     activeOpacity={0.7}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Feather name="arrow-left" size={24} color={colors.white} />
+                    <Feather name="arrow-left" size={24} color={theme.colors.textOnPrimary} />
                   </TouchableOpacity>
 
                   <View style={styles.headerTextContainer}>
@@ -931,14 +954,14 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: colors.primary, // Dark blue for status bar area visibility
+    backgroundColor: theme.colors.primaryDark, // Dark background for status bar area visibility
   },
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
 
   // Scrolling header - part of FlatList, scrolls with content
@@ -966,11 +989,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     opacity: 0.85,
     marginTop: 2,
   },
@@ -994,7 +1017,7 @@ const styles = StyleSheet.create({
   liveText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 
   // Floating back button - appears when header scrolls away
@@ -1002,7 +1025,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     zIndex: 100,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primaryDark,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1020,16 +1043,16 @@ const styles = StyleSheet.create({
   // FlatList styles
   flatList: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
   flatListContent: {
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     flexGrow: 1,
   },
 
   // Content container - rounded corners that slide over header
   contentContainer: {
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: spacing.md,
@@ -1038,7 +1061,7 @@ const styles = StyleSheet.create({
   // Style for empty list to ensure proper background
   emptyListContent: {
     flexGrow: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background,
   },
 
   // Filter row
@@ -1051,7 +1074,7 @@ const styles = StyleSheet.create({
   filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     paddingHorizontal: 16,
     paddingVertical: 11,
     borderRadius: 14,
@@ -1068,10 +1091,10 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   filterPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
     // Stronger shadow when active
-    shadowColor: colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOpacity: 0.25,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 10,
@@ -1083,12 +1106,12 @@ const styles = StyleSheet.create({
   filterPillText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     flexShrink: 1,
     letterSpacing: 0.1,
   },
   filterPillTextActive: {
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
     fontWeight: '700',
   },
 
@@ -1116,7 +1139,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   modalList: {
     maxHeight: 400,
@@ -1129,15 +1152,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   modalOptionSelected: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
   },
   modalOptionText: {
     fontSize: 16,
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
   },
   modalOptionTextSelected: {
     fontWeight: '600',
-    color: colors.primary,
+    color: theme.colors.primary,
   },
   modalSeparator: {
     height: 1,
@@ -1152,7 +1175,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     marginTop: spacing.md,
   },
 
@@ -1175,7 +1198,7 @@ const styles = StyleSheet.create({
   },
   loadingMoreText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     fontWeight: '500',
   },
 
@@ -1184,10 +1207,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.xxl,
     marginHorizontal: spacing.md,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.white,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
-    shadowColor: colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -1203,7 +1226,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: theme.colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.sm,
@@ -1211,17 +1234,17 @@ const styles = StyleSheet.create({
   feedFooterTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: 4,
   },
   feedFooterSubtext: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   feedFooterWave: {
     height: 40,
-    backgroundColor: colors.secondary,
+    backgroundColor: theme.colors.secondary,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1239,13 +1262,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.xs,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: spacing.lg,
@@ -1259,7 +1282,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 8,
     overflow: 'hidden',
-    shadowColor: colors.primary,
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1268,7 +1291,7 @@ const styles = StyleSheet.create({
   emptyCTAText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 
   // Error state
@@ -1284,13 +1307,13 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: theme.colors.textPrimary,
     marginBottom: spacing.xs,
     textAlign: 'center',
   },
   errorText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: spacing.lg,
@@ -1299,12 +1322,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: borderRadius.md,
     gap: 8,
-    shadowColor: colors.shadow,
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -1313,7 +1336,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.white,
+    color: theme.colors.textOnPrimary,
   },
 });
 
