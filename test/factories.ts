@@ -119,6 +119,7 @@ export function makeStoredReport(overrides?: Partial<StoredReport>): StoredRepor
     familyCount: null,
     notes: null,
     photoUrl: null,
+    photos: null,
     gpsLatitude: null,
     gpsLongitude: null,
     enteredRewards: false,

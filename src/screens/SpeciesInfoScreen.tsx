@@ -19,6 +19,7 @@ import {
   Platform,
 } from "react-native";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RouteProp } from "@react-navigation/native";
 import { RootStackParamList } from "../types";
@@ -462,10 +463,7 @@ const SpeciesInfoScreen: React.FC<SpeciesInfoScreenProps> = ({ navigation, route
 
     return (
     <TouchableOpacity
-      style={[
-        styles.speciesCard,
-        cardBorderStyle,
-      ]}
+      style={[styles.speciesCard, cardBorderStyle]}
       onPress={() => handleSelectSpecies(item)}
       activeOpacity={0.7}
     >

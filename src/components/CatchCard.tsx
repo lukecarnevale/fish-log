@@ -5,12 +5,16 @@
 // and polished angler section matching the ultra-premium aesthetic.
 // Now supports displaying multiple species from a single submission.
 
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
+  FlatList,
+  AccessibilityInfo,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -52,6 +56,21 @@ const CatchCard: React.FC<CatchCardProps> = ({
   const totalFish = entry.totalFish || speciesList.reduce((sum, s) => sum + s.count, 0);
   const hasMultipleSpecies = speciesList.length > 1;
 
+  // Resolve the ordered list of photo URLs for the main-feed carousel.
+  // Prefer the new photoUrls array (catch_log multi-photo) and fall back to the
+  // legacy single photoUrl so DMF rows and older catch_log rows render unchanged.
+  const carouselPhotos = useMemo<string[]>(() => {
+    if (entry.photoUrls && entry.photoUrls.length > 0) return entry.photoUrls;
+    if (entry.photoUrl) return [entry.photoUrl];
+    return [];
+  }, [entry.photoUrls, entry.photoUrl]);
+  const hasMultiplePhotos = carouselPhotos.length > 1;
+
+  // Carousel state. These are only meaningful when hasMultiplePhotos is true,
+  // but the hooks always run to keep rules-of-hooks happy.
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [carouselWidth, setCarouselWidth] = useState(0);
+
   // Memoized handlers to prevent unnecessary re-renders
   const handleCardPress = useCallback(() => {
     if (onCardPress) {
@@ -64,6 +83,31 @@ const CatchCard: React.FC<CatchCardProps> = ({
   const handleLikePress = useCallback(() => {
     onLikePress?.(entry);
   }, [onLikePress, entry]);
+
+  // Paging handler — fires once per swipe (on momentum-end) so the dot
+  // indicator and a11y announcement update atomically. Announces via
+  // AccessibilityInfo so VoiceOver/TalkBack users hear "Photo N of M".
+  const handleCarouselScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (carouselWidth <= 0) return;
+      const offsetX = e.nativeEvent.contentOffset.x;
+      const page = Math.round(offsetX / carouselWidth);
+      if (page !== carouselIndex) {
+        setCarouselIndex(page);
+        AccessibilityInfo.announceForAccessibility(
+          `Photo ${page + 1} of ${carouselPhotos.length}`,
+        );
+      }
+    },
+    [carouselWidth, carouselIndex, carouselPhotos.length],
+  );
+
+  const handleCarouselLayout = useCallback(
+    (e: { nativeEvent: { layout: { width: number } } }) => {
+      setCarouselWidth(e.nativeEvent.layout.width);
+    },
+    [],
+  );
 
 
   // Compact mode for AnglerProfileModal
@@ -158,14 +202,56 @@ const CatchCard: React.FC<CatchCardProps> = ({
       disabled={!onAnglerPress && !onCardPress}
     >
       {/* Photo section with overlays */}
-      <View style={[
-        styles.photoContainer,
-        // White background for stock photos so letterbox areas match the photo's white background
-        !entry.photoUrl && speciesImageUrl && { backgroundColor: theme.colors.white },
-      ]}>
-        {entry.photoUrl ? (
+      <View
+        style={[
+          styles.photoContainer,
+          // White background for stock photos so letterbox areas match the photo's white background
+          carouselPhotos.length === 0 && speciesImageUrl && { backgroundColor: theme.colors.white },
+        ]}
+        onLayout={handleCarouselLayout}
+      >
+        {hasMultiplePhotos ? (
+          // Multi-photo carousel. FlatList with pagingEnabled renders only the
+          // visible page + windowSize neighbors, which matters when the feed
+          // keeps 60 entries in memory (60 × 6 = 360 potential images).
+          <FlatList
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            data={carouselPhotos}
+            keyExtractor={(uri, idx) => `${entry.id}-photo-${idx}`}
+            onMomentumScrollEnd={handleCarouselScrollEnd}
+            decelerationRate="fast"
+            // windowSize of 3 means only the current + 1 on each side is
+            // actively rendered, and expo-image's disk cache handles the rest.
+            windowSize={3}
+            initialNumToRender={1}
+            maxToRenderPerBatch={1}
+            getItemLayout={(_, index) =>
+              carouselWidth > 0
+                ? { length: carouselWidth, offset: carouselWidth * index, index }
+                : { length: 0, offset: 0, index }
+            }
+            accessibilityLabel={`${carouselPhotos.length} photos, swipe to see more`}
+            renderItem={({ item, index }) => (
+              <View style={{ width: carouselWidth, height: '100%' }}>
+                <Image
+                  source={{ uri: item }}
+                  style={styles.photo}
+                  contentFit="cover"
+                  transition={300}
+                  cachePolicy="disk"
+                  recyclingKey={`card-photo-${entry.id}-${index}`}
+                  placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+                  placeholderContentFit="cover"
+                />
+              </View>
+            )}
+          />
+        ) : carouselPhotos.length === 1 ? (
+          // Single-photo path — visually identical to pre-carousel behavior.
           <Image
-            source={{ uri: entry.photoUrl }}
+            source={{ uri: carouselPhotos[0] }}
             style={styles.photo}
             contentFit="cover"
             transition={300}
@@ -187,6 +273,26 @@ const CatchCard: React.FC<CatchCardProps> = ({
           />
         ) : (
           <SpeciesPlaceholder species={entry.species} size="large" />
+        )}
+
+        {/* Page dots — only shown when there's more than one photo. Positioned
+            center-bottom above the existing bottom gradient/info row so they
+            don't collide with the species/location badges. pointerEvents=none
+            keeps taps flowing to the FlatList and the card. */}
+        {hasMultiplePhotos && (
+          <View
+            style={styles.dotRow}
+            pointerEvents="none"
+            accessibilityRole="adjustable"
+            accessibilityLabel={`Photo ${carouselIndex + 1} of ${carouselPhotos.length}`}
+          >
+            {carouselPhotos.map((_, i) => (
+              <View
+                key={`dot-${i}`}
+                style={[styles.dot, i === carouselIndex && styles.dotActive]}
+              />
+            ))}
+          </View>
         )}
 
         {/* Top gradient overlay for profile info */}
@@ -325,6 +431,32 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     left: 0,
     right: 0,
     height: 100,
+  },
+
+  // Carousel page dots. Sits above the bottom info overlay so species/location
+  // badges don't collide. Using a translucent pill-style row mirrors Instagram's
+  // convention for bottom-anchored dots.
+  dotRow: {
+    position: 'absolute',
+    bottom: 60, // clears the 14px padding + badge height in infoOverlay
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.55)',
+  },
+  dotActive: {
+    backgroundColor: 'rgba(255, 255, 255, 1)',
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
 
   // Info overlay with glassmorphism badges
@@ -504,13 +636,17 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
 });
 
-// Custom comparison to prevent unnecessary re-renders
-// Only re-render if the entry data or like status actually changed
+// Custom comparison to prevent unnecessary re-renders.
+// Only re-render if the entry data, like status, or photo list actually changed.
+// Comparing photoUrls by reference is enough — the feed service builds a new
+// array on each fetch, so a content change always produces a new reference.
 const arePropsEqual = (prevProps: CatchCardProps, nextProps: CatchCardProps): boolean => {
   return (
     prevProps.entry.id === nextProps.entry.id &&
     prevProps.entry.likeCount === nextProps.entry.likeCount &&
     prevProps.entry.isLikedByCurrentUser === nextProps.entry.isLikedByCurrentUser &&
+    prevProps.entry.photoUrls === nextProps.entry.photoUrls &&
+    prevProps.entry.photoUrl === nextProps.entry.photoUrl &&
     prevProps.compact === nextProps.compact &&
     prevProps.speciesImageUrl === nextProps.speciesImageUrl
   );

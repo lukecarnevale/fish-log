@@ -53,6 +53,11 @@ import { useFeatureFlag } from "../api/featureFlagsApi";
 
 // Catch log service
 import { submitCatchLog, type CatchLogInput } from "../services/catchLogService";
+import { compressCatchPhotos } from "../utils/photoCompression";
+import CatchPhotoReorder from "../components/CatchPhotoReorder";
+import LogCatchSignInGate from "../components/LogCatchSignInGate";
+import { isRewardsMember } from "../services/rewardsConversionService";
+import { onAuthStateChange } from "../services/authService";
 
 // Species search picker for catch_log mode
 import SpeciesSearchPicker, { type SpeciesSelection } from "../components/SpeciesSearchPicker";
@@ -104,6 +109,21 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
   // Species search picker state (for catch_log mode)
   const [showSpeciesSearch, setShowSpeciesSearch] = useState(false);
   const [catchLogSubmitting, setCatchLogSubmitting] = useState(false);
+  // Photo upload progress during a catch_log submission. Null when not
+  // uploading or when the submission has no photos. Drives the "Uploading
+  // N of M" label on the submit button.
+  const [photoUploadProgress, setPhotoUploadProgress] = useState<{
+    uploaded: number;
+    total: number;
+  } | null>(null);
+
+  // Rewards membership gate for catch_log mode.
+  // `null` = not yet checked (show a subtle loading state rather than the
+  //          gate UI so we don't flash the lock screen on mount for members)
+  // `true`  = signed in + rewards-enrolled → catch_log unlocked
+  // `false` = anonymous or auth'd but not enrolled → catch_log gated
+  // DMF harvest_report mode is unaffected; that path accepts anonymous users.
+  const [isRewardsEnrolled, setIsRewardsEnrolled] = useState<boolean | null>(null);
 
   // State for multiple fish entries
   const [fishEntries, setFishEntries] = useState<FishEntry[]>([]);
@@ -548,8 +568,14 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     enterDrawing,
   } = useRewards();
 
-  // State for photo capture (required for rewards entry)
-  const [catchPhoto, setCatchPhoto] = useState<string | null>(null);
+  // State for photo capture.
+  // Source of truth is the ordered `catchPhotos` array so catch_log mode can
+  // submit up to CATCH_LOG_PHOTO_MAX images as a carousel. DMF raffle mode
+  // still only cares about a single photo — it reads/writes index 0.
+  const [catchPhotos, setCatchPhotos] = useState<string[]>([]);
+  // Legacy alias used by DMF raffle path and RaffleEntryModal (which take a
+  // single string|null). Kept as a derived value so we don't fork the flow.
+  const catchPhoto = catchPhotos[0] ?? null;
 
   // State for inline validation errors
   const [validationErrors, setValidationErrors] = useState<{
@@ -562,6 +588,39 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     wrcId?: string;
     zipCode?: string;
   }>({});
+
+  // Check rewards enrollment on mount and keep it fresh with an auth-state
+  // subscription. This is what drives the catch_log sign-in gate: when a user
+  // completes magic-link auth on the Profile screen and returns here, the
+  // gate dismisses automatically.
+  useEffect(() => {
+    let cancelled = false;
+
+    const refreshEnrollment = async () => {
+      try {
+        const enrolled = await isRewardsMember();
+        if (!cancelled) setIsRewardsEnrolled(enrolled);
+      } catch (err) {
+        console.warn('⚠️ Failed to check rewards enrollment:', err);
+        if (!cancelled) setIsRewardsEnrolled(false);
+      }
+    };
+
+    refreshEnrollment();
+
+    // React to sign-in / sign-out events. Covers:
+    // - SIGNED_IN: user completed magic-link — re-check enrollment.
+    // - SIGNED_OUT: user signed out — revoke catch_log access.
+    // - TOKEN_REFRESHED: no-op for us but fires often; still safe to re-check.
+    const unsubscribe = onAuthStateChange(() => {
+      refreshEnrollment();
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
 
   // State for abandonment modal
   const [showAbandonModal, setShowAbandonModal] = useState<boolean>(false);
@@ -1003,7 +1062,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     if (formData.zipCode && formData.zipCode !== initialLoadedValues.zipCode) return true;
 
     // Check photo - always user input
-    if (catchPhoto) return true;
+    if (catchPhotos.length > 0) return true;
 
     // Check raffle selection - always user input
     if (enterRaffle) return true;
@@ -1065,7 +1124,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     formData.wrcId,
     formData.zipCode,
     fishEntries.length,
-    catchPhoto,
+    catchPhotos.length,
     enterRaffle,
     initialLoadedValues,
   ]);
@@ -1079,8 +1138,50 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     }
   };
 
-  // Handle camera capture for raffle photo
+  // Max photos per catch_log submission. DMF raffle mode is capped to 1
+  // regardless of this constant.
+  const CATCH_LOG_PHOTO_MAX = 6;
+
+  /**
+   * Compress and append photos to state.
+   * - In catch_log mode: appends up to CATCH_LOG_PHOTO_MAX total.
+   * - In DMF raffle mode: replaces the single existing photo.
+   *
+   * Compression runs in parallel via photoCompression.compressCatchPhotos.
+   * On failure the original URI is kept (see util).
+   */
+  const addCatchPhotos = async (newUris: string[]): Promise<void> => {
+    if (newUris.length === 0) return;
+
+    // DMF raffle mode: single slot, always replace.
+    if (!isCatchLog) {
+      const compressed = await compressCatchPhotos(newUris.slice(0, 1));
+      setCatchPhotos(compressed);
+      return;
+    }
+
+    // catch_log mode: append up to the max, drop overflow silently (UI should
+    // already prevent reaching this — this is a belt-and-suspenders clamp).
+    const remainingSlots = CATCH_LOG_PHOTO_MAX - catchPhotos.length;
+    if (remainingSlots <= 0) return;
+    const accepted = newUris.slice(0, remainingSlots);
+    const compressed = await compressCatchPhotos(accepted);
+    setCatchPhotos(prev => [...prev, ...compressed]);
+  };
+
+  // Handle camera capture.
+  // - DMF raffle: replaces the single photo.
+  // - catch_log: appends one photo to the array (subject to the 6-photo max).
   const handleTakePhoto = async (): Promise<void> => {
+    // In catch_log mode, silently no-op if we're already at the cap.
+    if (isCatchLog && catchPhotos.length >= CATCH_LOG_PHOTO_MAX) {
+      Alert.alert(
+        "Photo Limit Reached",
+        `You can add up to ${CATCH_LOG_PHOTO_MAX} photos per catch. Remove one to add another.`,
+      );
+      return;
+    }
+
     // Request camera permission
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
@@ -1101,7 +1202,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setCatchPhoto(result.assets[0].uri);
+        await addCatchPhotos([result.assets[0].uri]);
         clearValidationError("photo");
         toast.show("Photo Captured", "Your catch photo has been saved");
       }
@@ -1123,7 +1224,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               });
 
               if (!libraryResult.canceled && libraryResult.assets && libraryResult.assets.length > 0) {
-                setCatchPhoto(libraryResult.assets[0].uri);
+                await addCatchPhotos([libraryResult.assets[0].uri]);
                 clearValidationError("photo");
                 toast.show("Photo Selected", "Photo selected for testing (camera required in production)");
               }
@@ -1134,23 +1235,50 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     }
   };
 
-  // Add photo with choice of camera or library (catch log mode)
+  // Add photo(s) with choice of camera or library (catch_log mode only).
+  // Library selection allows multi-select up to the remaining slot count.
   const handleAddPhoto = (): void => {
+    // Guard: silently bail if we're at the limit.
+    if (isCatchLog && catchPhotos.length >= CATCH_LOG_PHOTO_MAX) {
+      Alert.alert(
+        "Photo Limit Reached",
+        `You can add up to ${CATCH_LOG_PHOTO_MAX} photos per catch. Remove one to add another.`,
+      );
+      return;
+    }
+
+    const remainingSlots = isCatchLog
+      ? CATCH_LOG_PHOTO_MAX - catchPhotos.length
+      : 1;
+
     Alert.alert("Add Photo", "How would you like to add a photo?", [
       { text: "Take Photo", onPress: handleTakePhoto },
       {
-        text: "Choose from Library",
+        text: remainingSlots > 1 ? `Choose up to ${remainingSlots} from Library` : "Choose from Library",
         onPress: async () => {
           try {
+            // allowsEditing + allowsMultipleSelection are mutually exclusive on
+            // expo-image-picker. Skip editing when doing multi-select so users
+            // keep their original crops; single-slot DMF mode still edits.
+            const isMulti = remainingSlots > 1;
             const result = await ImagePicker.launchImageLibraryAsync({
-              allowsEditing: true,
-              aspect: [4, 5],
+              allowsEditing: !isMulti,
+              allowsMultipleSelection: isMulti,
+              selectionLimit: remainingSlots,
+              aspect: isMulti ? undefined : [4, 5],
               quality: 0.8,
             });
+
             if (!result.canceled && result.assets && result.assets.length > 0) {
-              setCatchPhoto(result.assets[0].uri);
+              const uris = result.assets.map(a => a.uri);
+              await addCatchPhotos(uris);
               clearValidationError("photo");
-              toast.show("Photo Selected", "Your catch photo has been saved");
+              toast.show(
+                uris.length > 1 ? "Photos Selected" : "Photo Selected",
+                uris.length > 1
+                  ? `${uris.length} photos added to your catch.`
+                  : "Your catch photo has been saved",
+              );
             }
           } catch (error) {
             console.error("Error selecting photo:", error);
@@ -1161,9 +1289,20 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     ]);
   };
 
-  // Remove captured photo
+  // Remove captured photo(s).
+  // - DMF raffle: clears the single photo (signature kept for RaffleEntryModal).
+  // - catch_log: use handleRemovePhotoAt(index) / handleReorderPhotos for
+  //   per-item actions from the CatchPhotoReorder component.
   const handleRemovePhoto = (): void => {
-    setCatchPhoto(null);
+    setCatchPhotos([]);
+  };
+
+  const handleRemovePhotoAt = (index: number): void => {
+    setCatchPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleReorderPhotos = (next: string[]): void => {
+    setCatchPhotos(next);
   };
 
   // =============================================================================
@@ -1185,7 +1324,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     setFishEntries([]);
     setCurrentFishIndex(null);
     setShowOptionalDetails(false);
-    setCatchPhoto(null);
+    setCatchPhotos([]);
     setFormData(prev => ({
       ...prev,
       reportingType: mode === 'catch_log' ? 'myself' : null,
@@ -1219,6 +1358,12 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     }
 
     setCatchLogSubmitting(true);
+    // Prime the progress indicator immediately when there are photos to upload,
+    // so users see "Uploading…" even during the brief network round-trip before
+    // the first onPhotoUploadProgress fires.
+    if (catchPhotos.length > 0) {
+      setPhotoUploadProgress({ uploaded: 0, total: catchPhotos.length });
+    }
     try {
       const catchLogInput: CatchLogInput = {
         fishEntries: allFish.map(f => ({
@@ -1233,10 +1378,14 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         usedHookAndLine: formData.usedHookAndLine,
         gearCode: formData.usedHookAndLine ? undefined : getGearCodeFromLabel(formData.gearType),
         gearLabel: formData.usedHookAndLine ? undefined : formData.gearType || undefined,
-        photoUri: catchPhoto || undefined,
+        photoUris: catchPhotos.length > 0 ? catchPhotos : undefined,
       };
 
-      const result = await submitCatchLog(catchLogInput);
+      const result = await submitCatchLog(catchLogInput, {
+        onPhotoUploadProgress: (progress) => {
+          setPhotoUploadProgress(progress);
+        },
+      });
 
       if (result.success) {
         // Bypass abandon modal on navigation
@@ -1255,13 +1404,23 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           }, 1200);
         }
       } else {
-        Alert.alert("Error", "Failed to save your catch log. Please try again.");
+        // Distinguish photo-upload failures from generic errors so the user
+        // knows to retry (local URIs are still in catchPhotos state).
+        if (result.supabaseError === 'photo_upload_failed') {
+          Alert.alert(
+            "Photo Upload Failed",
+            result.error ?? "One or more photos failed to upload. Please check your connection and try again.",
+          );
+        } else {
+          Alert.alert("Error", "Failed to save your catch log. Please try again.");
+        }
       }
     } catch (error) {
       console.error("Catch log submission error:", error);
       Alert.alert("Error", "Something went wrong. Please try again.");
     } finally {
       setCatchLogSubmitting(false);
+      setPhotoUploadProgress(null);
     }
   };
 
@@ -1586,6 +1745,14 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
     );
   };
 
+  // catch_log form should only render when (a) user is in catch_log mode AND
+  // (b) we've confirmed they're a rewards member. While enrollment is loading
+  // (null), we render nothing on the catch_log side to avoid a flash of the
+  // form or the gate for signed-in users. The DMF harvest_report path is
+  // unaffected — it never reads this flag.
+  const showCatchLogForm = isCatchLog && isRewardsEnrolled === true;
+  const showCatchLogGate = isCatchLog && isRewardsEnrolled === false;
+
   return (
     <View style={localStyles.screenContainer}>
       <StatusBar barStyle={statusBarStyle} backgroundColor={statusBarStyle === 'light-content' ? theme.colors.primaryDark : theme.colors.background} translucent animated />
@@ -1758,6 +1925,16 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       />
       <WrcIdInfoModal visible={showWrcIdInfoModal} onClose={() => setShowWrcIdInfoModal(false)} />
 
+      {/* Sign-in gate for catch_log mode.
+          Shown in place of the catch_log form body when the current user is
+          not a rewards member. The DMF harvest_report mode remains available
+          below (users can switch back via the mode tabs). */}
+      {showCatchLogGate && (
+        <LogCatchSignInGate
+          onSignInPress={() => navigation.navigate('Profile')}
+        />
+      )}
+
       <FaqModal visible={showFaqModal} onClose={() => setShowFaqModal(false)} />
 
       <AreaInfoModal visible={showAreaInfoModal} onClose={() => setShowAreaInfoModal(false)} />
@@ -1859,8 +2036,10 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       </View>
       )}
 
-      {/* Only show Fish Information after reporting type is selected (or always in catch_log mode) */}
-      {(isCatchLog || formData.reportingType) && (
+      {/* Only show Fish Information after reporting type is selected (or always
+          in catch_log mode for enrolled members). When catch_log is gated,
+          `showCatchLogForm` is false so this section is hidden behind the gate. */}
+      {(showCatchLogForm || (!isCatchLog && formData.reportingType)) && (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Fish Information</Text>
 
@@ -2053,17 +2232,49 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         )}
 
-        {/* CatchFeed photo option - show for catch_log mode OR signed-in rewards members */}
-        {(isCatchLog || hasEnteredCurrentRaffle) && (formData.species || fishEntries.length > 0) && (
+        {/* CatchFeed photo option - show for enrolled catch_log users OR for
+            signed-in rewards members entering the DMF raffle. Gated catch_log
+            users see the sign-in gate instead of this section. */}
+        {(showCatchLogForm || (!isCatchLog && hasEnteredCurrentRaffle)) && (formData.species || fishEntries.length > 0) && (
           <View style={localStyles.catchFeedPhotoSection}>
             <Text style={localStyles.catchFeedPhotoLabel}>
-              <Feather name="camera" size={14} color={theme.colors.primary} /> {isCatchLog ? 'Add a Photo' : 'Add Photo for Catch Feed'}
+              <Feather name="camera" size={14} color={theme.colors.primary} />{' '}
+              {isCatchLog
+                ? (catchPhotos.length > 0 ? `Photos (${catchPhotos.length}/${CATCH_LOG_PHOTO_MAX})` : 'Add Photos')
+                : 'Add Photo for Catch Feed'}
             </Text>
             <Text style={localStyles.catchFeedPhotoDesc}>
-              Share your catch with the community (optional)
+              {isCatchLog
+                ? `Share your catch with the community — up to ${CATCH_LOG_PHOTO_MAX} photos. Long-press a thumbnail to reorder. The first photo is the cover.`
+                : 'Share your catch with the community (optional)'}
             </Text>
 
-            {catchPhoto ? (
+            {/* catch_log: draggable thumbnail row + add button below.
+                DMF raffle: preserves the single-photo preview + Retake/Remove UI. */}
+            {isCatchLog ? (
+              <>
+                <CatchPhotoReorder
+                  photos={catchPhotos}
+                  onReorder={handleReorderPhotos}
+                  onRemove={handleRemovePhotoAt}
+                  disabled={catchLogSubmitting}
+                />
+                {catchPhotos.length < CATCH_LOG_PHOTO_MAX && (
+                  <TouchableOpacity
+                    style={localStyles.catchFeedAddPhotoButton}
+                    onPress={handleAddPhoto}
+                    disabled={catchLogSubmitting}
+                  >
+                    <Feather name="camera" size={20} color={theme.colors.primary} />
+                    <Text style={localStyles.catchFeedAddPhotoText}>
+                      {catchPhotos.length === 0
+                        ? 'Add Photos'
+                        : `Add More (${CATCH_LOG_PHOTO_MAX - catchPhotos.length} left)`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : catchPhoto ? (
               <View style={localStyles.catchFeedPhotoContainer}>
                 <Image
                   source={{ uri: catchPhoto }}
@@ -2090,10 +2301,10 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
             ) : (
               <TouchableOpacity
                 style={localStyles.catchFeedAddPhotoButton}
-                onPress={isCatchLog ? handleAddPhoto : handleTakePhoto}
+                onPress={handleTakePhoto}
               >
                 <Feather name="camera" size={20} color={theme.colors.primary} />
-                <Text style={localStyles.catchFeedAddPhotoText}>{isCatchLog ? 'Add Photo' : 'Take Photo'}</Text>
+                <Text style={localStyles.catchFeedAddPhotoText}>Take Photo</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -2102,8 +2313,10 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       )}
 
 
-      {/* Only show Harvest Details after fish info is complete (species selected or fish entries exist) */}
-      {(isCatchLog || formData.reportingType) && (formData.species || fishEntries.length > 0) && (
+      {/* Only show Harvest Details after fish info is complete (species selected
+          or fish entries exist). Gated catch_log users see the sign-in gate
+          instead of this section. */}
+      {(showCatchLogForm || (!isCatchLog && formData.reportingType)) && (formData.species || fishEntries.length > 0) && (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{isCatchLog ? 'Catch Details' : 'Harvest Details'}</Text>
 
@@ -2890,8 +3103,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
       </View>
       )}
 
-      {/* Catch Log Submit Button — shown in catch_log mode when fish info is complete */}
-      {isCatchLog && (formData.species || fishEntries.length > 0) && (
+      {/* Catch Log Submit Button — shown for enrolled catch_log users once
+          fish info is complete. Gated users see the sign-in gate (no submit). */}
+      {showCatchLogForm && (formData.species || fishEntries.length > 0) && (
       <>
       <TouchableOpacity
         style={[styles.submitButton, catchLogSubmitting && { opacity: 0.6 }]}
@@ -2900,7 +3114,14 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
         disabled={catchLogSubmitting}
       >
         <Feather name={catchLogSubmitting ? "loader" : "check-circle"} size={20} color={theme.colors.textOnPrimary} />
-        <Text style={styles.submitButtonText}>{catchLogSubmitting ? 'Saving...' : 'Log Catch'}</Text>
+        <Text style={styles.submitButtonText}>
+          {!catchLogSubmitting
+            ? 'Log Catch'
+            : photoUploadProgress && photoUploadProgress.total > 0
+              // Multi-photo upload in progress — show concrete count.
+              ? `Uploading ${photoUploadProgress.uploaded} of ${photoUploadProgress.total}...`
+              : 'Saving...'}
+        </Text>
       </TouchableOpacity>
       </>
       )}

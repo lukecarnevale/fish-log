@@ -1540,7 +1540,12 @@ export const createProfileMainStyles = (theme: Theme) =>
 export const createProfileLocalStyles = (theme: Theme) =>
   StyleSheet.create({
     pendingAuthSection: {
-      backgroundColor: '#FFF9E6',
+      // Warm "pending/awaiting" surface that adapts to theme. In light mode
+      // we keep the soft cream tone; in dark mode we use the warmingLight
+      // dark tone (#2A2518) so the card feels at home against the deep
+      // navy background instead of blazing out as a pale wash. The gold
+      // border is preserved in both modes to signal "action required".
+      backgroundColor: theme.isDark ? theme.colors.warningLight : '#FFF9E6',
       borderColor: theme.colors.gold,
       borderWidth: 1,
       borderRadius: borderRadius.lg,

@@ -92,6 +92,99 @@ describe('catchFeedService', () => {
       const result = await fetchRecentCatches();
       expect(result.entries).toEqual([]);
     });
+
+    // ============================================================
+    // photoUrls derivation — catch_log carousel backwards compat
+    //
+    // The feed view exposes both `photo_url` (legacy single-photo column)
+    // and `photos` (new JSONB array). CatchCard reads `photoUrls` for the
+    // carousel, so this mapping is the contract between the DB and the UI.
+    // ============================================================
+    describe('photoUrls derivation', () => {
+      // Helper to stub the Supabase `from('v_catch_feed')` query with one row.
+      const stubFeedRow = (row: Record<string, unknown>) => {
+        (mockSupabase.from as jest.Mock).mockImplementation(() => ({
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          range: jest.fn().mockResolvedValue({ data: [row], error: null }),
+        }));
+      };
+
+      const baseRow = {
+        id: 'r-1',
+        report_id: 'r-1',
+        user_id: 'user-1',
+        first_name: 'Test',
+        last_name: 'Angler',
+        harvest_date: '2026-01-15',
+        area_code: 'NC-001',
+        area_label: 'Outer Banks',
+        red_drum_count: 1,
+        flounder_count: 0,
+        spotted_seatrout_count: 0,
+        weakfish_count: 0,
+        striped_bass_count: 0,
+        created_at: '2026-01-15T12:00:00Z',
+        fish_entries_json: [
+          { species: 'Red Drum', count: 1, lengths: null, tag_number: null },
+        ],
+      };
+
+      it('populates photoUrls from the photos array when present (multi-photo catch_log)', async () => {
+        stubFeedRow({
+          ...baseRow,
+          photo_url: 'https://cdn/cover.jpg',
+          photos: ['https://cdn/p1.jpg', 'https://cdn/p2.jpg', 'https://cdn/p3.jpg'],
+        });
+
+        const result = await fetchRecentCatches({ limit: 20 });
+        expect(result.entries[0].photoUrls).toEqual([
+          'https://cdn/p1.jpg',
+          'https://cdn/p2.jpg',
+          'https://cdn/p3.jpg',
+        ]);
+        // photoUrl (cover) stays populated for the non-carousel code paths.
+        expect(result.entries[0].photoUrl).toBe('https://cdn/cover.jpg');
+      });
+
+      it('falls back to a single-element photoUrls from photo_url when photos is null (legacy row)', async () => {
+        stubFeedRow({
+          ...baseRow,
+          photo_url: 'https://cdn/legacy.jpg',
+          photos: null,
+        });
+
+        const result = await fetchRecentCatches({ limit: 20 });
+        expect(result.entries[0].photoUrls).toEqual(['https://cdn/legacy.jpg']);
+        expect(result.entries[0].photoUrl).toBe('https://cdn/legacy.jpg');
+      });
+
+      it('leaves photoUrls undefined when both photos and photo_url are absent (placeholder case)', async () => {
+        stubFeedRow({
+          ...baseRow,
+          photo_url: null,
+          photos: null,
+        });
+
+        const result = await fetchRecentCatches({ limit: 20 });
+        expect(result.entries[0].photoUrls).toBeUndefined();
+        expect(result.entries[0].photoUrl).toBeUndefined();
+      });
+
+      it('ignores non-array photos JSONB values gracefully (defensive)', async () => {
+        // If a row somehow has a malformed photos value (string, object),
+        // we should still render the card using photo_url rather than crash.
+        stubFeedRow({
+          ...baseRow,
+          photo_url: 'https://cdn/fallback.jpg',
+          photos: 'not-an-array',
+        });
+
+        const result = await fetchRecentCatches({ limit: 20 });
+        expect(result.entries[0].photoUrls).toEqual(['https://cdn/fallback.jpg']);
+      });
+    });
   });
 
   // ============================================================

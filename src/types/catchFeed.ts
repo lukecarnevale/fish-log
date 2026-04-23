@@ -26,7 +26,9 @@ export interface CatchFeedEntry {
   species: string;              // Primary species (for backwards compatibility and theming)
   speciesList: SpeciesCatch[];  // All species caught in this submission
   totalFish: number;            // Total count of all fish
-  photoUrl?: string;
+  photoUrl?: string;            // Cover photo (= photoUrls[0] when present, else legacy photo_url)
+  photoUrls?: string[];         // Full photo list for catch_log carousels. Populated from either
+                                // the new photos JSONB column or a single-element fallback from photo_url.
   catchDate: string;            // ISO date string
   location?: string;            // General area (e.g., "Pamlico Sound")
   createdAt: string;            // When the report was submitted

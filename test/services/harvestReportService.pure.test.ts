@@ -97,6 +97,22 @@ describe('transformToDMFPayload', () => {
     expect(payload.attributes.Harvest).toBe('Recreational');
   });
 
+  // Multi-photo isolation: the new `photos` field (catch_log carousel) must
+  // NEVER appear in a DMF payload. DMF is government-facing with a strict
+  // schema; leaking an array field would likely cause a server-side rejection
+  // or — worse — silent submission corruption.
+  it('never includes the multi-photo `photos` field in attributes', () => {
+    const input = makeHarvestInput({ catchPhoto: 'file://raffle.jpg' } as any);
+    // Deliberately tack a `photos` array onto the input to prove the transform
+    // ignores it even when upstream code accidentally passes one through.
+    (input as any).photos = ['file://a.jpg', 'file://b.jpg', 'file://c.jpg'];
+
+    const payload = transformToDMFPayload(input);
+
+    expect((payload.attributes as unknown as Record<string, unknown>).photos).toBeUndefined();
+    expect((payload.attributes as unknown as Record<string, unknown>).Photos).toBeUndefined();
+  });
+
   it('legacy species flags are always null', () => {
     const payload = transformToDMFPayload(makeHarvestInput());
     expect(payload.attributes.RedDr).toBeNull();

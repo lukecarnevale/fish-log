@@ -9,6 +9,7 @@ import { createReport, type CreateReportResult } from './reportsService';
 import { clearCatchFeedCache } from './catchFeedService';
 import { getOrCreateAnonymousUser } from './anonymousUserService';
 import { getRewardsMemberForAnonymousUser } from './rewardsConversionService';
+import type { PhotoUploadProgress } from './photoUploadService';
 
 export interface CatchLogInput {
   fishEntries: Array<{
@@ -23,17 +24,45 @@ export interface CatchLogInput {
   usedHookAndLine: boolean;
   gearCode?: string;
   gearLabel?: string;
+  // Ordered list of local photo URIs (catch_log supports up to 6). First entry is the cover.
+  // Single-photo submissions can still pass a one-element array; legacy callers using photoUri
+  // keep working via the fallback below.
+  photoUris?: string[];
+  /** @deprecated Use photoUris. Kept so existing callers compile during the migration. */
   photoUri?: string;
+}
+
+export interface SubmitCatchLogOptions {
+  /**
+   * Fires after each photo upload completes while the submission is in
+   * flight. Use to render a progress indicator like "Uploading 3 of 6".
+   * Only invoked when there are local photo URIs to upload.
+   */
+  onPhotoUploadProgress?: (progress: PhotoUploadProgress) => void;
 }
 
 /**
  * Submit a casual catch log (non-DMF).
  * Saves to Supabase with report_type='catch_log', skipping DMF submission entirely.
  */
-export async function submitCatchLog(input: CatchLogInput): Promise<CreateReportResult> {
+export async function submitCatchLog(
+  input: CatchLogInput,
+  options?: SubmitCatchLogOptions,
+): Promise<CreateReportResult> {
   // Resolve user identity
   const anonymousUser = await getOrCreateAnonymousUser();
   const rewardsMember = await getRewardsMemberForAnonymousUser();
+
+  // Normalize photo inputs: accept the new photoUris array or fall back to
+  // the legacy single photoUri. Cover photo = first in the list; it is also
+  // mirrored to photoUrl so older readers (and the DMF-safe photo_url column)
+  // keep working.
+  const photoUris = input.photoUris && input.photoUris.length > 0
+    ? input.photoUris
+    : input.photoUri
+      ? [input.photoUri]
+      : [];
+  const coverPhoto = photoUris[0];
 
   const reportInput: ReportInput = {
     reportType: 'catch_log',
@@ -62,19 +91,23 @@ export async function submitCatchLog(input: CatchLogInput): Promise<CreateReport
     reportingFor: 'self',
     dmfStatus: 'pending', // won't be submitted to DMF, but field is required
 
-    // Photo
-    photoUrl: input.photoUri,
+    // Photos — cover goes to photoUrl (legacy column), full list goes to photos.
+    // Upload orchestration happens in reportsService.createReport (Phase 3).
+    photoUrl: coverPhoto,
+    photos: photoUris.length > 0 ? photoUris : undefined,
 
     // Fish entries (the actual catch data)
     fishEntries: input.fishEntries,
   };
 
   // Use the existing createReport pipeline which handles:
-  // - Photo upload to Supabase Storage
+  // - Photo upload to Supabase Storage (single or multi)
   // - RPC call to create_report_atomic / create_report_anonymous
   // - Local fallback & pending sync queue
   // - Stats + achievement updates
-  const result = await createReport(reportInput);
+  const result = await createReport(reportInput, {
+    onPhotoUploadProgress: options?.onPhotoUploadProgress,
+  });
 
   // Clear feed cache so the new entry appears immediately
   try {

@@ -33,6 +33,18 @@ jest.mock('../../src/services/catchLogService', () => ({
   submitCatchLog: jest.fn(() => Promise.resolve({ success: true })),
 }));
 
+// Rewards enrollment gate — returns false by default so the catch_log tab
+// (when enabled via the feature flag) renders the sign-in gate instead of
+// the form body. Tests that exercise the enrolled path can override this.
+jest.mock('../../src/services/rewardsConversionService', () => ({
+  isRewardsMember: jest.fn(() => Promise.resolve(false)),
+  getRewardsMemberForAnonymousUser: jest.fn(() => Promise.resolve(null)),
+}));
+
+jest.mock('../../src/services/authService', () => ({
+  onAuthStateChange: jest.fn(() => jest.fn()),
+}));
+
 jest.mock('../../src/api/speciesApi', () => ({
   useAllFishSpecies: jest.fn(() => ({
     data: [

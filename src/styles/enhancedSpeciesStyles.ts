@@ -111,26 +111,29 @@ const enhancedSpeciesStyles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-    width: 110,
-    height: 120,
+    width: 90,
+    height: 100,
+    margin: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
   },
   imageWrapper: {
-    width: 110,
-    height: 120,
-    justifyContent: 'flex-end',
+    width: 90,
+    height: 100,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   speciesImage: {
-    width: 110,
-    height: 100,
+    width: 82,
+    height: 68,
     backgroundColor: 'transparent',
-    marginTop: 40, // Push the image down to avoid overlap with the status badge
   },
   placeholderImageContainer: {
-    width: 110,
-    height: 100,
+    width: 82,
+    height: 68,
     backgroundColor: 'transparent',
-    marginTop: 20, // Match the image top margin
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -725,27 +728,37 @@ export const createEnhancedSpeciesStyles = (theme: Theme) =>
       ...shadows.medium,
     },
     imageContainer: {
+      // Inset photo card: floats within the card with its own rounding.
+      // Fish PNGs have white backgrounds — giving the container its own white
+      // rounded shape makes it look like a framed photo print on the dark card
+      // rather than a white panel bleeding edge-to-edge.
       position: 'relative',
-      width: 110,
-      height: 120,
+      width: 90,
+      height: 100,
+      margin: 10,
+      borderRadius: 10,
+      overflow: 'hidden',
+      backgroundColor: '#FFFFFF',
+      // Border matches the species name text color for visual consistency
+      borderWidth: 2.5,
+      borderColor: theme.isDark ? theme.colors.primary : theme.colors.border,
     },
     imageWrapper: {
-      width: 110,
-      height: 120,
-      justifyContent: 'flex-end',
+      width: 90,
+      height: 100,
+      justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: 'transparent',
     },
     speciesImage: {
-      width: 110,
-      height: 100,
+      width: 82,
+      height: 68,
       backgroundColor: 'transparent',
-      marginTop: 40, // Push the image down to avoid overlap with the status badge
     },
     placeholderImageContainer: {
-      width: 110,
-      height: 100,
+      width: 82,
+      height: 68,
       backgroundColor: 'transparent',
-      marginTop: 20, // Match the image top margin
       justifyContent: 'center',
       alignItems: 'center',
     },
