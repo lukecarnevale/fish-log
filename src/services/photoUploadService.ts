@@ -212,3 +212,74 @@ export async function ensurePublicPhotoUrl(
   // Upload local file and get public URL
   return uploadCatchPhoto(uri, userId);
 }
+
+/**
+ * Progress callback invoked after each photo finishes (success or failure).
+ * `uploaded` counts successful uploads; `total` is the full batch size.
+ */
+export interface PhotoUploadProgress {
+  uploaded: number;
+  total: number;
+}
+
+/**
+ * Upload a batch of photos in parallel, returning public URLs in the same
+ * order as the input array.
+ *
+ * Semantics:
+ * - Photos that are already public URLs pass through untouched (no upload).
+ * - Local URIs are uploaded in parallel.
+ * - ANY single failure rejects the whole batch (abort-on-partial-failure).
+ *   Rationale: a half-uploaded catch with missing photos is worse UX than
+ *   making the user retry the submission. The form-level error handler
+ *   surfaces the failure and keeps the local URIs in place so retry works.
+ * - `onProgress` fires after each successful upload (or passthrough), which
+ *   lets the UI show "Uploading N of M…".
+ */
+export async function ensurePublicPhotoUrls(
+  uris: Array<string | null | undefined>,
+  userId?: string,
+  onProgress?: (progress: PhotoUploadProgress) => void,
+): Promise<string[]> {
+  const filtered = uris.filter((u): u is string => !!u);
+  if (filtered.length === 0) return [];
+
+  const total = filtered.length;
+  let uploaded = 0;
+  onProgress?.({ uploaded, total });
+
+  // Upload in parallel. We resolve each photo's slot even for no-op passthroughs
+  // so the progress callback fires uniformly.
+  const results = await Promise.all(
+    filtered.map(async (uri, index) => {
+      // Already-public URL: no work, just count it.
+      if (uri.startsWith('http://') || uri.startsWith('https://')) {
+        uploaded += 1;
+        onProgress?.({ uploaded, total });
+        return { index, url: uri, success: true as const };
+      }
+
+      const publicUrl = await uploadCatchPhoto(uri, userId);
+      if (!publicUrl) {
+        return { index, url: null, success: false as const };
+      }
+      uploaded += 1;
+      onProgress?.({ uploaded, total });
+      return { index, url: publicUrl, success: true as const };
+    }),
+  );
+
+  // Abort on ANY failure — do not persist a partially-uploaded batch.
+  const firstFailure = results.find(r => !r.success);
+  if (firstFailure) {
+    throw new Error(
+      `Photo upload failed for ${results.filter(r => !r.success).length} of ${total} photos. Please try again.`,
+    );
+  }
+
+  // Preserve original order — Promise.all already does, but being explicit
+  // makes the ordering contract obvious to future readers.
+  return results
+    .sort((a, b) => a.index - b.index)
+    .map(r => r.url as string);
+}

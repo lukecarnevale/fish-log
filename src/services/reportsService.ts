@@ -18,7 +18,7 @@ import { HarvestReportInput } from '../types/harvestReport';
 import { getCurrentUser } from './userProfileService';
 import { getRewardsMemberForAnonymousUser } from './rewardsConversionService';
 import { getOrCreateAnonymousUser } from './anonymousUserService';
-import { ensurePublicPhotoUrl, isLocalUri } from './photoUploadService';
+import { ensurePublicPhotoUrl, ensurePublicPhotoUrls, isLocalUri, type PhotoUploadProgress } from './photoUploadService';
 import { fetchCurrentDrawing, addReportToRewardsEntry } from './rewardsService';
 import { updateAllStatsAfterReport, AwardedAchievement } from './statsService';
 import { getDeviceId } from '../utils/deviceId';
@@ -164,6 +164,7 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
     family_count: input.familyCount || null,
     notes: input.notes || null,
     photo_url: input.photoUrl || null,
+    photos: input.photos && input.photos.length > 0 ? input.photos : null,
     gps_latitude: input.gpsLatitude ?? null,
     gps_longitude: input.gpsLongitude ?? null,
     entered_rewards: input.enteredRewards || false,
@@ -216,6 +217,7 @@ async function createReportInSupabase(input: ReportInput): Promise<StoredReport>
     familyCount: input.familyCount || null,
     notes: input.notes || null,
     photoUrl: input.photoUrl || null,
+    photos: input.photos && input.photos.length > 0 ? input.photos : null,
     gpsLatitude: input.gpsLatitude || null,
     gpsLongitude: input.gpsLongitude || null,
     enteredRewards: input.enteredRewards || false,
@@ -482,6 +484,7 @@ function createLocalReport(input: ReportInput): StoredReport {
     familyCount: input.familyCount || null,
     notes: input.notes || null,
     photoUrl: input.photoUrl || null,
+    photos: input.photos && input.photos.length > 0 ? input.photos : null,
     gpsLatitude: input.gpsLatitude || null,
     gpsLongitude: input.gpsLongitude || null,
     enteredRewards: input.enteredRewards || false,
@@ -524,17 +527,64 @@ export interface CreateReportResult {
  * @param options.skipLocalCache - Skip writing to @harvest_reports local cache.
  *   Used by syncQueuedReports() which already writes to @harvest_history via
  *   addToHistory(). Writing to both causes duplicates in getHistory() merges.
+ * @param options.onPhotoUploadProgress - Callback fired after each photo
+ *   upload completes (for "Uploading N of M" UI). Only relevant for catch_log
+ *   multi-photo submissions; DMF single-photo submissions fire it once.
  */
 export async function createReport(
   input: ReportInput,
-  options?: { skipLocalCache?: boolean },
+  options?: {
+    skipLocalCache?: boolean;
+    onPhotoUploadProgress?: (progress: PhotoUploadProgress) => void;
+  },
 ): Promise<CreateReportResult> {
   const connected = await isSupabaseConnected();
 
-  // If we have a local photo URI and we're connected, upload it first
-  if (connected && isLocalUri(input.photoUrl)) {
+  // Multi-photo upload path for catch_log submissions.
+  // If any URI in the photos array is local, upload the whole array in
+  // parallel; on any single failure, we abort the submission rather than
+  // persist a partially-uploaded catch (see ensurePublicPhotoUrls semantics).
+  const uploaderId = input.userId || input.anonymousUserId;
+  const hasLocalPhotosArray =
+    connected &&
+    input.photos &&
+    input.photos.length > 0 &&
+    input.photos.some(isLocalUri);
+
+  if (hasLocalPhotosArray) {
+    console.log(`📸 Uploading ${input.photos!.length} photos in parallel...`);
+    try {
+      const publicUrls = await ensurePublicPhotoUrls(
+        input.photos!,
+        uploaderId,
+        options?.onPhotoUploadProgress,
+      );
+      console.log('✅ All photos uploaded');
+      // Keep photoUrl (cover) and photos (array) in sync so both legacy and
+      // new readers see the same cover image.
+      input = {
+        ...input,
+        photos: publicUrls,
+        photoUrl: publicUrls[0] ?? input.photoUrl,
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('⚠️ Multi-photo upload failed, aborting submission:', msg);
+      // Surface failure up so the form can show an error and let the user retry.
+      // Caller keeps local URIs in state; we don't mutate input.photos here.
+      return {
+        success: false,
+        report: createLocalReport(input), // best-effort local stub for return type
+        savedToSupabase: false,
+        error: msg,
+        supabaseError: 'photo_upload_failed',
+      };
+    }
+  } else if (connected && isLocalUri(input.photoUrl)) {
+    // Single-photo fallback path: DMF raffle submissions and legacy catch_log
+    // rows that only populate photoUrl (not the photos array).
     console.log('📸 Uploading photo to Supabase Storage...');
-    const publicUrl = await ensurePublicPhotoUrl(input.photoUrl, input.userId || input.anonymousUserId);
+    const publicUrl = await ensurePublicPhotoUrl(input.photoUrl, uploaderId);
     if (publicUrl) {
       console.log('✅ Photo uploaded, using public URL');
       input = { ...input, photoUrl: publicUrl };
@@ -903,6 +953,40 @@ export async function syncPendingReports(): Promise<{
         }
       }
 
+      // Multi-photo sync for catch_log: if the queued report has any local URIs
+      // in the photos array, upload them in parallel and persist the public URLs.
+      // On failure we leave the local URIs in place so the next sync attempt
+      // can retry — unlike a fresh createReport which aborts on partial failure,
+      // the sync path deliberately tolerates a photo_url-only fallback so the
+      // report itself still makes it to Supabase even if the carousel doesn't.
+      let photosArray: string[] | undefined;
+      if (localReport.photos && localReport.photos.length > 0) {
+        const hasLocalInArray = localReport.photos.some(isLocalUri);
+        if (hasLocalInArray) {
+          console.log(`📸 Syncing: uploading ${localReport.photos.length} local photos in parallel...`);
+          try {
+            const publicUrls = await ensurePublicPhotoUrls(
+              localReport.photos,
+              localReport.userId || localReport.anonymousUserId || undefined,
+            );
+            photosArray = publicUrls;
+            await updateLocalReport(reportId, {
+              photos: publicUrls,
+              photoUrl: publicUrls[0] ?? photoUrl ?? null,
+            });
+            photoUrl = publicUrls[0] ?? photoUrl;
+          } catch (err) {
+            console.warn('⚠️ Syncing: multi-photo upload failed, falling back to photo_url only for this sync pass:', err);
+            // Leave photos unset on the RPC input — the row will have
+            // photo_url (cover) populated and photos NULL; next sync retries.
+            photosArray = undefined;
+          }
+        } else {
+          // All already public — use as-is.
+          photosArray = localReport.photos;
+        }
+      }
+
       // Use stored fish entries (preserves lengths/tags) if available,
       // otherwise fall back to reconstructing from aggregate counts.
       let fishEntries: Array<{ species: string; count: number; lengths?: string[]; tagNumber?: string }> = [];
@@ -943,6 +1027,10 @@ export async function syncPendingReports(): Promise<{
         familyCount: localReport.familyCount || undefined,
         notes: localReport.notes || undefined,
         photoUrl,
+        // Photos array — photosArray is the upload-resolved version (public URLs,
+        // or undefined if this sync pass couldn't upload them). syncPendingReports
+        // will retry on the next cycle if this ran as undefined.
+        photos: photosArray,
         gpsLatitude: localReport.gpsLatitude || undefined,
         gpsLongitude: localReport.gpsLongitude || undefined,
         enteredRewards: localReport.enteredRewards,

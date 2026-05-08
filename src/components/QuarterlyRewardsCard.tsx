@@ -1019,6 +1019,12 @@ const getColors = (theme: Theme) => ({
   // (#162A3E), making pills/icon circles/progress tracks invisible. Use
   // surfaceElevated (#1E3650) instead — meaningfully lighter than the card bg.
   bgLight: theme.isDark ? theme.colors.surfaceElevated : theme.colors.infoLight,
+  // Footer CTA sits directly on the page background (#E5F4FF in light mode /
+  // #0D1B2A in dark mode). Use a tone that is *darker* than the background to
+  // visually break up the home screen rather than blending in.
+  // Light: primaryLight (#C3E0F7) — medium ocean blue, clearly darker than bg.
+  // Dark:  surfaceElevated (#1E3650) — elevated card surface above deep navy.
+  bgFooterCta: theme.isDark ? theme.colors.surfaceElevated : theme.colors.primaryLight,
   // `bgCard` is the main detail panel background (was hardcoded white)
   bgCard: theme.colors.surface,
   textPrimary: theme.colors.textPrimary,
@@ -1353,7 +1359,7 @@ const createStyles = (theme: Theme) => {
 
   // Footer CTA
   footerCta: {
-    backgroundColor: C.bgLight,
+    backgroundColor: C.bgFooterCta,
     borderRadius: 16,
     padding: 14,
     flexDirection: 'row',
@@ -1363,6 +1369,7 @@ const createStyles = (theme: Theme) => {
   },
   footerText: {
     fontSize: 13,
+    fontWeight: '600',
     color: C.textPrimary,
     flex: 1,
     paddingRight: 12,

@@ -375,6 +375,7 @@ export interface DMFAttributes {
 
   // Fixed values
   Harvest: 'Recreational';
+  SubSrc: '46725';
   SubmitBy: null;
 
   // Location & gear

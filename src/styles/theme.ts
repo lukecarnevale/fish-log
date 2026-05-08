@@ -168,7 +168,7 @@ export const lightPalette: ColorPalette = {
   background: '#E5F4FF',
   surface: '#F5F7F8',
   surfaceElevated: '#FFFFFF',
-  surfaceMuted: '#E1F5FE',
+  surfaceMuted: '#C8D8E2',    // Disabled/locked card backgrounds — clearly distinct from page bg (#E5F4FF)
 
   // Text
   textPrimary: '#263238',

@@ -56,6 +56,46 @@ jest.mock('expo-linking', () => ({
 // react-native-gesture-handler (required for @react-navigation/stack)
 import 'react-native-gesture-handler/jestSetup';
 
+// react-native-worklets (Reanimated 4 peer dep). Reanimated's native module
+// isn't available in Jest; stubbing it prevents initialization errors when
+// anything in the tree imports Reanimated at module-eval time (e.g. the
+// catch_log drag-reorder component).
+jest.mock('react-native-worklets', () => ({
+  __esModule: true,
+  createWorklet: (fn: unknown) => fn,
+  runOnJS: (fn: unknown) => fn,
+  runOnUI: (fn: unknown) => fn,
+  useSharedValue: (v: unknown) => ({ value: v }),
+}));
+
+// react-native-reanimated — use the official mock shipped with the package.
+// Covers the full API surface so gesture-handler's GestureDetector and
+// anything else that depends on Reanimated internals works in tests.
+jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+
+// react-native-draggable-flatlist — swap the reanimated-backed list for a
+// plain FlatList. Test assertions only care that thumbnails render and that
+// reorder/remove callbacks are reachable; they don't need the drag gesture.
+jest.mock('react-native-draggable-flatlist', () => {
+  const React = require('react');
+  const { FlatList } = require('react-native');
+  const DraggableFlatList = React.forwardRef((props: any, ref: any) =>
+    React.createElement(FlatList, {
+      ...props,
+      ref,
+      renderItem: ({ item, index }: { item: unknown; index: number }) =>
+        props.renderItem({
+          item,
+          drag: () => {},
+          isActive: false,
+          getIndex: () => index,
+        }),
+    })
+  );
+  const ScaleDecorator = ({ children }: { children: React.ReactNode }) => children;
+  return { __esModule: true, default: DraggableFlatList, ScaleDecorator };
+});
+
 // expo-file-system (including the new File class used by photoUploadService)
 jest.mock('expo-file-system', () => ({
   documentDirectory: '/mock/documents/',
@@ -68,6 +108,14 @@ jest.mock('expo-file-system', () => ({
     uri,
     arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(100)),
   })),
+}));
+
+// expo-image-manipulator (catch_log photo compression). Returns the original
+// URI unchanged so tests can assert on the passed-through value.
+jest.mock('expo-image-manipulator', () => ({
+  __esModule: true,
+  manipulateAsync: jest.fn((uri: string) => Promise.resolve({ uri })),
+  SaveFormat: { JPEG: 'jpeg', PNG: 'png' },
 }));
 
 // expo-splash-screen (used by AnimatedSplashScreen)

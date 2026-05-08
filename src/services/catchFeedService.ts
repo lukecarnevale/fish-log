@@ -129,6 +129,14 @@ async function fetchCatchesFromSupabase(
     const primarySpecies = speciesList.reduce((max, s) =>
       s.count > max.count ? s : max, speciesList[0]);
 
+    // Derive the full photo list for the feed carousel. Prefer the new photos JSONB array
+    // (catch_log multi-photo submissions); fall back to the legacy single photo_url so
+    // DMF rows and older catch_log rows still render a single-image card.
+    const photos = Array.isArray(row.photos) ? (row.photos as string[]) : [];
+    const photoUrls = photos.length > 0
+      ? photos
+      : (row.photo_url ? [row.photo_url as string] : undefined);
+
     entries.push({
       id: row.report_id,
       userId: row.user_id,
@@ -138,6 +146,7 @@ async function fetchCatchesFromSupabase(
       speciesList,
       totalFish,
       photoUrl: row.photo_url || undefined,
+      photoUrls,
       catchDate: row.harvest_date || row.created_at,
       location: row.area_label || undefined,
       createdAt: row.created_at,
@@ -170,6 +179,7 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
     .select(`
       id,
       photo_url,
+      photos,
       area_label,
       harvest_date,
       created_at,
@@ -248,6 +258,13 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
       const primarySpecies = speciesList.reduce((max, s) =>
         s.count > max.count ? s : max, speciesList[0]);
 
+      const reportPhotos = Array.isArray((report as { photos?: unknown }).photos)
+        ? ((report as { photos?: string[] }).photos as string[])
+        : [];
+      const reportPhotoUrls = reportPhotos.length > 0
+        ? reportPhotos
+        : (report.photo_url ? [report.photo_url] : undefined);
+
       recentCatches.push({
         id: report.id,
         userId: userData.id,
@@ -257,6 +274,7 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
         speciesList,
         totalFish,
         photoUrl: report.photo_url || undefined,
+        photoUrls: reportPhotoUrls,
         catchDate: report.harvest_date || report.created_at,
         location: report.area_label || undefined,
         createdAt: report.created_at,

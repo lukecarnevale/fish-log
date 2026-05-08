@@ -185,10 +185,15 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
   // so FlatList doesn't unmount/remount it on every re-render.
   const listHeader = useMemo(
     () => (
-      <View style={{ backgroundColor: theme.colors.primary }}>
-        {/* Scrolling header — scrolls away with content */}
+      <View style={{ backgroundColor: theme.colors.primaryDark }}>
+        {/* Scrolling header — scrolls away with content.
+            Uses primaryDark to match the other floating-header screens
+            (Bulletins, CatchFeed, FishingLicense, Home) — in dark mode
+            primary becomes a lighter blue (#3A8AC2), so using it here
+            made this screen's header stand out as washed-out.
+        */}
         <LinearGradient
-          colors={[theme.colors.primary, theme.colors.primary]}
+          colors={[theme.colors.primaryDark, theme.colors.primaryDark]}
           style={styles.scrollingHeader}
         >
           <View style={styles.headerContent}>
@@ -262,7 +267,7 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <View style={styles.screenContainer}>
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primary} translucent />
+        <StatusBar barStyle="light-content" backgroundColor={theme.colors.primaryDark} translucent />
 
         {/* Slack-style frosted blur over the OS toolbar that fades in on scroll. */}
         <StatusBarScrollBlur scrollY={scrollY} />
@@ -291,9 +296,9 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
 
         {loading ? (
           <View style={styles.skeletonWrapper}>
-            {/* Scrolling header — same as real content */}
+            {/* Scrolling header — same as real content (primaryDark to match peers) */}
             <LinearGradient
-              colors={[theme.colors.primary, theme.colors.primary]}
+              colors={[theme.colors.primaryDark, theme.colors.primaryDark]}
               style={styles.scrollingHeader}
             >
               <View style={styles.headerContent}>
@@ -361,13 +366,16 @@ const PromotionsScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
+  // Match peer floating-header screens (BulletinsScreen, CatchFeedScreen)
+  // by backing the screen with primaryDark — in dark mode `primary` is a
+  // much lighter blue, which made this screen's header washed out.
   screenContainer: {
     flex: 1,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
   container: {
     flex: 1,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
 
   // Scrolling header — scrolls with content, compact
@@ -422,7 +430,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     position: 'absolute',
     left: 16,
     zIndex: 100,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -440,7 +448,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   // FlatList
   flatList: {
     flex: 1,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
   flatListContent: {
     backgroundColor: theme.colors.background,
@@ -471,7 +479,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   // Skeleton loading state
   skeletonWrapper: {
     flex: 1,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryDark,
   },
 
   // Empty state

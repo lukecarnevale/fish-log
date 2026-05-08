@@ -151,4 +151,74 @@ describe('CatchCard', () => {
     expect(getByText(/Red Drum/)).toBeTruthy();
     expect(getByText(/Flounder/)).toBeTruthy();
   });
+
+  // ============================================================
+  // Multi-photo carousel (Phase 4)
+  //
+  // These tests verify the contract between feed data shape and card render:
+  // single photo → single Image; multi-photo → FlatList carousel with
+  // accessibility label; no photo → placeholder.
+  // ============================================================
+  describe('multi-photo carousel', () => {
+    it('renders carousel accessibility label when photoUrls has multiple entries', () => {
+      const entry = makeEntry({
+        photoUrls: [
+          'https://cdn/1.jpg',
+          'https://cdn/2.jpg',
+          'https://cdn/3.jpg',
+        ],
+        photoUrl: 'https://cdn/1.jpg',
+      });
+      const { getByLabelText } = render(<CatchCard entry={entry} />);
+
+      // The FlatList carousel advertises itself to screen readers with the
+      // "N photos, swipe to see more" label.
+      expect(getByLabelText(/3 photos, swipe to see more/)).toBeTruthy();
+    });
+
+    it('does NOT render the carousel label for a single-photo entry (backwards compat)', () => {
+      const entry = makeEntry({
+        photoUrl: 'https://cdn/only.jpg',
+        // photoUrls intentionally omitted — legacy catch_log and all DMF rows
+        // fall into this path.
+      });
+      const { queryByLabelText } = render(<CatchCard entry={entry} />);
+      expect(queryByLabelText(/photos, swipe to see more/)).toBeNull();
+    });
+
+    it('falls back to single-element photoUrls when only photoUrl is present', () => {
+      // This is the exact shape catchFeedService emits for legacy rows.
+      // The card should NOT render a carousel (only one image total).
+      const entry = makeEntry({
+        photoUrl: 'https://cdn/legacy.jpg',
+        photoUrls: undefined,
+      });
+      const { queryByLabelText } = render(<CatchCard entry={entry} />);
+      expect(queryByLabelText(/photos, swipe to see more/)).toBeNull();
+    });
+
+    it('renders placeholder when no photo data and no species image', () => {
+      const entry = makeEntry({
+        photoUrl: undefined,
+        photoUrls: undefined,
+      });
+      const { getByTestId } = render(<CatchCard entry={entry} />);
+      // compact=false by default, but placeholder still renders via the
+      // final fallback branch in the photoContainer.
+      expect(getByTestId('species-placeholder')).toBeTruthy();
+    });
+
+    it('prefers photoUrls over photoUrl when both are present (multi-photo catch_log)', () => {
+      const entry = makeEntry({
+        photoUrl: 'https://cdn/cover.jpg',
+        photoUrls: [
+          'https://cdn/cover.jpg',
+          'https://cdn/second.jpg',
+        ],
+      });
+      const { getByLabelText } = render(<CatchCard entry={entry} />);
+      // Two-photo case still activates the carousel.
+      expect(getByLabelText(/2 photos, swipe to see more/)).toBeTruthy();
+    });
+  });
 });

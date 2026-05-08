@@ -57,6 +57,7 @@ export interface StoredReport {
   // App-only data
   notes: string | null;
   photoUrl: string | null;
+  photos: string[] | null;
   gpsLatitude: number | null;
   gpsLongitude: number | null;
 
@@ -141,6 +142,7 @@ export interface ReportInput {
   // App-only data
   notes?: string;
   photoUrl?: string;
+  photos?: string[];
   gpsLatitude?: number;
   gpsLongitude?: number;
 
@@ -212,6 +214,7 @@ export function transformReport(row: Record<string, unknown>): StoredReport {
     familyCount: row.family_count as number | null,
     notes: row.notes as string | null,
     photoUrl: row.photo_url as string | null,
+    photos: Array.isArray(row.photos) ? (row.photos as string[]) : null,
     gpsLatitude: row.gps_latitude as number | null,
     gpsLongitude: row.gps_longitude as number | null,
     enteredRewards: row.entered_rewards as boolean,

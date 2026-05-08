@@ -577,13 +577,11 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
         {/* Perforation Line */}
         <View style={styles.perforationContainer}>
-          <View style={styles.perforationNotchLeft} />
           <View style={styles.perforationLine}>
-            {Array.from({ length: 20 }).map((_, i) => (
+            {Array.from({ length: 28 }).map((_, i) => (
               <View key={i} style={styles.perforationDot} />
             ))}
           </View>
-          <View style={styles.perforationNotchRight} />
         </View>
 
         {/* Footer - Confirmation Number or Catch Log label */}
@@ -1213,21 +1211,26 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   filterButton: {
-    backgroundColor: theme.colors.lightestGray,
+    // lightestGray is too close to the page background in both modes — use a
+    // clearly distinct muted surface so inactive tabs read as separate elements.
+    // Light: surfaceMuted (#C8D8E2), Dark: surfaceElevated (#1E3650)
+    backgroundColor: theme.isDark ? theme.colors.surfaceElevated : theme.colors.surfaceMuted,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.sm,
     marginRight: spacing.sm,
   },
   filterButtonActive: {
-    backgroundColor: theme.colors.primaryLight,
+    // primaryLight in dark (#1B3A54) is too close to surfaceElevated (#1E3650).
+    // Use primary itself for a clearly active state in both modes.
+    backgroundColor: theme.colors.primary,
   },
   filterButtonText: {
     ...typography.bodySmall,
     color: theme.colors.textSecondary,
   },
   filterButtonTextActive: {
-    color: theme.colors.primary,
+    color: theme.colors.textOnPrimary,
     fontWeight: "600",
   },
   listContainer: {
@@ -1382,22 +1385,20 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     overflow: "visible",
   },
   perforationNotchLeft: {
-    width: 12,
-    height: 24,
+    width: 7,
+    height: 14,
     backgroundColor: theme.colors.background,
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-    marginLeft: -1,
-    marginTop: -12,
+    borderTopRightRadius: 7,
+    borderBottomRightRadius: 7,
+    marginLeft: 0,
   },
   perforationNotchRight: {
-    width: 12,
-    height: 24,
+    width: 7,
+    height: 14,
     backgroundColor: theme.colors.background,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-    marginRight: -1,
-    marginTop: -12,
+    borderTopLeftRadius: 7,
+    borderBottomLeftRadius: 7,
+    marginRight: 0,
   },
   perforationLine: {
     flex: 1,
@@ -1407,9 +1408,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginTop: -4,
   },
   perforationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 9,
+    height: 3,
+    borderRadius: 1.5,
     backgroundColor: theme.colors.background,
   },
   speciesTagsContainer: {
@@ -1421,17 +1422,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   speciesTag: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
+    backgroundColor: theme.isDark ? theme.colors.surfaceElevated : "#f8f9fa",
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#e9ecef",
+    borderColor: theme.isDark ? theme.colors.border : "#e9ecef",
   },
   speciesTagCount: {
     fontSize: 15,
     fontWeight: "700",
-    color: theme.colors.primary,
+    // primaryLight in dark palette (#1B3A54) is near-invisible on surfaceElevated
+    // (#1E3650). Use info (#42A5CC) instead — a bright, readable blue.
+    color: theme.isDark ? theme.colors.info : theme.colors.primary,
     marginRight: 5,
   },
   speciesTagName: {
@@ -1742,6 +1745,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+    // In dark mode give stock images a visible border so the white photo
+    // background feels intentionally framed rather than floating on the card.
+    borderWidth: theme.isDark ? 2 : 0,
+    borderColor: theme.isDark ? theme.colors.border : "transparent",
   },
   cardPhoto: {
     width: "100%",

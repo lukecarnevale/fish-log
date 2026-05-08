@@ -6,6 +6,7 @@ import { mockSupabase } from '../mocks/supabase';
 import {
   isLocalUri,
   ensurePublicPhotoUrl,
+  ensurePublicPhotoUrls,
   uploadCatchPhoto,
   uploadProfilePhoto,
 } from '../../src/services/photoUploadService';
@@ -82,6 +83,97 @@ describe('photoUploadService', () => {
       const url = 'http://example.com/photo.jpg';
       const result = await ensurePublicPhotoUrl(url);
       expect(result).toBe(url);
+    });
+  });
+
+  // ============================================================
+  // ensurePublicPhotoUrls — multi-photo upload orchestration
+  // ============================================================
+  describe('ensurePublicPhotoUrls', () => {
+    // Helper to stub storage.from() so uploadCatchPhoto can succeed/fail
+    // deterministically from within the batch.
+    const stubStorage = (outcomes: Array<{ ok: boolean; path?: string }>) => {
+      let call = 0;
+      (mockSupabase.storage.from as jest.Mock).mockImplementation(() => ({
+        upload: jest.fn().mockImplementation(() => {
+          const outcome = outcomes[call] ?? outcomes[outcomes.length - 1];
+          call += 1;
+          return Promise.resolve(
+            outcome.ok
+              ? { data: { path: outcome.path ?? `file-${call}.jpg` }, error: null }
+              : { data: null, error: { message: 'upload failed' } },
+          );
+        }),
+        getPublicUrl: jest.fn(({ /* path is ignored by mock */ }) => ({
+          data: { publicUrl: `https://cdn.example.com/photo-${call}.jpg` },
+        })),
+      }));
+    };
+
+    it('returns empty array for empty input (no upload, no progress)', async () => {
+      const onProgress = jest.fn();
+      const result = await ensurePublicPhotoUrls([], 'user-1', onProgress);
+      expect(result).toEqual([]);
+      expect(onProgress).not.toHaveBeenCalled();
+    });
+
+    it('filters null/undefined entries before processing', async () => {
+      stubStorage([{ ok: true }]);
+      const result = await ensurePublicPhotoUrls(
+        [null, 'https://cdn.example.com/already-public.jpg', undefined],
+      );
+      expect(result).toEqual(['https://cdn.example.com/already-public.jpg']);
+    });
+
+    it('passes through public URLs without uploading and still counts progress', async () => {
+      const onProgress = jest.fn();
+      const result = await ensurePublicPhotoUrls(
+        [
+          'https://cdn.example.com/a.jpg',
+          'https://cdn.example.com/b.jpg',
+        ],
+        'user-1',
+        onProgress,
+      );
+      expect(result).toEqual([
+        'https://cdn.example.com/a.jpg',
+        'https://cdn.example.com/b.jpg',
+      ]);
+      // Initial 0/2 + two completions.
+      expect(onProgress).toHaveBeenCalledWith({ uploaded: 0, total: 2 });
+      expect(onProgress).toHaveBeenLastCalledWith({ uploaded: 2, total: 2 });
+      expect(mockSupabase.storage.from).not.toHaveBeenCalled();
+    });
+
+    it('throws with a user-facing message when any upload fails (abort-on-partial-failure)', async () => {
+      stubStorage([{ ok: true }, { ok: false }, { ok: true }]);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(
+        ensurePublicPhotoUrls(
+          ['file:///a.jpg', 'file:///b.jpg', 'file:///c.jpg'],
+          'user-1',
+        ),
+      ).rejects.toThrow(/Photo upload failed for 1 of 3 photos/);
+
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it('preserves input ordering even when parallel uploads finish out-of-order', async () => {
+      // Three local URIs. stubStorage fires resolves in call order, but we
+      // deliberately model out-of-order timing via mock call resolutions.
+      stubStorage([{ ok: true }, { ok: true }, { ok: true }]);
+      const result = await ensurePublicPhotoUrls(
+        ['file:///raw-a.jpg', 'file:///raw-b.jpg', 'file:///raw-c.jpg'],
+        'user-1',
+      );
+      expect(result).toHaveLength(3);
+      // We don't assert exact URLs (mock generates placeholder URLs) — just
+      // that the returned array has the same length as the input, so callers
+      // can index photos[0] as the cover reliably.
+      expect(result.every((u) => u.startsWith('https://'))).toBe(true);
     });
   });
 

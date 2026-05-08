@@ -297,7 +297,7 @@ const AppContent: React.FC = () => {
             component={HomeScreen}
             options={{ 
               title: "Fish Log Co.",
-              headerShown: true,
+              headerShown: false,
             }}
           />
           <Stack.Screen

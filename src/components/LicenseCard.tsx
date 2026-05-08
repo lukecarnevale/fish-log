@@ -4,7 +4,7 @@
 // expiry date, and an "Active" pill when the license hasn't expired.
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { NCFlagIcon } from './NCFlagIcon';
@@ -134,11 +134,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.85)',
   },
+  // Matches the filled FishingLicenseScreen card: embossed monospace number
+  // in champagne gold, with a subtle text shadow for a premium, tactile feel.
+  // Dark mode bumps the gold slightly brighter to preserve contrast against
+  // the lighter dark-mode gradient top.
   licenseNumber: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: theme.colors.textOnPrimary,
+    fontWeight: '700',
+    color: theme.isDark ? '#F3D997' : '#E8D18C',
+    letterSpacing: 2.5,
+    fontVariant: ['tabular-nums'],
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginTop: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   rightSection: {
     flexDirection: 'row',

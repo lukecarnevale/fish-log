@@ -58,21 +58,30 @@ describe('userService', () => {
       expect(mockSupabase.from).toHaveBeenCalledWith('users');
     });
 
-    it('returns null on PGRST116 (no rows)', async () => {
+    it('returns null when no row matches (maybeSingle yields null data, no error)', async () => {
       (mockSupabase.from as jest.Mock).mockImplementation(() =>
-        chainMock({ data: null, error: { code: 'PGRST116', message: 'No rows' } })
+        chainMock({ data: null, error: null })
       );
 
       const user = await findUserByDeviceId('device-999');
       expect(user).toBeNull();
     });
 
-    it('throws on other errors', async () => {
+    it('throws on database errors', async () => {
       (mockSupabase.from as jest.Mock).mockImplementation(() =>
         chainMock({ data: null, error: { code: '42P01', message: 'Table not found' } })
       );
 
-      await expect(findUserByDeviceId('device-123')).rejects.toThrow();
+      await expect(findUserByDeviceId('device-123')).rejects.toThrow('Table not found');
+    });
+
+    it('uses maybeSingle (not single) to avoid 406 on 0 rows', async () => {
+      const chain = chainMock({ data: null, error: null });
+      (mockSupabase.from as jest.Mock).mockImplementation(() => chain);
+
+      await findUserByDeviceId('device-999');
+      expect(chain.maybeSingle).toHaveBeenCalled();
+      expect(chain.single).not.toHaveBeenCalled();
     });
   });
 
@@ -86,7 +95,7 @@ describe('userService', () => {
         select: jest.fn().mockReturnThis(),
         eq: eqMock,
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
+        maybeSingle: jest.fn().mockResolvedValue({
           data: { id: 'user-1', email: 'test@example.com', created_at: '2026-01-01', updated_at: '2026-01-01' },
           error: null,
         }),
@@ -96,13 +105,22 @@ describe('userService', () => {
       expect(eqMock).toHaveBeenCalledWith('email', 'test@example.com');
     });
 
-    it('returns null on PGRST116', async () => {
+    it('returns null when no row matches', async () => {
       (mockSupabase.from as jest.Mock).mockImplementation(() =>
-        chainMock({ data: null, error: { code: 'PGRST116', message: 'No rows' } })
+        chainMock({ data: null, error: null })
       );
 
       const user = await findUserByEmail('nobody@example.com');
       expect(user).toBeNull();
+    });
+
+    it('uses maybeSingle (not single) to avoid 406 on 0 rows', async () => {
+      const chain = chainMock({ data: null, error: null });
+      (mockSupabase.from as jest.Mock).mockImplementation(() => chain);
+
+      await findUserByEmail('nobody@example.com');
+      expect(chain.maybeSingle).toHaveBeenCalled();
+      expect(chain.single).not.toHaveBeenCalled();
     });
   });
 
