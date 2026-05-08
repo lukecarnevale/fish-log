@@ -97,6 +97,11 @@ describe('transformToDMFPayload', () => {
     expect(payload.attributes.Harvest).toBe('Recreational');
   });
 
+  it('SubSrc is always "46725" (DMF app identifier)', () => {
+    const payload = transformToDMFPayload(makeHarvestInput());
+    expect(payload.attributes.SubSrc).toBe('46725');
+  });
+
   // Multi-photo isolation: the new `photos` field (catch_log carousel) must
   // NEVER appear in a DMF payload. DMF is government-facing with a strict
   // schema; leaking an array field would likely cause a server-side rejection

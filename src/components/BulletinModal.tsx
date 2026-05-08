@@ -42,20 +42,31 @@ interface BulletinModalProps {
 }
 
 /**
- * Parses text and returns Text elements with tappable phone numbers and emails.
+ * Parses text and returns Text elements with inline formatting and tappable
+ * phone numbers and emails. Supported markdown: **bold**, *italic*, __underline__.
+ * Nested formatting is not supported.
  */
 const renderLinkedText = (text: string, baseStyle: object, linkColor: string) => {
-  // Match phone numbers (e.g. 252-515-5638) and emails
-  const linkPattern = /([\w.-]+@[\w.-]+\.\w+|\d{3}[-.\s]?\d{3}[-.\s]?\d{4})/g;
-  const parts = text.split(linkPattern);
+  // Order matters: bold (**) tried before italic (*) so the longer match wins.
+  const pattern = /(\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\n]+\*|[\w.-]+@[\w.-]+\.\w+|\d{3}[-.\s]?\d{3}[-.\s]?\d{4})/g;
+  const parts = text.split(pattern);
 
   return (
     <Text style={baseStyle}>
       {parts.map((part, i) => {
-        const isEmail = /^[\w.-]+@[\w.-]+\.\w+$/.test(part);
-        const isPhone = /^\d{3}[-.\s]?\d{3}[-.\s]?\d{4}$/.test(part);
+        if (!part) return null;
 
-        if (isEmail) {
+        if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+          return <Text key={i} style={{ fontWeight: '700' }}>{part.slice(2, -2)}</Text>;
+        }
+        if (part.startsWith('__') && part.endsWith('__') && part.length > 4) {
+          return <Text key={i} style={{ textDecorationLine: 'underline' }}>{part.slice(2, -2)}</Text>;
+        }
+        if (part.startsWith('*') && !part.startsWith('**') && part.endsWith('*') && part.length > 2) {
+          return <Text key={i} style={{ fontStyle: 'italic' }}>{part.slice(1, -1)}</Text>;
+        }
+
+        if (/^[\w.-]+@[\w.-]+\.\w+$/.test(part)) {
           return (
             <Text
               key={i}
@@ -66,7 +77,7 @@ const renderLinkedText = (text: string, baseStyle: object, linkColor: string) =>
             </Text>
           );
         }
-        if (isPhone) {
+        if (/^\d{3}[-.\s]?\d{3}[-.\s]?\d{4}$/.test(part)) {
           const digits = part.replace(/\D/g, '');
           return (
             <Text

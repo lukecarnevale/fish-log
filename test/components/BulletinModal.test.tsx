@@ -162,6 +162,24 @@ describe('BulletinModal', () => {
     expect(getByText(/252-515-5638/)).toBeTruthy();
   });
 
+  it('renders inline bold, italic, and underline markdown in description', () => {
+    const { getByText } = render(
+      <BulletinModal
+        visible={true}
+        bulletin={makeBulletin({
+          description: 'A **bold word**, an *italic word*, and an __underlined word__ here.',
+        })}
+        onClose={jest.fn()}
+        onDismiss={jest.fn()}
+      />
+    );
+
+    // Marker characters are stripped from the rendered text.
+    expect(getByText('bold word')).toBeTruthy();
+    expect(getByText('italic word')).toBeTruthy();
+    expect(getByText('underlined word')).toBeTruthy();
+  });
+
   it('renders source link when sourceUrl is present', () => {
     const { getByText } = render(
       <BulletinModal

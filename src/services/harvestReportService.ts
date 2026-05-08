@@ -131,6 +131,7 @@ export function transformToDMFPayload(input: HarvestReportInput): DMFPayload {
 
     // Fixed values
     Harvest: 'Recreational',
+    SubSrc: '46725',
     SubmitBy: null,
 
     // Location & gear

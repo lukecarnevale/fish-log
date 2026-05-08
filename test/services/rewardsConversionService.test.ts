@@ -231,12 +231,12 @@ describe('rewardsConversionService', () => {
       };
 
       // getRewardsMemberForAnonymousUser queries Supabase directly:
-      // .from('users').select('*').ilike('email', ...).limit(1).single()
+      // .from('users').select('*').ilike('email', ...).limit(1).maybeSingle()
       (mockSupabase.from as jest.Mock).mockImplementation(() => ({
         select: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: dbUser, error: null }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: dbUser, error: null }),
         eq: jest.fn().mockReturnThis(),
       }));
 
@@ -259,7 +259,7 @@ describe('rewardsConversionService', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: dbUser, error: null }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: dbUser, error: null }),
       }));
 
       const result = await getRewardsMemberForAnonymousUser();
@@ -267,24 +267,26 @@ describe('rewardsConversionService', () => {
       expect(result?.id).toBe('user-2');
     });
 
-    it('returns null when anonymous_user_id lookup returns PGRST116', async () => {
+    it('returns null when anonymous_user_id query returns 0 rows (the common anonymous-user case)', async () => {
+      // maybeSingle returns { data: null, error: null } when 0 rows match —
+      // this is the normal path that previously generated 406 noise via .single().
       (mockSupabase.from as jest.Mock).mockImplementation(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116', message: 'not found' } }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       }));
 
       const result = await getRewardsMemberForAnonymousUser();
       expect(result).toBeNull();
     });
 
-    it('returns null when anonymous_user_id lookup throws a non-PGRST116 error', async () => {
+    it('returns null when anonymous_user_id lookup yields a database error', async () => {
       (mockSupabase.from as jest.Mock).mockImplementation(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: { code: 'OTHER', message: 'server error' } }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: { code: 'OTHER', message: 'server error' } }),
       }));
 
       const result = await getRewardsMemberForAnonymousUser();
@@ -295,12 +297,12 @@ describe('rewardsConversionService', () => {
       const { getAnonymousUser } = require('../../src/services/anonymousUserService');
       getAnonymousUser.mockResolvedValue(null);
 
-      // Auth email lookup fails
+      // Auth email lookup yields no row
       (mockSupabase.from as jest.Mock).mockImplementation(() => ({
         select: jest.fn().mockReturnThis(),
         ilike: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116', message: 'not found' } }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
         eq: jest.fn().mockReturnThis(),
       }));
 
@@ -308,16 +310,20 @@ describe('rewardsConversionService', () => {
       expect(result).toBeNull();
     });
 
-    it('returns null when anonymous_user_id query returns null data', async () => {
+    it('uses maybeSingle (not single) for the anonymous_user_id lookup to avoid 406', async () => {
+      const singleMock = jest.fn().mockResolvedValue({ data: null, error: null });
+      const maybeSingleMock = jest.fn().mockResolvedValue({ data: null, error: null });
       (mockSupabase.from as jest.Mock).mockImplementation(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        single: singleMock,
+        maybeSingle: maybeSingleMock,
       }));
 
-      const result = await getRewardsMemberForAnonymousUser();
-      expect(result).toBeNull();
+      await getRewardsMemberForAnonymousUser();
+      expect(maybeSingleMock).toHaveBeenCalled();
+      expect(singleMock).not.toHaveBeenCalled();
     });
   });
 
