@@ -72,23 +72,43 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
   const screenHeight = Dimensions.get('window').height;
   const sheetHeight = screenHeight * SHEET_HEIGHT_RATIO;
 
-  // Animation: overlay opacity + sheet translateY driven by the same value.
+  // Animation: scrim opacity + sheet translateY driven by the same value.
+  // `rendered` decouples the Modal's lifetime from `visible` so we can run
+  // a slide-down animation before unmounting on close.
   const anim = useRef(new Animated.Value(0)).current;
+  const [rendered, setRendered] = useState(visible);
 
   const [draft, setDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      anim.setValue(0);
+      // First-time open: snap to closed position before mounting so the slide-up
+      // is visible. Reopening mid-close skips the snap so it springs from
+      // wherever the exit animation got to — avoids a hard reset flash.
+      if (!rendered) {
+        anim.setValue(0);
+        setRendered(true);
+      }
       Animated.spring(anim, {
         toValue: 1,
         useNativeDriver: true,
         tension: 65,
         friction: 11,
       }).start();
+    } else if (rendered) {
+      Animated.timing(anim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        // Only unmount if the close animation completed — if the user reopened
+        // mid-close, a new open animation has started and we want to keep
+        // the Modal mounted.
+        if (finished) setRendered(false);
+      });
     }
-  }, [visible, anim]);
+  }, [visible, rendered, anim]);
 
   // Reset draft whenever the sheet is opened for a different report.
   useEffect(() => {
@@ -257,7 +277,7 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
 
   return (
     <Modal
-      visible={visible}
+      visible={rendered}
       transparent
       animationType="none"
       onRequestClose={onClose}
@@ -285,7 +305,6 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
               styles.sheet,
               {
                 height: sheetHeight,
-                opacity: overlayOpacity,
                 transform: [{ translateY }],
               },
             ]}
