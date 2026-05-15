@@ -22,6 +22,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -65,6 +66,7 @@ const CatchDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const commentsQuery = useComments(reportId, currentUserId ?? undefined);
   const addCommentMutation = useAddComment();
@@ -420,10 +422,15 @@ const CatchDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             showsVerticalScrollIndicator={false}
           />
 
-          {/* Composer */}
+          {/* Composer — pill is a Pressable so taps anywhere inside it focus
+              the input, not just on the (small) text line. */}
           <View style={[styles.composer, { paddingBottom: insets.bottom || spacing.sm }]}>
-            <View style={styles.composerInputWrap}>
+            <Pressable
+              style={styles.composerInputWrap}
+              onPress={() => inputRef.current?.focus()}
+            >
               <TextInput
+                ref={inputRef}
                 value={draft}
                 onChangeText={(t) => setDraft(t.slice(0, COMMENT_MAX_LENGTH))}
                 placeholder={canPost ? 'Add a comment...' : 'Sign in to comment'}
@@ -438,7 +445,7 @@ const CatchDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {COMMENT_MAX_LENGTH - draft.length}
                 </Text>
               )}
-            </View>
+            </Pressable>
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={!canSubmit}

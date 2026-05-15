@@ -11,13 +11,14 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import {
   View,
   Text,
+  Pressable,
   TouchableOpacity,
   TouchableWithoutFeedback,
   TextInput,
   StyleSheet,
   Modal,
   Animated,
-  KeyboardAvoidingView,
+  Keyboard,
   Platform,
   FlatList,
   Dimensions,
@@ -70,7 +71,7 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
   const styles = useThemedStyles(createStyles);
 
   const screenHeight = Dimensions.get('window').height;
-  const sheetHeight = screenHeight * SHEET_HEIGHT_RATIO;
+  const baseSheetHeight = screenHeight * SHEET_HEIGHT_RATIO;
 
   // Animation: scrim opacity + sheet translateY driven by the same value.
   // `rendered` decouples the Modal's lifetime from `visible` so we can run
@@ -80,6 +81,40 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
 
   const [draft, setDraft] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Track the live keyboard height so the sheet can shrink (top stays fixed,
+  // bottom rises) when the keyboard appears. Instagram-style — much less
+  // jarring than translating the whole sheet up.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    // iOS fires `will*` events with animation duration; Android only fires
+    // `did*` after the layout has already shifted. Both fire end coordinates.
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // While keyboard is open, the sheet shrinks from the bottom (so its top
+  // stays put) and floats above the keyboard via marginBottom.
+  // Clamp to a sensible minimum so an unusually tall keyboard never wipes
+  // out the sheet entirely.
+  const adjustedSheetHeight = Math.max(220, baseSheetHeight - keyboardHeight);
+
+  // Use the base sheet height for the slide-in distance so the entry
+  // animation is consistent regardless of whether the keyboard happened to
+  // be open before the sheet was triggered.
+  const sheetHeight = baseSheetHeight;
 
   useEffect(() => {
     if (visible) {
@@ -114,6 +149,14 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
   useEffect(() => {
     if (visible) setDraft('');
   }, [visible, reportId]);
+
+  // Wrap parent's onClose so we proactively dismiss the keyboard. Without this,
+  // the keyboard would stay up during the slide-down animation and reappear
+  // briefly until the sheet finishes unmounting.
+  const handleClose = useCallback(() => {
+    Keyboard.dismiss();
+    onClose();
+  }, [onClose]);
 
   const overlayOpacity = anim.interpolate({
     inputRange: [0, 1],
@@ -280,7 +323,7 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
       visible={rendered}
       transparent
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.modalRoot}>
         {/* Animated background scrim */}
@@ -290,21 +333,20 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
         />
 
         {/* Tap-outside-to-dismiss layer */}
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.scrimTouchable} />
         </TouchableWithoutFeedback>
 
-        {/* Sheet container */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardAvoid}
-          pointerEvents="box-none"
-        >
+        {/* Sheet container — no KeyboardAvoidingView wrapper. Instead, we
+            shrink the sheet itself when the keyboard appears so its top edge
+            doesn't move, and float it above the keyboard via marginBottom. */}
+        <View style={styles.keyboardAvoid} pointerEvents="box-none">
           <Animated.View
             style={[
               styles.sheet,
               {
-                height: sheetHeight,
+                height: adjustedSheetHeight,
+                marginBottom: keyboardHeight,
                 transform: [{ translateY }],
               },
             ]}
@@ -317,7 +359,7 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity
-                onPress={onClose}
+                onPress={handleClose}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={styles.headerClose}
               >
@@ -355,8 +397,16 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
               <View style={styles.composerAvatarPlaceholder}>
                 <Feather name="user" size={16} color={theme.colors.textTertiary} />
               </View>
-              <View style={styles.composerInputWrap}>
+              {/* Pressable wraps the entire pill so taps anywhere inside
+                  the wrap focus the input — the bare TextInput's hit area
+                  was just the text line, so taps in the surrounding padding
+                  used to miss. */}
+              <Pressable
+                style={styles.composerInputWrap}
+                onPress={() => inputRef.current?.focus()}
+              >
                 <TextInput
+                  ref={inputRef}
                   value={draft}
                   onChangeText={(t) =>
                     setDraft(t.slice(0, COMMENT_MAX_LENGTH))
@@ -378,7 +428,7 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
                     {COMMENT_MAX_LENGTH - draft.length}
                   </Text>
                 )}
-              </View>
+              </Pressable>
               <TouchableOpacity
                 onPress={handleSubmit}
                 disabled={!canSubmit}
@@ -397,7 +447,7 @@ const CommentsSheet: React.FC<CommentsSheetProps> = ({
               </TouchableOpacity>
             </View>
           </Animated.View>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );
