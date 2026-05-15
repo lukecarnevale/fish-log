@@ -150,21 +150,36 @@ describe('CatchCard', () => {
     expect(onCommentPress).toHaveBeenCalledWith(entry);
   });
 
-  it('renders comment count when commentCount > 0', () => {
+  it('renders comment count when commentCount > 0 and onCommentPress is provided', () => {
     const { getByText } = render(
-      <CatchCard entry={makeEntry({ commentCount: 4 })} />
+      <CatchCard
+        entry={makeEntry({ commentCount: 4 })}
+        onCommentPress={jest.fn()}
+      />
     );
 
     expect(getByText('4')).toBeTruthy();
   });
 
-  it('hides comment count when commentCount is 0 or undefined', () => {
+  it('hides the comment count when commentCount is 0 (even with onCommentPress)', () => {
     const { queryByText } = render(
-      <CatchCard entry={makeEntry({ commentCount: 0 })} />
+      <CatchCard
+        entry={makeEntry({ commentCount: 0 })}
+        onCommentPress={jest.fn()}
+      />
     );
 
-    // Heart icon is present but no zero count text — count is hidden at 0.
     expect(queryByText('0')).toBeNull();
+  });
+
+  it('does not render the comment button when onCommentPress is undefined (social flag off)', () => {
+    const { queryByText } = render(
+      <CatchCard entry={makeEntry({ commentCount: 4 })} />
+    );
+
+    // Comment button + count are both hidden when no onCommentPress is passed.
+    expect(queryByText('chatbubble-outline')).toBeNull();
+    expect(queryByText('4')).toBeNull();
   });
 
   it('renders compact mode', () => {

@@ -16,6 +16,7 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -28,12 +29,18 @@ import { Theme } from '../styles/theme';
 import { getSpeciesTheme } from '../constants/speciesColors';
 import { SPECIES_ALIASES } from '../constants/speciesAliases';
 import { useAllFishSpecies } from '../api/speciesApi';
+import { useFollowProfile, useToggleFollow } from '../api/followsApi';
+import { useBlockUser } from '../api/blocksApi';
 import CatchCard from './CatchCard';
 
 interface AnglerProfileModalProps {
   visible: boolean;
   userId: string | null;
   onClose: () => void;
+  /** Current viewer's users.id — drives Follow/Block UI. Null hides those controls. */
+  currentUserId?: string | null;
+  /** Called after a successful block so the parent can refresh its feed. */
+  onBlockSuccess?: (blockedUserId: string) => void;
 }
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -42,6 +49,8 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
   visible,
   userId,
   onClose,
+  currentUserId = null,
+  onBlockSuccess,
 }) => {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -49,6 +58,64 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
   const [profile, setProfile] = useState<AnglerProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Follow state + counts (only meaningful when both userId and currentUserId are set
+  // and userId !== currentUserId). The hook is gated on userId.
+  const followProfileQuery = useFollowProfile(userId, currentUserId);
+  const toggleFollow = useToggleFollow();
+  const blockMutation = useBlockUser();
+
+  const isSelf = !!userId && !!currentUserId && userId === currentUserId;
+  const canInteract = !!currentUserId && !isSelf && !!userId;
+
+  const handleToggleFollow = useCallback(() => {
+    if (!canInteract || !userId || !currentUserId) return;
+    const willFollow = !followProfileQuery.data?.isFollowing;
+    toggleFollow.mutate({
+      targetUserId: userId,
+      viewerUserId: currentUserId,
+      willFollow,
+    });
+  }, [canInteract, userId, currentUserId, followProfileQuery.data?.isFollowing, toggleFollow]);
+
+  const handleOpenMoreMenu = useCallback(() => {
+    if (!canInteract || !userId || !currentUserId) return;
+    Alert.alert(
+      profile?.displayName ?? 'This angler',
+      undefined,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block this angler',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Block this angler?',
+              'You will no longer see their catches or comments, and they will not see yours.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Block',
+                  style: 'destructive',
+                  onPress: () => {
+                    blockMutation.mutate(
+                      { targetUserId: userId, viewerUserId: currentUserId },
+                      {
+                        onSuccess: () => {
+                          onBlockSuccess?.(userId);
+                          onClose();
+                        },
+                      },
+                    );
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  }, [canInteract, userId, currentUserId, profile?.displayName, blockMutation, onBlockSuccess, onClose]);
 
   // Fetch species data for fallback images (same as CatchFeedScreen)
   const { data: allSpecies } = useAllFishSpecies();
@@ -217,6 +284,47 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
           <Text style={styles.memberSince}>
             Member since {formatMemberSince(profile.memberSince)}
           </Text>
+
+          {/* Follow controls — hidden for self-view or anonymous viewer */}
+          {canInteract && (
+            <View style={styles.followRow}>
+              <TouchableOpacity
+                onPress={handleToggleFollow}
+                disabled={toggleFollow.isPending || followProfileQuery.isLoading}
+                style={[
+                  styles.followButton,
+                  followProfileQuery.data?.isFollowing && styles.followButtonActive,
+                  (toggleFollow.isPending || followProfileQuery.isLoading) &&
+                    styles.followButtonDisabled,
+                ]}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={[
+                    styles.followButtonText,
+                    followProfileQuery.data?.isFollowing && styles.followButtonTextActive,
+                  ]}
+                >
+                  {followProfileQuery.data?.isFollowing ? 'Following' : 'Follow'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.followCounts}>
+                <View style={styles.followCountItem}>
+                  <Text style={styles.followCountValue}>
+                    {followProfileQuery.data?.followersCount ?? 0}
+                  </Text>
+                  <Text style={styles.followCountLabel}>Followers</Text>
+                </View>
+                <View style={styles.followCountItem}>
+                  <Text style={styles.followCountValue}>
+                    {followProfileQuery.data?.followingCount ?? 0}
+                  </Text>
+                  <Text style={styles.followCountLabel}>Following</Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Stats Row */}
@@ -338,6 +446,18 @@ const AnglerProfileModal: React.FC<AnglerProfileModalProps> = ({
             <Feather name="x" size={24} color={theme.colors.textPrimary} />
           </TouchableOpacity>
 
+          {/* More menu (block) — only shown when viewer can interact */}
+          {canInteract && (
+            <TouchableOpacity
+              style={styles.moreButton}
+              onPress={handleOpenMoreMenu}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="More actions"
+            >
+              <Feather name="more-horizontal" size={22} color={theme.colors.textPrimary} />
+            </TouchableOpacity>
+          )}
+
           {renderContent()}
         </Animated.View>
       </View>
@@ -386,6 +506,72 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  moreButton: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md + 48, // sits to the left of closeButton
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  followRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    gap: spacing.md,
+  },
+  followButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.lg,
+    backgroundColor: theme.colors.primary,
+    minWidth: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followButtonActive: {
+    backgroundColor: theme.colors.white,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+  },
+  followButtonDisabled: {
+    opacity: 0.6,
+  },
+  followButtonText: {
+    color: theme.colors.textOnPrimary,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  followButtonTextActive: {
+    color: theme.colors.primary,
+  },
+  followCounts: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  followCountItem: {
+    alignItems: 'center',
+  },
+  followCountValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+  },
+  followCountLabel: {
+    fontSize: 11,
+    color: theme.colors.textTertiary,
+    letterSpacing: 0.2,
   },
   scrollView: {
     flex: 1,

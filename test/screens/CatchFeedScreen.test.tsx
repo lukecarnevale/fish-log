@@ -61,6 +61,25 @@ jest.mock('../../src/api/speciesApi', () => ({
   useAllFishSpecies: jest.fn(() => ({ data: [], isLoading: false })),
 }));
 
+// Social feature hooks introduced with the comments / follows rollout.
+// Default to a disabled flag + empty/inert mutations so existing tests
+// keep exercising the Discover-only path.
+jest.mock('../../src/api/featureFlagsApi', () => ({
+  useFeatureFlag: jest.fn(() => ({ enabled: false, isLoading: false })),
+  FEATURE_FLAG_QUERY_KEY: 'featureFlags',
+}));
+
+jest.mock('../../src/api/commentsApi', () => ({
+  useComments: jest.fn(() => ({ data: [], isLoading: false })),
+  useAddComment: jest.fn(() => ({ mutateAsync: jest.fn(), isPending: false })),
+  useDeleteComment: jest.fn(() => ({ mutateAsync: jest.fn(), isPending: false })),
+  useReportComment: jest.fn(() => ({ mutate: jest.fn(), isPending: false })),
+}));
+
+jest.mock('../../src/services/followsService', () => ({
+  fetchFollowingFeed: jest.fn(() => Promise.resolve({ entries: [], hasMore: false })),
+}));
+
 // --- Constants ---
 
 jest.mock('../../src/constants/speciesColors', () => ({

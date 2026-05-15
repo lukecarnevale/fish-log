@@ -38,7 +38,13 @@ import CatchCard from '../components/CatchCard';
 import FeedAdCard from '../components/FeedAdCard';
 import AnglerProfileModal from '../components/AnglerProfileModal';
 import CommentsSheet from '../components/CommentsSheet';
-import { MOCK_COMMENTS } from '../data/mockComments';
+import {
+  useComments,
+  useAddComment,
+  useDeleteComment,
+  useReportComment,
+} from '../api/commentsApi';
+import { fetchFollowingFeed } from '../services/followsService';
 import BottomDrawer from '../components/BottomDrawer';
 import StatusBarScrollBlur from '../components/StatusBarScrollBlur';
 import WaveBackground from '../components/WaveBackground';
@@ -47,6 +53,7 @@ import { SCREEN_LABELS } from '../constants/screenLabels';
 import { HEADER_HEIGHT } from '../constants/ui';
 import { CatchFeedSkeletonLoader } from '../components/SkeletonLoader';
 import { useAllFishSpecies } from '../api/speciesApi';
+import { useFeatureFlag } from '../api/featureFlagsApi';
 import { useFloatingHeaderAnimation } from '../hooks/useFloatingHeaderAnimation';
 import { usePulseAnimation } from '../hooks/usePulseAnimation';
 import { Advertisement } from '../services/transformers/advertisementTransformer';
@@ -274,6 +281,12 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
   // Get current user ID for like functionality (Supabase user ID)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  // Display fields for the current user — used to render optimistic comment rows
+  // before the server hydrates with real first/last name + avatar.
+  const [currentUserDisplay, setCurrentUserDisplay] = useState<{
+    name: string;
+    profileImage?: string;
+  } | null>(null);
   // Track whether the initial user ID resolution has completed so we can
   // re-enrich entries with like data once we know the current user.
   const [userIdResolved, setUserIdResolved] = useState(false);
@@ -287,9 +300,16 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       if (rewardsMember?.id) {
         console.log('✅ Using user ID for likes:', rewardsMember.id);
         setCurrentUserId(rewardsMember.id);
+        const first = rewardsMember.firstName ?? '';
+        const lastInitial = rewardsMember.lastName ? `${rewardsMember.lastName.charAt(0)}.` : '';
+        setCurrentUserDisplay({
+          name: `${first} ${lastInitial}`.trim() || 'You',
+          profileImage: rewardsMember.profileImageUrl ?? undefined,
+        });
       } else {
         console.log('ℹ️ No rewards member found for likes');
         setCurrentUserId(null);
+        setCurrentUserDisplay(null);
       }
       setUserIdResolved(true);
     };
@@ -340,9 +360,27 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Comments sheet: holds the report ID currently being commented on (null = closed).
-  // While the catch_comments backend lands behind a feature flag, this opens against
-  // shared mock data so we can iterate on visuals without depending on the schema.
   const [activeCommentReportId, setActiveCommentReportId] = useState<string | null>(null);
+
+  // Active feed tab. 'discover' is the public feed (existing behavior);
+  // 'following' shows only catches from users the viewer follows.
+  const [activeTab, setActiveTab] = useState<'discover' | 'following'>('discover');
+  const [followingEntries, setFollowingEntries] = useState<CatchFeedEntry[]>([]);
+  const [followingLoading, setFollowingLoading] = useState(false);
+  const [followingError, setFollowingError] = useState<string | null>(null);
+
+  // Master gate for the social feature set (comments, follows, blocks, following tab).
+  // Defaults off until the flag is flipped in the feature_flags table.
+  const { enabled: socialEnabled } = useFeatureFlag('social_features');
+
+  // React Query hooks for the active comments thread.
+  const commentsQuery = useComments(
+    activeCommentReportId,
+    currentUserId ?? undefined,
+  );
+  const addCommentMutation = useAddComment();
+  const deleteCommentMutation = useDeleteComment();
+  const reportCommentMutation = useReportComment();
 
   // Fetch species data for fallback images
   const { data: allSpecies, isLoading: speciesLoading } = useAllFishSpecies();
@@ -464,23 +502,51 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     return ['All Species', ...themes.map(t => t.name)];
   }, []);
 
-  // Filter entries
+  // Fetch the Following feed when the tab is active and we know the viewer.
+  // Imperative + state-based to match the Discover path; enrichment with like
+  // data happens here so isLikedByCurrentUser is correct in both tabs.
+  useEffect(() => {
+    if (activeTab !== 'following' || !currentUserId) return;
+    let cancelled = false;
+    setFollowingLoading(true);
+    setFollowingError(null);
+    (async () => {
+      try {
+        const { entries: rows } = await fetchFollowingFeed(20, 0);
+        if (cancelled) return;
+        const enriched = await enrichCatchesWithLikes(rows, currentUserId);
+        if (cancelled) return;
+        setFollowingEntries(enriched);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Failed to load following feed:', err);
+        setFollowingError('Unable to load your following feed.');
+      } finally {
+        if (!cancelled) setFollowingLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, currentUserId]);
+
+  // Source of truth for the visible list depends on the active tab.
+  // Filters apply to Discover only — Following is already scoped by follows.
   const filteredEntries = useMemo(() => {
-    return entries.filter(entry => {
+    if (activeTab === 'following') return followingEntries;
+    return entries.filter((entry) => {
       if (selectedArea && entry.location !== selectedArea) return false;
-      // Check if any species in the list matches the filter
       if (selectedSpecies) {
         const speciesList = entry.speciesList || [{ species: entry.species, count: 1 }];
-        const hasSpecies = speciesList.some(s => s.species === selectedSpecies);
+        const hasSpecies = speciesList.some((s) => s.species === selectedSpecies);
         if (!hasSpecies) return false;
       }
-      // Filter to only show entries with photos
       if (showPhotosOnly && !entry.photoUrl) return false;
       return true;
     });
-  }, [entries, selectedArea, selectedSpecies, showPhotosOnly]);
+  }, [activeTab, entries, followingEntries, selectedArea, selectedSpecies, showPhotosOnly]);
 
-  // Create mixed feed with ads interspersed
+  // Create mixed feed with ads interspersed (same UX on both tabs).
   const feedItems = useMemo(() => {
     return intersperseFeedAds(filteredEntries, feedAds);
   }, [filteredEntries, feedAds]);
@@ -605,6 +671,73 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     setActiveCommentReportId(null);
   }, []);
 
+  // Bump the locally-cached commentCount on the matching feed entry so the
+  // card badge stays in sync with the comments thread without refetching the
+  // entire feed. Delta is +1 on post, -1 on delete; rolled back on failure.
+  const bumpCommentCount = useCallback((reportId: string, delta: number) => {
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.id === reportId
+          ? {
+              ...e,
+              commentCount: Math.max(0, (e.commentCount ?? 0) + delta),
+            }
+          : e,
+      ),
+    );
+  }, []);
+
+  const handleSubmitComment = useCallback(
+    async (text: string) => {
+      if (!activeCommentReportId || !currentUserId || !currentUserDisplay) return;
+      bumpCommentCount(activeCommentReportId, 1);
+      try {
+        await addCommentMutation.mutateAsync({
+          reportId: activeCommentReportId,
+          userId: currentUserId,
+          anglerName: currentUserDisplay.name,
+          anglerProfileImage: currentUserDisplay.profileImage,
+          text,
+        });
+      } catch (err) {
+        bumpCommentCount(activeCommentReportId, -1);
+        throw err;
+      }
+    },
+    [
+      activeCommentReportId,
+      currentUserId,
+      currentUserDisplay,
+      addCommentMutation,
+      bumpCommentCount,
+    ],
+  );
+
+  const handleDeleteComment = useCallback(
+    async (commentId: string) => {
+      if (!activeCommentReportId) return;
+      bumpCommentCount(activeCommentReportId, -1);
+      try {
+        await deleteCommentMutation.mutateAsync({
+          reportId: activeCommentReportId,
+          commentId,
+        });
+      } catch (err) {
+        bumpCommentCount(activeCommentReportId, 1);
+        console.warn('Failed to delete comment', err);
+      }
+    },
+    [activeCommentReportId, deleteCommentMutation, bumpCommentCount],
+  );
+
+  const handleReportComment = useCallback(
+    (commentId: string) => {
+      if (!currentUserId) return;
+      reportCommentMutation.mutate({ commentId, reporterId: currentUserId });
+    },
+    [currentUserId, reportCommentMutation],
+  );
+
   // Handle like/unlike a catch
   const handleLikePress = useCallback(async (entry: CatchFeedEntry) => {
     // Optimistically update UI first (for immediate visual feedback)
@@ -663,37 +796,73 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
   // Render empty state
   const hasActiveFilters = selectedArea || selectedSpecies || showPhotosOnly;
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIllustration}>
-        <SwimmingFishIllustration />
+  const renderEmptyState = () => {
+    // Following tab gets its own empty messaging — no filters, no "report a catch"
+    // CTA since the action is "follow other anglers".
+    if (activeTab === 'following') {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIllustration}>
+            <SwimmingFishIllustration />
+          </View>
+          <Text style={styles.emptyTitle}>No Catches from Anglers You Follow</Text>
+          <Text style={styles.emptyText}>
+            {currentUserId
+              ? 'Tap an angler in Discover to view their profile and follow them. Their catches will show up here.'
+              : 'Sign up for the rewards program to follow other anglers and personalize your feed.'}
+          </Text>
+          {currentUserId && (
+            <TouchableOpacity
+              style={styles.emptyCTA}
+              onPress={() => setActiveTab('discover')}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={[theme.colors.primary, '#1976D2']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Feather name="compass" size={18} color={theme.colors.textOnPrimary} />
+              <Text style={styles.emptyCTAText}>Browse Discover</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIllustration}>
+          <SwimmingFishIllustration />
+        </View>
+        <Text style={styles.emptyTitle}>
+          {hasActiveFilters ? 'No Matches Found' : 'No Catches Yet'}
+        </Text>
+        <Text style={styles.emptyText}>
+          {hasActiveFilters
+            ? 'Try adjusting your filters to see more catches.'
+            : 'Be the first to share your catch today!\nReport a harvest to appear in the community feed.'}
+        </Text>
+        {!hasActiveFilters && (
+          <TouchableOpacity
+            style={styles.emptyCTA}
+            onPress={navigateToReport}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={[theme.colors.primary, '#1976D2']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Feather name="plus" size={18} color={theme.colors.textOnPrimary} />
+            <Text style={styles.emptyCTAText}>Report Your Catch</Text>
+          </TouchableOpacity>
+        )}
       </View>
-      <Text style={styles.emptyTitle}>
-        {hasActiveFilters ? 'No Matches Found' : 'No Catches Yet'}
-      </Text>
-      <Text style={styles.emptyText}>
-        {hasActiveFilters
-          ? 'Try adjusting your filters to see more catches.'
-          : 'Be the first to share your catch today!\nReport a harvest to appear in the community feed.'}
-      </Text>
-      {!hasActiveFilters && (
-        <TouchableOpacity
-          style={styles.emptyCTA}
-          onPress={navigateToReport}
-          activeOpacity={0.85}
-        >
-          <LinearGradient
-            colors={[theme.colors.primary, '#1976D2']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <Feather name="plus" size={18} color={theme.colors.textOnPrimary} />
-          <Text style={styles.emptyCTAText}>Report Your Catch</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+    );
+  };
 
   // Render error state
   const renderErrorState = () => (
@@ -728,13 +897,15 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       <CatchCard
         entry={item.data}
         onAnglerPress={handleAnglerPress}
-        onCardPress={handleCommentPress}
+        // When social is off: tapping the card body opens the angler profile
+        // (preserves pre-social behavior). When on: tapping body opens comments.
+        onCardPress={socialEnabled ? handleCommentPress : undefined}
         onLikePress={handleLikePress}
-        onCommentPress={handleCommentPress}
+        onCommentPress={socialEnabled ? handleCommentPress : undefined}
         speciesImageUrl={getSpeciesImageUrl(item.data.species)}
       />
     );
-  }, [handleAnglerPress, handleLikePress, handleCommentPress, getSpeciesImageUrl]);
+  }, [handleAnglerPress, handleLikePress, handleCommentPress, getSpeciesImageUrl, socialEnabled]);
 
   const keyExtractor = useCallback((item: FeedItem, index: number) => {
     if (item.type === 'ad') return `ad-${item.data.id}-${index}`;
@@ -744,40 +915,76 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   // Item separator component
   const ItemSeparator = useCallback(() => <View style={styles.separator} />, []);
 
-  // Memoized list header (top anglers + filters)
+  // Memoized list header (top anglers + tab switcher + filters)
   const renderListHeader = useCallback(() => (
     <View>
-      {/* Top Anglers Section */}
-      <TopAnglersSection anglers={topAnglers} />
+      {/* Top Anglers Section — only on Discover */}
+      {activeTab === 'discover' && <TopAnglersSection anglers={topAnglers} />}
 
-      {/* Filter Row */}
-      <View style={styles.filterRow}>
-        <FilterPill
-          label={selectedArea || 'All Areas'}
-          isActive={selectedArea !== null}
-          onPress={() => setShowAreaPicker(true)}
-        />
-        <FilterPill
-          label={selectedSpecies || 'All Species'}
-          isActive={selectedSpecies !== null}
-          onPress={() => setShowSpeciesPicker(true)}
-        />
-        {/* Photo filter toggle - doesn't shrink */}
-        <TouchableOpacity
-          style={[styles.filterPill, styles.filterPillFixed, showPhotosOnly && styles.filterPillActive]}
-          onPress={() => setShowPhotosOnly(!showPhotosOnly)}
-          activeOpacity={0.85}
-        >
-          <Feather
-            name="image"
-            size={14}
-            color={showPhotosOnly ? theme.colors.textOnPrimary : theme.colors.textSecondary}
+      {/* Discover / Following tab switcher — gated on social flag + signed in */}
+      {socialEnabled && currentUserId && (
+        <View style={styles.feedTabRow}>
+          <TouchableOpacity
+            style={[styles.feedTab, activeTab === 'discover' && styles.feedTabActive]}
+            onPress={() => setActiveTab('discover')}
+            activeOpacity={0.85}
+          >
+            <Text
+              style={[
+                styles.feedTabText,
+                activeTab === 'discover' && styles.feedTabTextActive,
+              ]}
+            >
+              Discover
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.feedTab, activeTab === 'following' && styles.feedTabActive]}
+            onPress={() => setActiveTab('following')}
+            activeOpacity={0.85}
+          >
+            <Text
+              style={[
+                styles.feedTabText,
+                activeTab === 'following' && styles.feedTabTextActive,
+              ]}
+            >
+              Following
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Filter Row — only on Discover (Following is already scoped) */}
+      {activeTab === 'discover' && (
+        <View style={styles.filterRow}>
+          <FilterPill
+            label={selectedArea || 'All Areas'}
+            isActive={selectedArea !== null}
+            onPress={() => setShowAreaPicker(true)}
           />
-          <Text style={[styles.filterPillText, showPhotosOnly && styles.filterPillTextActive]}>
-            Photos
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <FilterPill
+            label={selectedSpecies || 'All Species'}
+            isActive={selectedSpecies !== null}
+            onPress={() => setShowSpeciesPicker(true)}
+          />
+          {/* Photo filter toggle - doesn't shrink */}
+          <TouchableOpacity
+            style={[styles.filterPill, styles.filterPillFixed, showPhotosOnly && styles.filterPillActive]}
+            onPress={() => setShowPhotosOnly(!showPhotosOnly)}
+            activeOpacity={0.85}
+          >
+            <Feather
+              name="image"
+              size={14}
+              color={showPhotosOnly ? theme.colors.textOnPrimary : theme.colors.textSecondary}
+            />
+            <Text style={[styles.filterPillText, showPhotosOnly && styles.filterPillTextActive]}>
+              Photos
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Premium divider between filters and content */}
       <View style={styles.filterDividerContainer}>
@@ -789,7 +996,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         />
       </View>
     </View>
-  ), [topAnglers, selectedArea, selectedSpecies, showPhotosOnly]);
+  ), [topAnglers, selectedArea, selectedSpecies, showPhotosOnly, activeTab, currentUserId, socialEnabled]);
 
   const renderListFooter = useCallback(() => {
     if (feedItems.length === 0) return null;
@@ -810,14 +1017,16 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
 
   // Empty component for FlatList when no data
   const renderEmptyComponent = useCallback(() => {
-    if (loading) {
+    const isLoading = activeTab === 'following' ? followingLoading : loading;
+    const currentError = activeTab === 'following' ? followingError : error;
+    if (isLoading) {
       return <CatchFeedSkeletonLoader />;
     }
-    if (error) {
+    if (currentError) {
       return renderErrorState();
     }
     return renderEmptyState();
-  }, [loading, error, hasActiveFilters]);
+  }, [loading, error, hasActiveFilters, activeTab, followingLoading, followingError]);
 
   // Callback for when user scrolls near the end
   const handleEndReached = useCallback(() => {
@@ -960,25 +1169,33 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           onClose={() => setShowSpeciesPicker(false)}
         />
 
-        {/* Angler Profile Modal */}
+        {/* Angler Profile Modal. Social controls (Follow + Block) only show
+            when the social_features flag is on. */}
         <AnglerProfileModal
           visible={showProfileModal}
           userId={selectedAnglerId}
           onClose={handleCloseProfile}
+          currentUserId={socialEnabled ? currentUserId : null}
+          onBlockSuccess={(blockedUserId) => {
+            setEntries((prev) => prev.filter((e) => e.userId !== blockedUserId));
+            setFollowingEntries((prev) =>
+              prev.filter((e) => e.userId !== blockedUserId),
+            );
+          }}
         />
 
-        {/* Comments Sheet (mock data) */}
+        {/* Comments Sheet — backed by catch_comments via React Query. */}
         <CommentsSheet
           visible={activeCommentReportId !== null}
           onClose={handleCloseComments}
-          comments={activeCommentReportId ? MOCK_COMMENTS : []}
+          comments={commentsQuery.data ?? []}
           reportId={activeCommentReportId}
           onAnglerPress={handleAnglerPress}
           canPost={!!currentUserId}
-          onSubmit={async (_text) => {
-            // Wire to real catch_comments insert once schema lands.
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }}
+          loading={commentsQuery.isLoading}
+          onSubmit={handleSubmitComment}
+          onDelete={handleDeleteComment}
+          onReport={handleReportComment}
         />
       </SafeAreaView>
     </View>
@@ -1093,6 +1310,42 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   emptyListContent: {
     flexGrow: 1,
     backgroundColor: theme.colors.background,
+  },
+
+  // Discover / Following tab switcher
+  feedTabRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  feedTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: theme.colors.white,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    shadowColor: '#1a365d',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  feedTabActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primaryDark,
+  },
+  feedTabText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    letterSpacing: 0.3,
+  },
+  feedTabTextActive: {
+    color: theme.colors.textOnPrimary,
   },
 
   // Filter row

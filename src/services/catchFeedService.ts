@@ -152,6 +152,7 @@ async function fetchCatchesFromSupabase(
       createdAt: row.created_at,
       likeCount: row.like_count || 0,
       isLikedByCurrentUser: false,
+      commentCount: row.comment_count || 0,
     });
   }
 

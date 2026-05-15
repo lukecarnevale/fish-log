@@ -410,27 +410,29 @@ const CatchCard: React.FC<CatchCardProps> = ({
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.commentButton}
-            onPress={handleCommentPress}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={
-              entry.commentCount && entry.commentCount > 0
-                ? `${entry.commentCount} comments, open thread`
-                : 'Add a comment'
-            }
-          >
-            <Ionicons
-              name="chatbubble-outline"
-              size={20}
-              color={theme.colors.textTertiary}
-            />
-            {entry.commentCount !== undefined && entry.commentCount > 0 && (
-              <Text style={styles.commentCount}>{entry.commentCount}</Text>
-            )}
-          </TouchableOpacity>
+          {onCommentPress && (
+            <TouchableOpacity
+              style={styles.commentButton}
+              onPress={handleCommentPress}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={
+                entry.commentCount && entry.commentCount > 0
+                  ? `${entry.commentCount} comments, open thread`
+                  : 'Add a comment'
+              }
+            >
+              <Ionicons
+                name="chatbubble-outline"
+                size={20}
+                color={theme.colors.textTertiary}
+              />
+              {entry.commentCount !== undefined && entry.commentCount > 0 && (
+                <Text style={styles.commentCount}>{entry.commentCount}</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </TouchableOpacity>
