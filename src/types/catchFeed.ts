@@ -34,6 +34,7 @@ export interface CatchFeedEntry {
   createdAt: string;            // When the report was submitted
   likeCount: number;            // Number of likes on this catch
   isLikedByCurrentUser: boolean; // Whether the current user has liked this catch
+  commentCount?: number;         // Number of comments on this catch (optional during rollout)
 }
 
 /**
@@ -121,4 +122,18 @@ export interface TopAngler {
   profileImage?: string;
   value: number | string;  // Number for catches/species, string for length (e.g., "32 inches")
   label: string;           // Display label (e.g., "catches", "species", "longest")
+}
+
+/**
+ * Represents a single comment on a catch.
+ */
+export interface CatchComment {
+  id: string;
+  reportId: string;
+  userId: string;
+  anglerName: string;            // First name + last initial
+  anglerProfileImage?: string;
+  text: string;
+  createdAt: string;             // ISO timestamp
+  isOwn: boolean;                // True if authored by the current user (drives delete UI)
 }

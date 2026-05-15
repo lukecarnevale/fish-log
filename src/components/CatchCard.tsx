@@ -33,6 +33,7 @@ interface CatchCardProps {
   onAnglerPress?: (userId: string) => void;
   onCardPress?: (entry: CatchFeedEntry) => void;
   onLikePress?: (entry: CatchFeedEntry) => void;
+  onCommentPress?: (entry: CatchFeedEntry) => void;
   compact?: boolean;
   // Species image URL to show when user hasn't submitted their own photo
   speciesImageUrl?: string;
@@ -43,6 +44,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
   onAnglerPress,
   onCardPress,
   onLikePress,
+  onCommentPress,
   compact = false,
   speciesImageUrl,
 }) => {
@@ -80,9 +82,17 @@ const CatchCard: React.FC<CatchCardProps> = ({
     }
   }, [onCardPress, onAnglerPress, entry]);
 
+  const handleAnglerOverlayPress = useCallback(() => {
+    onAnglerPress?.(entry.userId);
+  }, [onAnglerPress, entry.userId]);
+
   const handleLikePress = useCallback(() => {
     onLikePress?.(entry);
   }, [onLikePress, entry]);
+
+  const handleCommentPress = useCallback(() => {
+    onCommentPress?.(entry);
+  }, [onCommentPress, entry]);
 
   // Paging handler — fires once per swipe (on momentum-end) so the dot
   // indicator and a11y announcement update atomically. Announces via
@@ -301,9 +311,16 @@ const CatchCard: React.FC<CatchCardProps> = ({
           style={styles.topGradient}
         />
 
-        {/* Profile and timestamp overlay at top */}
-        <View style={styles.topOverlay}>
-          {/* Avatar - not clickable */}
+        {/* Profile and timestamp overlay at top — own touchable so tapping
+            avatar/name opens the angler profile while card body opens comments. */}
+        <TouchableOpacity
+          style={styles.topOverlay}
+          onPress={handleAnglerOverlayPress}
+          activeOpacity={0.85}
+          disabled={!onAnglerPress}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${entry.anglerName}'s profile`}
+        >
           <View style={styles.topAvatarContainer}>
             {entry.anglerProfileImage ? (
               <Image
@@ -326,7 +343,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
             <Text style={styles.topAnglerName}>{entry.anglerName}</Text>
             <Text style={styles.topTimestamp}>{relativeTime}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Gradient overlay at bottom of photo */}
         <LinearGradient
@@ -370,27 +387,51 @@ const CatchCard: React.FC<CatchCardProps> = ({
           })}
         </View>
 
-        {/* Like button */}
-        <TouchableOpacity
-          style={styles.likeButton}
-          onPress={handleLikePress}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons
-            name={entry.isLikedByCurrentUser ? 'heart' : 'heart-outline'}
-            size={22}
-            color={entry.isLikedByCurrentUser ? '#E53935' : theme.colors.textTertiary}
-          />
-          {entry.likeCount > 0 && (
-            <Text style={[
-              styles.likeCount,
-              entry.isLikedByCurrentUser && styles.likeCountActive
-            ]}>
-              {entry.likeCount}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {/* Actions row: like + comment */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.likeButton}
+            onPress={handleLikePress}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name={entry.isLikedByCurrentUser ? 'heart' : 'heart-outline'}
+              size={22}
+              color={entry.isLikedByCurrentUser ? '#E53935' : theme.colors.textTertiary}
+            />
+            {entry.likeCount > 0 && (
+              <Text style={[
+                styles.likeCount,
+                entry.isLikedByCurrentUser && styles.likeCountActive
+              ]}>
+                {entry.likeCount}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.commentButton}
+            onPress={handleCommentPress}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              entry.commentCount && entry.commentCount > 0
+                ? `${entry.commentCount} comments, open thread`
+                : 'Add a comment'
+            }
+          >
+            <Ionicons
+              name="chatbubble-outline"
+              size={20}
+              color={theme.colors.textTertiary}
+            />
+            {entry.commentCount !== undefined && entry.commentCount > 0 && (
+              <Text style={styles.commentCount}>{entry.commentCount}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -550,10 +591,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: 8,
     flex: 1,
   },
-  likeButton: {
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 12,
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  commentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
   },
   likedHeart: {
     // Filled heart effect - we use color change instead
@@ -566,6 +616,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   likeCountActive: {
     color: '#E53935',
+  },
+  commentCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textTertiary,
+    marginLeft: 5,
   },
 
   // =====================
@@ -645,6 +701,7 @@ const arePropsEqual = (prevProps: CatchCardProps, nextProps: CatchCardProps): bo
     prevProps.entry.id === nextProps.entry.id &&
     prevProps.entry.likeCount === nextProps.entry.likeCount &&
     prevProps.entry.isLikedByCurrentUser === nextProps.entry.isLikedByCurrentUser &&
+    prevProps.entry.commentCount === nextProps.entry.commentCount &&
     prevProps.entry.photoUrls === nextProps.entry.photoUrls &&
     prevProps.entry.photoUrl === nextProps.entry.photoUrl &&
     prevProps.compact === nextProps.compact &&

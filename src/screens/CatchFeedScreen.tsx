@@ -37,6 +37,8 @@ import { getAllSpeciesThemes } from '../constants/speciesColors';
 import CatchCard from '../components/CatchCard';
 import FeedAdCard from '../components/FeedAdCard';
 import AnglerProfileModal from '../components/AnglerProfileModal';
+import CommentsSheet from '../components/CommentsSheet';
+import { MOCK_COMMENTS } from '../data/mockComments';
 import BottomDrawer from '../components/BottomDrawer';
 import StatusBarScrollBlur from '../components/StatusBarScrollBlur';
 import WaveBackground from '../components/WaveBackground';
@@ -337,6 +339,11 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   const [selectedAnglerId, setSelectedAnglerId] = useState<string | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
+  // Comments sheet: holds the report ID currently being commented on (null = closed).
+  // While the catch_comments backend lands behind a feature flag, this opens against
+  // shared mock data so we can iterate on visuals without depending on the schema.
+  const [activeCommentReportId, setActiveCommentReportId] = useState<string | null>(null);
+
   // Fetch species data for fallback images
   const { data: allSpecies, isLoading: speciesLoading } = useAllFishSpecies();
 
@@ -590,6 +597,14 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
     setSelectedAnglerId(null);
   }, []);
 
+  const handleCommentPress = useCallback((entry: CatchFeedEntry) => {
+    setActiveCommentReportId(entry.id);
+  }, []);
+
+  const handleCloseComments = useCallback(() => {
+    setActiveCommentReportId(null);
+  }, []);
+
   // Handle like/unlike a catch
   const handleLikePress = useCallback(async (entry: CatchFeedEntry) => {
     // Optimistically update UI first (for immediate visual feedback)
@@ -713,11 +728,13 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
       <CatchCard
         entry={item.data}
         onAnglerPress={handleAnglerPress}
+        onCardPress={handleCommentPress}
         onLikePress={handleLikePress}
+        onCommentPress={handleCommentPress}
         speciesImageUrl={getSpeciesImageUrl(item.data.species)}
       />
     );
-  }, [handleAnglerPress, handleLikePress, getSpeciesImageUrl]);
+  }, [handleAnglerPress, handleLikePress, handleCommentPress, getSpeciesImageUrl]);
 
   const keyExtractor = useCallback((item: FeedItem, index: number) => {
     if (item.type === 'ad') return `ad-${item.data.id}-${index}`;
@@ -948,6 +965,20 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           visible={showProfileModal}
           userId={selectedAnglerId}
           onClose={handleCloseProfile}
+        />
+
+        {/* Comments Sheet (mock data) */}
+        <CommentsSheet
+          visible={activeCommentReportId !== null}
+          onClose={handleCloseComments}
+          comments={activeCommentReportId ? MOCK_COMMENTS : []}
+          reportId={activeCommentReportId}
+          onAnglerPress={handleAnglerPress}
+          canPost={!!currentUserId}
+          onSubmit={async (_text) => {
+            // Wire to real catch_comments insert once schema lands.
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }}
         />
       </SafeAreaView>
     </View>

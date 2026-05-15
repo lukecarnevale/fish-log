@@ -119,6 +119,54 @@ describe('CatchCard', () => {
     expect(onLikePress).toHaveBeenCalledWith(entry);
   });
 
+  it('calls onAnglerPress (not onCardPress) when angler overlay is pressed', () => {
+    // When both handlers are wired, tapping the avatar/name area should
+    // route to onAnglerPress so the angler profile opens, leaving the
+    // rest of the card free to open comments via onCardPress.
+    const onCardPress = jest.fn();
+    const onAnglerPress = jest.fn();
+    const entry = makeEntry();
+    const { getByText } = render(
+      <CatchCard
+        entry={entry}
+        onAnglerPress={onAnglerPress}
+        onCardPress={onCardPress}
+      />
+    );
+
+    fireEvent.press(getByText('John D.'));
+    expect(onAnglerPress).toHaveBeenCalledWith(entry.userId);
+    expect(onCardPress).not.toHaveBeenCalled();
+  });
+
+  it('calls onCommentPress when comment button is pressed', () => {
+    const onCommentPress = jest.fn();
+    const entry = makeEntry();
+    const { getByText } = render(
+      <CatchCard entry={entry} onCommentPress={onCommentPress} />
+    );
+
+    fireEvent.press(getByText('chatbubble-outline'));
+    expect(onCommentPress).toHaveBeenCalledWith(entry);
+  });
+
+  it('renders comment count when commentCount > 0', () => {
+    const { getByText } = render(
+      <CatchCard entry={makeEntry({ commentCount: 4 })} />
+    );
+
+    expect(getByText('4')).toBeTruthy();
+  });
+
+  it('hides comment count when commentCount is 0 or undefined', () => {
+    const { queryByText } = render(
+      <CatchCard entry={makeEntry({ commentCount: 0 })} />
+    );
+
+    // Heart icon is present but no zero count text — count is hidden at 0.
+    expect(queryByText('0')).toBeNull();
+  });
+
   it('renders compact mode', () => {
     const { queryByText } = render(
       <CatchCard entry={makeEntry({ location: 'Outer Banks' })} compact={true} />
