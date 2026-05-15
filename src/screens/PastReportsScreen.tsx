@@ -1365,13 +1365,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingBottom: 28,
   },
   // Catch logs (personal records, not DMF) get a subtle teal-tinted background
-  // and matching left border to distinguish them at a glance from DMF reports.
+  // to distinguish them from DMF reports. No edge-border accent per the
+  // project-wide UI rule (see CLAUDE.md "UI Implementation Guidelines").
   reportCardCatchLog: {
     backgroundColor: theme.isDark
       ? 'rgba(42, 165, 176, 0.06)'
       : 'rgba(6, 116, 127, 0.04)',
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.secondary,
   },
   statusIconContainer: {
     position: "absolute",
@@ -1892,11 +1891,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.colors.white,
   },
   // Pill on the photo thumbnail showing total photo count when > 1.
-  // Anchored top-right of the photoSection so it sits above the camera chip.
+  // Anchored top-left of the photoSection.
   photoCountBadge: {
     position: "absolute",
     top: -4,
-    right: -4,
+    left: -4,
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
