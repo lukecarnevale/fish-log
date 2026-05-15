@@ -206,17 +206,16 @@ const CatchCard: React.FC<CatchCardProps> = ({
 
   // Full card for main feed - PREMIUM DESIGN
   //
-  // Outer is a Pressable (not TouchableOpacity). TouchableOpacity aggressively
-  // claims the gesture responder, which made the inner paging FlatList for
-  // multi-photo carousels un-swipeable. Pressable lets children claim
-  // horizontal gestures while still firing onPress for a tap on the photo.
-  const isCardPressable = !!onAnglerPress || !!onCardPress;
+  // The outer container is a plain View (no parent tap handler). Wrapping
+  // the whole card in a Pressable / TouchableOpacity caused two problems:
+  //  • the photo carousel was hard to swipe — the parent kept claiming taps
+  //  • near-horizontal swipes leaked into the outer feed's vertical scroll
+  // Instead, the tap target for "open comments" lives on the bottom section
+  // only (species + actions row), matching Instagram's pattern where the
+  // photo body is non-tappable. Avatar / like / comment icons stay as
+  // their own touchables.
   return (
-    <Pressable
-      style={({ pressed }) => [styles.container, pressed && styles.containerPressed]}
-      onPress={handleCardPress}
-      disabled={!isCardPressable}
-    >
+    <View style={styles.container}>
       {/* Photo section with overlays */}
       <View
         style={[
@@ -234,6 +233,10 @@ const CatchCard: React.FC<CatchCardProps> = ({
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
+            // iOS-only: once the user starts moving horizontally, lock out
+            // vertical movement so a near-horizontal swipe can't slip up to
+            // the outer feed's vertical scroll mid-gesture. Ignored on Android.
+            directionalLockEnabled
             data={carouselPhotos}
             keyExtractor={(uri, idx) => `${entry.id}-photo-${idx}`}
             onMomentumScrollEnd={handleCarouselScrollEnd}
@@ -376,8 +379,13 @@ const CatchCard: React.FC<CatchCardProps> = ({
         </View>
       </View>
 
-      {/* Bottom section - species badges with integrated lengths and like button */}
-      <View style={styles.bottomSection}>
+      {/* Bottom section — Pressable so tapping the species/badges area opens
+          comments. Like + comment icons inside still win their own taps. */}
+      <Pressable
+        style={({ pressed }) => [styles.bottomSection, pressed && styles.bottomSectionPressed]}
+        onPress={onCardPress ? handleCardPress : undefined}
+        disabled={!onCardPress}
+      >
         {/* Species list - shows all caught species with lengths integrated */}
         <View style={styles.speciesRow}>
           {speciesList.map((s, index) => {
@@ -440,8 +448,8 @@ const CatchCard: React.FC<CatchCardProps> = ({
             </TouchableOpacity>
           )}
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 };
 
@@ -462,9 +470,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     elevation: 4,
     overflow: 'hidden',
   },
-  // Subtle press feedback to replace TouchableOpacity's activeOpacity
-  containerPressed: {
-    opacity: 0.97,
+  // Subtle press feedback for the bottom section tap target (opens comments).
+  bottomSectionPressed: {
+    opacity: 0.85,
   },
 
   // Photo section - Instagram-style 4:5 portrait ratio

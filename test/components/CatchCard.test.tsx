@@ -96,14 +96,17 @@ describe('CatchCard', () => {
     expect(getByText('12')).toBeTruthy();
   });
 
-  it('calls onCardPress when card is pressed', () => {
+  it('calls onCardPress when the bottom section (species row) is pressed', () => {
+    // The tap target for onCardPress is the bottom species/actions row, not
+    // the whole card — the photo area is intentionally non-tappable so the
+    // multi-photo carousel can claim horizontal swipes cleanly.
     const onCardPress = jest.fn();
     const entry = makeEntry();
     const { getByText } = render(
       <CatchCard entry={entry} onCardPress={onCardPress} />
     );
 
-    fireEvent.press(getByText('John D.'));
+    fireEvent.press(getByText('Red Drum'));
     expect(onCardPress).toHaveBeenCalledWith(entry);
   });
 
