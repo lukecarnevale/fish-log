@@ -514,14 +514,14 @@ const QuarterlyRewardsCard: React.FC<QuarterlyRewardsCardProps> = ({ onReportPre
               {/* Date Cards Row */}
               <View style={styles.modalDatesRow}>
                 <View style={styles.modalDateCard}>
-                  <View style={[styles.modalDateIconCircle, { backgroundColor: '#E3F2FD' }]}>
+                  <View style={[styles.modalDateIconCircle, { backgroundColor: C.bgLight }]}>
                     <Feather name="play-circle" size={18} color={C.iconOnSurface} />
                   </View>
                   <Text style={styles.modalDateLabel}>Opens</Text>
                   <Text style={styles.modalDateValue}>{formatDate(currentDrawing.startDate)}</Text>
                 </View>
                 <View style={styles.modalDateCard}>
-                  <View style={[styles.modalDateIconCircle, { backgroundColor: '#FFF3E0' }]}>
+                  <View style={[styles.modalDateIconCircle, { backgroundColor: theme.colors.warningLight }]}>
                     <Feather name="x-circle" size={18} color={C.orange} />
                   </View>
                   <Text style={styles.modalDateLabel}>Closes</Text>
@@ -1529,7 +1529,7 @@ const createStyles = (theme: Theme) => {
   modalDateCardHighlight: {
     borderColor: C.navyDark,
     borderWidth: 1.5,
-    backgroundColor: '#F0F5FA',
+    backgroundColor: C.bgLight,
   },
   modalDateIconCircle: {
     width: 36,
@@ -1617,7 +1617,7 @@ const createStyles = (theme: Theme) => {
     marginBottom: 6,
   },
   modalPrizeValueBadge: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: theme.colors.warningLight,
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -1661,7 +1661,7 @@ const createStyles = (theme: Theme) => {
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: '#E3EBF6',
+    backgroundColor: C.bgLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1680,7 +1680,7 @@ const createStyles = (theme: Theme) => {
     marginTop: 2,
   },
   modalPrizeValueBadgeSmall: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: theme.colors.warningLight,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1705,7 +1705,7 @@ const createStyles = (theme: Theme) => {
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#E3EBF6',
+    backgroundColor: C.bgLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 1,
@@ -1723,10 +1723,10 @@ const createStyles = (theme: Theme) => {
     gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#F0F4FA',
+    backgroundColor: C.bgLight,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D8E2EF',
+    borderColor: C.border,
   },
   officialRulesLinkText: {
     flex: 1,
@@ -1830,7 +1830,7 @@ const createStyles = (theme: Theme) => {
   eligibilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
+    backgroundColor: theme.colors.successLight,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1839,7 +1839,7 @@ const createStyles = (theme: Theme) => {
     gap: 6,
   },
   eligibilityBadgeInactive: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: theme.colors.warningLight,
   },
   eligibilityBadgeText: {
     fontSize: 14,
