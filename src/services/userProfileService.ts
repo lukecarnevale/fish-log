@@ -91,6 +91,11 @@ export async function syncToUserProfile(user: User): Promise<void> {
     const existingProfile = await AsyncStorage.getItem(STORAGE_KEYS.userProfile);
     const profileData = existingProfile ? JSON.parse(existingProfile) : {};
 
+    // wrcId and licenseNumber represent the same value (NC WRC ID / Customer ID)
+    // but live in two Supabase columns for historical reasons. Treat them as
+    // interchangeable so a value entered in any screen propagates everywhere.
+    const effectiveWrcId = user.wrcId || user.licenseNumber || profileData.wrcId || profileData.licenseNumber;
+
     // Merge with user data from Supabase (user data takes precedence for matching fields)
     const updatedProfile = {
       ...profileData,
@@ -103,8 +108,8 @@ export async function syncToUserProfile(user: User): Promise<void> {
       zipCode: user.zipCode || profileData.zipCode,
       dateOfBirth: user.dateOfBirth || profileData.dateOfBirth,
       hasLicense: user.hasLicense ?? profileData.hasLicense,
-      wrcId: user.wrcId || profileData.wrcId,
-      licenseNumber: user.licenseNumber || profileData.licenseNumber,
+      wrcId: effectiveWrcId,
+      licenseNumber: effectiveWrcId,
       licenseType: user.licenseType || profileData.licenseType,
       licenseIssueDate: user.licenseIssueDate || profileData.licenseIssueDate,
       licenseExpiryDate: user.licenseExpiryDate || profileData.licenseExpiryDate,
@@ -121,11 +126,12 @@ export async function syncToUserProfile(user: User): Promise<void> {
     // Merge with existing local data to avoid overwriting locally-entered values with nulls.
     const existingLicense = await AsyncStorage.getItem('fishingLicense');
     const licenseData: FishingLicense = existingLicense ? JSON.parse(existingLicense) : {};
+    const effectiveLicenseNumber = user.licenseNumber || user.wrcId || licenseData.licenseNumber;
     const updatedLicense: FishingLicense = {
       ...licenseData,
       firstName: user.firstName || licenseData.firstName,
       lastName: user.lastName || licenseData.lastName,
-      licenseNumber: user.licenseNumber || licenseData.licenseNumber,
+      licenseNumber: effectiveLicenseNumber,
       licenseType: user.licenseType || licenseData.licenseType,
       // Map User field names to FishingLicense field names
       issueDate: user.licenseIssueDate || licenseData.issueDate,

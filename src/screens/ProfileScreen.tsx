@@ -468,6 +468,9 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             zipCode: formData.zipCode || undefined,
             hasLicense: formData.hasLicense,
             wrcId: formData.wrcId || undefined,
+            // Mirror wrcId to licenseNumber so both Supabase columns stay in sync
+            // (they represent the same value; License screen reads licenseNumber).
+            licenseNumber: formData.wrcId || undefined,
             profileImageUrl: profileImageUrl || undefined,
             preferredAreaCode: formData.preferredAreaCode || undefined,
             preferredAreaLabel: formData.preferredAreaLabel || undefined,
