@@ -1292,7 +1292,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={onDateChange}
                   maximumDate={new Date()}
-                  themeVariant="light"
+                  themeVariant={theme.isDark ? 'dark' : 'light'}
                   style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
                 />
               )}

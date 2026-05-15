@@ -2414,7 +2414,7 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
               <View style={localStyles.dateModalHeader}>
                 <Text style={localStyles.dateModalTitle}>Select Date</Text>
                 <TouchableOpacity onPress={closeDatePicker}>
-                  <Feather name="x" size={24} color={theme.colors.darkGray} />
+                  <Feather name="x" size={24} color={theme.colors.textSecondary} />
                 </TouchableOpacity>
               </View>
               {isPickerMounted && (
@@ -2425,7 +2425,9 @@ const ReportFormScreen: React.FC<ReportFormScreenProps> = ({ navigation }) => {
                   display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={handleDateChange}
                   maximumDate={new Date()}
-                  themeVariant="light"
+                  // Follow the app theme so the spinner numerals/labels stay
+                  // readable in dark mode (was hard-coded "light").
+                  themeVariant={theme.isDark ? 'dark' : 'light'}
                   style={Platform.OS === 'ios' ? { height: 216, width: '100%' } : undefined}
                 />
               )}

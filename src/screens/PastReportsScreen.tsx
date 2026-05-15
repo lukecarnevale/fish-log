@@ -1236,7 +1236,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDateChange}
               maximumDate={new Date()}
-              themeVariant="light"
+              themeVariant={theme.isDark ? "dark" : "light"}
               style={Platform.OS === "ios" ? { height: 216, width: "100%" } : undefined}
             />
             {Platform.OS === "ios" && (

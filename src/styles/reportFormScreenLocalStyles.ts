@@ -2447,6 +2447,10 @@ export const createReportFormLocalStyles = (theme: Theme) =>
     dateModalOverlay: modals.overlay,
     dateModalContent: {
       ...modals.content,
+      // modals.content uses the static (light-only) palette and hard-codes
+      // a #FFFFFF background. Override with the themed surfaceElevated so
+      // dark mode actually adapts.
+      backgroundColor: theme.colors.surfaceElevated,
       width: "90%",
       padding: spacing.lg,
     },
@@ -2464,13 +2468,13 @@ export const createReportFormLocalStyles = (theme: Theme) =>
     datePickerContainer: {
       width: "100%",
       minHeight: 350,
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.surfaceElevated,
       overflow: "hidden",
     },
     datePickerInline: {
       height: 350,
       width: "100%",
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.surfaceElevated,
     },
     dateModalConfirmButton: {
       backgroundColor: theme.colors.primary,
