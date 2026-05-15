@@ -10,6 +10,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   FlatList,
   AccessibilityInfo,
@@ -204,12 +205,17 @@ const CatchCard: React.FC<CatchCardProps> = ({
   };
 
   // Full card for main feed - PREMIUM DESIGN
+  //
+  // Outer is a Pressable (not TouchableOpacity). TouchableOpacity aggressively
+  // claims the gesture responder, which made the inner paging FlatList for
+  // multi-photo carousels un-swipeable. Pressable lets children claim
+  // horizontal gestures while still firing onPress for a tap on the photo.
+  const isCardPressable = !!onAnglerPress || !!onCardPress;
   return (
-    <TouchableOpacity
-      style={styles.container}
+    <Pressable
+      style={({ pressed }) => [styles.container, pressed && styles.containerPressed]}
       onPress={handleCardPress}
-      activeOpacity={0.97}
-      disabled={!onAnglerPress && !onCardPress}
+      disabled={!isCardPressable}
     >
       {/* Photo section with overlays */}
       <View
@@ -435,7 +441,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -455,6 +461,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
     overflow: 'hidden',
+  },
+  // Subtle press feedback to replace TouchableOpacity's activeOpacity
+  containerPressed: {
+    opacity: 0.97,
   },
 
   // Photo section - Instagram-style 4:5 portrait ratio
