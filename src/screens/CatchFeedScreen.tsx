@@ -15,8 +15,10 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  LayoutAnimation,
   Platform,
   StatusBar,
+  UIManager,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -58,6 +60,12 @@ import { usePulseAnimation } from '../hooks/usePulseAnimation';
 import { Advertisement } from '../services/transformers/advertisementTransformer';
 import { fetchAdvertisements } from '../services/advertisementsService';
 import { intersperseFeedAds, FeedItem } from '../utils/feedAdPlacer';
+
+// LayoutAnimation requires an explicit opt-in on Android. Safe to call
+// repeatedly — UIManager guards internally.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type CatchFeedScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -364,6 +372,24 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   const [followingEntries, setFollowingEntries] = useState<CatchFeedEntry[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
   const [followingError, setFollowingError] = useState<string | null>(null);
+
+  // Tab change handler: smooths the visual transition by
+  //  1) animating the header layout (Top Anglers + filter row collapsing /
+  //     expanding) via LayoutAnimation, and
+  //  2) flipping followingLoading synchronously when entering Following with
+  //     no cached entries, so the first render shows the skeleton instead
+  //     of briefly flashing the empty state before the fetch effect runs.
+  const handleSwitchTab = useCallback(
+    (next: 'discover' | 'following') => {
+      if (next === activeTab) return;
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setActiveTab(next);
+      if (next === 'following' && currentUserId && followingEntries.length === 0) {
+        setFollowingLoading(true);
+      }
+    },
+    [activeTab, currentUserId, followingEntries.length],
+  );
 
   // Master gate for the social feature set (comments, follows, blocks, following tab).
   // Defaults off until the flag is flipped in the feature_flags table.
@@ -812,7 +838,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           {currentUserId && (
             <TouchableOpacity
               style={styles.emptyCTA}
-              onPress={() => setActiveTab('discover')}
+              onPress={() => handleSwitchTab('discover')}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -924,7 +950,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         <View style={styles.feedTabRow}>
           <TouchableOpacity
             style={[styles.feedTab, activeTab === 'discover' && styles.feedTabActive]}
-            onPress={() => setActiveTab('discover')}
+            onPress={() => handleSwitchTab('discover')}
             activeOpacity={0.85}
           >
             <Text
@@ -938,7 +964,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.feedTab, activeTab === 'following' && styles.feedTabActive]}
-            onPress={() => setActiveTab('following')}
+            onPress={() => handleSwitchTab('following')}
             activeOpacity={0.85}
           >
             <Text
@@ -994,7 +1020,7 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
         />
       </View>
     </View>
-  ), [topAnglers, selectedArea, selectedSpecies, showPhotosOnly, activeTab, currentUserId, socialEnabled]);
+  ), [topAnglers, selectedArea, selectedSpecies, showPhotosOnly, activeTab, currentUserId, socialEnabled, handleSwitchTab]);
 
   const renderListFooter = useCallback(() => {
     if (feedItems.length === 0) return null;
