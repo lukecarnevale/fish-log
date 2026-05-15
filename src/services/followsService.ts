@@ -92,6 +92,79 @@ export async function unfollowUser(
  * Fetch the "Following" feed for the current user via the get_following_feed RPC.
  * Returns the same shape as the public feed so the existing card renders unchanged.
  */
+export interface FollowListMember {
+  userId: string;
+  displayName: string;
+  profileImage?: string;
+}
+
+interface RawMemberRow {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  profile_image_url: string | null;
+}
+
+function transformMember(row: RawMemberRow): FollowListMember {
+  const firstName = row.first_name || 'Anonymous';
+  const lastInitial = row.last_name ? `${row.last_name.charAt(0)}.` : '';
+  return {
+    userId: row.id,
+    displayName: `${firstName} ${lastInitial}`.trim(),
+    profileImage: row.profile_image_url ?? undefined,
+  };
+}
+
+/**
+ * Fetch the users who follow `targetUserId` (i.e., targetUserId's followers).
+ */
+export async function fetchFollowers(targetUserId: string): Promise<FollowListMember[]> {
+  const { data, error } = await supabase
+    .from('user_follows')
+    .select(`
+      users:follower_id (
+        id,
+        first_name,
+        last_name,
+        profile_image_url
+      )
+    `)
+    .eq('following_id', targetUserId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(`Failed to fetch followers: ${error.message}`);
+
+  return ((data ?? []) as unknown as Array<{ users: RawMemberRow | null }>)
+    .map((r) => r.users)
+    .filter((u): u is RawMemberRow => !!u)
+    .map(transformMember);
+}
+
+/**
+ * Fetch the users that `sourceUserId` is following.
+ */
+export async function fetchFollowing(sourceUserId: string): Promise<FollowListMember[]> {
+  const { data, error } = await supabase
+    .from('user_follows')
+    .select(`
+      users:following_id (
+        id,
+        first_name,
+        last_name,
+        profile_image_url
+      )
+    `)
+    .eq('follower_id', sourceUserId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(`Failed to fetch following: ${error.message}`);
+
+  return ((data ?? []) as unknown as Array<{ users: RawMemberRow | null }>)
+    .map((r) => r.users)
+    .filter((u): u is RawMemberRow => !!u)
+    .map(transformMember);
+}
+
 export async function fetchFollowingFeed(
   limit = 12,
   offset = 0,

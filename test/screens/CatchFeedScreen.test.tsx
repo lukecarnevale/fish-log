@@ -156,18 +156,9 @@ jest.mock('../../src/components/TopAnglersSection', () => {
   };
 });
 
-jest.mock('../../src/components/AnglerProfileModal', () => {
-  const { View, Text } = require('react-native');
-  return {
-    __esModule: true,
-    default: ({ visible, userId }: any) =>
-      visible ? (
-        <View testID="angler-profile-modal">
-          <Text>Profile: {userId}</Text>
-        </View>
-      ) : null,
-  };
-});
+// AnglerProfile is now a real Stack screen (AnglerProfileScreen) — no longer a
+// modal rendered by CatchFeedScreen. Navigation is handled by react-navigation
+// which is mocked at the navigator level in earlier setup.
 
 jest.mock('../../src/components/BottomDrawer', () => {
   const { View } = require('react-native');

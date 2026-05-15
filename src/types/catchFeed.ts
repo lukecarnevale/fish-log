@@ -38,17 +38,33 @@ export interface CatchFeedEntry {
 }
 
 /**
+ * A single achievement earned by an angler.
+ */
+export interface EarnedAchievement {
+  code: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  category: string | null;
+  earnedAt: string;
+}
+
+/**
  * Represents an angler's profile with their catch statistics.
  */
 export interface AnglerProfile {
   userId: string;
   displayName: string;          // First name + last initial
   profileImage?: string;
+  bio?: string;                 // Short blurb shown under the name
   totalCatches: number;
   speciesCaught: string[];      // Unique species list
   topSpecies?: string;          // Most frequently caught species
   recentCatches: CatchFeedEntry[];
   memberSince: string;          // rewardsOptedInAt timestamp
+  followersCount?: number;      // Denormalized on users table
+  followingCount?: number;
+  achievements?: EarnedAchievement[];
 }
 
 /**

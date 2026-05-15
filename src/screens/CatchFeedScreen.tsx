@@ -36,7 +36,6 @@ import { Theme } from '../styles/theme';
 import { getAllSpeciesThemes } from '../constants/speciesColors';
 import CatchCard from '../components/CatchCard';
 import FeedAdCard from '../components/FeedAdCard';
-import AnglerProfileModal from '../components/AnglerProfileModal';
 import CommentsSheet from '../components/CommentsSheet';
 import {
   useComments,
@@ -355,9 +354,6 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   const [showAreaPicker, setShowAreaPicker] = useState(false);
   const [showSpeciesPicker, setShowSpeciesPicker] = useState(false);
 
-  // Angler profile modal state
-  const [selectedAnglerId, setSelectedAnglerId] = useState<string | null>(null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Comments sheet: holds the report ID currently being commented on (null = closed).
   const [activeCommentReportId, setActiveCommentReportId] = useState<string | null>(null);
@@ -653,15 +649,17 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
   }, [loadFeed]);
 
 
-  const handleAnglerPress = useCallback((userId: string) => {
-    setSelectedAnglerId(userId);
-    setShowProfileModal(true);
-  }, []);
-
-  const handleCloseProfile = useCallback(() => {
-    setShowProfileModal(false);
-    setSelectedAnglerId(null);
-  }, []);
+  const handleAnglerPress = useCallback(
+    (userId: string) => {
+      // Social-aware angler tap: when the social_features flag is on, navigate
+      // to the full-screen AnglerProfileScreen (Instagram-style profile + grid).
+      // When off, fall back to the no-op behaviour the modal used to provide.
+      if (socialEnabled) {
+        navigation.navigate('AnglerProfile', { userId });
+      }
+    },
+    [navigation, socialEnabled],
+  );
 
   const handleCommentPress = useCallback((entry: CatchFeedEntry) => {
     setActiveCommentReportId(entry.id);
@@ -1169,20 +1167,8 @@ const CatchFeedScreen: React.FC<CatchFeedScreenProps> = ({ navigation }) => {
           onClose={() => setShowSpeciesPicker(false)}
         />
 
-        {/* Angler Profile Modal. Social controls (Follow + Block) only show
-            when the social_features flag is on. */}
-        <AnglerProfileModal
-          visible={showProfileModal}
-          userId={selectedAnglerId}
-          onClose={handleCloseProfile}
-          currentUserId={socialEnabled ? currentUserId : null}
-          onBlockSuccess={(blockedUserId) => {
-            setEntries((prev) => prev.filter((e) => e.userId !== blockedUserId));
-            setFollowingEntries((prev) =>
-              prev.filter((e) => e.userId !== blockedUserId),
-            );
-          }}
-        />
+        {/* Angler profile is now a Stack screen (AnglerProfileScreen) instead
+            of a modal. Tapping an angler avatar/name navigates there. */}
 
         {/* Comments Sheet — backed by catch_comments via React Query. */}
         <CommentsSheet

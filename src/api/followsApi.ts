@@ -8,7 +8,10 @@ import {
   followUser,
   unfollowUser,
   fetchFollowingFeed,
+  fetchFollowers,
+  fetchFollowing,
   FollowProfileData,
+  FollowListMember,
 } from '../services/followsService';
 
 const FOLLOW_PROFILE_KEY = 'followProfile';
@@ -114,3 +117,30 @@ export function useFollowingFeedPage(
 }
 
 export const FOLLOWING_FEED_QUERY_KEY = FOLLOWING_FEED_KEY;
+
+const FOLLOWERS_LIST_KEY = 'followersList';
+const FOLLOWING_LIST_KEY = 'followingList';
+
+/**
+ * Fetch the list of users following the given target. Used by FollowListSheet.
+ */
+export function useFollowersList(targetUserId: string | null) {
+  return useQuery<FollowListMember[]>({
+    queryKey: [FOLLOWERS_LIST_KEY, targetUserId ?? 'disabled'],
+    queryFn: () => fetchFollowers(targetUserId as string),
+    enabled: !!targetUserId,
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Fetch the list of users the given source is following.
+ */
+export function useFollowingList(sourceUserId: string | null) {
+  return useQuery<FollowListMember[]>({
+    queryKey: [FOLLOWING_LIST_KEY, sourceUserId ?? 'disabled'],
+    queryFn: () => fetchFollowing(sourceUserId as string),
+    enabled: !!sourceUserId,
+    staleTime: 30 * 1000,
+  });
+}
