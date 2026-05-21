@@ -27,7 +27,7 @@ const STORAGE_KEYS = {
 // =============================================================================
 
 /**
- * Find user by device ID.
+ * Find user by device ID. Returns null if no row matches.
  */
 export async function findUserByDeviceId(deviceId: string): Promise<User | null> {
   const { data, error } = await supabase
@@ -35,12 +35,9 @@ export async function findUserByDeviceId(deviceId: string): Promise<User | null>
     .select('*')
     .eq('device_id', deviceId)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // No user found
-    }
     throw new Error(`Failed to find user: ${error.message}`);
   }
 
@@ -48,7 +45,7 @@ export async function findUserByDeviceId(deviceId: string): Promise<User | null>
 }
 
 /**
- * Find user by email.
+ * Find user by email. Returns null if no row matches.
  */
 export async function findUserByEmail(email: string): Promise<User | null> {
   const { data, error } = await supabase
@@ -56,12 +53,9 @@ export async function findUserByEmail(email: string): Promise<User | null> {
     .select('*')
     .eq('email', email.toLowerCase())
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null; // No user found
-    }
     throw new Error(`Failed to find user: ${error.message}`);
   }
 

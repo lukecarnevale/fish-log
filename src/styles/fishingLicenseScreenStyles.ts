@@ -813,9 +813,15 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
       paddingHorizontal: spacing.lg,
       marginBottom: spacing.lg,
     },
+    // Filled-state card — credit-card style layout that mirrors the zero-state
+    // silhouette: flag + eyebrow/title row on top, holder name + license # in
+    // the middle, EXPIRES | ISSUED | actions across the bottom. Padding is
+    // kept tight so the card stays landscape-shaped (like an ID).
     licenseCard: {
       borderRadius: borderRadius.lg,
       overflow: "hidden",
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
       shadowColor: theme.colors.shadow,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.2,
@@ -824,11 +830,8 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
     },
     licenseCardHeader: {
       flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: "rgba(255, 255, 255, 0.2)",
+      alignItems: "flex-start",
+      gap: spacing.sm,
     },
     licenseLogoContainer: {
       width: 50,
@@ -847,7 +850,167 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
     },
     licenseHeaderText: {
       flex: 1,
+      justifyContent: 'center',
     },
+    // Small uppercase eyebrow above "FISHING LICENSE" — this is entered data
+    // (the derived license type), so it gets its own cool ocean-silver accent
+    // to feel premium alongside the other metallic data values.
+    licenseState: {
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0.8,
+      color: theme.isDark ? '#E5EDF4' : '#D9E4EC',
+    },
+    // Bold uppercase main title — static label, stays white.
+    licenseTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      letterSpacing: 0.4,
+      color: theme.colors.textOnPrimary,
+      marginTop: 1,
+    },
+    // Hero block — the license number is the star of the card. Centered
+    // horizontally with a small uppercase label above it.
+    licenseNumberHero: {
+      marginTop: spacing.lg,
+      marginBottom: spacing.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.sm,
+    },
+    licenseFieldBlock: {
+      // Each labeled field group.
+    },
+    // Small uppercase field labels above hero/footer fields — add premium hierarchy.
+    // Labels stay white-with-opacity in both modes so they recede behind the
+    // metallic data values.
+    licenseFieldLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1.2,
+      color: theme.colors.textOnPrimary,
+      opacity: 0.65,
+      marginBottom: 4,
+    },
+    // Centered variant of the field label — used above the hero license number.
+    licenseFieldLabelCentered: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1.6,
+      color: theme.colors.textOnPrimary,
+      opacity: 0.7,
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    // ── Entered data — premium metallic palette ──────────────────────────
+    // The data values use distinct metallic accents so the card reads like a
+    // real ID / credit card:
+    //   • Cardholder name  → platinum silver (cool, bright, stands out)
+    //   • License number   → champagne gold  (hero, warmest accent)
+    //   • Dates            → icy sky-silver  (cool, subdued, complements gold)
+    // Dark mode bumps each tone slightly brighter because the dark-mode
+    // gradient top (#3A8AC2) is lighter than the light-mode gradient top
+    // (#0B548B), reducing contrast for pale tones.
+
+    // Cardholder name — platinum silver.
+    licenseHolderName: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.isDark ? '#FFFFFF' : '#F2F4F7',
+      letterSpacing: 0.3,
+      // Subtle text shadow for an embossed, tactile feel in both modes.
+      textShadowColor: 'rgba(0, 0, 0, 0.25)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 1.5,
+    },
+    // Embossed-style license number — monospace via Platform font + letter-spacing.
+    // The hero of the card: largest, and the warmest metallic accent (champagne gold).
+    licenseNumberText: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: theme.isDark ? '#F3D997' : '#E8D18C',
+      letterSpacing: 3,
+      fontVariant: ['tabular-nums'],
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      textAlign: 'center',
+      // Deeper embossed shadow for the hero number.
+      textShadowColor: 'rgba(0, 0, 0, 0.35)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+    // Field labels (EXPIRES / ISSUED) — uppercase eyebrow style.
+    licenseLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1.2,
+      color: theme.colors.textOnPrimary,
+      opacity: 0.65,
+      marginBottom: 4,
+    },
+    // Right-aligned variant for the ISSUED column.
+    licenseLabelRight: {
+      textAlign: 'right',
+    },
+    // Field values (issued/expires dates) — icy sky-silver.
+    licenseValue: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.isDark ? '#D5E5F3' : '#BFD4E6',
+      letterSpacing: 0.2,
+    },
+    // Right-aligned variant for the ISSUED column values.
+    licenseValueRight: {
+      textAlign: 'right',
+    },
+    // Footer: left column stacks CARDHOLDER name on top of an ISSUED|EXPIRES row.
+    // The edit pencil sits at the bottom-right, aligned to the bottom of the left column.
+    licenseFooter: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "space-between",
+      gap: spacing.md,
+    },
+    licenseFooterLeft: {
+      flex: 1,
+      flexShrink: 1,
+    },
+    // Row of ISSUED | EXPIRES underneath the cardholder name.
+    licenseDatesRow: {
+      flexDirection: 'row',
+      marginTop: spacing.sm,
+      gap: spacing.lg,
+    },
+    licenseFooterField: {
+      flexShrink: 1,
+    },
+    licenseFooterActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    // Unified icon-only action button used for both info (top-right) and edit (footer).
+    licenseIconButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: "rgba(255, 255, 255, 0.2)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    // Off-screen accessibility node that preserves the full license type
+    // string for screen readers and tests. Visually hidden but queryable.
+    licenseA11yOnly: {
+      position: 'absolute',
+      width: 1,
+      height: 1,
+      opacity: 0,
+      overflow: 'hidden',
+    },
+    licenseA11yOnlyText: {
+      fontSize: 1,
+      color: 'transparent',
+    },
+    // ─── Legacy styles retained for backwards compat (no longer used in filled card) ───
     licenseInfoButton: {
       width: 36,
       height: 36,
@@ -856,19 +1019,6 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
       alignItems: "center",
       justifyContent: "center",
       marginLeft: spacing.sm,
-    },
-    licenseState: {
-      ...typography.h4,
-      color: theme.colors.white,
-      opacity: 0.9,
-    },
-    licenseTitle: {
-      ...typography.h2,
-      color: theme.colors.white,
-      fontWeight: "bold",
-    },
-    licenseContent: {
-      padding: spacing.md,
     },
     licenseSection: {
       marginBottom: spacing.md,
@@ -885,23 +1035,6 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       marginBottom: spacing.xs,
-    },
-    licenseLabel: {
-      ...typography.bodySmall,
-      color: theme.colors.white,
-      opacity: 0.8,
-      width: 90,
-    },
-    licenseValue: {
-      ...typography.body,
-      color: theme.colors.white,
-      flex: 1,
-    },
-    licenseFooter: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginTop: spacing.md,
     },
     licenseFooterText: {
       ...typography.caption,
@@ -1499,6 +1632,8 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
     dateModalOverlay: modals.overlay,
     dateModalContent: {
       ...modals.content,
+      // Override the static white background so the modal respects dark mode
+      backgroundColor: theme.colors.surface,
       padding: spacing.lg,
     },
     dateModalHeader: {
@@ -1515,7 +1650,7 @@ export const createFishingLicenseScreenStyles = (theme: Theme) =>
     datePickerInline: {
       height: 350,
       width: '100%',
-      backgroundColor: theme.colors.white,
+      backgroundColor: theme.colors.surface,
     },
     dateModalConfirmButton: {
       backgroundColor: theme.colors.primary,

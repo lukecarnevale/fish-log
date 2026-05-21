@@ -444,15 +444,22 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
   const gestureIsEdgeRef = useRef(false);
 
   const edgeSwipeGesture = useMemo(
-    () =>
-      Gesture.Pan()
+    () => {
+      // Capture the screen width HERE (JS thread) so the worklet-ized gesture
+      // callbacks below can use it via closure. When Reanimated is installed,
+      // react-native-gesture-handler auto-converts these callbacks into
+      // worklets that run on the UI thread — and worklets can't call
+      // Dimensions.get (JS-only API). Capturing a plain number lets the
+      // babel plugin serialize it into the UI-thread context.
+      const screenWidth = Dimensions.get('window').width;
+
+      return Gesture.Pan()
         // Activate on any leftward motion >= 8pt. Before this threshold,
         // vertical scrolls can still take the gesture via failOffsetY.
         .activeOffsetX([-8, 10_000])
         .failOffsetY([-12, 12])
         .onBegin((e) => {
           gestureStartXRef.current = e.absoluteX;
-          const screenWidth = Dimensions.get('window').width;
           gestureIsEdgeRef.current =
             e.absoluteX >= screenWidth - EDGE_SWIPE_ZONE_WIDTH;
         })
@@ -522,7 +529,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation, route }) => {
             ]).start();
           }
           gestureIsEdgeRef.current = false;
-        }),
+        });
+    },
     [slideAnim, overlayOpacity]
   );
 

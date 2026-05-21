@@ -241,7 +241,7 @@ export async function getRewardsMemberForAnonymousUser(): Promise<User | null> {
         .select('*')
         .ilike('email', authState.user.email)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!authError && authUserData) {
         console.log('🔑 Found rewards member by auth email:', authState.user.email);
@@ -264,12 +264,9 @@ export async function getRewardsMemberForAnonymousUser(): Promise<User | null> {
       .select('*')
       .eq('anonymous_user_id', anonymousUser.id)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return null; // No user found
-      }
       throw error;
     }
 

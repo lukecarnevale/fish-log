@@ -236,9 +236,11 @@ describe('FishingLicenseScreen', () => {
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
-      // 'License Information' appears twice: once in the card section title, once as the eyebrow header
+      // 'License Information' appears once as the eyebrow header below the card.
+      // (The filled card itself no longer uses "License Information" as a section
+      // title — it's a compact credit-card layout now.)
       const matches = await findAllByText('License Information');
-      expect(matches.length).toBeGreaterThanOrEqual(2);
+      expect(matches.length).toBeGreaterThanOrEqual(1);
       // Expandable sections are also present
       expect(await findByText('License Requirements')).toBeTruthy();
     });
@@ -269,11 +271,14 @@ describe('FishingLicenseScreen', () => {
       expect(safeOpenURL).toHaveBeenCalledWith('https://www.ncwildlife.gov/fishing');
     });
 
-    it('renders disclaimer text about official license', async () => {
-      const { findByText } = render(
+    it('renders disclaimer text about official license in the info modal', async () => {
+      const { findByText, findByTestId } = render(
         <FishingLicenseScreen navigation={mockNavigation} />
       );
 
+      // Disclaimer is no longer on the card itself; it now lives in the info
+      // modal surfaced by the (i) button in the card footer.
+      fireEvent.press(await findByTestId('license-info-button'));
       expect(await findByText(/This does not replace licensing from NC WRC/)).toBeTruthy();
     });
   });

@@ -1,5 +1,12 @@
 const { version } = require("./package.json");
 
+// ⚠️ DO NOT run `npx expo prebuild --clean` without considering the impact.
+// The `ios/` directory has hand-tuned Xcode settings that would be wiped:
+//   - Per-config bundle ID (Debug = io.fishlog.app.dev, Release = io.fishlog.app)
+//   - Per-config display name via `BUNDLE_DISPLAY_NAME` user setting
+//   - `Info.plist` references `$(BUNDLE_DISPLAY_NAME)` for CFBundleDisplayName
+// If you ever DO need to regenerate, save these customizations first.
+
 module.exports = {
   expo: {
     name: "Fish Log Co",
