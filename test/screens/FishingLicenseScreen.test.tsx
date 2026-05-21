@@ -283,6 +283,47 @@ describe('FishingLicenseScreen', () => {
     });
   });
 
+  // ===== Cross-screen sync: userProfile -> license fallback =====
+
+  describe('userProfile fallback', () => {
+    it('shows wrcId from userProfile when fishingLicense is empty', async () => {
+      // Simulates: user entered their WRC ID on the Profile screen first;
+      // License screen should show that value rather than an empty form.
+      await AsyncStorage.setItem('userProfile', JSON.stringify({
+        firstName: 'Jane',
+        lastName: 'Smith',
+        wrcId: 'WRC-FROM-PROFILE',
+        hasLicense: true,
+      }));
+
+      const { findByText } = render(
+        <FishingLicenseScreen navigation={mockNavigation} />
+      );
+
+      expect(await findByText('WRC-FROM-PROFILE')).toBeTruthy();
+      expect(await findByText('Jane Smith')).toBeTruthy();
+    });
+
+    it('prefers fishingLicense.licenseNumber over userProfile.wrcId when both present', async () => {
+      await AsyncStorage.setItem('userProfile', JSON.stringify({
+        wrcId: 'WRC-FROM-PROFILE',
+      }));
+      await AsyncStorage.setItem('fishingLicense', JSON.stringify({
+        firstName: 'John',
+        lastName: 'Doe',
+        licenseNumber: 'LIC-FROM-LICENSE',
+        licenseType: 'Annual Coastal Recreational Fishing License',
+      }));
+
+      const { findByText, queryByText } = render(
+        <FishingLicenseScreen navigation={mockNavigation} />
+      );
+
+      expect(await findByText('LIC-FROM-LICENSE')).toBeTruthy();
+      expect(queryByText('WRC-FROM-PROFILE')).toBeNull();
+    });
+  });
+
   // ===== Edit Mode =====
 
   describe('Edit Mode', () => {

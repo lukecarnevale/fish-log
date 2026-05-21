@@ -96,14 +96,17 @@ describe('CatchCard', () => {
     expect(getByText('12')).toBeTruthy();
   });
 
-  it('calls onCardPress when card is pressed', () => {
+  it('calls onCardPress when the bottom section (species row) is pressed', () => {
+    // The tap target for onCardPress is the bottom species/actions row, not
+    // the whole card — the photo area is intentionally non-tappable so the
+    // multi-photo carousel can claim horizontal swipes cleanly.
     const onCardPress = jest.fn();
     const entry = makeEntry();
     const { getByText } = render(
       <CatchCard entry={entry} onCardPress={onCardPress} />
     );
 
-    fireEvent.press(getByText('John D.'));
+    fireEvent.press(getByText('Red Drum'));
     expect(onCardPress).toHaveBeenCalledWith(entry);
   });
 
@@ -117,6 +120,69 @@ describe('CatchCard', () => {
     // The heart icon is rendered by the Ionicons mock
     fireEvent.press(getByText('heart-outline'));
     expect(onLikePress).toHaveBeenCalledWith(entry);
+  });
+
+  it('calls onAnglerPress (not onCardPress) when angler overlay is pressed', () => {
+    // When both handlers are wired, tapping the avatar/name area should
+    // route to onAnglerPress so the angler profile opens, leaving the
+    // rest of the card free to open comments via onCardPress.
+    const onCardPress = jest.fn();
+    const onAnglerPress = jest.fn();
+    const entry = makeEntry();
+    const { getByText } = render(
+      <CatchCard
+        entry={entry}
+        onAnglerPress={onAnglerPress}
+        onCardPress={onCardPress}
+      />
+    );
+
+    fireEvent.press(getByText('John D.'));
+    expect(onAnglerPress).toHaveBeenCalledWith(entry.userId);
+    expect(onCardPress).not.toHaveBeenCalled();
+  });
+
+  it('calls onCommentPress when comment button is pressed', () => {
+    const onCommentPress = jest.fn();
+    const entry = makeEntry();
+    const { getByText } = render(
+      <CatchCard entry={entry} onCommentPress={onCommentPress} />
+    );
+
+    fireEvent.press(getByText('chatbubble-outline'));
+    expect(onCommentPress).toHaveBeenCalledWith(entry);
+  });
+
+  it('renders comment count when commentCount > 0 and onCommentPress is provided', () => {
+    const { getByText } = render(
+      <CatchCard
+        entry={makeEntry({ commentCount: 4 })}
+        onCommentPress={jest.fn()}
+      />
+    );
+
+    expect(getByText('4')).toBeTruthy();
+  });
+
+  it('hides the comment count when commentCount is 0 (even with onCommentPress)', () => {
+    const { queryByText } = render(
+      <CatchCard
+        entry={makeEntry({ commentCount: 0 })}
+        onCommentPress={jest.fn()}
+      />
+    );
+
+    expect(queryByText('0')).toBeNull();
+  });
+
+  it('does not render the comment button when onCommentPress is undefined (social flag off)', () => {
+    const { queryByText } = render(
+      <CatchCard entry={makeEntry({ commentCount: 4 })} />
+    );
+
+    // Comment button + count are both hidden when no onCommentPress is passed.
+    expect(queryByText('chatbubble-outline')).toBeNull();
+    expect(queryByText('4')).toBeNull();
   });
 
   it('renders compact mode', () => {

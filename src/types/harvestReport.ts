@@ -187,6 +187,14 @@ export interface HarvestReportInput {
   catchPhoto?: string;
 
   /**
+   * Full list of photo URIs for multi-photo submissions (catch_log).
+   * `catchPhoto` is preserved as the cover (= photos[0]) for backwards
+   * compatibility with DMF flows and older local rows that only set the
+   * single field. Loaders should prefer this array when present.
+   */
+  photos?: string[];
+
+  /**
    * Personal notes about the trip.
    * Private - not shared.
    */

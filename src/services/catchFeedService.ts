@@ -152,6 +152,7 @@ async function fetchCatchesFromSupabase(
       createdAt: row.created_at,
       likeCount: row.like_count || 0,
       isLikedByCurrentUser: false,
+      commentCount: row.comment_count || 0,
     });
   }
 
@@ -165,7 +166,9 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
   // Fetch user info (note: total_fish is calculated from reports, not stored on user)
   const { data: userData, error: userError } = await supabase
     .from('users')
-    .select('id, first_name, last_name, profile_image_url, rewards_opted_in_at, total_reports, created_at')
+    .select(
+      'id, first_name, last_name, profile_image_url, bio, rewards_opted_in_at, total_reports, created_at, followers_count, following_count',
+    )
     .eq('id', userId)
     .single();
 
@@ -173,7 +176,8 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
     throw new Error(`Failed to fetch angler profile: ${userError?.message || 'User not found'}`);
   }
 
-  // Fetch their reports with fish entries
+  // Fetch their reports with fish entries. Bumped to 60 to fill the profile
+  // photo grid; the existing UI only used the first 6 for the compact list.
   const { data: reportsData, error: reportsError } = await supabase
     .from('harvest_reports')
     .select(`
@@ -197,10 +201,32 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
     `)
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(10);
+    .limit(60);
 
   if (reportsError) {
     console.warn('Failed to fetch angler reports:', reportsError);
+  }
+
+  // Fetch earned achievements joined with their metadata. Failures here are
+  // non-fatal — profile still renders without the badges row.
+  const { data: achievementsData, error: achievementsError } = await supabase
+    .from('user_achievements')
+    .select(`
+      earned_at,
+      achievement:achievement_id (
+        code,
+        name,
+        description,
+        icon,
+        category,
+        is_active
+      )
+    `)
+    .eq('user_id', userId)
+    .order('earned_at', { ascending: false });
+
+  if (achievementsError) {
+    console.warn('Failed to fetch angler achievements:', achievementsError);
   }
 
   const firstName = userData.first_name || 'Anonymous';
@@ -252,8 +278,9 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
       speciesCountsTotal[species] = (speciesCountsTotal[species] || 0) + count;
     }
 
-    // Add to recent catches (one entry per report, limit to 6 reports)
-    if (speciesList.length > 0 && recentCatches.length < 6) {
+    // Add to recent catches (one entry per report). No client-side cap here —
+    // the photo grid in AnglerProfileScreen renders up to the 60 we fetched.
+    if (speciesList.length > 0) {
       const totalFish = speciesList.reduce((sum, s) => sum + s.count, 0);
       const primarySpecies = speciesList.reduce((max, s) =>
         s.count > max.count ? s : max, speciesList[0]);
@@ -297,15 +324,48 @@ async function fetchAnglerProfileFromSupabase(userId: string): Promise<AnglerPro
   // Calculate total fish from the accumulated species counts
   const totalFish = Object.values(speciesCountsTotal).reduce((sum, count) => sum + count, 0);
 
+  // Transform the achievements join. PostgREST's inferred type can return the
+  // joined row as either a single object or an array depending on relationship
+  // cardinality; we normalize via `unknown` and handle both shapes defensively.
+  type AchievementJoin = {
+    code: string;
+    name: string;
+    description: string | null;
+    icon: string | null;
+    category: string | null;
+    is_active: boolean | null;
+  };
+  const earnedAchievements = ((achievementsData ?? []) as unknown as Array<{
+    earned_at: string;
+    achievement: AchievementJoin | AchievementJoin[] | null;
+  }>)
+    .map((row) => {
+      const ach = Array.isArray(row.achievement) ? row.achievement[0] : row.achievement;
+      if (!ach || ach.is_active === false) return null;
+      return {
+        code: ach.code,
+        name: ach.name,
+        description: ach.description,
+        icon: ach.icon,
+        category: ach.category,
+        earnedAt: row.earned_at,
+      };
+    })
+    .filter((a): a is NonNullable<typeof a> => a !== null);
+
   return {
     userId: userData.id,
     displayName,
     profileImage: userData.profile_image_url || undefined,
+    bio: (userData as { bio?: string | null }).bio ?? undefined,
     totalCatches: totalFish,
     speciesCaught: Array.from(speciesSet),
     topSpecies,
     recentCatches,
     memberSince: userData.rewards_opted_in_at || userData.created_at,
+    followersCount: (userData as { followers_count?: number }).followers_count ?? 0,
+    followingCount: (userData as { following_count?: number }).following_count ?? 0,
+    achievements: earnedAchievements,
   };
 }
 
@@ -531,6 +591,96 @@ export async function fetchAnglerProfile(userId: string): Promise<AnglerProfile 
  * Fetch top anglers for "This Week's Top Anglers" section.
  * Returns top anglers for: most catches, most species, and longest fish.
  */
+/**
+ * Fetch a single catch by report id from v_catch_feed.
+ * Returns null when the row doesn't exist (e.g. catch was deleted or hidden
+ * by RLS).
+ */
+export async function fetchCatchById(reportId: string): Promise<CatchFeedEntry | null> {
+  const { data, error } = await supabase
+    .from('v_catch_feed')
+    .select('*')
+    .eq('report_id', reportId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Failed to fetch catch by id:', error);
+    return null;
+  }
+  if (!data) return null;
+
+  const row = data as Record<string, unknown> & {
+    report_id: string;
+    user_id: string;
+    first_name: string | null;
+    last_name: string | null;
+    profile_image_url: string | null;
+    photo_url: string | null;
+    photos: string[] | null;
+    area_label: string | null;
+    harvest_date: string | null;
+    created_at: string;
+    fish_entries_json: unknown;
+    red_drum_count: number;
+    flounder_count: number;
+    spotted_seatrout_count: number;
+    weakfish_count: number;
+    striped_bass_count: number;
+    like_count: number;
+    comment_count: number;
+  };
+
+  const firstName = row.first_name || 'Anonymous';
+  const lastInitial = row.last_name ? `${row.last_name.charAt(0)}.` : '';
+  const anglerName = `${firstName} ${lastInitial}`.trim();
+
+  let speciesList: SpeciesCatch[] = [];
+  if (Array.isArray(row.fish_entries_json)) {
+    speciesList = (row.fish_entries_json as Array<Record<string, unknown>>).map((fe) => ({
+      species: fe.species as string,
+      count: fe.count as number,
+      lengths: (fe.lengths as string[] | undefined) ?? undefined,
+      tagNumber: (fe.tagNumber as string | undefined) ?? (fe.tag_number as string | undefined),
+    }));
+  }
+  if (speciesList.length === 0) {
+    const allSpecies = [
+      { species: 'Red Drum', count: row.red_drum_count },
+      { species: 'Flounder', count: row.flounder_count },
+      { species: 'Spotted Seatrout (speckled trout)', count: row.spotted_seatrout_count },
+      { species: 'Weakfish (gray trout)', count: row.weakfish_count },
+      { species: 'Striped Bass', count: row.striped_bass_count },
+    ];
+    speciesList = allSpecies
+      .filter((s) => s.count && s.count > 0)
+      .map((s) => ({ species: s.species, count: s.count as number }));
+  }
+  if (speciesList.length === 0) return null;
+
+  const totalFish = speciesList.reduce((sum, s) => sum + s.count, 0);
+  const primary = speciesList.reduce((max, s) => (s.count > max.count ? s : max), speciesList[0]);
+  const photos = Array.isArray(row.photos) ? row.photos : [];
+  const photoUrls = photos.length > 0 ? photos : row.photo_url ? [row.photo_url] : undefined;
+
+  return {
+    id: row.report_id,
+    userId: row.user_id,
+    anglerName,
+    anglerProfileImage: row.profile_image_url ?? undefined,
+    species: primary.species,
+    speciesList,
+    totalFish,
+    photoUrl: row.photo_url ?? undefined,
+    photoUrls,
+    catchDate: row.harvest_date ?? row.created_at,
+    location: row.area_label ?? undefined,
+    createdAt: row.created_at,
+    likeCount: row.like_count ?? 0,
+    isLikedByCurrentUser: false,
+    commentCount: row.comment_count ?? 0,
+  };
+}
+
 export async function fetchTopAnglers(): Promise<TopAngler[]> {
   const connected = await isSupabaseConnected();
   if (!connected) {

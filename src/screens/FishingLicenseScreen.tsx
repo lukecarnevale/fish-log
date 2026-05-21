@@ -165,14 +165,32 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
     }
   };
 
-  // Load license data from AsyncStorage
+  // Load license data from AsyncStorage. Falls back to userProfile.wrcId (and
+  // name fields) so a license number entered on the Profile screen still
+  // populates this screen — the two screens share one underlying value.
   const loadLicense = async () => {
     try {
-      const savedLicense = await AsyncStorage.getItem("fishingLicense");
-      if (savedLicense) {
-        const parsedLicense = JSON.parse(savedLicense);
-        setLicense(parsedLicense);
-        setFormData(parsedLicense);
+      const [savedLicense, savedProfile] = await Promise.all([
+        AsyncStorage.getItem("fishingLicense"),
+        AsyncStorage.getItem("userProfile"),
+      ]);
+
+      const parsedLicense: FishingLicense = savedLicense ? JSON.parse(savedLicense) : {};
+      const parsedProfile = savedProfile ? JSON.parse(savedProfile) : {};
+
+      const mergedLicense: FishingLicense = {
+        ...parsedLicense,
+        licenseNumber: parsedLicense.licenseNumber || parsedProfile.wrcId || parsedProfile.licenseNumber,
+        firstName: parsedLicense.firstName || parsedProfile.firstName,
+        lastName: parsedLicense.lastName || parsedProfile.lastName,
+      };
+
+      const hasAnyData = mergedLicense.licenseNumber || mergedLicense.licenseType
+        || mergedLicense.firstName || mergedLicense.lastName;
+
+      if (hasAnyData) {
+        setLicense(mergedLicense);
+        setFormData(mergedLicense);
       }
     } catch (error) {
       Alert.alert("Error", "Failed to load your fishing license");
@@ -248,6 +266,9 @@ const FishingLicenseScreen: React.FC<FishingLicenseScreenProps> = ({ navigation 
             lastName: formData.lastName || undefined,
             hasLicense: true,
             licenseNumber: formData.licenseNumber || undefined,
+            // Mirror licenseNumber to wrcId so both Supabase columns stay in sync
+            // (they represent the same value; Profile screen reads wrcId).
+            wrcId: formData.licenseNumber || undefined,
             licenseType: formData.licenseType || undefined,
             licenseIssueDate: formData.issueDate || undefined,
             licenseExpiryDate: formData.expiryDate || undefined,

@@ -34,6 +34,19 @@ export interface CatchFeedEntry {
   createdAt: string;            // When the report was submitted
   likeCount: number;            // Number of likes on this catch
   isLikedByCurrentUser: boolean; // Whether the current user has liked this catch
+  commentCount?: number;         // Number of comments on this catch (optional during rollout)
+}
+
+/**
+ * A single achievement earned by an angler.
+ */
+export interface EarnedAchievement {
+  code: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  category: string | null;
+  earnedAt: string;
 }
 
 /**
@@ -43,11 +56,15 @@ export interface AnglerProfile {
   userId: string;
   displayName: string;          // First name + last initial
   profileImage?: string;
+  bio?: string;                 // Short blurb shown under the name
   totalCatches: number;
   speciesCaught: string[];      // Unique species list
   topSpecies?: string;          // Most frequently caught species
   recentCatches: CatchFeedEntry[];
   memberSince: string;          // rewardsOptedInAt timestamp
+  followersCount?: number;      // Denormalized on users table
+  followingCount?: number;
+  achievements?: EarnedAchievement[];
 }
 
 /**
@@ -121,4 +138,18 @@ export interface TopAngler {
   profileImage?: string;
   value: number | string;  // Number for catches/species, string for length (e.g., "32 inches")
   label: string;           // Display label (e.g., "catches", "species", "longest")
+}
+
+/**
+ * Represents a single comment on a catch.
+ */
+export interface CatchComment {
+  id: string;
+  reportId: string;
+  userId: string;
+  anglerName: string;            // First name + last initial
+  anglerProfileImage?: string;
+  text: string;
+  createdAt: string;             // ISO timestamp
+  isOwn: boolean;                // True if authored by the current user (drives delete UI)
 }

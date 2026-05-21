@@ -24,6 +24,10 @@ jest.mock('../../src/services/reportsService', () => ({
     savedToSupabase: true,
   }),
   getReports: jest.fn().mockResolvedValue([]),
+  // getHistory now batch-fetches fish_entries for Supabase reports so
+  // catch_logs surface their species correctly. Default to an empty Map
+  // — individual tests can override if they need to assert on entries.
+  getFishEntriesBatch: jest.fn().mockResolvedValue(new Map()),
 }));
 
 jest.mock('../../src/services/rewardsConversionService', () => ({

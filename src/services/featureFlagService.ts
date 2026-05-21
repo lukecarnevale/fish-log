@@ -10,7 +10,11 @@ import { supabase, isSupabaseConnected } from '../config/supabase';
 // Types
 // =============================================================================
 
-export type FeatureFlagKey = 'promotions_hub' | 'catch_logging' | 'dark_mode';
+export type FeatureFlagKey =
+  | 'promotions_hub'
+  | 'catch_logging'
+  | 'dark_mode'
+  | 'social_features';
 
 export interface FeatureFlag {
   key: FeatureFlagKey;
@@ -25,6 +29,7 @@ const FLAG_DEFAULTS: Record<FeatureFlagKey, boolean> = {
   promotions_hub: false,
   catch_logging: false,
   dark_mode: false,
+  social_features: false,
 };
 
 // =============================================================================

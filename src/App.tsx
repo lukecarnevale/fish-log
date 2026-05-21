@@ -101,6 +101,8 @@ import ProfileScreen from "./screens/ProfileScreen";
 import LegalDocumentScreen from "./screens/LegalDocumentScreen";
 import PromotionsScreen from "./screens/PromotionsScreen";
 import PartnerInquiryScreen from "./screens/PartnerInquiryScreen";
+import AnglerProfileScreen from "./screens/AnglerProfileScreen";
+import CatchDetailScreen from "./screens/CatchDetailScreen";
 
 // Import styles
 import { navigationStyles, buildNavigationStyles } from "./styles/navigationStyles";
@@ -377,6 +379,22 @@ const AppContent: React.FC = () => {
             component={PartnerInquiryScreen}
             options={{
               headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="AnglerProfile"
+            component={AnglerProfileScreen}
+            options={{
+              headerShown: false,
+              gestureEnabled: true,
+            }}
+          />
+          <Stack.Screen
+            name="CatchDetail"
+            component={CatchDetailScreen}
+            options={{
+              headerShown: false,
+              gestureEnabled: true,
             }}
           />
         </Stack.Navigator>
