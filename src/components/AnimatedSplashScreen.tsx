@@ -5,6 +5,7 @@ import {
   StyleSheet,
   View,
   Dimensions,
+  Easing,
 } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { useTheme } from '../contexts/ThemeContext';
@@ -20,6 +21,11 @@ const SPLASH_BG_LIGHT = "#1B808C";
 const SPLASH_BG_DARK = "#0D1B2A";
 const { width } = Dimensions.get("window");
 const ICON_SIZE = width * 0.38;
+// The native splash renders splash-icon.png with `contain`, so the visible
+// artwork lands at ~76% of screen width. Starting the custom splash icon at
+// 2× scale matches that apparent size, so handing off from the native splash
+// reads as a smooth zoom instead of an abrupt size cut.
+const INITIAL_SCALE = 2;
 
 interface Props {
   children: React.ReactNode;
@@ -36,7 +42,7 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
   const iconFade = useRef(new Animated.Value(1)).current;
   const textFade = useRef(new Animated.Value(0)).current;
   const splashFade = useRef(new Animated.Value(1)).current;
-  const iconScale = useRef(new Animated.Value(1)).current;
+  const iconScale = useRef(new Animated.Value(INITIAL_SCALE)).current;
 
   useEffect(() => {
     if (!ready) return;
@@ -45,27 +51,37 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
     const run = async () => {
       await SplashScreen.hideAsync();
 
-      // Phase 1: Subtle scale pulse on the already-visible icon
+      // Phase 0: Smooth zoom from the native-splash size down to the
+      // resting custom-splash size. Chains into the settle bounce so the
+      // motion reads as one continuous landing.
       Animated.timing(iconScale, {
-        toValue: 1.05,
-        duration: 400,
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start(() => {
+        // Phase 1: Settle bounce once the icon arrives at its resting size
         Animated.timing(iconScale, {
-          toValue: 1,
-          duration: 300,
+          toValue: 1.05,
+          duration: 400,
           useNativeDriver: true,
-        }).start();
+        }).start(() => {
+          Animated.timing(iconScale, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }).start();
+        });
       });
 
-      // Phase 2: Text fades in shortly after
+      // Phase 2: Text fades in as the icon nears its final size
       setTimeout(() => {
         Animated.timing(textFade, {
           toValue: 1,
           duration: 400,
           useNativeDriver: true,
         }).start();
-      }, 250);
+      }, 300);
 
       // Phase 3: Hold, then fade everything out
       setTimeout(() => {
@@ -76,7 +92,7 @@ export default function AnimatedSplashScreen({ children, ready }: Props) {
         }).start(() => {
           setAnimationDone(true);
         });
-      }, 1600);
+      }, 1900);
     };
 
     run();

@@ -5,8 +5,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import AnimatedSplashScreen from '../../src/components/AnimatedSplashScreen';
 
 describe('AnimatedSplashScreen', () => {
-  beforeEach(() => jest.useFakeTimers());
-  afterEach(() => jest.useRealTimers());
+  // We run with real timers because the splash chains several
+  // Animated.timing callbacks, and the RN Animated jest mock schedules each
+  // completion via setTimeout — under fake timers those callbacks leak past
+  // the test teardown and crash the suite.
 
   it('does NOT render children when ready=false', () => {
     const { queryByText } = render(
@@ -35,32 +37,29 @@ describe('AnimatedSplashScreen', () => {
       </AnimatedSplashScreen>
     );
 
-    // Flush the awaited hideAsync promise, then advance timers for setTimeout(1800) + animation(500)
-    await act(async () => {
-      jest.advanceTimersByTime(100);
-    });
-    await act(async () => {
-      jest.advanceTimersByTime(1900);
-    });
-    await act(async () => {
-      jest.advanceTimersByTime(600);
-    });
-
-    await waitFor(() => {
-      expect(queryByText('App Content')).not.toBeNull();
-    });
+    await waitFor(
+      () => {
+        expect(queryByText('App Content')).not.toBeNull();
+      },
+      { timeout: 5000 }
+    );
   });
 
   it('calls SplashScreen.hideAsync when ready becomes true', async () => {
-    render(
+    const { queryByText } = render(
       <AnimatedSplashScreen ready={true}>
         <Text>App Content</Text>
       </AnimatedSplashScreen>
     );
 
-    await act(async () => {
-      jest.advanceTimersByTime(100);
-    });
+    // Wait for the full animation to complete so the chained Animated.timing
+    // and pending setTimeouts don't leak past teardown.
+    await waitFor(
+      () => {
+        expect(queryByText('App Content')).not.toBeNull();
+      },
+      { timeout: 5000 }
+    );
 
     expect(SplashScreen.hideAsync).toHaveBeenCalled();
   });
@@ -75,7 +74,7 @@ describe('AnimatedSplashScreen', () => {
     );
 
     await act(async () => {
-      jest.advanceTimersByTime(3000);
+      await new Promise((r) => setTimeout(r, 100));
     });
 
     expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
