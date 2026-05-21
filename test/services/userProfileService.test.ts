@@ -700,6 +700,60 @@ describe('userProfileService', () => {
       expect(license.issueDate).toBe('2026-01-01');
       expect(license.expiryDate).toBe('2027-01-01');
     });
+
+    // wrcId and licenseNumber are semantically the same value (NC WRC ID /
+    // Customer ID) but live in two Supabase columns. Either one must populate
+    // both storage keys so Profile, License, and Report screens stay in sync.
+    it('fills fishingLicense.licenseNumber from user.wrcId when licenseNumber missing', async () => {
+      const user = {
+        id: 'user-1',
+        wrcId: 'WRC-7777',
+        licenseNumber: null,
+      } as any;
+
+      await syncToUserProfile(user);
+
+      const license = JSON.parse((await AsyncStorage.getItem('fishingLicense'))!);
+      expect(license.licenseNumber).toBe('WRC-7777');
+
+      const profile = JSON.parse((await AsyncStorage.getItem('userProfile'))!);
+      expect(profile.wrcId).toBe('WRC-7777');
+      expect(profile.licenseNumber).toBe('WRC-7777');
+    });
+
+    it('fills userProfile.wrcId from user.licenseNumber when wrcId missing', async () => {
+      const user = {
+        id: 'user-1',
+        wrcId: null,
+        licenseNumber: 'LIC-9999',
+      } as any;
+
+      await syncToUserProfile(user);
+
+      const profile = JSON.parse((await AsyncStorage.getItem('userProfile'))!);
+      expect(profile.wrcId).toBe('LIC-9999');
+      expect(profile.licenseNumber).toBe('LIC-9999');
+
+      const license = JSON.parse((await AsyncStorage.getItem('fishingLicense'))!);
+      expect(license.licenseNumber).toBe('LIC-9999');
+    });
+
+    it('writes fishingLicense when only wrcId is present (no other license fields)', async () => {
+      const user = {
+        id: 'user-1',
+        firstName: null,
+        lastName: null,
+        wrcId: 'WRC-ONLY',
+        licenseNumber: null,
+        licenseType: null,
+      } as any;
+
+      await syncToUserProfile(user);
+
+      const license = await AsyncStorage.getItem('fishingLicense');
+      expect(license).not.toBeNull();
+      expect(JSON.parse(license!).licenseNumber).toBe('WRC-ONLY');
+    });
   });
 
   // ============================================================

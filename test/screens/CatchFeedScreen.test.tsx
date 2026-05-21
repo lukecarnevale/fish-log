@@ -61,6 +61,25 @@ jest.mock('../../src/api/speciesApi', () => ({
   useAllFishSpecies: jest.fn(() => ({ data: [], isLoading: false })),
 }));
 
+// Social feature hooks introduced with the comments / follows rollout.
+// Default to a disabled flag + empty/inert mutations so existing tests
+// keep exercising the Discover-only path.
+jest.mock('../../src/api/featureFlagsApi', () => ({
+  useFeatureFlag: jest.fn(() => ({ enabled: false, isLoading: false })),
+  FEATURE_FLAG_QUERY_KEY: 'featureFlags',
+}));
+
+jest.mock('../../src/api/commentsApi', () => ({
+  useComments: jest.fn(() => ({ data: [], isLoading: false })),
+  useAddComment: jest.fn(() => ({ mutateAsync: jest.fn(), isPending: false })),
+  useDeleteComment: jest.fn(() => ({ mutateAsync: jest.fn(), isPending: false })),
+  useReportComment: jest.fn(() => ({ mutate: jest.fn(), isPending: false })),
+}));
+
+jest.mock('../../src/services/followsService', () => ({
+  fetchFollowingFeed: jest.fn(() => Promise.resolve({ entries: [], hasMore: false })),
+}));
+
 // --- Constants ---
 
 jest.mock('../../src/constants/speciesColors', () => ({
@@ -137,18 +156,9 @@ jest.mock('../../src/components/TopAnglersSection', () => {
   };
 });
 
-jest.mock('../../src/components/AnglerProfileModal', () => {
-  const { View, Text } = require('react-native');
-  return {
-    __esModule: true,
-    default: ({ visible, userId }: any) =>
-      visible ? (
-        <View testID="angler-profile-modal">
-          <Text>Profile: {userId}</Text>
-        </View>
-      ) : null,
-  };
-});
+// AnglerProfile is now a real Stack screen (AnglerProfileScreen) — no longer a
+// modal rendered by CatchFeedScreen. Navigation is handled by react-navigation
+// which is mocked at the navigator level in earlier setup.
 
 jest.mock('../../src/components/BottomDrawer', () => {
   const { View } = require('react-native');

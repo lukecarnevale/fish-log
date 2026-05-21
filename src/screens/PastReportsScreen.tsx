@@ -76,6 +76,10 @@ interface DisplayReport {
   weakfishCount: number;
   stripedBassCount: number;
   catchPhoto?: string;
+  // Full photo list for multi-photo submissions (catch_log). When present,
+  // photos[0] === catchPhoto. Used to drive the +N badge on the card and
+  // the swipeable carousel in the detail modal.
+  photos?: string[];
   submittedAt?: string;
   queuedAt?: string;
   firstName?: string;
@@ -115,6 +119,7 @@ const convertToDisplayReport = (
       weakfishCount: submitted.weakfishCount,
       stripedBassCount: submitted.stripedBassCount,
       catchPhoto: submitted.catchPhoto,
+      photos: submitted.photos,
       submittedAt: submitted.submittedAt,
       firstName: submitted.firstName,
       lastName: submitted.lastName,
@@ -141,6 +146,7 @@ const convertToDisplayReport = (
       weakfishCount: queued.weakfishCount,
       stripedBassCount: queued.stripedBassCount,
       catchPhoto: queued.catchPhoto,
+      photos: queued.photos,
       queuedAt: queued.queuedAt,
       firstName: queued.firstName,
       lastName: queued.lastName,
@@ -182,6 +188,15 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
   const datePickerOverlayOpacity = useRef(new Animated.Value(0)).current;
   const datePickerSlide = useRef(new Animated.Value(300)).current;
 
+  // Modal photo carousel state — page index + measured tile width for paging.
+  // Resets when a new report is selected (see effect below).
+  const [modalPhotoIndex, setModalPhotoIndex] = useState(0);
+  const [modalPhotoWidth, setModalPhotoWidth] = useState(0);
+
+  useEffect(() => {
+    setModalPhotoIndex(0);
+  }, [selectedReport?.confirmationNumber]);
+
   // Fetch species data for stock images
   const { data: fishSpeciesData = [] } = useAllFishSpecies();
 
@@ -196,7 +211,9 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
 
   // Get the best image for a report (user photo or primary species stock image)
   const getReportImage = useCallback((report: DisplayReport): string | null => {
-    // User's catch photo takes priority
+    // Prefer the first photo from the multi-photo array (catch_log), falling
+    // back to the legacy single catchPhoto so DMF and older rows still work.
+    if (report.photos && report.photos.length > 0) return report.photos[0];
     if (report.catchPhoto) return report.catchPhoto;
 
     // Otherwise, find stock image for primary species
@@ -469,12 +486,20 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
     const speciesChips = getSpeciesChips(item);
     const totalFish = getTotalFish(item);
     const isPending = item.type === "queued";
+    const isCatchLog = item.reportType === 'catch_log';
     const reportImage = getReportImage(item);
     const isUserPhoto = !!item.catchPhoto;
+    // Real photo count for the +N badge — distinct from isUserPhoto which
+    // only signals "this is a user-uploaded photo at all" for the camera chip.
+    const photoCount = item.photos?.length ?? (item.catchPhoto ? 1 : 0);
 
     return (
       <TouchableOpacity
-        style={[styles.reportCard, isPending && styles.reportCardPending]}
+        style={[
+          styles.reportCard,
+          isCatchLog && !isPending && styles.reportCardCatchLog,
+          isPending && styles.reportCardPending,
+        ]}
         onPress={() => setSelectedReport(item)}
         activeOpacity={0.8}
       >
@@ -570,6 +595,12 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
             {isUserPhoto && (
               <View style={styles.userPhotoBadge}>
                 <Feather name="camera" size={10} color="#fff" />
+              </View>
+            )}
+            {photoCount > 1 && (
+              <View style={styles.photoCountBadge}>
+                <Feather name="copy" size={9} color="#fff" />
+                <Text style={styles.photoCountBadgeText}>{photoCount}</Text>
               </View>
             )}
           </View>
@@ -708,19 +739,92 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               </TouchableOpacity>
             )}
 
-            {/* Photo if available */}
-            {selectedReport?.catchPhoto && (
-              <View style={styles.modalPhotoContainer}>
-                <Image
-                  source={{ uri: selectedReport.catchPhoto }}
-                  style={styles.modalPhoto}
-                  contentFit="cover"
-                  cachePolicy="disk"
-                  recyclingKey={`report-modal-${selectedReport?.confirmationNumber}`}
-                  transition={200}
-                />
-              </View>
-            )}
+            {/* Photo(s) — single image OR a swipeable paging carousel when
+                the user submitted multiple photos (catch_log multi-photo). */}
+            {(() => {
+              const photos =
+                selectedReport?.photos && selectedReport.photos.length > 0
+                  ? selectedReport.photos
+                  : selectedReport?.catchPhoto
+                    ? [selectedReport.catchPhoto]
+                    : [];
+              if (photos.length === 0) return null;
+              if (photos.length === 1) {
+                return (
+                  <View style={styles.modalPhotoContainer}>
+                    <Image
+                      source={{ uri: photos[0] }}
+                      style={styles.modalPhoto}
+                      contentFit="cover"
+                      cachePolicy="disk"
+                      recyclingKey={`report-modal-${selectedReport?.confirmationNumber}`}
+                      transition={200}
+                    />
+                  </View>
+                );
+              }
+              return (
+                <View
+                  style={styles.modalPhotoContainer}
+                  onLayout={(e) => setModalPhotoWidth(e.nativeEvent.layout.width)}
+                >
+                  <FlatList
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    directionalLockEnabled
+                    decelerationRate="fast"
+                    data={photos}
+                    keyExtractor={(uri, idx) =>
+                      `modal-photo-${selectedReport?.confirmationNumber}-${idx}`
+                    }
+                    onMomentumScrollEnd={(e) => {
+                      if (modalPhotoWidth <= 0) return;
+                      const page = Math.round(
+                        e.nativeEvent.contentOffset.x / modalPhotoWidth,
+                      );
+                      if (page !== modalPhotoIndex) setModalPhotoIndex(page);
+                    }}
+                    getItemLayout={(_, index) =>
+                      modalPhotoWidth > 0
+                        ? {
+                            length: modalPhotoWidth,
+                            offset: modalPhotoWidth * index,
+                            index,
+                          }
+                        : { length: 0, offset: 0, index }
+                    }
+                    renderItem={({ item, index }) => (
+                      <View
+                        style={{
+                          width: modalPhotoWidth,
+                        }}
+                      >
+                        <Image
+                          source={{ uri: item }}
+                          style={styles.modalPhoto}
+                          contentFit="cover"
+                          cachePolicy="disk"
+                          recyclingKey={`report-modal-${selectedReport?.confirmationNumber}-${index}`}
+                          transition={200}
+                        />
+                      </View>
+                    )}
+                  />
+                  <View style={styles.modalCarouselDots} pointerEvents="none">
+                    {photos.map((_, i) => (
+                      <View
+                        key={`dot-${i}`}
+                        style={[
+                          styles.modalCarouselDot,
+                          i === modalPhotoIndex && styles.modalCarouselDotActive,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+              );
+            })()}
 
             {/* Harvest Details */}
             <View style={styles.modalDetailSection}>
@@ -1132,7 +1236,7 @@ const PastReportsScreen: React.FC<PastReportsScreenProps> = ({ navigation }) => 
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDateChange}
               maximumDate={new Date()}
-              themeVariant="light"
+              themeVariant={theme.isDark ? "dark" : "light"}
               style={Platform.OS === "ios" ? { height: 216, width: "100%" } : undefined}
             />
             {Platform.OS === "ios" && (
@@ -1259,6 +1363,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   reportCardPending: {
     paddingBottom: 28,
+  },
+  // Catch logs (personal records, not DMF) get a subtle teal-tinted background
+  // to distinguish them from DMF reports. No edge-border accent per the
+  // project-wide UI rule (see CLAUDE.md "UI Implementation Guidelines").
+  reportCardCatchLog: {
+    backgroundColor: theme.isDark
+      ? 'rgba(42, 165, 176, 0.06)'
+      : 'rgba(6, 116, 127, 0.04)',
   },
   statusIconContainer: {
     position: "absolute",
@@ -1777,6 +1889,49 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: theme.colors.white,
+  },
+  // Pill on the photo thumbnail showing total photo count when > 1.
+  // Anchored top-left of the photoSection.
+  photoCountBadge: {
+    position: "absolute",
+    top: -4,
+    left: -4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    borderWidth: 1.5,
+    borderColor: theme.colors.white,
+  },
+  photoCountBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  // Carousel paging dots overlaid at the bottom of the modal photo.
+  modalCarouselDots: {
+    position: "absolute",
+    bottom: 8,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 4,
+  },
+  modalCarouselDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "rgba(255, 255, 255, 0.55)",
+  },
+  modalCarouselDotActive: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "rgba(255, 255, 255, 1)",
   },
   infoSection: {
     flex: 1,

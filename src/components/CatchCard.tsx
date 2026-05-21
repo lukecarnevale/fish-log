@@ -10,6 +10,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   FlatList,
   AccessibilityInfo,
@@ -33,6 +34,7 @@ interface CatchCardProps {
   onAnglerPress?: (userId: string) => void;
   onCardPress?: (entry: CatchFeedEntry) => void;
   onLikePress?: (entry: CatchFeedEntry) => void;
+  onCommentPress?: (entry: CatchFeedEntry) => void;
   compact?: boolean;
   // Species image URL to show when user hasn't submitted their own photo
   speciesImageUrl?: string;
@@ -43,6 +45,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
   onAnglerPress,
   onCardPress,
   onLikePress,
+  onCommentPress,
   compact = false,
   speciesImageUrl,
 }) => {
@@ -80,9 +83,17 @@ const CatchCard: React.FC<CatchCardProps> = ({
     }
   }, [onCardPress, onAnglerPress, entry]);
 
+  const handleAnglerOverlayPress = useCallback(() => {
+    onAnglerPress?.(entry.userId);
+  }, [onAnglerPress, entry.userId]);
+
   const handleLikePress = useCallback(() => {
     onLikePress?.(entry);
   }, [onLikePress, entry]);
+
+  const handleCommentPress = useCallback(() => {
+    onCommentPress?.(entry);
+  }, [onCommentPress, entry]);
 
   // Paging handler — fires once per swipe (on momentum-end) so the dot
   // indicator and a11y announcement update atomically. Announces via
@@ -194,13 +205,17 @@ const CatchCard: React.FC<CatchCardProps> = ({
   };
 
   // Full card for main feed - PREMIUM DESIGN
+  //
+  // The outer container is a plain View (no parent tap handler). Wrapping
+  // the whole card in a Pressable / TouchableOpacity caused two problems:
+  //  • the photo carousel was hard to swipe — the parent kept claiming taps
+  //  • near-horizontal swipes leaked into the outer feed's vertical scroll
+  // Instead, the tap target for "open comments" lives on the bottom section
+  // only (species + actions row), matching Instagram's pattern where the
+  // photo body is non-tappable. Avatar / like / comment icons stay as
+  // their own touchables.
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={handleCardPress}
-      activeOpacity={0.97}
-      disabled={!onAnglerPress && !onCardPress}
-    >
+    <View style={styles.container}>
       {/* Photo section with overlays */}
       <View
         style={[
@@ -218,6 +233,10 @@ const CatchCard: React.FC<CatchCardProps> = ({
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
+            // iOS-only: once the user starts moving horizontally, lock out
+            // vertical movement so a near-horizontal swipe can't slip up to
+            // the outer feed's vertical scroll mid-gesture. Ignored on Android.
+            directionalLockEnabled
             data={carouselPhotos}
             keyExtractor={(uri, idx) => `${entry.id}-photo-${idx}`}
             onMomentumScrollEnd={handleCarouselScrollEnd}
@@ -301,9 +320,16 @@ const CatchCard: React.FC<CatchCardProps> = ({
           style={styles.topGradient}
         />
 
-        {/* Profile and timestamp overlay at top */}
-        <View style={styles.topOverlay}>
-          {/* Avatar - not clickable */}
+        {/* Profile and timestamp overlay at top — own touchable so tapping
+            avatar/name opens the angler profile while card body opens comments. */}
+        <TouchableOpacity
+          style={styles.topOverlay}
+          onPress={handleAnglerOverlayPress}
+          activeOpacity={0.85}
+          disabled={!onAnglerPress}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${entry.anglerName}'s profile`}
+        >
           <View style={styles.topAvatarContainer}>
             {entry.anglerProfileImage ? (
               <Image
@@ -326,7 +352,7 @@ const CatchCard: React.FC<CatchCardProps> = ({
             <Text style={styles.topAnglerName}>{entry.anglerName}</Text>
             <Text style={styles.topTimestamp}>{relativeTime}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Gradient overlay at bottom of photo */}
         <LinearGradient
@@ -353,8 +379,13 @@ const CatchCard: React.FC<CatchCardProps> = ({
         </View>
       </View>
 
-      {/* Bottom section - species badges with integrated lengths and like button */}
-      <View style={styles.bottomSection}>
+      {/* Bottom section — Pressable so tapping the species/badges area opens
+          comments. Like + comment icons inside still win their own taps. */}
+      <Pressable
+        style={({ pressed }) => [styles.bottomSection, pressed && styles.bottomSectionPressed]}
+        onPress={onCardPress ? handleCardPress : undefined}
+        disabled={!onCardPress}
+      >
         {/* Species list - shows all caught species with lengths integrated */}
         <View style={styles.speciesRow}>
           {speciesList.map((s, index) => {
@@ -370,29 +401,55 @@ const CatchCard: React.FC<CatchCardProps> = ({
           })}
         </View>
 
-        {/* Like button */}
-        <TouchableOpacity
-          style={styles.likeButton}
-          onPress={handleLikePress}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons
-            name={entry.isLikedByCurrentUser ? 'heart' : 'heart-outline'}
-            size={22}
-            color={entry.isLikedByCurrentUser ? '#E53935' : theme.colors.textTertiary}
-          />
-          {entry.likeCount > 0 && (
-            <Text style={[
-              styles.likeCount,
-              entry.isLikedByCurrentUser && styles.likeCountActive
-            ]}>
-              {entry.likeCount}
-            </Text>
+        {/* Actions row: like + comment */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.likeButton}
+            onPress={handleLikePress}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name={entry.isLikedByCurrentUser ? 'heart' : 'heart-outline'}
+              size={22}
+              color={entry.isLikedByCurrentUser ? '#E53935' : theme.colors.textTertiary}
+            />
+            {entry.likeCount > 0 && (
+              <Text style={[
+                styles.likeCount,
+                entry.isLikedByCurrentUser && styles.likeCountActive
+              ]}>
+                {entry.likeCount}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {onCommentPress && (
+            <TouchableOpacity
+              style={styles.commentButton}
+              onPress={handleCommentPress}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={
+                entry.commentCount && entry.commentCount > 0
+                  ? `${entry.commentCount} comments, open thread`
+                  : 'Add a comment'
+              }
+            >
+              <Ionicons
+                name="chatbubble-outline"
+                size={20}
+                color={theme.colors.textTertiary}
+              />
+              {entry.commentCount !== undefined && entry.commentCount > 0 && (
+                <Text style={styles.commentCount}>{entry.commentCount}</Text>
+              )}
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+        </View>
+      </Pressable>
+    </View>
   );
 };
 
@@ -412,6 +469,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
     overflow: 'hidden',
+  },
+  // Subtle press feedback for the bottom section tap target (opens comments).
+  bottomSectionPressed: {
+    opacity: 0.85,
   },
 
   // Photo section - Instagram-style 4:5 portrait ratio
@@ -550,10 +611,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: 8,
     flex: 1,
   },
-  likeButton: {
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 12,
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  commentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
   },
   likedHeart: {
     // Filled heart effect - we use color change instead
@@ -566,6 +636,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   likeCountActive: {
     color: '#E53935',
+  },
+  commentCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.textTertiary,
+    marginLeft: 5,
   },
 
   // =====================
@@ -645,6 +721,7 @@ const arePropsEqual = (prevProps: CatchCardProps, nextProps: CatchCardProps): bo
     prevProps.entry.id === nextProps.entry.id &&
     prevProps.entry.likeCount === nextProps.entry.likeCount &&
     prevProps.entry.isLikedByCurrentUser === nextProps.entry.isLikedByCurrentUser &&
+    prevProps.entry.commentCount === nextProps.entry.commentCount &&
     prevProps.entry.photoUrls === nextProps.entry.photoUrls &&
     prevProps.entry.photoUrl === nextProps.entry.photoUrl &&
     prevProps.compact === nextProps.compact &&

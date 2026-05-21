@@ -84,6 +84,9 @@ export type RootStackParamList = {
   LegalDocument: { type: LegalDocumentType };
   Promotions: undefined;
   PartnerInquiry: undefined;
+  // Social feature screens (gated by the `social_features` feature flag)
+  AnglerProfile: { userId: string };
+  CatchDetail: { reportId: string };
 };
 
 // Fish Report Types

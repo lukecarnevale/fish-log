@@ -1498,6 +1498,9 @@ export const createProfileMainStyles = (theme: Theme) =>
     dateModalOverlay: modals.overlay,
     dateModalContent: {
       ...modals.content,
+      // modals.content hard-codes a #FFFFFF background (static palette).
+      // Override with surfaceElevated so dark mode actually adapts.
+      backgroundColor: theme.colors.surfaceElevated,
       padding: spacing.lg,
     },
     dateModalHeader: {

@@ -16,7 +16,7 @@ import {
   submitHarvestReport,
   generateConfirmationNumber,
 } from './harvestReportService';
-import { createReportFromHarvestInput, getReports } from './reportsService';
+import { createReportFromHarvestInput, getReports, getFishEntriesBatch } from './reportsService';
 import type { AwardedAchievement } from './reportsService';
 import { getRewardsMemberForAnonymousUser } from './rewardsConversionService';
 import { captureError } from '../utils/sentryUtils';
@@ -320,6 +320,7 @@ interface AddToHistoryInput {
   userId?: string;
   enterRaffle: boolean;
   catchPhoto?: string;
+  photos?: string[];
   notes?: string;
   gpsCoordinates?: { latitude: number; longitude: number };
   fishEntries?: Array<{ species: string; count: number; lengths?: string[]; tagNumber?: string }>;
@@ -377,6 +378,7 @@ export async function addToHistory(report: AddToHistoryInput): Promise<void> {
     userId: report.userId,
     enterRaffle: report.enterRaffle,
     catchPhoto: report.catchPhoto,
+    photos: report.photos,
     notes: report.notes,
     gpsCoordinates: report.gpsCoordinates,
     fishEntries: report.fishEntries,
@@ -422,6 +424,14 @@ export async function getHistory(): Promise<SubmittedReport[]> {
 
         console.log('🔍 getHistory - Total reports from Supabase:', supabaseReports.length);
 
+        // Batch-fetch fish_entries for all Supabase reports — transformReport
+        // doesn't populate them (they live in a separate table), so catch_logs
+        // would otherwise come back with no species. Local-only ids are
+        // skipped automatically inside getFishEntriesBatch.
+        const fishEntriesByReportId = await getFishEntriesBatch(
+          supabaseReports.map((r) => r.id),
+        );
+
         // Convert StoredReports to SubmittedReport format
         // Include all reports, using report ID as fallback confirmation number if DMF number is missing
         const supabaseHistory: SubmittedReport[] = supabaseReports
@@ -450,7 +460,11 @@ export async function getHistory(): Promise<SubmittedReport[]> {
             familyCount: r.familyCount || undefined,
             userId: r.userId || undefined,
             enterRaffle: r.enteredRewards,
-            catchPhoto: r.photoUrl || undefined,
+            // Prefer the new photos array (catch_log multi-photo); fall back
+            // to the legacy single photo_url so DMF rows and older catch_log
+            // rows still surface their cover photo.
+            catchPhoto: (r.photos && r.photos.length > 0 ? r.photos[0] : r.photoUrl) || undefined,
+            photos: r.photos && r.photos.length > 0 ? r.photos : undefined,
             notes: r.notes || undefined,
             gpsCoordinates: r.gpsLatitude && r.gpsLongitude
               ? { latitude: r.gpsLatitude, longitude: r.gpsLongitude }
@@ -461,7 +475,21 @@ export async function getHistory(): Promise<SubmittedReport[]> {
             submittedAt: r.dmfSubmittedAt || r.createdAt,
             raffleEntered: r.enteredRewards,
             raffleId: r.rewardsDrawingId || undefined,
-            fishEntries: r.fishEntries,
+            // Prefer the batch-fetched fish_entries (Supabase source of truth);
+            // fall back to whatever was already on the StoredReport (rare —
+            // would only happen for an unpersisted local report).
+            fishEntries: (() => {
+              const fromBatch = fishEntriesByReportId.get(r.id);
+              if (fromBatch && fromBatch.length > 0) {
+                return fromBatch.map((fe) => ({
+                  species: fe.species,
+                  count: fe.count,
+                  lengths: fe.lengths ?? undefined,
+                  tagNumber: fe.tagNumber ?? undefined,
+                }));
+              }
+              return r.fishEntries;
+            })(),
             reportType: r.reportType,
           } as SubmittedReport));
 
